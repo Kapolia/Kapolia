@@ -1,0 +1,1107 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { ouvrirConversation } from '@/lib/conversations'
+import Avatar from '@/components/Avatar'
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+
+const C = {
+  terracotta: '#C4673A',
+  sable:      '#E8D5B7',
+  creme:      '#F7F2EB',
+  vert:       '#2C4A3E',
+  dark:       '#1A1A1A',
+  grey:       '#6B6B6B',
+  lightGrey:  '#C8C8C8',
+  white:      '#FFFFFF',
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ProfilExperience = {
+  poste: string; entreprise: string
+  date_debut: string; date_fin: string; en_poste: boolean; missions: string
+}
+
+type ProfilDiplome = {
+  intitule: string; ecole: string; annee: string; mention?: string
+}
+
+type Profil = {
+  prenom: string; nom: string; domaine?: string; experience?: string
+  signature?: string; qualites?: string[]; mode_travail?: string[]
+  valeur?: string; projet_phare?: string; passions?: string[]
+  type_poste?: string; structure?: string; disponibilite?: string | string[]
+  ville?: string; competences?: string[]; competences_bonus?: string[]
+  portfolio?: string; user_id?: string
+  experiences?: ProfilExperience[]; diplomes?: ProfilDiplome[]
+  competences_acquises?: string[]; langues?: string[]
+  projet_titre?: string; projet_impact?: string; projet_lien?: string
+  projet_images?: string[]; projet_video_url?: string
+  avatar_url?: string; avatar_type?: string
+  linkedin_url?: string; portfolio_url?: string
+}
+
+// ─── Lookup maps ──────────────────────────────────────────────────────────────
+
+const ENVIRONNEMENT_MAP: Record<string, string> = {
+  startup: 'Startup agile', scaleup: 'Scale-up', corporate: 'Grand groupe', indep: 'Indépendant(e)',
+}
+
+const DEFI_MAP: Record<string, { label: string; desc: string }> = {
+  analyse: { label: "J'analyse avant d'agir",  desc: 'Comprendre pour mieux décider' },
+  action:  { label: "Je teste et j'ajuste",    desc: 'Apprendre en faisant' },
+  collab:  { label: "Je consulte l'équipe",    desc: 'La force du collectif' },
+  creativ: { label: "L'angle inattendu",        desc: "L'originalité comme levier" },
+}
+
+const TYPE_POSTE_MAP: Record<string, string> = {
+  cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance / Mission', alternance: 'Alternance / Stage', ouvert: 'Ouvert(e) à tout',
+}
+
+const LIEU_MAP: Record<string, string> = {
+  remote: '100% Remote', hybride: 'Hybride', presentiel: 'Présentiel', flexible: 'Flexible',
+}
+
+const LANGUE_FLAGS: Record<string, string> = {
+  'Français': '🇫🇷', 'Anglais': '🇬🇧', 'Espagnol': '🇪🇸',
+  'Allemand': '🇩🇪', 'Italien': '🇮🇹', 'Portugais': '🇵🇹',
+  'Arabe': '🇸🇦', 'Chinois': '🇨🇳', 'Autre': '🌐',
+}
+
+const PASSION_EMOJIS: Record<string, string> = {
+  Musique: '🎵', Sport: '⚽', Lecture: '📚', Voyage: '✈️', Cuisine: '🍳',
+  Jeux: '🎮', Photo: '📷', Art: '🎨', Cinema: '🎬', Tech: '💻',
+  Nature: '🌿', Yoga: '🧘', Gaming: '🕹️', Podcast: '🎙️',
+  Randonnée: '🥾', Danse: '💃', Ecriture: '✍️', Dessin: '✏️', Montagne: '⛰️',
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getInitials(prenom: string, nom: string) {
+  return `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase()
+}
+
+function getDispoStatus(dispo?: string | string[]): { color: string; label: string } {
+  const val = Array.isArray(dispo) ? '' : (dispo ?? '')
+  const low = val.toLowerCase()
+  if (low.includes('non') || low.includes('indisponible') || low.includes('en poste'))
+    return { color: '#C0392B', label: 'Non disponible' }
+  if (low.includes('3 mois') || low.includes('prochain') || low.includes('bientôt') || low.includes('mois'))
+    return { color: '#E67E22', label: 'Disponible prochainement' }
+  return { color: '#27AE60', label: 'Disponible' }
+}
+
+// ─── Score circle ─────────────────────────────────────────────────────────────
+
+function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
+  const [animated, setAnimated] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setAnimated(true), 400); return () => clearTimeout(t) }, [])
+  const r = size / 2 - 5
+  const circ = 2 * Math.PI * r
+  const offset = animated ? circ * (1 - score / 100) : circ
+  const color = score >= 80 ? '#6ABFA0' : score >= 60 ? C.terracotta : C.lightGrey
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={4} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={4}
+          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 1.3s cubic-bezier(0.22,1,0.36,1)' }}
+        />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: size * 0.22, color: C.white, fontWeight: 700, lineHeight: 1 }}>{score}%</div>
+        <div style={{ fontSize: size * 0.12, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginTop: 2 }}>Match</div>
+      </div>
+    </div>
+  )
+}
+
+function SLabel({ children }: { children: string }) {
+  return (
+    <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>
+      {children}
+    </div>
+  )
+}
+
+const editInputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 12px', fontSize: 13, borderRadius: 8,
+  border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark,
+  outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+type ProfilViewProps = {
+  userId: string
+  isOwner: boolean
+  initialEditMode?: boolean
+  notFoundRedirect?: string
+  sidebarOffset?: number
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function ProfilView({
+  userId,
+  isOwner,
+  initialEditMode = false,
+  notFoundRedirect,
+  sidebarOffset = 64,
+}: ProfilViewProps) {
+  const router = useRouter()
+
+  const [profil, setProfil]   = useState<Profil | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saved, setSaved]     = useState(false)
+  const [notFound, setNotFound] = useState(false)
+  const [projetModal, setProjetModal]         = useState(false)
+  const [zoomImage, setZoomImage]             = useState<string | null>(null)
+  const [projetCardHover, setProjetCardHover] = useState(false)
+
+  const [toastMsg, setToastMsg]         = useState('')
+  const [toastVisible, setToastVisible] = useState(false)
+  const [writingMsg, setWritingMsg]     = useState(false)
+
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving]       = useState(false)
+
+  const [editSignature, setEditSignature]           = useState('')
+  const [editQualites, setEditQualites]             = useState<string[]>([])
+  const [editCompetences, setEditCompetences]       = useState<string[]>([])
+  const [editExperiences, setEditExperiences]       = useState<ProfilExperience[]>([])
+  const [editDiplomes, setEditDiplomes]             = useState<ProfilDiplome[]>([])
+  const [editProjetTitre, setEditProjetTitre]       = useState('')
+  const [editProjetDesc, setEditProjetDesc]         = useState('')
+  const [editProjetImpact, setEditProjetImpact]     = useState('')
+  const [editProjetLien, setEditProjetLien]         = useState('')
+  const [editProjetImages, setEditProjetImages]     = useState<string[]>([])
+  const [editProjetVideo, setEditProjetVideo]       = useState('')
+  const [uploadingImages, setUploadingImages]       = useState(false)
+  const [uploadingVideo, setUploadingVideo]         = useState(false)
+  const [avatarModal, setAvatarModal]               = useState(false)
+  const [avatarTab, setAvatarTab]                   = useState<'photo' | 'avatar' | 'initiales'>('photo')
+  const [avatarFile, setAvatarFile]                 = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview]           = useState<string | null>(null)
+  const [selectedColor, setSelectedColor]           = useState('#C4673A')
+  const [selectedEmoji, setSelectedEmoji]           = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar]       = useState(false)
+  const [newQualite, setNewQualite]                 = useState('')
+  const [newCompetence, setNewCompetence]           = useState('')
+  const [editVille, setEditVille]                   = useState('')
+  const [editLinkedinUrl, setEditLinkedinUrl]       = useState('')
+  const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
+
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const avatarFileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      setNotFound(false)
+
+      const { data, error } = await supabase.from('profils').select('*').eq('user_id', userId).single()
+
+      if (error || !data) {
+        if (notFoundRedirect) {
+          router.replace(notFoundRedirect)
+        } else {
+          setNotFound(true)
+          setLoading(false)
+        }
+        return
+      }
+
+      const profil = data as Profil
+      setProfil(profil)
+      setLoading(false)
+
+      if (!isOwner) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        if (currentUser) {
+          const { error: vueError } = await supabase.from('vues_profil').insert({
+            profil_id:    profil.user_id,
+            visiteur_id:  currentUser.id,
+            visiteur_type: 'recruteur',
+          })
+          if (vueError) {
+            if (vueError.code === '23505') console.log('vues_profil: vue déjà enregistrée aujourd\'hui')
+            else console.error('vues_profil INSERT error:', vueError)
+          }
+        }
+      }
+
+      if (isOwner && initialEditMode) {
+        setEditSignature(profil.signature ?? '')
+        setEditQualites([...(profil.qualites ?? [])])
+        setEditCompetences([...(profil.competences_acquises ?? [])])
+        setEditExperiences(JSON.parse(JSON.stringify(profil.experiences ?? [])))
+        setEditDiplomes(JSON.parse(JSON.stringify(profil.diplomes ?? [])))
+        setEditProjetTitre(profil.projet_titre ?? '')
+        setEditProjetDesc(profil.projet_phare ?? '')
+        setEditProjetImpact(profil.projet_impact ?? '')
+        setEditProjetLien(profil.projet_lien ?? '')
+        setEditProjetImages([...(profil.projet_images ?? [])])
+        setEditProjetVideo(profil.projet_video_url ?? '')
+        setEditVille(profil.ville ?? '')
+        setEditLinkedinUrl(profil.linkedin_url ?? '')
+        setEditPortfolioUrl(profil.portfolio_url ?? '')
+        setIsEditing(true)
+      }
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, isOwner, initialEditMode, notFoundRedirect])
+
+  if (loading) return (
+    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+    </main>
+  )
+
+  if (notFound) return (
+    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontSize: 40 }}>◎</div>
+      <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark }}>Profil introuvable</div>
+      <div style={{ fontSize: 14, color: C.grey }}>Ce profil n'existe pas ou n'est plus accessible.</div>
+      <button onClick={() => router.back()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+        ← Retour
+      </button>
+    </main>
+  )
+
+  const p = profil!
+
+  const initials         = getInitials(p.prenom, p.nom)
+  const dispo            = getDispoStatus(p.disponibilite)
+  const modeTravailItems = (p.mode_travail ?? []).map(k => ENVIRONNEMENT_MAP[k] ?? k)
+  const valeurInfo       = DEFI_MAP[p.valeur ?? ''] ?? { label: p.valeur ?? '', desc: '' }
+  const typePosteLabel   = TYPE_POSTE_MAP[p.type_poste ?? ''] ?? p.type_poste ?? '—'
+  const structureLabel   = LIEU_MAP[p.structure ?? ''] ?? p.structure ?? '—'
+  const qualites            = p.qualites ?? []
+  const passions            = p.passions ?? []
+  const experiences         = p.experiences ?? []
+  const diplomes            = p.diplomes ?? []
+  const competencesAcquises = p.competences_acquises ?? []
+  const langues             = p.langues ?? []
+  const projetImages        = p.projet_images ?? []
+  const projetLien          = p.projet_lien ?? ''
+  const projetImpact        = p.projet_impact ?? ''
+  const projetVideoUrl      = p.projet_video_url ?? ''
+
+  function showToast(msg: string) {
+    setToastMsg(msg); setToastVisible(true)
+    setTimeout(() => setToastVisible(false), 3000)
+  }
+
+  function startEdit() {
+    setEditSignature(p.signature ?? '')
+    setEditQualites([...(p.qualites ?? [])])
+    setEditCompetences([...(p.competences_acquises ?? [])])
+    setEditExperiences(JSON.parse(JSON.stringify(p.experiences ?? [])))
+    setEditDiplomes(JSON.parse(JSON.stringify(p.diplomes ?? [])))
+    setEditProjetTitre(p.projet_titre ?? '')
+    setEditProjetDesc(p.projet_phare ?? '')
+    setEditProjetImpact(p.projet_impact ?? '')
+    setEditProjetLien(p.projet_lien ?? '')
+    setEditProjetImages([...(p.projet_images ?? [])])
+    setEditProjetVideo(p.projet_video_url ?? '')
+    setEditVille(p.ville ?? '')
+    setEditLinkedinUrl(p.linkedin_url ?? '')
+    setEditPortfolioUrl(p.portfolio_url ?? '')
+    setNewQualite(''); setNewCompetence('')
+    setIsEditing(true)
+  }
+
+  function cancelEdit() { setIsEditing(false) }
+
+  function openAvatarModal() {
+    const type = p.avatar_type ?? 'initiales'
+    setAvatarTab(type === 'photo' ? 'photo' : type === 'avatar' ? 'avatar' : 'initiales')
+    setSelectedColor(type === 'initiales' && p.avatar_url ? p.avatar_url : '#C4673A')
+    setSelectedEmoji(type === 'avatar' ? (p.avatar_url ?? null) : null)
+    setAvatarPreview(null)
+    setAvatarFile(null)
+    setAvatarModal(true)
+  }
+
+  async function saveAvatar() {
+    setUploadingAvatar(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setUploadingAvatar(false); return }
+
+    let newUrl: string | null = null
+    let newType: string | null = null
+
+    if (avatarTab === 'photo' && avatarFile) {
+      const path = `${user.id}/avatar.jpg`
+      const { error } = await supabase.storage.from('avatars').upload(path, avatarFile, { upsert: true, contentType: avatarFile.type })
+      if (error) { showToast(`Erreur: ${error.message}`); setUploadingAvatar(false); return }
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+      newUrl = `${urlData.publicUrl}?t=${Date.now()}`
+      newType = 'photo'
+    } else if (avatarTab === 'avatar' && selectedEmoji) {
+      newUrl = selectedEmoji
+      newType = 'avatar'
+    } else if (avatarTab === 'initiales') {
+      newUrl = selectedColor
+      newType = 'initiales'
+    }
+
+    if (!newUrl || !newType) { setUploadingAvatar(false); return }
+
+    const { error } = await supabase.from('profils').update({ avatar_url: newUrl, avatar_type: newType }).eq('user_id', user.id)
+    if (error) { showToast(`Erreur: ${error.message}`); setUploadingAvatar(false); return }
+
+    setProfil(prev => prev ? { ...prev, avatar_url: newUrl!, avatar_type: newType! } : null)
+    setAvatarModal(false)
+    setUploadingAvatar(false)
+    showToast('Avatar mis à jour ✓')
+  }
+
+  async function saveEdit() {
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSaving(false); return }
+
+    const coreData = {
+      signature:            editSignature,
+      qualites:             editQualites,
+      competences_acquises: editCompetences,
+      experiences:          editExperiences,
+      diplomes:             editDiplomes,
+      projet_phare:         editProjetDesc,
+      ville:                editVille,
+    }
+
+    const projetData = {
+      projet_titre:     editProjetTitre,
+      projet_impact:    editProjetImpact,
+      projet_lien:      editProjetLien,
+      projet_images:    editProjetImages,
+      projet_video_url: editProjetVideo,
+      linkedin_url:     editLinkedinUrl,
+      portfolio_url:    editPortfolioUrl,
+    }
+
+    const editData = { ...coreData, ...projetData }
+
+    const { error } = await supabase.from('profils').update(editData).eq('user_id', user.id)
+
+    if (!error) {
+      setProfil(prev => prev ? { ...prev, ...editData } : null)
+      setIsEditing(false)
+      showToast('Profil mis à jour ✓')
+      setSaving(false)
+      return
+    }
+
+    if (error.code === '42703') {
+      console.warn('Colonnes projet_* absentes — sauvegarde partielle des champs de base.')
+      const { error: err2 } = await supabase.from('profils').update(coreData).eq('user_id', user.id)
+      if (!err2) {
+        setProfil(prev => prev ? { ...prev, ...coreData } : null)
+        setIsEditing(false)
+        showToast('Profil mis à jour ✓ (colonnes projet manquantes — voir console)')
+      } else {
+        showToast(`Erreur : ${err2.message}`)
+      }
+    } else {
+      showToast(`Erreur : ${error.message}`)
+    }
+
+    setSaving(false)
+  }
+
+  async function processImageFiles(files: FileList) {
+    const remaining = 5 - editProjetImages.length
+    if (remaining <= 0) { showToast('Maximum 5 images.'); return }
+    const MAX = 5 * 1024 * 1024
+    setUploadingImages(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setUploadingImages(false); return }
+    const urls: string[] = []
+    for (const file of Array.from(files).slice(0, remaining)) {
+      if (file.size > MAX) { showToast(`${file.name} dépasse 5 MB.`); continue }
+      const path = `projets/${user.id}/${Date.now()}-${file.name}`
+      const { error } = await supabase.storage.from('projets-medias').upload(path, file)
+      if (!error) {
+        const { data: u } = supabase.storage.from('projets-medias').getPublicUrl(path)
+        urls.push(u.publicUrl)
+      }
+    }
+    setEditProjetImages(prev => [...prev, ...urls])
+    setUploadingImages(false)
+  }
+
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files; e.target.value = ''
+    if (files?.length) processImageFiles(files)
+  }
+
+  async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    if (file.size > 50 * 1024 * 1024) { showToast('La vidéo dépasse 50 MB.'); return }
+    const duration = await new Promise<number>(resolve => {
+      const vid = document.createElement('video'); vid.preload = 'metadata'
+      vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration) }
+      vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(0) }
+      vid.src = URL.createObjectURL(file)
+    })
+    if (duration > 30) { showToast('La vidéo doit faire 30 secondes maximum.'); return }
+    setUploadingVideo(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setUploadingVideo(false); return }
+    const path = `projets/${user.id}/video-${Date.now()}-${file.name}`
+    const { error } = await supabase.storage.from('projets-medias').upload(path, file)
+    if (error) { showToast("Erreur upload vidéo."); setUploadingVideo(false); return }
+    const { data: u } = supabase.storage.from('projets-medias').getPublicUrl(path)
+    setEditProjetVideo(u.publicUrl)
+    setUploadingVideo(false)
+  }
+
+  function updateExp(i: number, patch: Partial<ProfilExperience>) {
+    const arr = [...editExperiences]; arr[i] = { ...arr[i], ...patch }; setEditExperiences(arr)
+  }
+  function updateDip(i: number, patch: Partial<ProfilDiplome>) {
+    const arr = [...editDiplomes]; arr[i] = { ...arr[i], ...patch }; setEditDiplomes(arr)
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
+
+  return (
+    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: isEditing ? 72 : 0 }}>
+      <style suppressHydrationWarning>{`
+        @keyframes kavio-spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+      `}</style>
+
+      {/* Toast */}
+      <div style={{
+        position: 'fixed', bottom: isEditing ? 84 : 28, left: '50%',
+        transform: `translateX(-50%) translateY(${toastVisible ? '0' : '14px'})`,
+        opacity: toastVisible ? 1 : 0, transition: 'opacity 0.22s, transform 0.22s',
+        pointerEvents: 'none', zIndex: 300,
+        backgroundColor: toastMsg.includes('Erreur') ? '#C0392B' : C.vert,
+        color: C.white, padding: '11px 22px', borderRadius: 28, fontSize: 14, fontWeight: 600,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.18)', whiteSpace: 'nowrap' as const,
+      }}>
+        {toastMsg}
+      </div>
+
+      {/* Hidden file inputs */}
+      <input ref={imageInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
+      <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoUpload} />
+      <input ref={avatarFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+        const file = e.target.files?.[0]; e.target.value = ''
+        if (!file) return
+        setAvatarFile(file)
+        setAvatarPreview(URL.createObjectURL(file))
+      }} />
+
+      {/* ━━━ HERO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section style={{ backgroundColor: C.vert, padding: '40px clamp(24px, 5vw, 60px)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
+
+          {/* Avatar */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Avatar profil={p} size="lg" />
+            {isEditing && (
+              <button
+                onClick={openAvatarModal}
+                style={{
+                  position: 'absolute', inset: 0, borderRadius: '50%', border: 'none',
+                  backgroundColor: 'rgba(0,0,0,0.45)', color: C.white, fontSize: 20,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  opacity: 0, transition: 'opacity 0.15s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0' }}
+                title="Changer l'avatar"
+              >
+                ✏️
+              </button>
+            )}
+            {!isEditing && (
+              <div style={{
+                position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, borderRadius: '50%',
+                backgroundColor: dispo.color, border: `2.5px solid ${C.vert}`,
+              }} title={dispo.label} />
+            )}
+          </div>
+
+          {/* Identité */}
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 6px', lineHeight: 1.2 }}>
+              {p.prenom} {p.nom}
+            </h1>
+            {isEditing ? (
+              <input
+                value={editVille}
+                onChange={e => setEditVille(e.target.value)}
+                placeholder="Votre ville"
+                style={{
+                  width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
+                  color: C.white, fontSize: 13, padding: '6px 12px',
+                  fontFamily: 'inherit', outline: 'none', marginBottom: 10,
+                  boxSizing: 'border-box',
+                }}
+              />
+            ) : (
+              p.ville && <div style={{ marginBottom: 10 }}><span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>◎ {p.ville}</span></div>
+            )}
+
+            {isEditing ? (
+              <textarea
+                value={editSignature}
+                onChange={e => setEditSignature(e.target.value)}
+                placeholder="Votre phrase signature…"
+                rows={2}
+                style={{
+                  width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
+                  color: C.white, fontSize: 14, padding: '8px 12px',
+                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                  resize: 'none', outline: 'none', lineHeight: 1.5,
+                }}
+              />
+            ) : (
+              p.signature && (
+                <p style={{
+                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                  fontSize: 14, color: C.sable, lineHeight: 1.5, margin: 0,
+                  overflow: 'hidden', textOverflow: 'ellipsis',
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
+                }}>
+                  « {p.signature} »
+                </p>
+              )
+            )}
+          </div>
+
+          {/* CTA */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+            {!isEditing && !isOwner && <ScoreCircle score={83} size={72} />}
+            {!isEditing && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {isOwner ? (
+                  <button onClick={startEdit} style={{
+                    padding: '8px 20px', borderRadius: 10, border: 'none',
+                    backgroundColor: C.terracotta, color: C.white,
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                    ✏️ Modifier mon profil
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={async () => {
+                        setWritingMsg(true)
+                        const convId = await ouvrirConversation(userId)
+                        setWritingMsg(false)
+                        if (!convId) { alert("Impossible d'ouvrir la conversation"); return }
+                        router.push(`/recruteur/messages?conv=${convId}`)
+                      }}
+                      disabled={writingMsg}
+                      style={{
+                        padding: '8px 18px', borderRadius: 10, border: 'none',
+                        backgroundColor: C.terracotta, color: C.white,
+                        fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer',
+                        fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1,
+                      }}
+                    >{writingMsg ? '…' : '✉ Écrire'}</button>
+                    <button onClick={() => setSaved(s => !s)} style={{
+                      padding: '8px 18px', borderRadius: 10,
+                      border: `1.5px solid ${saved ? '#6ABFA0' : 'rgba(255,255,255,0.2)'}`,
+                      backgroundColor: saved ? 'rgba(106,191,160,0.15)' : 'rgba(255,255,255,0.08)',
+                      color: saved ? '#6ABFA0' : 'rgba(255,255,255,0.8)',
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
+                    }}>
+                      {saved ? '⭐ Sauvegardé' : '☆ Sauvegarder'}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━ BANDE CE QUE JE RECHERCHE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section style={{ backgroundColor: '#FEF4EE', borderBottom: `1px solid ${C.sable}` }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px, 5vw, 60px)' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', padding: '12px 0 10px' }}>
+            Ce que je recherche
+          </div>
+          <div style={{ display: 'flex', alignItems: 'stretch' }}>
+            {[
+              { icon: '📋', label: 'Contrat',    value: typePosteLabel },
+              { icon: '🏢', label: 'Entreprise', value: structureLabel },
+              { icon: '📅', label: 'Disponible', value: dispo.label },
+              { icon: '🏠', label: 'Travail',    value: modeTravailItems.join(', ') || '—' },
+              { icon: '🤝', label: 'Priorité',   value: valeurInfo.label || '—' },
+            ].map(item => (
+              <div key={item.label} style={{ flex: 1, padding: '0 14px 16px', borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>
+                    {item.label}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: item.label === 'Disponible' ? dispo.color : C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {item.value}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {p.portfolio && (
+              <div style={{ padding: '0 0 16px 18px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <a href={p.portfolio} target="_blank" rel="noreferrer" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '6px 14px', borderRadius: 20,
+                  backgroundColor: C.terracotta, color: C.white,
+                  fontSize: 11, fontWeight: 600, textDecoration: 'none',
+                }}>
+                  🔗 Portfolio →
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━ CONTENU PRINCIPAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px clamp(24px, 5vw, 60px) 0' }}>
+
+        {/* ── EXPÉRIENCES ────────────────────────────────────────────────────── */}
+        {(isEditing || experiences.length > 0) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Expériences professionnelles</SLabel>
+            {isEditing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {editExperiences.map((exp, i) => (
+                  <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Expérience {i + 1}</span>
+                      <button type="button" onClick={() => setEditExperiences(editExperiences.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.grey, padding: '0 4px', lineHeight: 1 }}>🗑</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      <input style={editInputStyle} value={exp.poste} onChange={e => updateExp(i, { poste: e.target.value })} placeholder="Poste" />
+                      <input style={editInputStyle} value={exp.entreprise} onChange={e => updateExp(i, { entreprise: e.target.value })} placeholder="Entreprise" />
+                      <input style={editInputStyle} value={exp.date_debut} onChange={e => updateExp(i, { date_debut: e.target.value })} placeholder="Début (ex : jan. 2022)" />
+                      <input style={editInputStyle} value={exp.date_fin} onChange={e => updateExp(i, { date_fin: e.target.value })} placeholder="Fin" disabled={exp.en_poste} />
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.grey, marginBottom: 8, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={exp.en_poste} onChange={e => updateExp(i, { en_poste: e.target.checked, date_fin: e.target.checked ? '' : exp.date_fin })} />
+                      En poste actuellement
+                    </label>
+                    <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 72 }} value={exp.missions} onChange={e => updateExp(i, { missions: e.target.value })} placeholder="Missions (une par ligne)…" rows={3} />
+                  </div>
+                ))}
+                <button type="button" onClick={() => setEditExperiences([...editExperiences, { poste: '', entreprise: '', date_debut: '', date_fin: '', en_poste: false, missions: '' }])} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, cursor: 'pointer', border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.terracotta, fontSize: 13, fontWeight: 600 }}>
+                  + Ajouter une expérience
+                </button>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {experiences.map((exp, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 20, paddingLeft: 28, position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: 0, top: 5, width: 16, height: 16, borderRadius: '50%', backgroundColor: C.terracotta, border: `2.5px solid ${C.creme}`, flexShrink: 0 }} />
+                      <div style={{ flex: 1, backgroundColor: C.white, borderRadius: 14, padding: '16px 20px', border: `1px solid ${C.sable}` }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: C.dark, marginBottom: 2 }}>{exp.poste}</div>
+                        <div style={{ fontSize: 12, color: C.grey, marginBottom: exp.missions ? 10 : 0 }}>
+                          {exp.entreprise}
+                          {(exp.date_debut || exp.date_fin || exp.en_poste) && <span style={{ color: C.lightGrey, margin: '0 6px' }}>·</span>}
+                          {exp.date_debut && <span>{exp.date_debut}</span>}
+                          {exp.date_debut && (exp.en_poste || exp.date_fin) && <span> — </span>}
+                          {exp.en_poste ? <span style={{ color: C.terracotta }}>En poste</span> : <span>{exp.date_fin}</span>}
+                        </div>
+                        {exp.missions && (
+                          <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
+                            {exp.missions.split('\n').filter(Boolean).slice(0, 3).map((m, j) => (
+                              <li key={j} style={{ fontSize: 12, color: C.dark, lineHeight: 1.7 }}>{m.trim()}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DIPLÔMES ───────────────────────────────────────────────────────── */}
+        {(isEditing || diplomes.length > 0) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Formation</SLabel>
+            {isEditing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {editDiplomes.map((d, i) => (
+                  <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Diplôme {i + 1}</span>
+                      <button type="button" onClick={() => setEditDiplomes(editDiplomes.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.grey, padding: '0 4px', lineHeight: 1 }}>🗑</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input style={editInputStyle} value={d.intitule} onChange={e => updateDip(i, { intitule: e.target.value })} placeholder="Intitulé du diplôme" />
+                      <input style={editInputStyle} value={d.ecole} onChange={e => updateDip(i, { ecole: e.target.value })} placeholder="École / Établissement" />
+                      <input style={editInputStyle} value={d.annee} onChange={e => updateDip(i, { annee: e.target.value })} placeholder="Année (ex : 2021)" />
+                      <input style={editInputStyle} value={d.mention ?? ''} onChange={e => updateDip(i, { mention: e.target.value })} placeholder="Mention (optionnel)" />
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setEditDiplomes([...editDiplomes, { intitule: '', ecole: '', annee: '', mention: '' }])} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, cursor: 'pointer', border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.terracotta, fontSize: 13, fontWeight: 600 }}>
+                  + Ajouter un diplôme
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {diplomes.map((d, i) => (
+                  <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.sable}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>🎓</span>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: C.dark }}>{d.intitule}</div>
+                      <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
+                        {d.ecole}{d.annee && <> · {d.annee}</>}{d.mention && <> · <span style={{ color: C.terracotta }}>{d.mention}</span></>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PROJET PHARE ───────────────────────────────────────────────────── */}
+        {(isEditing || p.projet_phare) && (
+          <div style={{ marginBottom: 32 }}>
+            {isEditing ? (
+              <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
+                <SLabel>Projet phare</SLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <input style={editInputStyle} value={editProjetTitre} onChange={e => setEditProjetTitre(e.target.value)} placeholder="Titre du projet" />
+                  <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => setEditProjetDesc(e.target.value)} placeholder="Description du projet…" rows={4} />
+                  <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
+                  <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
+                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(e.dataTransfer.files) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
+                      {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
+                    </div>
+                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
+                      📷 Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
+                    </button>
+                    {editProjetImages.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginTop: 8 }}>
+                        {editProjetImages.map((url, i) => (
+                          <div key={i} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', backgroundColor: C.sable }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            <button type="button" onClick={() => setEditProjetImages(editProjetImages.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: C.white, border: 'none', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
+                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
+                      {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>🎬 {editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
+                    </button>
+                    {editProjetVideo && (
+                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
+                        <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
+                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.creme, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.white, fontWeight: 400 }}>{p.projet_titre || 'Projet phare'}</div>
+                  <span style={{ padding: '3px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}40`, color: C.terracotta, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const }}>{projetImpact || 'Impact'}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>🖼 Voir les détails du projet →</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── CITATION ───────────────────────────────────────────────────────── */}
+        {valeurInfo.label && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Face à un défi</SLabel>
+            <blockquote style={{ margin: 0, padding: '18px 20px', backgroundColor: C.white, borderRadius: '0 14px 14px 0', border: `1px solid ${C.sable}`, borderLeft: `3px solid ${C.terracotta}` }}>
+              <p style={{ margin: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 14, color: C.dark, lineHeight: 1.7 }}>« {valeurInfo.label} »</p>
+              {valeurInfo.desc && <p style={{ margin: '8px 0 0', fontSize: 12, color: C.grey }}>{valeurInfo.desc}</p>}
+            </blockquote>
+          </div>
+        )}
+
+        {/* ── QUALITÉS ───────────────────────────────────────────────────────── */}
+        {(isEditing || qualites.length > 0) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Qualités naturelles</SLabel>
+            {isEditing ? (
+              <div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {editQualites.map(q => (
+                    <span key={q} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
+                      {q}<button type="button" onClick={() => setEditQualites(editQualites.filter(x => x !== q))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={{ ...editInputStyle, flex: 1 }} value={newQualite} onChange={e => setNewQualite(e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); const v = newQualite.trim(); if (v && !editQualites.includes(v)) { setEditQualites([...editQualites, v]); setNewQualite('') } }} placeholder="Ajouter une qualité… (Entrée pour valider)" />
+                  <button type="button" onClick={() => { const v = newQualite.trim(); if (v && !editQualites.includes(v)) { setEditQualites([...editQualites, v]); setNewQualite('') } }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>+</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {qualites.map(q => <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── COMPÉTENCES ────────────────────────────────────────────────────── */}
+        {(isEditing || competencesAcquises.length > 0) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Compétences acquises</SLabel>
+            {isEditing ? (
+              <div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {editCompetences.map(c => (
+                    <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>
+                      {c}<button type="button" onClick={() => setEditCompetences(editCompetences.filter(x => x !== c))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input style={{ ...editInputStyle, flex: 1 }} value={newCompetence} onChange={e => setNewCompetence(e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }} placeholder="Ajouter une compétence… (Entrée pour valider)" />
+                  <button type="button" onClick={() => { const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>+</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {competencesAcquises.map(s => <span key={s} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>{s}</span>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LANGUES ────────────────────────────────────────────────────────── */}
+        {langues.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Langues</SLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {langues.map((entry: string) => {
+                const sepIdx = entry.indexOf(' — ')
+                const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
+                const niv    = sepIdx >= 0 ? entry.slice(sepIdx + 3) : ''
+                const flag   = LANGUE_FLAGS[nom] ?? '🌐'
+                return (
+                  <span key={entry} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
+                    {flag} {nom}{niv && <span style={{ color: C.grey, fontWeight: 400 }}> — {niv}</span>}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── LIENS & PORTFOLIO ──────────────────────────────────────────────── */}
+        {(isEditing || p.linkedin_url || p.portfolio_url) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Liens & Portfolio</SLabel>
+            {isEditing ? (
+              <div style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.grey }}>Lien LinkedIn</span>
+                  <input style={editInputStyle} type="url" value={editLinkedinUrl} onChange={e => setEditLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/votre-profil" />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: C.grey }}>Portfolio / Site web</span>
+                  <input style={editInputStyle} type="url" value={editPortfolioUrl} onChange={e => setEditPortfolioUrl(e.target.value)} placeholder="https://votre-portfolio.com" />
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {p.linkedin_url && (
+                  <a href={p.linkedin_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, fontWeight: 600, color: '#0A66C2', textDecoration: 'none' }}>
+                    🔗 LinkedIn →
+                  </a>
+                )}
+                {p.portfolio_url && (
+                  <a href={p.portfolio_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, fontWeight: 600, color: C.vert, textDecoration: 'none' }}>
+                    🌐 Portfolio →
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── EN DEHORS DU TRAVAIL ───────────────────────────────────────────── */}
+        {passions.length > 0 && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>En dehors du travail</SLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {passions.map(passion => (
+                <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
+                  {PASSION_EMOJIS[passion] ?? '•'} {passion}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      <div style={{ height: 60 }} />
+
+      {/* ━━━ BARRE FLOTTANTE ÉDITION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {isEditing && (
+        <div style={{ position: 'fixed', bottom: 0, left: sidebarOffset, right: 0, zIndex: 200, backgroundColor: C.dark, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Mode édition — modifications non sauvegardées</span>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={cancelEdit} style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annuler</button>
+            <button onClick={saveEdit} disabled={saving} style={{ padding: '8px 22px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.65 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {saving && <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kavio-spin 0.7s linear infinite' }} />}
+              {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ MODALE PROJET PHARE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {projetModal && !isEditing && (
+        <div onClick={() => setProjetModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px, 4%, 40px)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
+              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark, margin: 0, fontWeight: 400, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
+              <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.grey, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+            </div>
+            {projetVideoUrl && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Présentation du projet (30 sec)</div>
+                <div style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}><video src={projetVideoUrl} controls style={{ width: '100%', maxHeight: 320, display: 'block' }} /></div>
+              </div>
+            )}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Description</div>
+              <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.projet_phare}</p>
+              {projetImpact && <div style={{ marginTop: 14 }}><span style={{ display: 'inline-block', padding: '5px 14px', borderRadius: 20, backgroundColor: `${C.terracotta}15`, color: C.terracotta, fontSize: 13, fontWeight: 700 }}>{projetImpact}</span></div>}
+            </div>
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Images</div>
+              {projetImages.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                  {projetImages.map((url, i) => (
+                    <div key={i} onClick={() => setZoomImage(url)} style={{ borderRadius: 10, overflow: 'hidden', cursor: 'zoom-in', aspectRatio: '16/9', backgroundColor: C.sable }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: 20, textAlign: 'center' as const, color: C.grey, fontSize: 13, backgroundColor: C.creme, borderRadius: 10 }}>Aucune image ajoutée</div>
+              )}
+            </div>
+            {projetLien && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Lien</div>
+                <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>🔗 Voir le projet en ligne →</a>
+                <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>{projetLien.length > 60 ? projetLien.slice(0, 60) + '…' : projetLien}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ MODALE AVATAR ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {avatarModal && (
+        <div onClick={() => setAvatarModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 24, width: '100%', maxWidth: 480, padding: 'clamp(24px, 4%, 36px)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, margin: 0, fontWeight: 400 }}>Personnaliser mon avatar</h2>
+              <button onClick={() => setAvatarModal(false)} style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 28, backgroundColor: C.creme, borderRadius: 12, padding: 4 }}>
+              {(['photo', 'avatar', 'initiales'] as const).map(tab => (
+                <button key={tab} onClick={() => setAvatarTab(tab)} style={{ flex: 1, padding: '8px 6px', borderRadius: 9, border: 'none', backgroundColor: avatarTab === tab ? C.white : 'transparent', boxShadow: avatarTab === tab ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', color: avatarTab === tab ? C.dark : C.grey, fontSize: 13, fontWeight: avatarTab === tab ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}>
+                  {tab === 'photo' ? '📷 Photo' : tab === 'avatar' ? '🧑 Avatar' : '✦ Initiales'}
+                </button>
+              ))}
+            </div>
+            {avatarTab === 'photo' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+                {avatarPreview ? (
+                  <div style={{ width: 110, height: 110, borderRadius: '50%', overflow: 'hidden', border: `3px solid ${C.terracotta}`, flexShrink: 0 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={avatarPreview} alt="Prévisualisation" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ) : (
+                  <div style={{ width: 110, height: 110, borderRadius: '50%', backgroundColor: C.creme, border: `2px dashed ${C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📷</div>
+                )}
+                <button onClick={() => avatarFileRef.current?.click()} style={{ padding: '10px 24px', borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>📷 Choisir une photo</button>
+                <p style={{ fontSize: 12, color: C.grey, margin: 0, textAlign: 'center' as const }}>JPG, PNG ou WebP · Max 5 MB · Recadrage circulaire automatique</p>
+              </div>
+            )}
+            {avatarTab === 'avatar' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center' }}>
+                  {['🧑','👩','👨','🧔','👱','👩‍🦱','👨‍🦱','👩‍🦰','👨‍🦰','🧓','👴','👵'].map(emoji => (
+                    <button key={emoji} onClick={() => setSelectedEmoji(emoji)} style={{ width: 54, height: 54, borderRadius: '50%', border: `3px solid ${selectedEmoji === emoji ? C.terracotta : C.sable}`, backgroundColor: selectedEmoji === emoji ? `${C.terracotta}12` : C.creme, fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>{emoji}</button>
+                  ))}
+                </div>
+                {selectedEmoji && <p style={{ fontSize: 12, color: C.grey, textAlign: 'center' as const, margin: 0 }}>Sélectionné : <span style={{ fontSize: 20 }}>{selectedEmoji}</span></p>}
+              </div>
+            )}
+            {avatarTab === 'initiales' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
+                <div style={{ width: 96, height: 96, borderRadius: '50%', backgroundColor: selectedColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontSize: 30, color: C.white, fontWeight: 700 }}>{initials}</div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
+                  {['#C4673A','#2C4A3E','#3B82F6','#7C3AED','#EC4899','#475569'].map(color => (
+                    <button key={color} onClick={() => setSelectedColor(color)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', backgroundColor: color, cursor: 'pointer', outline: selectedColor === color ? `3px solid ${C.dark}` : '3px solid transparent', outlineOffset: 2, transition: 'outline 0.15s' }} title={color} />
+                  ))}
+                </div>
+                <p style={{ fontSize: 12, color: C.grey, margin: 0 }}>Vos initiales : <strong style={{ color: C.dark }}>{initials}</strong></p>
+              </div>
+            )}
+            <div style={{ marginTop: 28, display: 'flex', gap: 10 }}>
+              <button onClick={() => setAvatarModal(false)} style={{ flex: 1, padding: '11px', borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.dark, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
+              <button onClick={saveAvatar} disabled={uploadingAvatar || (avatarTab === 'photo' && !avatarFile) || (avatarTab === 'avatar' && !selectedEmoji)} style={{ flex: 2, padding: '11px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: uploadingAvatar ? 'default' : 'pointer', opacity: (uploadingAvatar || (avatarTab === 'photo' && !avatarFile) || (avatarTab === 'avatar' && !selectedEmoji)) ? 0.55 : 1, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {uploadingAvatar && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kavio-spin 0.7s linear infinite' }} />}
+                {uploadingAvatar ? 'Sauvegarde…' : 'Sauvegarder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ ZOOM IMAGE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {zoomImage && (
+        <div onClick={() => setZoomImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.92)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoomImage} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8, display: 'block' }} />
+        </div>
+      )}
+    </main>
+  )
+}

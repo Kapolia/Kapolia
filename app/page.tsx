@@ -1,65 +1,185 @@
-import Image from "next/image";
+import Link from 'next/link'
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen" style={{ backgroundColor: '#F7F2EB' }}>
+
+      {/* NAVBAR */}
+      <nav className="flex items-center justify-between px-12 py-5">
+        <div>
+          <img src="/logo-kavio.png" alt="Kavio" style={{ height: '56px', objectFit: 'contain' }} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <Link
+          href="/inscription"
+          style={{
+            backgroundColor: '#C4673A',
+            color: 'white',
+            borderRadius: '24px',
+            padding: '9px 22px',
+            fontSize: '14px',
+            textDecoration: 'none',
+            display: 'inline-block',
+          }}
+        >
+          Rejoindre la liste →
+        </Link>
+      </nav>
+
+      {/* HERO */}
+      <section className="flex flex-col items-center justify-center text-center px-6 py-32">
+        <div
+          style={{
+            backgroundColor: 'white',
+            border: '1px solid #E8D5B7',
+            borderRadius: '24px',
+            padding: '6px 16px',
+            fontSize: '13px',
+            color: '#6B6B6B',
+            marginBottom: '32px',
+          }}
+        >
+          🟠 Bientôt disponible en France · Rejoignez la liste d'attente
         </div>
-      </main>
-    </div>
-  );
+
+        <h1
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: 'clamp(44px, 7vw, 80px)',
+            lineHeight: '1.1',
+            color: '#1A1A1A',
+            maxWidth: '760px',
+            marginBottom: '24px',
+          }}
+        >
+          Le recrutement qui vous voit{' '}
+          <em style={{ color: '#C4673A' }}>vraiment.</em>
+        </h1>
+
+        <p
+          style={{
+            fontSize: '19px',
+            color: '#6B6B6B',
+            maxWidth: '520px',
+            lineHeight: '1.7',
+            fontWeight: '300',
+            marginBottom: '48px',
+          }}
+        >
+          Fini les CV formatés et les lettres de motivation. Kavio vous connecte
+          à votre prochaine opportunité à travers qui vous êtes — pas ce que
+          vous avez listé sur une feuille.
+        </p>
+
+        <div className="flex gap-4 flex-wrap justify-center">
+          <Link
+            href="/inscription"
+            style={{
+              backgroundColor: '#C4673A',
+              color: 'white',
+              borderRadius: '14px',
+              padding: '14px 28px',
+              fontSize: '15px',
+              fontWeight: '500',
+              textDecoration: 'none',
+              display: 'inline-block',
+            }}
+          >
+            Je suis candidat(e) →
+          </Link>
+          <Link
+            href="/inscription"
+            style={{
+              backgroundColor: '#2C4A3E',
+              color: 'white',
+              borderRadius: '14px',
+              padding: '14px 28px',
+              fontSize: '15px',
+              fontWeight: '500',
+              textDecoration: 'none',
+              display: 'inline-block',
+            }}
+          >
+            Je recrute →
+          </Link>
+        </div>
+      </section>
+
+      {/* PROBLÈME */}
+      <section
+        style={{ backgroundColor: '#2C4A3E', padding: '80px 48px' }}
+        className="text-center"
+      >
+        <h2
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: 'clamp(32px, 4vw, 52px)',
+            color: 'white',
+            marginBottom: '16px',
+          }}
+        >
+          Le CV date des années 50.
+        </h2>
+        <p
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontStyle: 'italic',
+            fontSize: '22px',
+            color: '#E8D5B7',
+            marginBottom: '48px',
+          }}
+        >
+          Le recrutement, lui, n'a pas changé.
+        </p>
+
+        <div className="flex flex-wrap justify-center gap-6 max-w-3xl mx-auto">
+          {[
+            { val: '12 sem.', label: 'délai moyen de recrutement', src: 'APEC 2025' },
+            { val: '57%', label: 'des recrutements difficiles', src: 'BMO France Travail 2024' },
+            { val: '10,1 M', label: "offres publiées chaque année", src: 'France 2025' },
+          ].map((stat) => (
+            <div
+              key={stat.val}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.07)',
+                borderRadius: '16px',
+                padding: '24px 32px',
+                minWidth: '180px',
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'Georgia, serif',
+                  fontSize: '36px',
+                  color: '#C4673A',
+                  fontWeight: '700',
+                }}
+              >
+                {stat.val}
+              </div>
+              <div style={{ fontSize: '13px', color: 'white', fontWeight: '500', marginTop: '6px' }}>
+                {stat.label}
+              </div>
+              <div style={{ fontSize: '11px', color: '#E8D5B7', marginTop: '4px', opacity: 0.6 }}>
+                {stat.src}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer
+        style={{ backgroundColor: '#1A1A1A', padding: '32px 48px' }}
+        className="flex items-center justify-between flex-wrap gap-4"
+      >
+        <div>
+          <img src="/logo-kavio.png" alt="Kavio" style={{ height: '32px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+        </div>
+        <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '13px', color: '#E8D5B7', opacity: 0.6 }}>
+          « Trouvez votre cap. »
+        </div>
+      </footer>
+
+    </main>
+  )
 }
