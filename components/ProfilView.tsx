@@ -45,6 +45,7 @@ type Profil = {
   linkedin_url?: string; portfolio_url?: string
   plus_grande_reussite?: string
   ce_que_je_veux_apprendre?: string
+  derniere_maj_profil?: string
 }
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
@@ -95,6 +96,22 @@ function getDispoStatus(dispo?: string | string[]): { color: string; label: stri
   if (low.includes('3 mois') || low.includes('prochain') || low.includes('bientôt') || low.includes('mois'))
     return { color: '#E67E22', label: 'Disponible prochainement' }
   return { color: '#27AE60', label: 'Disponible' }
+}
+
+// ─── Profil activity ──────────────────────────────────────────────────────────
+
+function getProfilActivity(dateStr?: string): { label: string; isActif: boolean } {
+  if (!dateStr) return { label: '', isActif: false }
+  const diffMs   = Date.now() - new Date(dateStr).getTime()
+  const diffDays = Math.floor(diffMs / 86_400_000)
+  let label: string
+  if (diffDays === 0)       label = "Profil mis à jour aujourd'hui"
+  else if (diffDays === 1)  label = 'Profil mis à jour hier'
+  else if (diffDays < 7)   label = `Profil mis à jour il y a ${diffDays} jours`
+  else if (diffDays < 14)  label = 'Profil mis à jour la semaine dernière'
+  else if (diffDays < 30)  label = `Profil mis à jour il y a ${Math.floor(diffDays / 7)} semaines`
+  else                      label = `Profil mis à jour il y a ${Math.floor(diffDays / 30)} mois`
+  return { label, isActif: diffDays < 7 }
 }
 
 // ─── Score circle ─────────────────────────────────────────────────────────────
@@ -299,6 +316,7 @@ export default function ProfilView({
   const projetLien          = p.projet_lien ?? ''
   const projetImpact        = p.projet_impact ?? ''
   const projetVideoUrl      = p.projet_video_url ?? ''
+  const activity            = getProfilActivity(p.derniere_maj_profil)
 
   function showToast(msg: string) {
     setToastMsg(msg); setToastVisible(true)
@@ -567,6 +585,24 @@ export default function ProfilView({
             ) : (
               p.ville && <div><span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>◎ {p.ville}</span></div>
             )}
+
+            {/* Indicateur activité (signal de confiance côté recruteur) */}
+            {!isEditing && activity.label && (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {activity.isActif && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '3px 9px', borderRadius: 20,
+                    backgroundColor: 'rgba(39,174,96,0.18)',
+                    border: '1px solid rgba(39,174,96,0.4)',
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#27AE60', flexShrink: 0, boxShadow: '0 0 0 2px rgba(39,174,96,0.3)' }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#6ABFA0', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Actif</span>
+                  </span>
+                )}
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>{activity.label}</span>
+              </div>
+            )}
           </div>
 
           {/* CTA */}
@@ -657,6 +693,79 @@ export default function ProfilView({
           </div>
         </div>
       </section>
+
+      {/* ━━━ VIDÉO EN VEDETTE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {!isEditing && (projetVideoUrl || isOwner) && (
+        <section style={{ backgroundColor: C.creme, borderBottom: `1px solid ${C.sable}` }}>
+          <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px clamp(24px, 5vw, 60px)' }}>
+            {projetVideoUrl ? (
+              <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                {/* Player */}
+                <div style={{
+                  flexShrink: 0, borderRadius: 20, overflow: 'hidden',
+                  boxShadow: '0 8px 36px rgba(44,74,62,0.14)',
+                  border: `1px solid ${C.sable}`,
+                  width: 'clamp(200px, 30vw, 300px)',
+                }}>
+                  <video
+                    src={projetVideoUrl}
+                    controls
+                    preload="metadata"
+                    style={{ width: '100%', display: 'block', backgroundColor: '#000' }}
+                  />
+                </div>
+                {/* Caption */}
+                <div style={{ flex: 1, minWidth: 180, paddingTop: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Présentation vidéo</div>
+                  <p style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.dark, lineHeight: 1.65, margin: '0 0 14px', fontStyle: 'italic' }}>
+                    « {p.signature || `${p.prenom} se présente en vidéo`} »
+                  </p>
+                  <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
+                </div>
+              </div>
+            ) : (
+              /* isOwner && pas de vidéo — invitation */
+              <div style={{
+                backgroundColor: C.white, borderRadius: 18, padding: '28px 32px',
+                border: `1.5px dashed ${C.sable}`,
+                display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap',
+              }}>
+                <div style={{ fontSize: 36, flexShrink: 0, lineHeight: 1 }}>🎬</div>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: C.dark, marginBottom: 8 }}>
+                    Ajoutez votre vidéo de présentation
+                  </div>
+                  <p style={{ margin: '0 0 12px', fontSize: 13, color: C.grey, lineHeight: 1.65 }}>
+                    Les recruteurs regardent les vidéos en priorité. 30 à 60 secondes suffisent.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7, marginBottom: 18 }}>
+                    {[
+                      'Qui vous êtes et votre domaine d\'expertise',
+                      'Ce que vous recherchez comme prochain rôle',
+                      'Ce qui vous anime et vous différencie',
+                    ].map((tip, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                        <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: `${C.terracotta}18`, color: C.terracotta, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                        <span style={{ fontSize: 13, color: C.dark, lineHeight: 1.5 }}>{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={startEdit}
+                    style={{
+                      padding: '9px 20px', borderRadius: 12, border: 'none',
+                      backgroundColor: C.terracotta, color: C.white,
+                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    ＋ Ajouter ma vidéo
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ━━━ CONTENU PRINCIPAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px clamp(24px, 5vw, 60px) 0' }}>
