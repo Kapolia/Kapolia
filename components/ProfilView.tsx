@@ -126,6 +126,159 @@ function getProfilActivity(dateStr?: string): { label: string; isActif: boolean 
   return { label, isActif: diffDays < 7 }
 }
 
+// ─── VideoPlayer (contrôles custom — le scaleX(-1) ne touche pas les contrôles) ─
+
+function VideoPlayer({ src, miroir, frameStyle }: {
+  src: string
+  miroir: boolean
+  frameStyle?: React.CSSProperties
+}) {
+  const videoRef   = useRef<HTMLVideoElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const progressRef = useRef<HTMLDivElement>(null)
+  const hideTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const [playing,        setPlaying]        = useState(false)
+  const [currentTime,    setCurrentTime]    = useState(0)
+  const [duration,       setDuration]       = useState(0)
+  const [muted,          setMuted]          = useState(false)
+  const [ctrlVisible,    setCtrlVisible]    = useState(true)
+  const [isFullscreen,   setIsFullscreen]   = useState(false)
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  function showControls() {
+    setCtrlVisible(true)
+    if (hideTimer.current) clearTimeout(hideTimer.current)
+    if (playing) hideTimer.current = setTimeout(() => setCtrlVisible(false), 2500)
+  }
+
+  function fmt(s: number) {
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+  }
+
+  function togglePlay(e: React.MouseEvent) {
+    e.stopPropagation()
+    const v = videoRef.current
+    if (!v) return
+    if (v.paused) v.play()
+    else v.pause()
+  }
+
+  function seek(e: React.MouseEvent<HTMLDivElement>) {
+    const v = videoRef.current
+    if (!v || !duration) return
+    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+    v.currentTime = ((e.clientX - rect.left) / rect.width) * duration
+  }
+
+  function toggleMute(e: React.MouseEvent) {
+    e.stopPropagation()
+    const v = videoRef.current
+    if (!v) return
+    v.muted = !v.muted
+    setMuted(v.muted)
+  }
+
+  function toggleFullscreen(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!wrapperRef.current) return
+    if (!document.fullscreenElement) wrapperRef.current.requestFullscreen?.()
+    else document.exitFullscreen?.()
+  }
+
+  const pct = duration ? (currentTime / duration) * 100 : 0
+
+  // Fullscreen overrides: drop aspectRatio, fill viewport
+  const wrapperStyle: React.CSSProperties = isFullscreen
+    ? { position: 'relative', overflow: 'hidden', backgroundColor: '#000', cursor: 'pointer', width: '100%', height: '100%' }
+    : { position: 'relative', overflow: 'hidden', backgroundColor: '#000', cursor: 'pointer', ...frameStyle }
+
+  return (
+    <div
+      ref={wrapperRef}
+      style={wrapperStyle}
+      onMouseMove={showControls}
+      onMouseLeave={() => { if (playing) setCtrlVisible(false) }}
+      onClick={togglePlay}
+    >
+      {/* Video — transform ici seulement, jamais sur les contrôles */}
+      <video
+        ref={videoRef}
+        src={src}
+        preload="metadata"
+        playsInline
+        style={{
+          width: '100%', height: '100%', display: 'block', objectFit: 'contain',
+          transform: miroir ? 'scaleX(-1)' : 'none',
+        }}
+        onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
+        onLoadedMetadata={() => { setDuration(videoRef.current?.duration ?? 0) }}
+        onPlay={() => {
+          setPlaying(true)
+          hideTimer.current = setTimeout(() => setCtrlVisible(false), 2500)
+        }}
+        onPause={() => { setPlaying(false); setCtrlVisible(true); if (hideTimer.current) clearTimeout(hideTimer.current) }}
+        onEnded={() => { setPlaying(false); setCtrlVisible(true); if (hideTimer.current) clearTimeout(hideTimer.current) }}
+      />
+
+      {/* Bouton play central quand en pause avant démarrage */}
+      {!playing && currentTime === 0 && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            backgroundColor: 'rgba(0,0,0,0.52)', border: '2px solid rgba(255,255,255,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, color: C.white, paddingLeft: 3,
+          }}>▶</div>
+        </div>
+      )}
+
+      {/* Contrôles — positionnés en absolu, jamais transformés */}
+      <div
+        style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: 'linear-gradient(transparent, rgba(0,0,0,0.75))',
+          padding: '32px 12px 10px',
+          opacity: ctrlVisible ? 1 : 0,
+          transition: 'opacity 0.22s',
+          pointerEvents: ctrlVisible ? 'auto' : 'none',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Barre de progression */}
+        <div
+          ref={progressRef}
+          onClick={seek}
+          style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 2, marginBottom: 9, cursor: 'pointer', position: 'relative' as const }}
+        >
+          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: C.terracotta, borderRadius: 2 }} />
+        </div>
+        {/* Ligne de boutons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={togglePlay} style={{ background: 'none', border: 'none', color: C.white, fontSize: 14, cursor: 'pointer', padding: '2px 4px', lineHeight: 1, flexShrink: 0 }}>
+            {playing ? '⏸' : '▶'}
+          </button>
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', minWidth: 88, flexShrink: 0 }}>
+            {fmt(currentTime)} / {fmt(duration)}
+          </span>
+          <div style={{ flex: 1 }} />
+          <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: C.white, fontSize: 14, cursor: 'pointer', padding: '2px 4px', lineHeight: 1, flexShrink: 0 }}>
+            {muted ? '🔇' : '🔊'}
+          </button>
+          <button onClick={toggleFullscreen} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, flexShrink: 0, letterSpacing: '0.03em' }}>
+            {isFullscreen ? '✕' : '⛶'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Score circle ─────────────────────────────────────────────────────────────
 
 function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
@@ -998,21 +1151,17 @@ export default function ProfilView({
           <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px clamp(24px, 5vw, 60px)' }}>
             {videoPresentation ? (
               <div>
-                {/* Player 16:9 — letterboxing propre sur les vidéos en portrait */}
-                <div style={{
-                  borderRadius: 16, overflow: 'hidden', aspectRatio: '16 / 9',
-                  backgroundColor: '#000',
-                  boxShadow: '0 8px 36px rgba(44,74,62,0.14)',
-                  border: `1px solid ${C.sable}`,
-                  marginBottom: 16,
-                }}>
-                  <video
-                    src={videoPresentation}
-                    controls
-                    preload="metadata"
-                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', transform: videoMiroir ? 'scaleX(-1)' : 'none' }}
-                  />
-                </div>
+                {/* Player 16:9 — contrôles custom non affectés par scaleX(-1) */}
+                <VideoPlayer
+                  src={videoPresentation}
+                  miroir={videoMiroir}
+                  frameStyle={{
+                    borderRadius: 16, aspectRatio: '16 / 9',
+                    boxShadow: '0 8px 36px rgba(44,74,62,0.14)',
+                    border: `1px solid ${C.sable}`,
+                    marginBottom: 16,
+                  }}
+                />
                 {/* Caption + boutons owner */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
                   <div>
