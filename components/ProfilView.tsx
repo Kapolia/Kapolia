@@ -133,34 +133,78 @@ function VideoPlayer({ src, miroir, frameStyle }: {
   miroir: boolean
   frameStyle?: React.CSSProperties
 }) {
-  const videoRef   = useRef<HTMLVideoElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  const videoRef    = useRef<HTMLVideoElement>(null)
+  const wrapperRef  = useRef<HTMLDivElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
-  const hideTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hideTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // ref pour éviter les stale closures dans les listeners document
+  const durationRef = useRef(0)
+  const playingRef  = useRef(false)
 
-  const [playing,        setPlaying]        = useState(false)
-  const [currentTime,    setCurrentTime]    = useState(0)
-  const [duration,       setDuration]       = useState(0)
-  const [muted,          setMuted]          = useState(false)
-  const [ctrlVisible,    setCtrlVisible]    = useState(true)
-  const [isFullscreen,   setIsFullscreen]   = useState(false)
+  const [playing,       setPlaying]      = useState(false)
+  const [currentTime,   setCurrentTime]  = useState(0)
+  const [duration,      setDuration]     = useState(0)
+  const [volume,        setVolume]       = useState(1)
+  const [muted,         setMuted]        = useState(false)
+  const [ctrlVisible,   setCtrlVisible]  = useState(true)
+  const [isFullscreen,  setIsFullscreen] = useState(false)
+  const [showVolSlider, setShowVolSlider] = useState(false)
 
   useEffect(() => {
-    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
   }, [])
 
-  function showControls() {
+  // Synchronise les refs (accessibles dans les callbacks document sans stale closure)
+  useEffect(() => { playingRef.current = playing }, [playing])
+  useEffect(() => { durationRef.current = duration }, [duration])
+
+  function revealControls() {
     setCtrlVisible(true)
     if (hideTimer.current) clearTimeout(hideTimer.current)
-    if (playing) hideTimer.current = setTimeout(() => setCtrlVisible(false), 2500)
+    if (playingRef.current) hideTimer.current = setTimeout(() => setCtrlVisible(false), 2500)
   }
 
   function fmt(s: number) {
-    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+    const m = Math.floor(s / 60)
+    return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`
   }
 
+  // ── Seek ─────────────────────────────────────────────────────────────────────
+  // progressRef est dans le div de contrôles NON transformé.
+  // getBoundingClientRect() retourne toujours des coords écran left→right.
+  // Le miroir sur le <video> n'affecte pas ce calcul.
+  function seekFromX(clientX: number) {
+    const bar = progressRef.current
+    const v   = videoRef.current
+    if (!bar || !v || !durationRef.current) return
+    const rect = bar.getBoundingClientRect()
+    const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    v.currentTime = pct * durationRef.current
+    setCurrentTime(pct * durationRef.current)
+  }
+
+  function handleProgressMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    seekFromX(e.clientX)
+    const onMove = (ev: MouseEvent) => seekFromX(ev.clientX)
+    const onUp   = () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup',   onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup',   onUp)
+  }
+
+  function handleProgressTouch(e: React.TouchEvent<HTMLDivElement>) {
+    e.stopPropagation()
+    const t = e.touches[0] ?? e.changedTouches[0]
+    if (t) seekFromX(t.clientX)
+  }
+
+  // ── Play / Pause ─────────────────────────────────────────────────────────────
   function togglePlay(e: React.MouseEvent) {
     e.stopPropagation()
     const v = videoRef.current
@@ -169,21 +213,33 @@ function VideoPlayer({ src, miroir, frameStyle }: {
     else v.pause()
   }
 
-  function seek(e: React.MouseEvent<HTMLDivElement>) {
+  // ── Volume ───────────────────────────────────────────────────────────────────
+  function handleVolumeChange(val: number) {
     const v = videoRef.current
-    if (!v || !duration) return
-    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-    v.currentTime = ((e.clientX - rect.left) / rect.width) * duration
+    if (!v) return
+    v.volume = val
+    v.muted  = val === 0
+    setVolume(val)
+    setMuted(val === 0)
   }
 
   function toggleMute(e: React.MouseEvent) {
     e.stopPropagation()
     const v = videoRef.current
     if (!v) return
-    v.muted = !v.muted
-    setMuted(v.muted)
+    if (muted || volume === 0) {
+      const restore = volume > 0 ? volume : 0.7
+      v.muted  = false
+      v.volume = restore
+      setMuted(false)
+      setVolume(restore)
+    } else {
+      v.muted = true
+      setMuted(true)
+    }
   }
 
+  // ── Fullscreen ───────────────────────────────────────────────────────────────
   function toggleFullscreen(e: React.MouseEvent) {
     e.stopPropagation()
     if (!wrapperRef.current) return
@@ -191,19 +247,25 @@ function VideoPlayer({ src, miroir, frameStyle }: {
     else document.exitFullscreen?.()
   }
 
-  const pct = duration ? (currentTime / duration) * 100 : 0
+  const pct         = duration ? (currentTime / duration) * 100 : 0
+  const effectiveVol = muted ? 0 : volume
+  const volIcon     = (muted || volume === 0) ? '🔇' : volume < 0.4 ? '🔉' : '🔊'
 
-  // Fullscreen overrides: drop aspectRatio, fill viewport
   const wrapperStyle: React.CSSProperties = isFullscreen
     ? { position: 'relative', overflow: 'hidden', backgroundColor: '#000', cursor: 'pointer', width: '100%', height: '100%' }
     : { position: 'relative', overflow: 'hidden', backgroundColor: '#000', cursor: 'pointer', ...frameStyle }
+
+  const btnBase: React.CSSProperties = {
+    background: 'none', border: 'none', color: C.white,
+    fontSize: 14, cursor: 'pointer', padding: '2px 5px', lineHeight: 1, flexShrink: 0,
+  }
 
   return (
     <div
       ref={wrapperRef}
       style={wrapperStyle}
-      onMouseMove={showControls}
-      onMouseLeave={() => { if (playing) setCtrlVisible(false) }}
+      onMouseMove={revealControls}
+      onMouseLeave={() => { if (playingRef.current) setCtrlVisible(false) }}
       onClick={togglePlay}
     >
       {/* Video — transform ici seulement, jamais sur les contrôles */}
@@ -212,21 +274,19 @@ function VideoPlayer({ src, miroir, frameStyle }: {
         src={src}
         preload="metadata"
         playsInline
-        style={{
-          width: '100%', height: '100%', display: 'block', objectFit: 'contain',
-          transform: miroir ? 'scaleX(-1)' : 'none',
-        }}
+        style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', transform: miroir ? 'scaleX(-1)' : 'none' }}
         onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
-        onLoadedMetadata={() => { setDuration(videoRef.current?.duration ?? 0) }}
+        onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
         onPlay={() => {
           setPlaying(true)
+          if (hideTimer.current) clearTimeout(hideTimer.current)
           hideTimer.current = setTimeout(() => setCtrlVisible(false), 2500)
         }}
         onPause={() => { setPlaying(false); setCtrlVisible(true); if (hideTimer.current) clearTimeout(hideTimer.current) }}
         onEnded={() => { setPlaying(false); setCtrlVisible(true); if (hideTimer.current) clearTimeout(hideTimer.current) }}
       />
 
-      {/* Bouton play central quand en pause avant démarrage */}
+      {/* Bouton play central — visible avant démarrage */}
       {!playing && currentTime === 0 && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <div style={{
@@ -250,27 +310,60 @@ function VideoPlayer({ src, miroir, frameStyle }: {
         }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Barre de progression */}
+        {/* Barre de progression — drag-to-scrub, miroir-safe */}
         <div
           ref={progressRef}
-          onClick={seek}
-          style={{ width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 2, marginBottom: 9, cursor: 'pointer', position: 'relative' as const }}
+          onMouseDown={handleProgressMouseDown}
+          onTouchStart={handleProgressTouch}
+          onTouchMove={handleProgressTouch}
+          style={{
+            width: '100%', height: 6, backgroundColor: 'rgba(255,255,255,0.22)',
+            borderRadius: 3, marginBottom: 8, cursor: 'pointer', position: 'relative' as const,
+          }}
         >
-          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: C.terracotta, borderRadius: 2 }} />
+          <div style={{ width: `${pct}%`, height: '100%', backgroundColor: C.terracotta, borderRadius: 3 }} />
+          <div style={{
+            position: 'absolute', top: '50%', left: `${pct}%`,
+            transform: 'translate(-50%, -50%)',
+            width: 13, height: 13, borderRadius: '50%',
+            backgroundColor: C.terracotta, boxShadow: '0 0 0 2.5px rgba(255,255,255,0.45)',
+            pointerEvents: 'none',
+          }} />
         </div>
+
         {/* Ligne de boutons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={togglePlay} style={{ background: 'none', border: 'none', color: C.white, fontSize: 14, cursor: 'pointer', padding: '2px 4px', lineHeight: 1, flexShrink: 0 }}>
-            {playing ? '⏸' : '▶'}
-          </button>
-          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', minWidth: 88, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* Play/Pause */}
+          <button onClick={togglePlay} style={btnBase}>{playing ? '⏸' : '▶'}</button>
+
+          {/* Temps */}
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.72)', fontFamily: 'monospace', minWidth: 82, flexShrink: 0, marginLeft: 2 }}>
             {fmt(currentTime)} / {fmt(duration)}
           </span>
+
           <div style={{ flex: 1 }} />
-          <button onClick={toggleMute} style={{ background: 'none', border: 'none', color: C.white, fontSize: 14, cursor: 'pointer', padding: '2px 4px', lineHeight: 1, flexShrink: 0 }}>
-            {muted ? '🔇' : '🔊'}
-          </button>
-          <button onClick={toggleFullscreen} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.85)', fontSize: 12, cursor: 'pointer', padding: '2px 6px', lineHeight: 1, flexShrink: 0, letterSpacing: '0.03em' }}>
+
+          {/* Volume — slider au survol */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 3 }}
+            onMouseEnter={() => setShowVolSlider(true)}
+            onMouseLeave={() => setShowVolSlider(false)}
+          >
+            {showVolSlider && (
+              <input
+                type="range"
+                min={0} max={1} step={0.02}
+                value={effectiveVol}
+                onChange={e => { e.stopPropagation(); handleVolumeChange(Number(e.target.value)) }}
+                onClick={e => e.stopPropagation()}
+                style={{ width: 68, accentColor: C.terracotta, cursor: 'pointer', verticalAlign: 'middle' }}
+              />
+            )}
+            <button onClick={toggleMute} style={btnBase}>{volIcon}</button>
+          </div>
+
+          {/* Plein écran */}
+          <button onClick={toggleFullscreen} style={{ ...btnBase, fontSize: 12, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.03em' }}>
             {isFullscreen ? '✕' : '⛶'}
           </button>
         </div>
