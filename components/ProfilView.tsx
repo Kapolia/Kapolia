@@ -47,6 +47,7 @@ type Profil = {
   ce_que_je_veux_apprendre?: string
   derniere_maj_profil?: string
   video_presentation_url?: string | null
+  video_miroir?: boolean | null
 }
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
@@ -230,6 +231,7 @@ export default function ProfilView({
   const [editApprendre, setEditApprendre]           = useState('')
   const [uploadingVedette, setUploadingVedette]     = useState(false)
   const [deletingVideo, setDeletingVideo]           = useState(false)
+  const [togglingMiroir, setTogglingMiroir]         = useState(false)
 
   // Recording modal state
   const [recordModal, setRecordModal]     = useState(false)
@@ -391,6 +393,7 @@ export default function ProfilView({
   const projetImpact        = p.projet_impact ?? ''
   const projetVideoUrl      = p.projet_video_url ?? ''        // used in projet phare modal only
   const videoPresentation   = p.video_presentation_url ?? '' // used in vedette section
+  const videoMiroir         = p.video_miroir ?? false
   const activity            = getProfilActivity(p.derniere_maj_profil)
 
   function showToast(msg: string) {
@@ -608,7 +611,7 @@ export default function ProfilView({
 
     const { error: dbError } = await supabase
       .from('profils')
-      .update({ video_presentation_url: publicUrl })
+      .update({ video_presentation_url: publicUrl, video_miroir: false })
       .eq('user_id', user.id)
 
     if (dbError) {
@@ -622,9 +625,20 @@ export default function ProfilView({
     const oldUrl = profil?.video_presentation_url
     if (oldUrl) deleteStorageVideo(oldUrl)
 
-    setProfil(prev => prev ? { ...prev, video_presentation_url: publicUrl } : null)
+    setProfil(prev => prev ? { ...prev, video_presentation_url: publicUrl, video_miroir: false } : null)
     setUploadingVedette(false)
     showToast('Vidéo ajoutée ✓')
+  }
+
+  async function toggleVideoMiroir() {
+    setTogglingMiroir(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setTogglingMiroir(false); return }
+    const newVal = !videoMiroir
+    const { error } = await supabase.from('profils').update({ video_miroir: newVal }).eq('user_id', user.id)
+    if (error) { console.error('video_miroir update error:', error.message); setTogglingMiroir(false); return }
+    setProfil(prev => prev ? { ...prev, video_miroir: newVal } : null)
+    setTogglingMiroir(false)
   }
 
   async function deleteVideoPresentation() {
@@ -637,7 +651,7 @@ export default function ProfilView({
 
     const { error: dbErr } = await supabase
       .from('profils')
-      .update({ video_presentation_url: null })
+      .update({ video_presentation_url: null, video_miroir: false })
       .eq('user_id', user.id)
 
     if (dbErr) {
@@ -647,7 +661,7 @@ export default function ProfilView({
       return
     }
 
-    setProfil(prev => prev ? { ...prev, video_presentation_url: null } : null)
+    setProfil(prev => prev ? { ...prev, video_presentation_url: null, video_miroir: false } : null)
     setDeletingVideo(false)
     showToast('Vidéo supprimée')
   }
@@ -996,7 +1010,7 @@ export default function ProfilView({
                     src={videoPresentation}
                     controls
                     preload="metadata"
-                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
+                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', transform: videoMiroir ? 'scaleX(-1)' : 'none' }}
                   />
                 </div>
                 {/* Caption + boutons owner */}
@@ -1007,6 +1021,22 @@ export default function ProfilView({
                   </div>
                   {isOwner && (
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                      <button
+                        onClick={toggleVideoMiroir}
+                        disabled={togglingMiroir || uploadingVedette || deletingVideo}
+                        title={videoMiroir ? 'Désactiver le miroir' : 'Activer le miroir horizontal'}
+                        style={{
+                          padding: '6px 13px', borderRadius: 10,
+                          border: `1.5px solid ${videoMiroir ? C.vert : C.sable}`,
+                          backgroundColor: videoMiroir ? `${C.vert}18` : C.white,
+                          color: videoMiroir ? C.vert : C.grey,
+                          fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                          opacity: togglingMiroir || uploadingVedette || deletingVideo ? 0.5 : 1,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        ⇄ Miroir
+                      </button>
                       <button
                         onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
                         disabled={uploadingVedette || deletingVideo}
