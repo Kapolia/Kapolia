@@ -46,6 +46,7 @@ type Profil = {
   plus_grande_reussite?: string
   ce_que_je_veux_apprendre?: string
   derniere_maj_profil?: string
+  video_presentation_url?: string | null
 }
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
@@ -228,6 +229,7 @@ export default function ProfilView({
   const [editReussite, setEditReussite]             = useState('')
   const [editApprendre, setEditApprendre]           = useState('')
   const [uploadingVedette, setUploadingVedette]     = useState(false)
+  const [deletingVideo, setDeletingVideo]           = useState(false)
 
   // Recording modal state
   const [recordModal, setRecordModal]     = useState(false)
@@ -387,7 +389,8 @@ export default function ProfilView({
   const projetImages        = p.projet_images ?? []
   const projetLien          = p.projet_lien ?? ''
   const projetImpact        = p.projet_impact ?? ''
-  const projetVideoUrl      = p.projet_video_url ?? ''
+  const projetVideoUrl      = p.projet_video_url ?? ''        // used in projet phare modal only
+  const videoPresentation   = p.video_presentation_url ?? '' // used in vedette section
   const activity            = getProfilActivity(p.derniere_maj_profil)
 
   function showToast(msg: string) {
@@ -572,11 +575,16 @@ export default function ProfilView({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploadingVedette(false); return }
 
-    const ext = file.name.split('.').pop() || 'webm'
-    const path = `projets/${user.id}/video-vedette-${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('projets-medias').upload(path, file)
+    // Fixed path per user → upsert overwrites on replace
+    const ext = file.type.includes('mp4') ? 'mp4' : 'webm'
+    const path = `${user.id}/presentation.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('projets-medias')
+      .upload(path, file, { upsert: true, contentType: file.type })
+
     if (uploadError) {
-      console.error('Vedette upload error:', uploadError.message, uploadError)
+      console.error('Video upload error:', uploadError.message, uploadError)
       showToast(`Erreur upload : ${uploadError.message}`)
       setUploadingVedette(false)
       return
@@ -585,17 +593,57 @@ export default function ProfilView({
     const { data: urlData } = supabase.storage.from('projets-medias').getPublicUrl(path)
     const publicUrl = urlData.publicUrl
 
-    const { error: dbError } = await supabase.from('profils').update({ projet_video_url: publicUrl }).eq('user_id', user.id)
+    const { error: dbError } = await supabase
+      .from('profils')
+      .update({ video_presentation_url: publicUrl })
+      .eq('user_id', user.id)
+
     if (dbError) {
-      console.error('Vedette DB update error:', dbError.message, dbError)
+      console.error('Video DB update error:', dbError.message, dbError)
       showToast(`Erreur sauvegarde : ${dbError.message}`)
       setUploadingVedette(false)
       return
     }
 
-    setProfil(prev => prev ? { ...prev, projet_video_url: publicUrl } : null)
+    // State updated AFTER both steps succeed
+    setProfil(prev => prev ? { ...prev, video_presentation_url: publicUrl } : null)
     setUploadingVedette(false)
     showToast('Vidéo ajoutée ✓')
+  }
+
+  async function deleteVideoPresentation() {
+    setDeletingVideo(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setDeletingVideo(false); return }
+
+    // Extract storage path from URL to delete the file
+    const currentUrl = p.video_presentation_url ?? ''
+    if (currentUrl) {
+      const BUCKET = 'projets-medias'
+      const marker = `/object/public/${BUCKET}/`
+      const markerIdx = currentUrl.indexOf(marker)
+      if (markerIdx >= 0) {
+        const storagePath = decodeURIComponent(currentUrl.slice(markerIdx + marker.length).split('?')[0])
+        const { error: storageErr } = await supabase.storage.from(BUCKET).remove([storagePath])
+        if (storageErr) console.error('Video storage delete error:', storageErr.message, storageErr)
+      }
+    }
+
+    const { error: dbErr } = await supabase
+      .from('profils')
+      .update({ video_presentation_url: null })
+      .eq('user_id', user.id)
+
+    if (dbErr) {
+      console.error('Video delete DB error:', dbErr.message, dbErr)
+      showToast(`Erreur suppression : ${dbErr.message}`)
+      setDeletingVideo(false)
+      return
+    }
+
+    setProfil(prev => prev ? { ...prev, video_presentation_url: null } : null)
+    setDeletingVideo(false)
+    showToast('Vidéo supprimée')
   }
 
   async function handleVedetteVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -896,10 +944,10 @@ export default function ProfilView({
       </section>
 
       {/* ━━━ VIDÉO EN VEDETTE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {!isEditing && (projetVideoUrl || isOwner) && (
+      {!isEditing && (videoPresentation || isOwner) && (
         <section style={{ backgroundColor: C.creme, borderBottom: `1px solid ${C.sable}` }}>
           <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px clamp(24px, 5vw, 60px)' }}>
-            {projetVideoUrl ? (
+            {videoPresentation ? (
               <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 {/* Player */}
                 <div style={{
@@ -909,7 +957,7 @@ export default function ProfilView({
                   width: 'clamp(200px, 30vw, 300px)',
                 }}>
                   <video
-                    src={projetVideoUrl}
+                    src={videoPresentation}
                     controls
                     preload="metadata"
                     style={{ width: '100%', display: 'block', backgroundColor: '#000' }}
@@ -922,6 +970,34 @@ export default function ProfilView({
                     « {p.signature || `${p.prenom} se présente en vidéo`} »
                   </p>
                   <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
+                  {isOwner && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' as const }}>
+                      <button
+                        onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                        disabled={uploadingVedette || deletingVideo}
+                        style={{
+                          padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${C.sable}`,
+                          backgroundColor: C.white, color: C.dark, fontSize: 12, fontWeight: 500,
+                          cursor: 'pointer', fontFamily: 'inherit',
+                          opacity: uploadingVedette || deletingVideo ? 0.5 : 1,
+                        }}
+                      >
+                        🔄 Remplacer
+                      </button>
+                      <button
+                        onClick={deleteVideoPresentation}
+                        disabled={uploadingVedette || deletingVideo}
+                        style={{
+                          padding: '6px 13px', borderRadius: 10, border: `1.5px solid #e88`,
+                          backgroundColor: C.white, color: '#c44', fontSize: 12, fontWeight: 500,
+                          cursor: 'pointer', fontFamily: 'inherit',
+                          opacity: uploadingVedette || deletingVideo ? 0.5 : 1,
+                        }}
+                      >
+                        {deletingVideo ? 'Suppression…' : '🗑 Supprimer'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
