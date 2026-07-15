@@ -569,19 +569,32 @@ export default function ProfilView({
     setUploadingVideo(false)
   }
 
+  function extractStoragePath(publicUrl: string): string | null {
+    const marker = '/object/public/projets-medias/'
+    const idx = publicUrl.indexOf(marker)
+    if (idx < 0) return null
+    return decodeURIComponent(publicUrl.slice(idx + marker.length).split('?')[0])
+  }
+
+  async function deleteStorageVideo(url: string) {
+    const storagePath = extractStoragePath(url)
+    if (!storagePath) return
+    const { error } = await supabase.storage.from('projets-medias').remove([storagePath])
+    if (error) console.error('Storage remove error:', error.message)
+  }
+
   // Core upload — called by file input handler AND recorder "Utiliser"
   async function uploadVedetteVideo(file: File) {
     setUploadingVedette(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploadingVedette(false); return }
 
-    // Fixed path per user → upsert overwrites on replace
     const ext = file.type.includes('mp4') ? 'mp4' : 'webm'
-    const path = `${user.id}/presentation.${ext}`
+    const path = `${user.id}/presentation-${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('projets-medias')
-      .upload(path, file, { upsert: true, contentType: file.type })
+      .upload(path, file, { contentType: file.type })
 
     if (uploadError) {
       console.error('Video upload error:', uploadError.message, uploadError)
@@ -605,7 +618,10 @@ export default function ProfilView({
       return
     }
 
-    // State updated AFTER both steps succeed
+    // Delete old file only after Storage + DB both succeeded
+    const oldUrl = profil?.video_presentation_url
+    if (oldUrl) deleteStorageVideo(oldUrl)
+
     setProfil(prev => prev ? { ...prev, video_presentation_url: publicUrl } : null)
     setUploadingVedette(false)
     showToast('Vidéo ajoutée ✓')
@@ -616,18 +632,8 @@ export default function ProfilView({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setDeletingVideo(false); return }
 
-    // Extract storage path from URL to delete the file
-    const currentUrl = p.video_presentation_url ?? ''
-    if (currentUrl) {
-      const BUCKET = 'projets-medias'
-      const marker = `/object/public/${BUCKET}/`
-      const markerIdx = currentUrl.indexOf(marker)
-      if (markerIdx >= 0) {
-        const storagePath = decodeURIComponent(currentUrl.slice(markerIdx + marker.length).split('?')[0])
-        const { error: storageErr } = await supabase.storage.from(BUCKET).remove([storagePath])
-        if (storageErr) console.error('Video storage delete error:', storageErr.message, storageErr)
-      }
-    }
+    const oldUrl = profil?.video_presentation_url
+    if (oldUrl) await deleteStorageVideo(oldUrl)
 
     const { error: dbErr } = await supabase
       .from('profils')
