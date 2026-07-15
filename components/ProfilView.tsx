@@ -98,6 +98,16 @@ function getDispoStatus(dispo?: string | string[]): { color: string; label: stri
   return { color: '#27AE60', label: 'Disponible' }
 }
 
+// ─── Recording helpers ────────────────────────────────────────────────────────
+
+function getSupportedMimeType(): string {
+  if (typeof MediaRecorder === 'undefined') return ''
+  for (const t of ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']) {
+    if (MediaRecorder.isTypeSupported(t)) return t
+  }
+  return ''
+}
+
 // ─── Profil activity ──────────────────────────────────────────────────────────
 
 function getProfilActivity(dateStr?: string): { label: string; isActif: boolean } {
@@ -219,10 +229,26 @@ export default function ProfilView({
   const [editApprendre, setEditApprendre]           = useState('')
   const [uploadingVedette, setUploadingVedette]     = useState(false)
 
-  const imageInputRef       = useRef<HTMLInputElement>(null)
-  const videoInputRef       = useRef<HTMLInputElement>(null)
+  // Recording modal state
+  const [recordModal, setRecordModal]     = useState(false)
+  const [recordPhase, setRecordPhase]     = useState<'preview' | 'countdown' | 'recording' | 'playback' | 'error'>('preview')
+  const [recordError, setRecordError]     = useState('')
+  const [countdown, setCountdown]         = useState(3)
+  const [recordDuration, setRecordDuration] = useState(0)
+  const [recordedBlob, setRecordedBlob]   = useState<Blob | null>(null)
+  const [recordedUrl, setRecordedUrl]     = useState<string | null>(null)
+
+  const imageInputRef        = useRef<HTMLInputElement>(null)
+  const videoInputRef        = useRef<HTMLInputElement>(null)
   const vedetteVideoInputRef = useRef<HTMLInputElement>(null)
-  const avatarFileRef       = useRef<HTMLInputElement>(null)
+  const mobileRecordInputRef = useRef<HTMLInputElement>(null)
+  const avatarFileRef        = useRef<HTMLInputElement>(null)
+  const previewVideoRef      = useRef<HTMLVideoElement>(null)
+  const streamRef            = useRef<MediaStream | null>(null)
+  const mediaRecorderRef     = useRef<MediaRecorder | null>(null)
+  const chunksRef            = useRef<Blob[]>([])
+  const countdownTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const recordTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -283,6 +309,50 @@ export default function ProfilView({
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, isOwner, initialEditMode, notFoundRedirect])
+
+  // Camera lifecycle — starts when modal opens, cleans up on close or unmount
+  useEffect(() => {
+    if (!recordModal) return
+    let cancelled = false
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } },
+          audio: true,
+        })
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (previewVideoRef.current) {
+          previewVideoRef.current.srcObject = stream
+          previewVideoRef.current.play().catch(() => {})
+        }
+      } catch {
+        if (!cancelled) {
+          setRecordPhase('error')
+          setRecordError("Accès refusé à la caméra ou au micro. Autorisez-les dans les paramètres de votre navigateur, puis réessayez.")
+        }
+      }
+    }
+
+    startCamera()
+
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+      if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current)
+      if (recordTimerRef.current) clearInterval(recordTimerRef.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordModal])
+
+  // Re-attach stream when returning to preview (retake flow)
+  useEffect(() => {
+    if (recordPhase !== 'preview' || !streamRef.current || !previewVideoRef.current) return
+    previewVideoRef.current.srcObject = streamRef.current
+    previewVideoRef.current.play().catch(() => {})
+  }, [recordPhase])
 
   if (loading) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -496,33 +566,14 @@ export default function ProfilView({
     setUploadingVideo(false)
   }
 
-  async function handleVedetteVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; e.target.value = ''
-    if (!file) return
-
-    const MAX_MB = 100
-    if (file.size > MAX_MB * 1024 * 1024) {
-      showToast(`Vidéo trop volumineuse — ${MAX_MB} Mo maximum.`)
-      return
-    }
-
-    const duration = await new Promise<number>(resolve => {
-      const vid = document.createElement('video'); vid.preload = 'metadata'
-      vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration) }
-      vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(0) }
-      vid.src = URL.createObjectURL(file)
-    })
-    if (duration > 60) {
-      showToast('La vidéo doit faire 60 secondes maximum.')
-      return
-    }
-
+  // Core upload — called by file input handler AND recorder "Utiliser"
+  async function uploadVedetteVideo(file: File) {
     setUploadingVedette(true)
-
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploadingVedette(false); return }
 
-    const path = `projets/${user.id}/video-vedette-${Date.now()}-${file.name}`
+    const ext = file.name.split('.').pop() || 'webm'
+    const path = `projets/${user.id}/video-vedette-${Date.now()}.${ext}`
     const { error: uploadError } = await supabase.storage.from('projets-medias').upload(path, file)
     if (uploadError) {
       console.error('Vedette upload error:', uploadError.message, uploadError)
@@ -547,6 +598,100 @@ export default function ProfilView({
     showToast('Vidéo ajoutée ✓')
   }
 
+  async function handleVedetteVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    if (file.size > 100 * 1024 * 1024) { showToast('Vidéo trop volumineuse — 100 Mo maximum.'); return }
+    const duration = await new Promise<number>(resolve => {
+      const vid = document.createElement('video'); vid.preload = 'metadata'
+      vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration) }
+      vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(0) }
+      vid.src = URL.createObjectURL(file)
+    })
+    if (duration > 60) { showToast('La vidéo doit faire 60 secondes maximum.'); return }
+    await uploadVedetteVideo(file)
+  }
+
+  // ─── Recording functions ───────────────────────────────────────────────────
+
+  function closeRecordModal() {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+    if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current)
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    mediaRecorderRef.current = null
+    chunksRef.current = []
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl)
+    setRecordModal(false)
+    setRecordPhase('preview')
+    setCountdown(3)
+    setRecordDuration(0)
+    setRecordedBlob(null)
+    setRecordedUrl(null)
+    setRecordError('')
+  }
+
+  function startCountdown() {
+    setRecordPhase('countdown')
+    setCountdown(3)
+    let n = 3
+    function tick() {
+      n -= 1
+      setCountdown(n)
+      if (n <= 0) { startRecording() }
+      else { countdownTimerRef.current = setTimeout(tick, 1000) }
+    }
+    countdownTimerRef.current = setTimeout(tick, 1000)
+  }
+
+  function startRecording() {
+    if (!streamRef.current) return
+    const mimeType = getSupportedMimeType()
+    chunksRef.current = []
+    const recorder = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : {})
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'video/webm' })
+      const url = URL.createObjectURL(blob)
+      setRecordedBlob(blob)
+      setRecordedUrl(url)
+      setRecordPhase('playback')
+    }
+    recorder.start(100)
+    mediaRecorderRef.current = recorder
+    setRecordPhase('recording')
+    setRecordDuration(0)
+    let elapsed = 0
+    recordTimerRef.current = setInterval(() => {
+      elapsed += 1
+      setRecordDuration(elapsed)
+      if (elapsed >= 60) stopRecording()
+    }, 1000)
+  }
+
+  function stopRecording() {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current)
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
+  }
+
+  function retakeRecording() {
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl)
+    setRecordedBlob(null)
+    setRecordedUrl(null)
+    setRecordDuration(0)
+    chunksRef.current = []
+    setRecordPhase('preview')
+  }
+
+  async function useRecordedVideo() {
+    if (!recordedBlob) return
+    const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm'
+    const file = new File([recordedBlob], `presentation-${Date.now()}.${ext}`, { type: recordedBlob.type })
+    closeRecordModal()
+    await uploadVedetteVideo(file)
+  }
+
   function updateExp(i: number, patch: Partial<ProfilExperience>) {
     const arr = [...editExperiences]; arr[i] = { ...arr[i], ...patch }; setEditExperiences(arr)
   }
@@ -560,6 +705,7 @@ export default function ProfilView({
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: isEditing ? 72 : 0 }}>
       <style suppressHydrationWarning>{`
         @keyframes kavio-spin { to { transform: rotate(360deg); } }
+        @keyframes kavio-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
         * { box-sizing: border-box; }
       `}</style>
 
@@ -580,6 +726,7 @@ export default function ProfilView({
       <input ref={imageInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
       <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoUpload} />
       <input ref={vedetteVideoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVedetteVideoUpload} />
+      <input ref={mobileRecordInputRef} type="file" accept="video/*" capture="user" style={{ display: 'none' }} onChange={handleVedetteVideoUpload} />
       <input ref={avatarFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
         const file = e.target.files?.[0]; e.target.value = ''
         if (!file) return
@@ -804,23 +951,38 @@ export default function ProfilView({
                       </div>
                     ))}
                   </div>
-                  <button
-                    onClick={() => vedetteVideoInputRef.current?.click()}
-                    disabled={uploadingVedette}
-                    style={{
-                      padding: '9px 20px', borderRadius: 12, border: 'none',
-                      backgroundColor: uploadingVedette ? C.grey : C.terracotta,
-                      color: C.white, fontSize: 13, fontWeight: 600,
-                      cursor: uploadingVedette ? 'default' : 'pointer',
-                      fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 8,
-                      transition: 'background-color 0.15s',
-                    }}
-                  >
-                    {uploadingVedette && (
-                      <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} />
-                    )}
-                    {uploadingVedette ? 'Envoi en cours…' : '＋ Ajouter ma vidéo'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                    <button
+                      onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                      disabled={uploadingVedette}
+                      style={{
+                        padding: '9px 18px', borderRadius: 12, border: 'none',
+                        backgroundColor: C.terracotta, color: C.white,
+                        fontSize: 13, fontWeight: 600, cursor: uploadingVedette ? 'default' : 'pointer',
+                        fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7,
+                        opacity: uploadingVedette ? 0.5 : 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 15 }}>●</span> Enregistrer ma vidéo
+                    </button>
+                    <button
+                      onClick={() => vedetteVideoInputRef.current?.click()}
+                      disabled={uploadingVedette}
+                      style={{
+                        padding: '9px 18px', borderRadius: 12,
+                        border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
+                        color: C.dark, fontSize: 13, fontWeight: 500,
+                        cursor: uploadingVedette ? 'default' : 'pointer',
+                        fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7,
+                        opacity: uploadingVedette ? 0.5 : 1,
+                      }}
+                    >
+                      {uploadingVedette
+                        ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} /> Envoi en cours…</>
+                        : <>📁 Importer un fichier</>
+                      }
+                    </button>
+                  </div>
                   {uploadingVedette && (
                     <div style={{ marginTop: 8, fontSize: 12, color: C.grey }}>
                       Les vidéos peuvent prendre quelques secondes selon votre connexion.
@@ -1334,6 +1496,135 @@ export default function ProfilView({
         <div onClick={() => setZoomImage(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.92)', zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={zoomImage} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8, display: 'block' }} />
+        </div>
+      )}
+
+      {/* ━━━ MODALE ENREGISTREMENT VIDÉO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {recordModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ backgroundColor: '#111', borderRadius: 24, overflow: 'hidden', width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column' as const, maxHeight: '92vh' }}>
+
+            {/* Header */}
+            <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.white, letterSpacing: '0.02em' }}>
+                {recordPhase === 'playback' ? 'Prévisualisation' : 'Présentation vidéo'}
+              </span>
+              <button onClick={closeRecordModal} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, lineHeight: 1 }}>✕</button>
+            </div>
+
+            {/* Video area — portrait format */}
+            <div style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '9 / 16', overflow: 'hidden', flexShrink: 0 }}>
+
+              {/* Error */}
+              {recordPhase === 'error' && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', gap: 20, padding: 28, textAlign: 'center' as const }}>
+                  <span style={{ fontSize: 48 }}>📷</span>
+                  <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>{recordError}</p>
+                  <button
+                    onClick={() => { closeRecordModal(); setTimeout(() => mobileRecordInputRef.current?.click(), 50) }}
+                    style={{ padding: '10px 20px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Utiliser la caméra native
+                  </button>
+                </div>
+              )}
+
+              {/* Camera live feed */}
+              {(recordPhase === 'preview' || recordPhase === 'countdown' || recordPhase === 'recording') && (
+                <>
+                  <video
+                    ref={previewVideoRef}
+                    muted
+                    playsInline
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: 'scaleX(-1)' }}
+                  />
+
+                  {/* Countdown overlay */}
+                  {recordPhase === 'countdown' && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
+                      <div style={{ fontFamily: 'Georgia, serif', fontSize: 112, color: C.white, fontWeight: 700, lineHeight: 1, textShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>{countdown}</div>
+                    </div>
+                  )}
+
+                  {/* Tips overlay during recording */}
+                  {recordPhase === 'recording' && (
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.72))', padding: '32px 16px 14px' }}>
+                      {['Qui vous êtes et votre domaine', 'Ce que vous recherchez', 'Ce qui vous anime'].map((tip, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                          <span style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: `${C.terracotta}cc`, fontSize: 9, fontWeight: 700, color: C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
+                          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.88)' }}>{tip}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Timer */}
+                  {recordPhase === 'recording' && (
+                    <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(196,103,58,0.9)', borderRadius: 20, padding: '3px 11px', fontSize: 12, fontWeight: 700, color: C.white, fontFamily: 'monospace' }}>
+                      {String(Math.floor(recordDuration / 60)).padStart(2, '0')}:{String(recordDuration % 60).padStart(2, '0')} / 01:00
+                    </div>
+                  )}
+
+                  {/* Red dot */}
+                  {recordPhase === 'recording' && (
+                    <div style={{ position: 'absolute', top: 16, left: 14, width: 9, height: 9, borderRadius: '50%', backgroundColor: '#E74C3C', boxShadow: '0 0 0 3px rgba(231,76,60,0.3)', animation: 'kavio-pulse 1.2s ease-in-out infinite' }} />
+                  )}
+                </>
+              )}
+
+              {/* Playback */}
+              {recordPhase === 'playback' && recordedUrl && (
+                <video
+                  src={recordedUrl}
+                  controls
+                  playsInline
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', backgroundColor: '#000' }}
+                />
+              )}
+            </div>
+
+            {/* Controls */}
+            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column' as const, gap: 9 }}>
+              {recordPhase === 'preview' && (
+                <button onClick={startCountdown} style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ● Commencer l'enregistrement
+                </button>
+              )}
+
+              {recordPhase === 'countdown' && (
+                <button disabled style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: C.grey, color: 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }}>
+                  Préparez-vous…
+                </button>
+              )}
+
+              {recordPhase === 'recording' && (
+                <button onClick={stopRecording} style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: '#E74C3C', color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  ■ Arrêter
+                </button>
+              )}
+
+              {recordPhase === 'playback' && (
+                <>
+                  <button
+                    onClick={useRecordedVideo}
+                    disabled={uploadingVedette}
+                    style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: uploadingVedette ? C.grey : C.vert, color: C.white, fontSize: 14, fontWeight: 700, cursor: uploadingVedette ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    {uploadingVedette && <span style={{ display: 'inline-block', width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} />}
+                    {uploadingVedette ? 'Envoi en cours…' : '✓ Utiliser cette vidéo'}
+                  </button>
+                  <button
+                    onClick={retakeRecording}
+                    disabled={uploadingVedette}
+                    style={{ padding: '11px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, cursor: uploadingVedette ? 'default' : 'pointer', fontFamily: 'inherit' }}
+                  >
+                    ↩ Recommencer
+                  </button>
+                </>
+              )}
+            </div>
+
+          </div>
         </div>
       )}
     </main>
