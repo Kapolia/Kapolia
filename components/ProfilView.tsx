@@ -217,10 +217,12 @@ export default function ProfilView({
   const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
   const [editReussite, setEditReussite]             = useState('')
   const [editApprendre, setEditApprendre]           = useState('')
+  const [uploadingVedette, setUploadingVedette]     = useState(false)
 
-  const imageInputRef = useRef<HTMLInputElement>(null)
-  const videoInputRef = useRef<HTMLInputElement>(null)
-  const avatarFileRef = useRef<HTMLInputElement>(null)
+  const imageInputRef       = useRef<HTMLInputElement>(null)
+  const videoInputRef       = useRef<HTMLInputElement>(null)
+  const vedetteVideoInputRef = useRef<HTMLInputElement>(null)
+  const avatarFileRef       = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -494,6 +496,57 @@ export default function ProfilView({
     setUploadingVideo(false)
   }
 
+  async function handleVedetteVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+
+    const MAX_MB = 100
+    if (file.size > MAX_MB * 1024 * 1024) {
+      showToast(`Vidéo trop volumineuse — ${MAX_MB} Mo maximum.`)
+      return
+    }
+
+    const duration = await new Promise<number>(resolve => {
+      const vid = document.createElement('video'); vid.preload = 'metadata'
+      vid.onloadedmetadata = () => { URL.revokeObjectURL(vid.src); resolve(vid.duration) }
+      vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(0) }
+      vid.src = URL.createObjectURL(file)
+    })
+    if (duration > 60) {
+      showToast('La vidéo doit faire 60 secondes maximum.')
+      return
+    }
+
+    setUploadingVedette(true)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setUploadingVedette(false); return }
+
+    const path = `projets/${user.id}/video-vedette-${Date.now()}-${file.name}`
+    const { error: uploadError } = await supabase.storage.from('projets-medias').upload(path, file)
+    if (uploadError) {
+      console.error('Vedette upload error:', uploadError.message, uploadError)
+      showToast(`Erreur upload : ${uploadError.message}`)
+      setUploadingVedette(false)
+      return
+    }
+
+    const { data: urlData } = supabase.storage.from('projets-medias').getPublicUrl(path)
+    const publicUrl = urlData.publicUrl
+
+    const { error: dbError } = await supabase.from('profils').update({ projet_video_url: publicUrl }).eq('user_id', user.id)
+    if (dbError) {
+      console.error('Vedette DB update error:', dbError.message, dbError)
+      showToast(`Erreur sauvegarde : ${dbError.message}`)
+      setUploadingVedette(false)
+      return
+    }
+
+    setProfil(prev => prev ? { ...prev, projet_video_url: publicUrl } : null)
+    setUploadingVedette(false)
+    showToast('Vidéo ajoutée ✓')
+  }
+
   function updateExp(i: number, patch: Partial<ProfilExperience>) {
     const arr = [...editExperiences]; arr[i] = { ...arr[i], ...patch }; setEditExperiences(arr)
   }
@@ -526,6 +579,7 @@ export default function ProfilView({
       {/* Hidden file inputs */}
       <input ref={imageInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
       <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVideoUpload} />
+      <input ref={vedetteVideoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={handleVedetteVideoUpload} />
       <input ref={avatarFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
         const file = e.target.files?.[0]; e.target.value = ''
         if (!file) return
@@ -751,15 +805,27 @@ export default function ProfilView({
                     ))}
                   </div>
                   <button
-                    onClick={startEdit}
+                    onClick={() => vedetteVideoInputRef.current?.click()}
+                    disabled={uploadingVedette}
                     style={{
                       padding: '9px 20px', borderRadius: 12, border: 'none',
-                      backgroundColor: C.terracotta, color: C.white,
-                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      backgroundColor: uploadingVedette ? C.grey : C.terracotta,
+                      color: C.white, fontSize: 13, fontWeight: 600,
+                      cursor: uploadingVedette ? 'default' : 'pointer',
+                      fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 8,
+                      transition: 'background-color 0.15s',
                     }}
                   >
-                    ＋ Ajouter ma vidéo
+                    {uploadingVedette && (
+                      <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} />
+                    )}
+                    {uploadingVedette ? 'Envoi en cours…' : '＋ Ajouter ma vidéo'}
                   </button>
+                  {uploadingVedette && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: C.grey }}>
+                      Les vidéos peuvent prendre quelques secondes selon votre connexion.
+                    </div>
+                  )}
                 </div>
               </div>
             )}
