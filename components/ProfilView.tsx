@@ -320,7 +320,7 @@ export default function ProfilView({
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } },
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: true,
         })
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
@@ -858,6 +858,35 @@ export default function ProfilView({
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>{activity.label}</span>
               </div>
             )}
+
+            {/* Signature — affichée dans le bandeau vert, éditable inline */}
+            {isEditing ? (
+              <textarea
+                value={editSignature}
+                onChange={e => setEditSignature(e.target.value)}
+                placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
+                rows={2}
+                style={{
+                  marginTop: 12, width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8,
+                  color: C.white, fontSize: 13, padding: '8px 12px',
+                  fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6,
+                  resize: 'none', outline: 'none', boxSizing: 'border-box' as const,
+                }}
+              />
+            ) : (
+              p.signature && (
+                <p style={{
+                  marginTop: 12, marginBottom: 0,
+                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                  fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
+                  display: '-webkit-box', WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+                }}>
+                  « {p.signature} »
+                </p>
+              )
+            )}
           </div>
 
           {/* CTA */}
@@ -954,30 +983,30 @@ export default function ProfilView({
         <section style={{ backgroundColor: C.creme, borderBottom: `1px solid ${C.sable}` }}>
           <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px clamp(24px, 5vw, 60px)' }}>
             {videoPresentation ? (
-              <div style={{ display: 'flex', gap: 40, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                {/* Player */}
+              <div>
+                {/* Player 16:9 — letterboxing propre sur les vidéos en portrait */}
                 <div style={{
-                  flexShrink: 0, borderRadius: 20, overflow: 'hidden',
+                  borderRadius: 16, overflow: 'hidden', aspectRatio: '16 / 9',
+                  backgroundColor: '#000',
                   boxShadow: '0 8px 36px rgba(44,74,62,0.14)',
                   border: `1px solid ${C.sable}`,
-                  width: 'clamp(200px, 30vw, 300px)',
+                  marginBottom: 16,
                 }}>
                   <video
                     src={videoPresentation}
                     controls
                     preload="metadata"
-                    style={{ width: '100%', display: 'block', backgroundColor: '#000' }}
+                    style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }}
                   />
                 </div>
-                {/* Caption */}
-                <div style={{ flex: 1, minWidth: 180, paddingTop: 8 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Présentation vidéo</div>
-                  <p style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.dark, lineHeight: 1.65, margin: '0 0 14px', fontStyle: 'italic' }}>
-                    « {p.signature || `${p.prenom} se présente en vidéo`} »
-                  </p>
-                  <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
+                {/* Caption + boutons owner */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Présentation vidéo</div>
+                    <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
+                  </div>
                   {isOwner && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' as const }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                       <button
                         onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
                         disabled={uploadingVedette || deletingVideo}
@@ -1134,26 +1163,6 @@ export default function ProfilView({
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>🖼 Voir les détails du projet →</div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ── MA SIGNATURE ───────────────────────────────────────────────────── */}
-        {(isEditing || p.signature) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Ma signature</SLabel>
-            {isEditing ? (
-              <textarea
-                value={editSignature}
-                onChange={e => setEditSignature(e.target.value)}
-                placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
-                rows={2}
-                style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, fontFamily: 'Georgia, serif', fontStyle: 'italic', minHeight: 72 }}
-              />
-            ) : (
-              <blockquote style={{ margin: 0, padding: '20px 24px', backgroundColor: C.white, borderRadius: '0 16px 16px 0', border: `1px solid ${C.sable}`, borderLeft: `4px solid ${C.terracotta}` }}>
-                <p style={{ margin: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 15, color: C.dark, lineHeight: 1.75 }}>« {p.signature} »</p>
-              </blockquote>
             )}
           </div>
         )}
@@ -1584,7 +1593,7 @@ export default function ProfilView({
       {/* ━━━ MODALE ENREGISTREMENT VIDÉO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {recordModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ backgroundColor: '#111', borderRadius: 24, overflow: 'hidden', width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column' as const, maxHeight: '92vh' }}>
+          <div style={{ backgroundColor: '#111', borderRadius: 24, overflow: 'hidden', width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column' as const, maxHeight: '92vh' }}>
 
             {/* Header */}
             <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -1594,8 +1603,8 @@ export default function ProfilView({
               <button onClick={closeRecordModal} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, lineHeight: 1 }}>✕</button>
             </div>
 
-            {/* Video area — portrait format */}
-            <div style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '9 / 16', overflow: 'hidden', flexShrink: 0 }}>
+            {/* Video area — landscape 16:9 */}
+            <div style={{ position: 'relative', backgroundColor: '#000', aspectRatio: '16 / 9', overflow: 'hidden', flexShrink: 0 }}>
 
               {/* Error */}
               {recordPhase === 'error' && (
