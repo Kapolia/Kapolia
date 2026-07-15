@@ -178,7 +178,7 @@ function VideoPlayer({ src, miroir, frameStyle }: {
   function seekFromX(clientX: number) {
     const bar = progressRef.current
     const v   = videoRef.current
-    if (!bar || !v || !durationRef.current) return
+    if (!bar || !v || !isFinite(durationRef.current) || durationRef.current === 0) return
     const rect = bar.getBoundingClientRect()
     const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
     v.currentTime = pct * durationRef.current
@@ -276,7 +276,24 @@ function VideoPlayer({ src, miroir, frameStyle }: {
         playsInline
         style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain', transform: miroir ? 'scaleX(-1)' : 'none' }}
         onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
-        onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
+        onLoadedMetadata={() => {
+          const v = videoRef.current
+          if (!v) return
+          if (isFinite(v.duration)) {
+            setDuration(v.duration)
+          } else {
+            // Webm MediaRecorder : duration = Infinity (pas de metadata de durée).
+            // Seeker jusqu'à la fin force le navigateur à calculer la vraie durée.
+            v.currentTime = 1e10
+            const onSeeked = () => {
+              setDuration(v.duration)
+              durationRef.current = v.duration
+              v.currentTime = 0
+              v.removeEventListener('seeked', onSeeked)
+            }
+            v.addEventListener('seeked', onSeeked)
+          }
+        }}
         onPlay={() => {
           setPlaying(true)
           if (hideTimer.current) clearTimeout(hideTimer.current)
