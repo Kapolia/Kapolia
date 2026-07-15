@@ -43,6 +43,8 @@ type Profil = {
   projet_images?: string[]; projet_video_url?: string
   avatar_url?: string; avatar_type?: string
   linkedin_url?: string; portfolio_url?: string
+  plus_grande_reussite?: string
+  ce_que_je_veux_apprendre?: string
 }
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
@@ -51,11 +53,11 @@ const ENVIRONNEMENT_MAP: Record<string, string> = {
   startup: 'Startup agile', scaleup: 'Scale-up', corporate: 'Grand groupe', indep: 'Indépendant(e)',
 }
 
-const DEFI_MAP: Record<string, { label: string; desc: string }> = {
-  analyse: { label: "J'analyse avant d'agir",  desc: 'Comprendre pour mieux décider' },
-  action:  { label: "Je teste et j'ajuste",    desc: 'Apprendre en faisant' },
-  collab:  { label: "Je consulte l'équipe",    desc: 'La force du collectif' },
-  creativ: { label: "L'angle inattendu",        desc: "L'originalité comme levier" },
+const DEFI_MAP: Record<string, { label: string; desc: string; icon: string }> = {
+  analyse: { label: "J'analyse avant d'agir",  desc: 'Comprendre pour mieux décider', icon: '🔍' },
+  action:  { label: "Je teste et j'ajuste",    desc: 'Apprendre en faisant',          icon: '⚡' },
+  collab:  { label: "Je consulte l'équipe",    desc: 'La force du collectif',          icon: '🤝' },
+  creativ: { label: "L'angle inattendu",        desc: "L'originalité comme levier",   icon: '💡' },
 }
 
 const TYPE_POSTE_MAP: Record<string, string> = {
@@ -196,6 +198,8 @@ export default function ProfilView({
   const [editVille, setEditVille]                   = useState('')
   const [editLinkedinUrl, setEditLinkedinUrl]       = useState('')
   const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
+  const [editReussite, setEditReussite]             = useState('')
+  const [editApprendre, setEditApprendre]           = useState('')
 
   const imageInputRef = useRef<HTMLInputElement>(null)
   const videoInputRef = useRef<HTMLInputElement>(null)
@@ -252,6 +256,8 @@ export default function ProfilView({
         setEditVille(profil.ville ?? '')
         setEditLinkedinUrl(profil.linkedin_url ?? '')
         setEditPortfolioUrl(profil.portfolio_url ?? '')
+        setEditReussite(profil.plus_grande_reussite ?? '')
+        setEditApprendre(profil.ce_que_je_veux_apprendre ?? '')
         setIsEditing(true)
       }
     }
@@ -282,9 +288,7 @@ export default function ProfilView({
   const initials         = getInitials(p.prenom, p.nom)
   const dispo            = getDispoStatus(p.disponibilite)
   const modeTravailItems = (p.mode_travail ?? []).map(k => ENVIRONNEMENT_MAP[k] ?? k)
-  const valeurInfo       = DEFI_MAP[p.valeur ?? ''] ?? { label: p.valeur ?? '', desc: '' }
   const typePosteLabel   = TYPE_POSTE_MAP[p.type_poste ?? ''] ?? p.type_poste ?? '—'
-  const structureLabel   = LIEU_MAP[p.structure ?? ''] ?? p.structure ?? '—'
   const qualites            = p.qualites ?? []
   const passions            = p.passions ?? []
   const experiences         = p.experiences ?? []
@@ -316,6 +320,8 @@ export default function ProfilView({
     setEditVille(p.ville ?? '')
     setEditLinkedinUrl(p.linkedin_url ?? '')
     setEditPortfolioUrl(p.portfolio_url ?? '')
+    setEditReussite(p.plus_grande_reussite ?? '')
+    setEditApprendre(p.ce_que_je_veux_apprendre ?? '')
     setNewQualite(''); setNewCompetence('')
     setIsEditing(true)
   }
@@ -372,13 +378,15 @@ export default function ProfilView({
     if (!user) { setSaving(false); return }
 
     const coreData = {
-      signature:            editSignature,
-      qualites:             editQualites,
-      competences_acquises: editCompetences,
-      experiences:          editExperiences,
-      diplomes:             editDiplomes,
-      projet_phare:         editProjetDesc,
-      ville:                editVille,
+      signature:                editSignature,
+      qualites:                 editQualites,
+      competences_acquises:     editCompetences,
+      experiences:              editExperiences,
+      diplomes:                 editDiplomes,
+      projet_phare:             editProjetDesc,
+      ville:                    editVille,
+      plus_grande_reussite:     editReussite,
+      ce_que_je_veux_apprendre: editApprendre,
     }
 
     const projetData = {
@@ -540,7 +548,7 @@ export default function ProfilView({
 
           {/* Identité */}
           <div style={{ flex: 1, minWidth: 240 }}>
-            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 6px', lineHeight: 1.2 }}>
+            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 8px', lineHeight: 1.2 }}>
               {p.prenom} {p.nom}
             </h1>
             {isEditing ? (
@@ -552,39 +560,12 @@ export default function ProfilView({
                   width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
                   border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
                   color: C.white, fontSize: 13, padding: '6px 12px',
-                  fontFamily: 'inherit', outline: 'none', marginBottom: 10,
+                  fontFamily: 'inherit', outline: 'none',
                   boxSizing: 'border-box',
                 }}
               />
             ) : (
-              p.ville && <div style={{ marginBottom: 10 }}><span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>◎ {p.ville}</span></div>
-            )}
-
-            {isEditing ? (
-              <textarea
-                value={editSignature}
-                onChange={e => setEditSignature(e.target.value)}
-                placeholder="Votre phrase signature…"
-                rows={2}
-                style={{
-                  width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
-                  color: C.white, fontSize: 14, padding: '8px 12px',
-                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
-                  resize: 'none', outline: 'none', lineHeight: 1.5,
-                }}
-              />
-            ) : (
-              p.signature && (
-                <p style={{
-                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
-                  fontSize: 14, color: C.sable, lineHeight: 1.5, margin: 0,
-                  overflow: 'hidden', textOverflow: 'ellipsis',
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
-                }}>
-                  « {p.signature} »
-                </p>
-              )
+              p.ville && <div><span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>◎ {p.ville}</span></div>
             )}
           </div>
 
@@ -636,50 +617,169 @@ export default function ProfilView({
         </div>
       </section>
 
-      {/* ━━━ BANDE CE QUE JE RECHERCHE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* ━━━ BANDEAU PRÉFÉRENCES (maritime) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <section style={{ backgroundColor: '#FEF4EE', borderBottom: `1px solid ${C.sable}` }}>
         <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px, 5vw, 60px)' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', padding: '12px 0 10px' }}>
-            Ce que je recherche
+          {/* Cap header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 8px' }}>
+            <span style={{ fontSize: 14 }}>🧭</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.12em' }}>Cap sur</span>
+            <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'stretch' }}>
-            {[
-              { icon: '📋', label: 'Contrat',    value: typePosteLabel },
-              { icon: '🏢', label: 'Entreprise', value: structureLabel },
-              { icon: '📅', label: 'Disponible', value: dispo.label },
-              { icon: '🏠', label: 'Travail',    value: modeTravailItems.join(', ') || '—' },
-              { icon: '🤝', label: 'Priorité',   value: valeurInfo.label || '—' },
-            ].map(item => (
-              <div key={item.label} style={{ flex: 1, padding: '0 14px 16px', borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                <span style={{ fontSize: 14, flexShrink: 0 }}>{item.icon}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>
-                    {item.label}
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: item.label === 'Disponible' ? dispo.color : C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {item.value}
-                  </div>
+          {/* 3 columns */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', paddingBottom: 14, gap: 0 }}>
+            {/* Disponibilité */}
+            <div style={{ paddingRight: 20, borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0, boxShadow: `0 0 0 3px ${dispo.color}22` }} />
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>Disponibilité</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: dispo.color }}>{dispo.label}</div>
+              </div>
+            </div>
+            {/* Type de poste */}
+            <div style={{ padding: '0 20px', borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>⚓</span>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>Type de poste</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{typePosteLabel}</div>
+              </div>
+            </div>
+            {/* Ville / Mobilité */}
+            <div style={{ paddingLeft: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 15, flexShrink: 0 }}>🗺</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>Lieu / Mobilité</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                  {[p.ville, modeTravailItems.join(', ')].filter(Boolean).join(' · ') || '—'}
                 </div>
               </div>
-            ))}
-            {p.portfolio && (
-              <div style={{ padding: '0 0 16px 18px', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <a href={p.portfolio} target="_blank" rel="noreferrer" style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 14px', borderRadius: 20,
-                  backgroundColor: C.terracotta, color: C.white,
-                  fontSize: 11, fontWeight: 600, textDecoration: 'none',
-                }}>
-                  🔗 Portfolio →
-                </a>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ━━━ CONTENU PRINCIPAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px clamp(24px, 5vw, 60px) 0' }}>
+
+        {/* ── MON PROJET PHARE ───────────────────────────────────────────────── */}
+        {(isEditing || p.projet_phare) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Mon projet phare</SLabel>
+            {isEditing ? (
+              <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <input style={editInputStyle} value={editProjetTitre} onChange={e => setEditProjetTitre(e.target.value)} placeholder="Titre du projet" />
+                  <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => setEditProjetDesc(e.target.value)} placeholder="Description du projet…" rows={4} />
+                  <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
+                  <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
+                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(e.dataTransfer.files) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
+                      {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
+                    </div>
+                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
+                      📷 Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
+                    </button>
+                    {editProjetImages.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginTop: 8 }}>
+                        {editProjetImages.map((url, i) => (
+                          <div key={i} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', backgroundColor: C.sable }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            <button type="button" onClick={() => setEditProjetImages(editProjetImages.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: C.white, border: 'none', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
+                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
+                      {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>🎬 {editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
+                    </button>
+                    {editProjetVideo && (
+                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
+                        <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
+                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.creme, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.white, fontWeight: 400 }}>{p.projet_titre || 'Projet phare'}</div>
+                  {projetImpact && <span style={{ padding: '3px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}40`, color: C.terracotta, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const }}>{projetImpact}</span>}
+                </div>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>🖼 Voir les détails du projet →</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── MA SIGNATURE ───────────────────────────────────────────────────── */}
+        {(isEditing || p.signature) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Ma signature</SLabel>
+            {isEditing ? (
+              <textarea
+                value={editSignature}
+                onChange={e => setEditSignature(e.target.value)}
+                placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
+                rows={2}
+                style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, fontFamily: 'Georgia, serif', fontStyle: 'italic', minHeight: 72 }}
+              />
+            ) : (
+              <blockquote style={{ margin: 0, padding: '20px 24px', backgroundColor: C.white, borderRadius: '0 16px 16px 0', border: `1px solid ${C.sable}`, borderLeft: `4px solid ${C.terracotta}` }}>
+                <p style={{ margin: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 15, color: C.dark, lineHeight: 1.75 }}>« {p.signature} »</p>
+              </blockquote>
+            )}
+          </div>
+        )}
+
+        {/* ── MA PLUS GRANDE RÉUSSITE ────────────────────────────────────────── */}
+        {(isEditing || p.plus_grande_reussite) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Ma plus grande réussite</SLabel>
+            {isEditing ? (
+              <textarea
+                value={editReussite}
+                onChange={e => setEditReussite(e.target.value)}
+                placeholder="Décrivez un accomplissement dont vous êtes particulièrement fier(e)…"
+                rows={4}
+                style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100 }}
+              />
+            ) : (
+              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}`, position: 'relative' }}>
+                <span style={{ position: 'absolute', top: -12, left: 20, fontSize: 22, lineHeight: 1 }}>🏆</span>
+                <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.plus_grande_reussite}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── CE QUE JE VEUX APPRENDRE ───────────────────────────────────────── */}
+        {(isEditing || p.ce_que_je_veux_apprendre) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Ce que je veux apprendre</SLabel>
+            {isEditing ? (
+              <textarea
+                value={editApprendre}
+                onChange={e => setEditApprendre(e.target.value)}
+                placeholder="Quelles compétences, domaines ou pratiques voulez-vous explorer ensuite ?…"
+                rows={3}
+                style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 84 }}
+              />
+            ) : (
+              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}`, position: 'relative' }}>
+                <span style={{ position: 'absolute', top: -12, left: 20, fontSize: 22, lineHeight: 1 }}>🌱</span>
+                <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.ce_que_je_veux_apprendre}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── EXPÉRIENCES ────────────────────────────────────────────────────── */}
         {(isEditing || experiences.length > 0) && (
@@ -784,72 +884,31 @@ export default function ProfilView({
           </div>
         )}
 
-        {/* ── PROJET PHARE ───────────────────────────────────────────────────── */}
-        {(isEditing || p.projet_phare) && (
-          <div style={{ marginBottom: 32 }}>
-            {isEditing ? (
-              <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
-                <SLabel>Projet phare</SLabel>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <input style={editInputStyle} value={editProjetTitre} onChange={e => setEditProjetTitre(e.target.value)} placeholder="Titre du projet" />
-                  <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => setEditProjetDesc(e.target.value)} placeholder="Description du projet…" rows={4} />
-                  <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
-                  <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
-                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(e.dataTransfer.files) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
-                      {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
-                    </div>
-                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
-                      📷 Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
-                    </button>
-                    {editProjetImages.length > 0 && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginTop: 8 }}>
-                        {editProjetImages.map((url, i) => (
-                          <div key={i} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', backgroundColor: C.sable }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            <button type="button" onClick={() => setEditProjetImages(editProjetImages.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: C.white, border: 'none', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
-                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
-                      {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>🎬 {editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
-                    </button>
-                    {editProjetVideo && (
-                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
-                        <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
-                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.creme, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.white, fontWeight: 400 }}>{p.projet_titre || 'Projet phare'}</div>
-                  <span style={{ padding: '3px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}40`, color: C.terracotta, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const }}>{projetImpact || 'Impact'}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>🖼 Voir les détails du projet →</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── CITATION ───────────────────────────────────────────────────────── */}
-        {valeurInfo.label && (
+        {/* ── MA VALEUR ──────────────────────────────────────────────────────── */}
+        {p.valeur && DEFI_MAP[p.valeur] && (
           <div style={{ marginBottom: 32 }}>
             <SLabel>Face à un défi</SLabel>
-            <blockquote style={{ margin: 0, padding: '18px 20px', backgroundColor: C.white, borderRadius: '0 14px 14px 0', border: `1px solid ${C.sable}`, borderLeft: `3px solid ${C.terracotta}` }}>
-              <p style={{ margin: 0, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 14, color: C.dark, lineHeight: 1.7 }}>« {valeurInfo.label} »</p>
-              {valeurInfo.desc && <p style={{ margin: '8px 0 0', fontSize: 12, color: C.grey }}>{valeurInfo.desc}</p>}
-            </blockquote>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {Object.entries(DEFI_MAP).map(([key, info]) => {
+                const isSelected = p.valeur === key
+                return (
+                  <div key={key} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 18px', borderRadius: 14,
+                    backgroundColor: isSelected ? C.vert : C.white,
+                    border: `1.5px solid ${isSelected ? C.vert : C.sable}`,
+                    opacity: isSelected ? 1 : 0.38,
+                    transition: 'all 0.15s',
+                  }}>
+                    <span style={{ fontSize: 20 }}>{info.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? C.white : C.dark }}>{info.label}</div>
+                      <div style={{ fontSize: 11, color: isSelected ? 'rgba(255,255,255,0.65)' : C.grey, marginTop: 2 }}>{info.desc}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         )}
 
