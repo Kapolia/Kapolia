@@ -42,7 +42,7 @@ type CandProfil = {
   signature: string | null
   qualites: string[] | null
   passions: string[] | null
-  type_poste: string | null
+  type_poste: string[] | null
   valeur: string | null
   disponibilite: string | null
   projet_phare: string | null
@@ -114,7 +114,6 @@ function computeScore(cand: Candidature, offre: OffreRow | null): number {
     experience:   p.experience,
     type_poste:   p.type_poste,
     valeur:       p.valeur,
-    disponibilite: p.disponibilite,
     ville:        p.ville,
   }
   const offreMatch: OffreMatch = {
@@ -389,7 +388,7 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {p?.experience && <div style={{ fontSize: 12, color: C.dark }}>⌛ {p.experience}</div>}
               {p?.ville      && <div style={{ fontSize: 12, color: C.dark }}>◎ {p.ville}</div>}
-              {p?.type_poste && <div style={{ fontSize: 12, color: C.dark }}>◈ Cherche {p.type_poste}</div>}
+              {(p?.type_poste ?? []).length > 0 && <div style={{ fontSize: 12, color: C.dark }}>◈ Cherche {(p!.type_poste!).map(k => ({ cdi:'CDI',cdd:'CDD',freelance:'Freelance',alternance:'Alternance',stage:'Stage',ouvert:'Tout type' })[k] ?? k).join(' · ')}</div>}
             </div>
           </div>
         )}

@@ -1,9 +1,9 @@
 // Scoring weights — must sum to 100
 const W = {
-  domaine:  30,
-  experience: 20,
-  contrat:  20,
-  valeurs:  15,
+  domaine:      30,
+  experience:   20,
+  contrat:      20,
+  valeurs:      15,
   localisation: 15,
 } as const
 
@@ -12,9 +12,8 @@ const W = {
 export type ProfilMatch = {
   domaine?: string | null
   experience?: string | null
-  type_poste?: string | null
+  type_poste?: string[] | null   // text[] après migration
   valeur?: string | null
-  disponibilite?: string | string[] | null
   ville?: string | null
 }
 
@@ -68,8 +67,8 @@ function scoreExperience(p: ProfilMatch, o: OffreMatch): number {
 
 // ─── Type de contrat ──────────────────────────────────────────────────────────
 
-// profil stores lowercase keys ('cdi', 'freelance', 'ouvert')
-// offre stores display labels ('CDI', 'Freelance', 'Stage')
+// profil.type_poste stores lowercase keys ('cdi', 'freelance', 'ouvert')
+// offre.type_contrat stores display labels ('CDI', 'Freelance', 'Stage')
 const CONTRAT_MAP: Record<string, string> = {
   cdi:        'CDI',
   cdd:        'CDD',
@@ -79,32 +78,20 @@ const CONTRAT_MAP: Record<string, string> = {
 }
 
 function scoreContrat(p: ProfilMatch, o: OffreMatch): number {
-  const pk = p.type_poste?.toLowerCase().trim()
-  const ok = o.type_contrat?.toLowerCase().trim()
-  if (!pk || !ok) return 0
-  if (pk === 'ouvert') return W.contrat  // open to any contract
-  const mapped = CONTRAT_MAP[pk]?.toLowerCase()
-  return mapped === ok ? W.contrat : 0
+  const types = p.type_poste ?? []
+  const ok    = o.type_contrat?.toLowerCase().trim()
+  if (types.length === 0 || !ok) return 0
+  if (types.includes('ouvert')) return W.contrat
+  const matches = types.some(pk => CONTRAT_MAP[pk]?.toLowerCase() === ok)
+  return matches ? W.contrat : 0
 }
 
 // ─── Valeurs ──────────────────────────────────────────────────────────────────
 
-// profil.disponibilite stores the candidat's priorities (same vocabulary as offre.valeurs)
-// e.g. ['Impact réel', 'Autonomie', 'Équipe soudée']
-function scoreValeurs(p: ProfilMatch, o: OffreMatch): number {
-  const ov = o.valeurs
-  if (!ov || ov.length === 0) return 0
-
-  const pv: string[] = Array.isArray(p.disponibilite)
-    ? p.disponibilite
-    : typeof p.disponibilite === 'string' && p.disponibilite
-      ? [p.disponibilite]
-      : []
-
-  if (pv.length === 0) return 0
-
-  const match = pv.some(v => ov.includes(v))
-  return match ? W.valeurs : 0
+// disponibilite stores availability status since migration — valeurs scoring
+// is suspended until a dedicated work-priorities field is added.
+function scoreValeurs(_p: ProfilMatch, _o: OffreMatch): number {
+  return 0
 }
 
 // ─── Localisation ─────────────────────────────────────────────────────────────

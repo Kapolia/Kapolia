@@ -1,0 +1,61 @@
+export type Langue = { code: string; nom: string; drapeau: string }
+
+export const LANGUES: Langue[] = [
+  { code: 'af',    nom: 'Afrikaans',   drapeau: '🇿🇦' },
+  { code: 'sq',    nom: 'Albanais',    drapeau: '🇦🇱' },
+  { code: 'de',    nom: 'Allemand',    drapeau: '🇩🇪' },
+  { code: 'am',    nom: 'Amharique',   drapeau: '🇪🇹' },
+  { code: 'en',    nom: 'Anglais',     drapeau: '🇬🇧' },
+  { code: 'ar',    nom: 'Arabe',       drapeau: '🇸🇦' },
+  { code: 'hy',    nom: 'Arménien',    drapeau: '🇦🇲' },
+  { code: 'bn',    nom: 'Bengali',     drapeau: '🇧🇩' },
+  { code: 'bg',    nom: 'Bulgare',     drapeau: '🇧🇬' },
+  { code: 'zh',    nom: 'Chinois',     drapeau: '🇨🇳' },
+  { code: 'ko',    nom: 'Coréen',      drapeau: '🇰🇷' },
+  { code: 'hr',    nom: 'Croate',      drapeau: '🇭🇷' },
+  { code: 'da',    nom: 'Danois',      drapeau: '🇩🇰' },
+  { code: 'es',    nom: 'Espagnol',    drapeau: '🇪🇸' },
+  { code: 'et',    nom: 'Estonien',    drapeau: '🇪🇪' },
+  { code: 'fi',    nom: 'Finnois',     drapeau: '🇫🇮' },
+  { code: 'fr',    nom: 'Français',    drapeau: '🇫🇷' },
+  { code: 'ka',    nom: 'Géorgien',    drapeau: '🇬🇪' },
+  { code: 'el',    nom: 'Grec',        drapeau: '🇬🇷' },
+  { code: 'he',    nom: 'Hébreu',      drapeau: '🇮🇱' },
+  { code: 'hi',    nom: 'Hindi',       drapeau: '🇮🇳' },
+  { code: 'hu',    nom: 'Hongrois',    drapeau: '🇭🇺' },
+  { code: 'id',    nom: 'Indonésien',  drapeau: '🇮🇩' },
+  { code: 'it',    nom: 'Italien',     drapeau: '🇮🇹' },
+  { code: 'ja',    nom: 'Japonais',    drapeau: '🇯🇵' },
+  { code: 'kk',    nom: 'Kazakh',      drapeau: '🇰🇿' },
+  { code: 'lv',    nom: 'Letton',      drapeau: '🇱🇻' },
+  { code: 'lt',    nom: 'Lituanien',   drapeau: '🇱🇹' },
+  { code: 'ms',    nom: 'Malais',      drapeau: '🇲🇾' },
+  { code: 'nl',    nom: 'Néerlandais', drapeau: '🇳🇱' },
+  { code: 'no',    nom: 'Norvégien',   drapeau: '🇳🇴' },
+  { code: 'ur',    nom: 'Ourdou',      drapeau: '🇵🇰' },
+  { code: 'fa',    nom: 'Persan',      drapeau: '🇮🇷' },
+  { code: 'pl',    nom: 'Polonais',    drapeau: '🇵🇱' },
+  { code: 'pt',    nom: 'Portugais',   drapeau: '🇵🇹' },
+  { code: 'ro',    nom: 'Roumain',     drapeau: '🇷🇴' },
+  { code: 'ru',    nom: 'Russe',       drapeau: '🇷🇺' },
+  { code: 'sr',    nom: 'Serbe',       drapeau: '🇷🇸' },
+  { code: 'sk',    nom: 'Slovaque',    drapeau: '🇸🇰' },
+  { code: 'sl',    nom: 'Slovène',     drapeau: '🇸🇮' },
+  { code: 'sv',    nom: 'Suédois',     drapeau: '🇸🇪' },
+  { code: 'sw',    nom: 'Swahili',     drapeau: '🇰🇪' },
+  { code: 'ta',    nom: 'Tamoul',      drapeau: '🇮🇳' },
+  { code: 'cs',    nom: 'Tchèque',     drapeau: '🇨🇿' },
+  { code: 'th',    nom: 'Thaï',        drapeau: '🇹🇭' },
+  { code: 'tr',    nom: 'Turc',        drapeau: '🇹🇷' },
+  { code: 'uk',    nom: 'Ukrainien',   drapeau: '🇺🇦' },
+  { code: 'vi',    nom: 'Vietnamien',  drapeau: '🇻🇳' },
+  { code: 'wo',    nom: 'Wolof',       drapeau: '🇸🇳' },
+  { code: 'other', nom: 'Autre',       drapeau: '🌐' },
+]
+
+// Tolerant lookup: case-insensitive, trims whitespace.
+// Handles legacy stored names like "anglais", "Chinois", "autre".
+export function findLangue(nom: string): Langue | undefined {
+  const q = nom.toLowerCase().trim()
+  return LANGUES.find(l => l.nom.toLowerCase() === q)
+}

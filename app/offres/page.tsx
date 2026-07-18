@@ -23,7 +23,7 @@ const C = {
 type Profil = {
   domaine?: string
   experience?: string
-  type_poste?: string
+  type_poste?: string[]
   valeur?: string
   disponibilite?: string | string[]
   ville?: string

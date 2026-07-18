@@ -45,7 +45,7 @@ type CandProfil = {
   domaine: string | null
   experience: string | null
   ville: string | null
-  type_poste: string | null
+  type_poste: string[] | null
   valeur: string | null
   disponibilite: string | null
   competences: string[] | null
@@ -77,7 +77,7 @@ function computeScore(cand: Candidature, offre: Offre | undefined): number {
   const p = cand.profils
   const profil: ProfilMatch = {
     domaine: p.domaine, experience: p.experience, type_poste: p.type_poste,
-    valeur: p.valeur, disponibilite: p.disponibilite, ville: p.ville,
+    valeur: p.valeur, ville: p.ville,
   }
   const offreMatch: OffreMatch = {
     domaine: offre.domaine, experience: offre.experience,

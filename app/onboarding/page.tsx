@@ -36,6 +36,7 @@ type FormData = {
   sideProject: string
   typePoste: string
   lieu: string
+  ville: string
   priorite: string[]
   experiences: Experience[]
   diplomes: Diplome[]
@@ -311,7 +312,7 @@ export default function OnboardingPage() {
     prenom: '', nom: '', domaine: '', experience: '', parcours: '',
     mots: ['', '', ''],
     environnement: '', defi: '', projet: '', passions: '',
-    sideProject: '', typePoste: '', lieu: '', priorite: [],
+    sideProject: '', typePoste: '', lieu: '', ville: '', priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
   const [saving, setSaving] = useState(false)
@@ -369,9 +370,10 @@ export default function OnboardingPage() {
         valeur: data.defi,
         projet_phare: data.projet,
         passions: Array.isArray(data.passions) ? data.passions : data.passions.split(',').map(s => s.trim()).filter(Boolean),
-        type_poste: data.typePoste,
+        type_poste: data.typePoste ? [data.typePoste] : [],
         structure: data.lieu,
-        disponibilite: data.priorite,
+        ville: data.ville || null,
+        disponibilite: 'maintenant',
         experiences: data.experiences,
         diplomes: data.diplomes,
         competences_acquises: data.competences_acquises,
@@ -611,6 +613,11 @@ export default function OnboardingPage() {
                 onClick={() => set('lieu', l.key)}
               />
             ))}
+            <StyledInput
+              value={data.ville}
+              onChange={v => set('ville', v)}
+              placeholder="Votre ville / région / zone géographique"
+            />
           </>
         )
 

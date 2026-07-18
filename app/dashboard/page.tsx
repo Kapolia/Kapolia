@@ -33,7 +33,7 @@ type Profil = {
   signature?: string
   qualites?: string[]
   passions?: string[]
-  type_poste?: string
+  type_poste?: string[]
   structure?: string
   projet_phare?: string
   photo_url?: string
@@ -111,9 +111,9 @@ type MessageActivite = {
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
-  { value: 'active',          label: 'En recherche active',      dot: '🟢' },
-  { value: 'ouvert',          label: 'Ouvert aux opportunités',  dot: '🟡' },
-  { value: 'pas_disponible',  label: 'Pas disponible',           dot: '🔴' },
+  { value: 'maintenant',      label: 'En recherche active',      dot: '🟢' },
+  { value: 'a_partir_de',    label: 'Ouvert aux opportunités',  dot: '🟡' },
+  { value: 'non_disponible', label: 'Pas disponible',           dot: '🔴' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -560,7 +560,7 @@ export default function DashboardPage() {
   const prenom        = p.prenom ?? 'vous'
   const initials      = `${p.prenom?.[0] ?? ''}${p.nom?.[0] ?? ''}`.toUpperCase() || 'K'
   const completion    = calcCompletion(p)
-  const statusValue   = p.disponibilite ?? 'active'
+  const statusValue   = p.disponibilite ?? 'maintenant'
   const phrase        = getDynamicPhrase()
 
   const missingFields = PROFIL_COMPLETION

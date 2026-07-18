@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ouvrirConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
+import { LANGUES, findLangue } from '@/lib/langues'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -34,7 +35,8 @@ type Profil = {
   prenom: string; nom: string; domaine?: string; experience?: string
   signature?: string; qualites?: string[]; mode_travail?: string[]
   valeur?: string; projet_phare?: string; passions?: string[]
-  type_poste?: string; structure?: string; disponibilite?: string | string[]
+  type_poste?: string[]; structure?: string; disponibilite?: string | null
+  dispo_date?: string | null
   ville?: string; competences?: string[]; competences_bonus?: string[]
   portfolio?: string; user_id?: string
   experiences?: ProfilExperience[]; diplomes?: ProfilDiplome[]
@@ -71,11 +73,18 @@ const LIEU_MAP: Record<string, string> = {
   remote: '100% Remote', hybride: 'Hybride', presentiel: 'Présentiel', flexible: 'Flexible',
 }
 
-const LANGUE_FLAGS: Record<string, string> = {
-  'Français': '🇫🇷', 'Anglais': '🇬🇧', 'Espagnol': '🇪🇸',
-  'Allemand': '🇩🇪', 'Italien': '🇮🇹', 'Portugais': '🇵🇹',
-  'Arabe': '🇸🇦', 'Chinois': '🇨🇳', 'Autre': '🌐',
-}
+const DISPO_OPTIONS = [
+  { key: 'maintenant',      label: 'Disponible maintenant', color: '#27AE60' },
+  { key: 'a_partir_de',    label: 'À partir de…',          color: '#E67E22' },
+  { key: 'non_disponible', label: 'Non disponible',         color: '#C0392B' },
+]
+
+const MOIS_FR = [
+  'Janvier','Février','Mars','Avril','Mai','Juin',
+  'Juillet','Août','Septembre','Octobre','Novembre','Décembre',
+]
+
+const NIVEAUX_LANGUE = ['Natif', 'Courant', 'Intermédiaire', 'Débutant']
 
 const PASSION_EMOJIS: Record<string, string> = {
   Musique: '🎵', Sport: '⚽', Lecture: '📚', Voyage: '✈️', Cuisine: '🍳',
@@ -90,13 +99,17 @@ function getInitials(prenom: string, nom: string) {
   return `${prenom?.[0] ?? ''}${nom?.[0] ?? ''}`.toUpperCase()
 }
 
-function getDispoStatus(dispo?: string | string[]): { color: string; label: string } {
-  const val = Array.isArray(dispo) ? '' : (dispo ?? '')
-  const low = val.toLowerCase()
-  if (low.includes('non') || low.includes('indisponible') || low.includes('en poste'))
-    return { color: '#C0392B', label: 'Non disponible' }
-  if (low.includes('3 mois') || low.includes('prochain') || low.includes('bientôt') || low.includes('mois'))
+function getDispoStatus(dispo?: string | null, dispoDate?: string | null): { color: string; label: string } {
+  if (dispo === 'non_disponible') return { color: '#C0392B', label: 'Non disponible' }
+  if (dispo === 'a_partir_de') {
+    if (dispoDate) {
+      const d = new Date(dispoDate + 'T00:00:00')
+      const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      return { color: '#E67E22', label: `À partir de ${label}` }
+    }
     return { color: '#E67E22', label: 'Disponible prochainement' }
+  }
+  if (dispo === 'maintenant') return { color: '#27AE60', label: 'Disponible maintenant' }
   return { color: '#27AE60', label: 'Disponible' }
 }
 
@@ -466,6 +479,7 @@ export default function ProfilView({
   const [saving, setSaving]       = useState(false)
 
   const [editSignature, setEditSignature]           = useState('')
+  const [signatureExpanded, setSignatureExpanded]   = useState(false)
   const [editQualites, setEditQualites]             = useState<string[]>([])
   const [editCompetences, setEditCompetences]       = useState<string[]>([])
   const [editExperiences, setEditExperiences]       = useState<ProfilExperience[]>([])
@@ -488,10 +502,20 @@ export default function ProfilView({
   const [newQualite, setNewQualite]                 = useState('')
   const [newCompetence, setNewCompetence]           = useState('')
   const [editVille, setEditVille]                   = useState('')
+  const [editStructure, setEditStructure]           = useState('')
+  const [editDispo, setEditDispo]                   = useState('')
+  const [editDispoDate, setEditDispoDate]           = useState('')
+  const [editTypePoste, setEditTypePoste]           = useState<string[]>([])
   const [editLinkedinUrl, setEditLinkedinUrl]       = useState('')
   const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
   const [editReussite, setEditReussite]             = useState('')
   const [editApprendre, setEditApprendre]           = useState('')
+  const [editValeur, setEditValeur]                 = useState('')
+  const [editModeTravail, setEditModeTravail]       = useState<string[]>([])
+  const [editLangues, setEditLangues]               = useState<string[]>([])
+  const [selectingLangue, setSelectingLangue]       = useState('')
+  const [editPassions, setEditPassions]             = useState<string[]>([])
+  const [newPassion, setNewPassion]                 = useState('')
   const [uploadingVedette, setUploadingVedette]     = useState(false)
   const [deletingVideo, setDeletingVideo]           = useState(false)
   const [togglingMiroir, setTogglingMiroir]         = useState(false)
@@ -511,6 +535,7 @@ export default function ProfilView({
   const mobileRecordInputRef = useRef<HTMLInputElement>(null)
   const avatarFileRef        = useRef<HTMLInputElement>(null)
   const previewVideoRef      = useRef<HTMLVideoElement>(null)
+  const sigTextareaRef       = useRef<HTMLTextAreaElement>(null)
   const streamRef            = useRef<MediaStream | null>(null)
   const mediaRecorderRef     = useRef<MediaRecorder | null>(null)
   const chunksRef            = useRef<Blob[]>([])
@@ -566,16 +591,32 @@ export default function ProfilView({
         setEditProjetImages([...(profil.projet_images ?? [])])
         setEditProjetVideo(profil.projet_video_url ?? '')
         setEditVille(profil.ville ?? '')
+        setEditStructure(profil.structure ?? '')
+        setEditDispo(profil.disponibilite ?? '')
+        setEditDispoDate(profil.dispo_date ?? '')
+        setEditTypePoste([...(profil.type_poste ?? [])])
         setEditLinkedinUrl(profil.linkedin_url ?? '')
         setEditPortfolioUrl(profil.portfolio_url ?? '')
         setEditReussite(profil.plus_grande_reussite ?? '')
         setEditApprendre(profil.ce_que_je_veux_apprendre ?? '')
+        setEditValeur(profil.valeur ?? '')
+        setEditModeTravail([...(profil.mode_travail ?? [])])
+        setEditLangues([...(profil.langues ?? [])])
+        setEditPassions([...(profil.passions ?? [])])
         setIsEditing(true)
       }
     }
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, isOwner, initialEditMode, notFoundRedirect])
+
+  // Auto-resize signature textarea as content grows
+  useEffect(() => {
+    const el = sigTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = el.scrollHeight + 'px'
+  }, [editSignature])
 
   // Camera lifecycle — starts when modal opens, cleans up on close or unmount
   useEffect(() => {
@@ -642,9 +683,10 @@ export default function ProfilView({
   const p = profil!
 
   const initials         = getInitials(p.prenom, p.nom)
-  const dispo            = getDispoStatus(p.disponibilite)
-  const modeTravailItems = (p.mode_travail ?? []).map(k => ENVIRONNEMENT_MAP[k] ?? k)
-  const typePosteLabel   = TYPE_POSTE_MAP[p.type_poste ?? ''] ?? p.type_poste ?? '—'
+  const dispo            = getDispoStatus(p.disponibilite, p.dispo_date)
+  const modeTravailItems  = (p.mode_travail ?? []).map(k => ENVIRONNEMENT_MAP[k] ?? k)
+  const typePosteLabel    = (p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' · ') || '—'
+  const structureLabel    = LIEU_MAP[p.structure ?? ''] ?? p.structure ?? ''
   const qualites            = p.qualites ?? []
   const passions            = p.passions ?? []
   const experiences         = p.experiences ?? []
@@ -677,10 +719,18 @@ export default function ProfilView({
     setEditProjetImages([...(p.projet_images ?? [])])
     setEditProjetVideo(p.projet_video_url ?? '')
     setEditVille(p.ville ?? '')
+    setEditStructure(p.structure ?? '')
+    setEditDispo(p.disponibilite ?? '')
+    setEditDispoDate(p.dispo_date ?? '')
+    setEditTypePoste([...(p.type_poste ?? [])])
     setEditLinkedinUrl(p.linkedin_url ?? '')
     setEditPortfolioUrl(p.portfolio_url ?? '')
     setEditReussite(p.plus_grande_reussite ?? '')
     setEditApprendre(p.ce_que_je_veux_apprendre ?? '')
+    setEditValeur(p.valeur ?? '')
+    setEditModeTravail([...(p.mode_travail ?? [])])
+    setEditLangues([...(p.langues ?? [])])
+    setEditPassions([...(p.passions ?? [])])
     setNewQualite(''); setNewCompetence('')
     setIsEditing(true)
   }
@@ -744,8 +794,16 @@ export default function ProfilView({
       diplomes:                 editDiplomes,
       projet_phare:             editProjetDesc,
       ville:                    editVille,
+      structure:                editStructure,
+      disponibilite:            editDispo || null,
+      dispo_date:               editDispo === 'a_partir_de' ? (editDispoDate || null) : null,
+      type_poste:               editTypePoste,
       plus_grande_reussite:     editReussite,
       ce_que_je_veux_apprendre: editApprendre,
+      valeur:                   editValeur || undefined,
+      mode_travail:             editModeTravail,
+      langues:                  editLangues,
+      passions:                 editPassions,
     }
 
     const projetData = {
@@ -1101,22 +1159,6 @@ export default function ProfilView({
             <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 8px', lineHeight: 1.2 }}>
               {p.prenom} {p.nom}
             </h1>
-            {isEditing ? (
-              <input
-                value={editVille}
-                onChange={e => setEditVille(e.target.value)}
-                placeholder="Votre ville"
-                style={{
-                  width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
-                  color: C.white, fontSize: 13, padding: '6px 12px',
-                  fontFamily: 'inherit', outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            ) : (
-              p.ville && <div><span style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>◎ {p.ville}</span></div>
-            )}
 
             {/* Indicateur activité (signal de confiance côté recruteur) */}
             {!isEditing && activity.label && (
@@ -1138,30 +1180,56 @@ export default function ProfilView({
 
             {/* Signature — affichée dans le bandeau vert, éditable inline */}
             {isEditing ? (
-              <textarea
-                value={editSignature}
-                onChange={e => setEditSignature(e.target.value)}
-                placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
-                rows={2}
-                style={{
-                  marginTop: 12, width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8,
-                  color: C.white, fontSize: 13, padding: '8px 12px',
-                  fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6,
-                  resize: 'none', outline: 'none', boxSizing: 'border-box' as const,
-                }}
-              />
+              <div style={{ marginTop: 12 }}>
+                <textarea
+                  ref={sigTextareaRef}
+                  value={editSignature}
+                  onChange={e => setEditSignature(e.target.value.slice(0, 300))}
+                  placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
+                  style={{
+                    width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8,
+                    color: C.white, fontSize: 13, padding: '8px 12px',
+                    fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6,
+                    resize: 'none', outline: 'none', boxSizing: 'border-box' as const,
+                    overflow: 'hidden', minHeight: 42,
+                  }}
+                />
+                <div style={{
+                  textAlign: 'right', fontSize: 11, marginTop: 4,
+                  color: editSignature.length >= 270 ? C.terracotta : 'rgba(255,255,255,0.45)',
+                  transition: 'color 0.2s',
+                }}>
+                  {editSignature.length}/300
+                </div>
+              </div>
             ) : (
               p.signature && (
-                <p style={{
-                  marginTop: 12, marginBottom: 0,
-                  fontFamily: 'Georgia, serif', fontStyle: 'italic',
-                  fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
-                  display: '-webkit-box', WebkitLineClamp: 3,
-                  WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-                }}>
-                  « {p.signature} »
-                </p>
+                <div style={{ marginTop: 12 }}>
+                  <p style={{
+                    margin: 0,
+                    fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                    fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
+                    ...(signatureExpanded ? {} : {
+                      display: '-webkit-box', WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+                    }),
+                  }}>
+                    « {p.signature} »
+                  </p>
+                  {p.signature.length > 120 && (
+                    <button
+                      onClick={() => setSignatureExpanded(v => !v)}
+                      style={{
+                        background: 'none', border: 'none', padding: 0, marginTop: 5,
+                        color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer',
+                        fontFamily: 'inherit', textDecoration: 'underline',
+                      }}
+                    >
+                      {signatureExpanded ? 'voir moins' : 'voir plus'}
+                    </button>
+                  )}
+                </div>
               )
             )}
           </div>
@@ -1220,37 +1288,156 @@ export default function ProfilView({
           {/* Cap header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 8px' }}>
             <span style={{ fontSize: 14 }}>🧭</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.12em' }}>Cap sur</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.12em' }}>{isOwner ? 'Cap sur votre recherche' : 'Son cap'}</span>
             <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
           </div>
           {/* 3 columns */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', paddingBottom: 14, gap: 0 }}>
+
             {/* Disponibilité */}
-            <div style={{ paddingRight: 20, borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0, boxShadow: `0 0 0 3px ${dispo.color}22` }} />
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>Disponibilité</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: dispo.color }}>{dispo.label}</div>
+            <div style={{ paddingRight: 20, borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
+              {!(isEditing && isOwner) && <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0, boxShadow: `0 0 0 3px ${dispo.color}22` }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 5 }}>Disponibilité</div>
+                {isEditing && isOwner ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {DISPO_OPTIONS.map(opt => {
+                      const sel = editDispo === opt.key
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => {
+                            setEditDispo(opt.key)
+                            if (opt.key === 'a_partir_de' && !editDispoDate) {
+                              const d = new Date(); d.setMonth(d.getMonth() + 1)
+                              setEditDispoDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`)
+                            }
+                          }}
+                          style={{
+                            padding: '4px 10px', borderRadius: 8,
+                            border: `1.5px solid ${sel ? opt.color : C.sable}`,
+                            backgroundColor: sel ? `${opt.color}14` : 'transparent',
+                            color: sel ? opt.color : C.grey, fontSize: 11, fontWeight: sel ? 700 : 500,
+                            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
+                            transition: 'all 0.12s',
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      )
+                    })}
+                    {editDispo === 'a_partir_de' && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                        <select
+                          value={editDispoDate.slice(5, 7)}
+                          onChange={e => setEditDispoDate(prev => (prev || `${new Date().getFullYear()}-01-01`).slice(0, 5) + e.target.value.padStart(2, '0') + '-01')}
+                          style={{ flex: 1, fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontFamily: 'inherit' }}
+                        >
+                          {MOIS_FR.map((m, i) => (
+                            <option key={i} value={String(i + 1).padStart(2, '0')}>{m}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={editDispoDate.slice(0, 4)}
+                          onChange={e => setEditDispoDate(prev => e.target.value + (prev || `-01-01`).slice(4))}
+                          style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontFamily: 'inherit' }}
+                        >
+                          {[0, 1, 2].map(offset => {
+                            const y = new Date().getFullYear() + offset
+                            return <option key={y} value={y}>{y}</option>
+                          })}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: dispo.color }}>{dispo.label}</div>
+                )}
               </div>
             </div>
-            {/* Type de poste */}
-            <div style={{ padding: '0 20px', borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>⚓</span>
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>Type de poste</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{typePosteLabel}</div>
+
+            {/* Type de poste — sélection multiple */}
+            <div style={{ padding: '0 20px', borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
+              {!(isEditing && isOwner) && <span style={{ fontSize: 15, flexShrink: 0 }}>⚓</span>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 5 }}>Type de poste</div>
+                {isEditing && isOwner ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {Object.entries(TYPE_POSTE_MAP).map(([key, label]) => {
+                      const sel = editTypePoste.includes(key)
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setEditTypePoste(prev =>
+                            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+                          )}
+                          style={{
+                            padding: '4px 10px', borderRadius: 8, border: `1.5px solid ${sel ? C.vert : C.sable}`,
+                            backgroundColor: sel ? `${C.vert}12` : 'transparent',
+                            color: sel ? C.vert : C.grey, fontSize: 11, fontWeight: sel ? 700 : 500,
+                            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
+                            transition: 'all 0.12s',
+                          }}
+                        >
+                          {sel ? '✓ ' : ''}{label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{typePosteLabel}</div>
+                )}
               </div>
             </div>
-            {/* Ville / Mobilité */}
-            <div style={{ paddingLeft: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 15, flexShrink: 0 }}>🗺</span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 3 }}>Lieu / Mobilité</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                  {[p.ville, modeTravailItems.join(', ')].filter(Boolean).join(' · ') || '—'}
-                </div>
+
+            {/* Lieu / Mobilité — éditable directement ici */}
+            <div style={{ paddingLeft: 20, display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
+              {!(isEditing && isOwner) && <span style={{ fontSize: 15, flexShrink: 0 }}>🗺</span>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: isEditing && isOwner ? 5 : 3 }}>Lieu / Mobilité</div>
+                {isEditing && isOwner ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input
+                      value={editVille}
+                      onChange={e => setEditVille(e.target.value)}
+                      placeholder="Votre ville / région / zone géographique"
+                      style={{
+                        width: '100%', fontSize: 10, padding: '4px 8px', borderRadius: 6,
+                        border: `1px solid ${C.sable}`, outline: 'none', fontFamily: 'inherit',
+                        color: C.dark, backgroundColor: C.white, boxSizing: 'border-box' as const,
+                      }}
+                    />
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
+                      {Object.entries(LIEU_MAP).map(([key, label]) => {
+                        const sel = editStructure === key
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setEditStructure(sel ? '' : key)}
+                            style={{
+                              padding: '3px 8px', borderRadius: 20, border: `1.5px solid ${sel ? C.vert : C.sable}`,
+                              backgroundColor: sel ? `${C.vert}12` : 'transparent',
+                              color: sel ? C.vert : C.grey, fontSize: 10, fontWeight: sel ? 700 : 500,
+                              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                            }}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {[p.ville, structureLabel].filter(Boolean).join(' · ') || '—'}
+                  </div>
+                )}
               </div>
             </div>
+
           </div>
         </div>
       </section>
@@ -1602,21 +1789,26 @@ export default function ProfilView({
         )}
 
         {/* ── MA VALEUR ──────────────────────────────────────────────────────── */}
-        {p.valeur && DEFI_MAP[p.valeur] && (
+        {(isEditing || (p.valeur && DEFI_MAP[p.valeur])) && (
           <div style={{ marginBottom: 32 }}>
             <SLabel>Face à un défi</SLabel>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {Object.entries(DEFI_MAP).map(([key, info]) => {
-                const isSelected = p.valeur === key
+                const isSelected = isEditing ? editValeur === key : p.valeur === key
                 return (
-                  <div key={key} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '12px 18px', borderRadius: 14,
-                    backgroundColor: isSelected ? C.vert : C.white,
-                    border: `1.5px solid ${isSelected ? C.vert : C.sable}`,
-                    opacity: isSelected ? 1 : 0.38,
-                    transition: 'all 0.15s',
-                  }}>
+                  <div
+                    key={key}
+                    onClick={isEditing && isOwner ? () => setEditValeur(key) : undefined}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 18px', borderRadius: 14,
+                      backgroundColor: isSelected ? C.vert : C.white,
+                      border: `1.5px solid ${isSelected ? C.vert : C.sable}`,
+                      opacity: isSelected ? 1 : (isEditing && isOwner ? 0.55 : 0.38),
+                      cursor: isEditing && isOwner ? 'pointer' : 'default',
+                      transition: 'all 0.15s',
+                    }}
+                  >
                     <span style={{ fontSize: 20 }}>{info.icon}</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? C.white : C.dark }}>{info.label}</div>
@@ -1626,6 +1818,47 @@ export default function ProfilView({
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {/* ── ENVIRONNEMENT RECHERCHÉ ────────────────────────────────────────── */}
+        {(isEditing || modeTravailItems.length > 0) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Environnement recherché</SLabel>
+            {isEditing && isOwner ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {Object.entries(ENVIRONNEMENT_MAP).map(([key, label]) => {
+                  const sel = editModeTravail.includes(key)
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setEditModeTravail(sel ? editModeTravail.filter(k => k !== key) : [...editModeTravail, key])}
+                      style={{
+                        padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: sel ? 600 : 400,
+                        backgroundColor: sel ? `${C.vert}12` : C.white,
+                        border: `1.5px solid ${sel ? C.vert : C.sable}`,
+                        color: sel ? C.vert : C.dark,
+                        cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                      }}
+                    >
+                      {sel ? '✓ ' : ''}{label}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {modeTravailItems.map(item => (
+                  <span key={item} style={{
+                    padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
+                    backgroundColor: C.white, border: `1px solid ${C.sable}`, color: C.dark,
+                  }}>
+                    {item}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1682,22 +1915,81 @@ export default function ProfilView({
         )}
 
         {/* ── LANGUES ────────────────────────────────────────────────────────── */}
-        {langues.length > 0 && (
+        {(isEditing && isOwner ? true : langues.length > 0) && (
           <div style={{ marginBottom: 32 }}>
             <SLabel>Langues</SLabel>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {langues.map((entry: string) => {
-                const sepIdx = entry.indexOf(' — ')
-                const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
-                const niv    = sepIdx >= 0 ? entry.slice(sepIdx + 3) : ''
-                const flag   = LANGUE_FLAGS[nom] ?? '🌐'
-                return (
-                  <span key={entry} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                    {flag} {nom}{niv && <span style={{ color: C.grey, fontWeight: 400 }}> — {niv}</span>}
-                  </span>
-                )
-              })}
-            </div>
+            {isEditing && isOwner ? (
+              <div>
+                {/* Menu déroulant d'ajout */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  <select
+                    value={selectingLangue}
+                    onChange={e => setSelectingLangue(e.target.value)}
+                    style={{ flex: 1, padding: '9px 12px', borderRadius: 8, fontFamily: 'inherit', border: `1px solid ${C.sable}`, backgroundColor: C.white, color: selectingLangue ? C.dark : C.grey, fontSize: 13, cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="">Ajouter une langue…</option>
+                    {LANGUES.filter(l => !editLangues.some(e => e.startsWith(l.nom + ' — '))).map(l => (
+                      <option key={l.code} value={l.nom}>{l.drapeau} {l.nom}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!selectingLangue}
+                    onClick={() => {
+                      if (!selectingLangue) return
+                      setEditLangues([...editLangues, `${selectingLangue} — Natif`])
+                      setSelectingLangue('')
+                    }}
+                    style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: selectingLangue ? C.vert : C.sable, color: C.white, fontSize: 18, cursor: selectingLangue ? 'pointer' : 'default', lineHeight: 1, transition: 'background 0.12s' }}
+                  >+</button>
+                </div>
+                {/* Langues ajoutées avec sélecteur de niveau */}
+                {editLangues.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {editLangues.map(entry => {
+                      const sepIdx = entry.indexOf(' — ')
+                      const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
+                      const niveau = sepIdx >= 0 ? entry.slice(sepIdx + 3) : 'Natif'
+                      const drapeau = findLangue(nom)?.drapeau ?? '🌐'
+                      return (
+                        <div key={nom} style={{ display: 'flex', alignItems: 'center', gap: 12, backgroundColor: C.white, borderRadius: 10, border: `1px solid ${C.sable}`, padding: '10px 14px' }}>
+                          <span style={{ fontSize: 18, flexShrink: 0 }}>{drapeau}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{nom}</span>
+                          <select
+                            value={NIVEAUX_LANGUE.includes(niveau) ? niveau : 'Natif'}
+                            onChange={e => setEditLangues(editLangues.map(l =>
+                              l.startsWith(nom + ' — ') ? `${nom} — ${e.target.value}` : l
+                            ))}
+                            style={{ padding: '5px 10px', borderRadius: 8, fontFamily: 'inherit', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 13, cursor: 'pointer', outline: 'none' }}
+                          >
+                            {NIVEAUX_LANGUE.map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setEditLangues(editLangues.filter(l => !l.startsWith(nom + ' — ')))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 16, padding: '0 4px', lineHeight: 1 }}
+                          >✕</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {langues.map((entry: string) => {
+                  const sepIdx  = entry.indexOf(' — ')
+                  const nom     = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
+                  const niv     = sepIdx >= 0 ? entry.slice(sepIdx + 3) : ''
+                  const drapeau = findLangue(nom)?.drapeau ?? '🌐'
+                  return (
+                    <span key={entry} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
+                      {drapeau} {nom}{niv && <span style={{ color: C.grey, fontWeight: 400 }}> · {niv}</span>}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1733,17 +2025,70 @@ export default function ProfilView({
           </div>
         )}
 
-        {/* ── EN DEHORS DU TRAVAIL ───────────────────────────────────────────── */}
-        {passions.length > 0 && (
+        {/* ── CE QUI M'ANIME ────────────────────────────────────────────────── */}
+        {(isEditing && isOwner ? true : passions.length > 0) && (
           <div style={{ marginBottom: 32 }}>
-            <SLabel>En dehors du travail</SLabel>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {passions.map(passion => (
-                <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                  {PASSION_EMOJIS[passion] ?? '•'} {passion}
-                </span>
-              ))}
-            </div>
+            <SLabel>{isOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel>
+            {isEditing && isOwner ? (
+              <div>
+                {/* Options prédéfinies */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                  {Object.entries(PASSION_EMOJIS).map(([nom]) => {
+                    const sel = editPassions.includes(nom)
+                    return (
+                      <button
+                        key={nom}
+                        type="button"
+                        onClick={() => setEditPassions(sel ? editPassions.filter(x => x !== nom) : [...editPassions, nom])}
+                        style={{
+                          padding: '6px 14px', borderRadius: 24, fontSize: 13, fontFamily: 'inherit',
+                          border: `1.5px solid ${sel ? C.vert : C.sable}`,
+                          backgroundColor: sel ? `${C.vert}12` : C.white,
+                          color: sel ? C.vert : C.dark,
+                          fontWeight: sel ? 600 : 400, cursor: 'pointer', transition: 'all 0.12s',
+                        }}
+                      >
+                        {nom}
+                      </button>
+                    )
+                  })}
+                </div>
+                {/* Tags personnalisés (valeurs hors PASSION_EMOJIS) */}
+                {editPassions.filter(nom => !PASSION_EMOJIS[nom]).map(passion => (
+                  <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500, marginRight: 6, marginBottom: 8 }}>
+                    {passion}<button type="button" onClick={() => setEditPassions(editPassions.filter(x => x !== passion))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
+                  </span>
+                ))}
+                {/* Champ libre pour passion personnalisée */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <input
+                    style={{ ...editInputStyle, flex: 1 }}
+                    value={newPassion}
+                    onChange={e => setNewPassion(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key !== 'Enter') return
+                      e.preventDefault()
+                      const v = newPassion.trim()
+                      if (v && !editPassions.includes(v)) { setEditPassions([...editPassions, v]); setNewPassion('') }
+                    }}
+                    placeholder="Autre passion… (Entrée pour valider)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { const v = newPassion.trim(); if (v && !editPassions.includes(v)) { setEditPassions([...editPassions, v]); setNewPassion('') } }}
+                    style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}
+                  >+</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {passions.map(passion => (
+                  <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
+                    {passion}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
