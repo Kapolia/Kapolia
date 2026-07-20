@@ -242,7 +242,7 @@ function PillDropdown({
         onClick={handleToggle}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '7px 13px', borderRadius: 20, fontSize: 13,
+          padding: '7px 12px', borderRadius: 20, fontSize: 14,
           fontWeight: active ? 600 : 400,
           border: `1.5px solid ${pillBorder}`,
           backgroundColor: pillBg, color: pillColor,
@@ -358,7 +358,7 @@ function MultiPillDropdown({
         onClick={handleToggle}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '7px 13px', borderRadius: 20, fontSize: 13,
+          padding: '7px 12px', borderRadius: 20, fontSize: 14,
           fontWeight: active ? 600 : 400,
           border: `1.5px solid ${pillBorder}`,
           backgroundColor: pillBg, color: pillColor,
@@ -786,6 +786,9 @@ export default function OffresPage() {
   const selectedIdRef = useRef<string | null>(null)
   selectedIdRef.current = selectedId
 
+  const [bandeauCollapsed, setBandeauCollapsed] = useState(false)
+  const leftColRef = useRef<HTMLDivElement>(null)
+
   void profil // used indirectly via scoring
 
   function update(partial: Partial<Filters>) {
@@ -801,6 +804,24 @@ export default function OffresPage() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  // ── Bandeau scroll retraction ─────────────────────────────────────────────
+  useEffect(() => {
+    setBandeauCollapsed(false)
+    if (!isSplit) return
+    const el = leftColRef.current
+    if (!el) return
+    const fn = () => setBandeauCollapsed(el.scrollTop > 80)
+    el.addEventListener('scroll', fn, { passive: true })
+    return () => el.removeEventListener('scroll', fn)
+  }, [isSplit])
+
+  useEffect(() => {
+    if (isSplit) return
+    const fn = () => setBandeauCollapsed(window.scrollY > 80)
+    window.addEventListener('scroll', fn, { passive: true })
+    return () => window.removeEventListener('scroll', fn)
+  }, [isSplit])
 
   // ── Init filters + selectedId from URL ────────────────────────────────────
   useEffect(() => {
@@ -959,6 +980,24 @@ export default function OffresPage() {
     filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
     filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0
   )
+
+  const searchSummary = [
+    filters.search,
+    filters.lieu
+      ? (parseInt(filters.rayon, 10) > 0
+          ? `${filters.lieu} + ${filters.rayon} km`
+          : filters.lieu)
+      : '',
+  ].filter(Boolean).join(' · ')
+
+  const activeFilterCount = [
+    !!filters.search, !!filters.lieu,
+    filters.contrat.length > 0, filters.domaine.length > 0,
+    filters.mode.length > 0, !!filters.exp, !!filters.salaire,
+    filters.avantages.length > 0, !!filters.date_pub, !!filters.taille,
+    !!filters.secteur, !!filters.langue, !!filters.type_ent,
+    !!filters.prise_de_poste, !!filters.duree_contrat,
+  ].filter(Boolean).length
 
   // ── Filter + sort pipeline ────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -1133,110 +1172,174 @@ export default function OffresPage() {
       `}</style>
 
       {/* ── BANDEAU VERT ────────────────────────────────────────────────────── */}
-      <div style={{ backgroundColor: C.vert, position: 'relative', flexShrink: 0 }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: 'clamp(16px, 3vw, 28px) 24px clamp(12px, 2vw, 18px)' }}>
+      <div style={{
+        backgroundColor: C.vert,
+        position: isSplit ? 'relative' : 'sticky',
+        top: 0,
+        zIndex: isSplit ? undefined : 100,
+        flexShrink: 0,
+      }}>
 
-          <h1 style={{
-            fontFamily: 'Georgia, serif', fontStyle: 'italic',
-            fontSize: 'clamp(20px, 3vw, 28px)', color: C.creme,
-            margin: '0 0 clamp(10px, 1.8vw, 16px)', lineHeight: 1.2, fontWeight: 400,
-          }}>
-            Offres d&apos;emploi
-          </h1>
+        {/* Contenu complet — se rétracte via grid-template-rows */}
+        <div style={{
+          display: 'grid',
+          gridTemplateRows: bandeauCollapsed ? '0fr' : '1fr',
+          transition: 'grid-template-rows 220ms cubic-bezier(.4,0,.2,1)',
+        }}>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{
+              maxWidth: 800, margin: '0 auto', padding: '14px 20px 12px',
+              opacity: bandeauCollapsed ? 0 : 1,
+              transition: 'opacity 120ms ease',
+            }}>
 
-          {/* Ligne 1 — recherche */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
-            <div style={{ position: 'relative', flex: 2, minWidth: 180 }}>
-              <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.lightGrey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
+              {/* Titre */}
+              <p style={{
+                fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                fontSize: 21, color: C.creme, fontWeight: 400,
+                margin: '0 0 12px', lineHeight: 1.2,
+              }}>
+                Offres d&apos;emploi
+              </p>
+
+              {/* Ligne 1 — recherche + lieu */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                <div style={{ position: 'relative', flex: 2, minWidth: 180 }}>
+                  <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.lightGrey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    value={filters.search}
+                    onChange={e => update({ search: e.target.value })}
+                    placeholder="Poste, compétence, entreprise…"
+                    style={{
+                      width: '100%', padding: '13px 36px 13px 36px', fontSize: 15, borderRadius: 10,
+                      border: `1.5px solid ${filters.search ? C.terracotta : 'rgba(255,255,255,0.18)'}`,
+                      backgroundColor: 'rgba(255,255,255,0.97)', color: C.dark,
+                      outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s',
+                    }}
+                  />
+                  {filters.search && (
+                    <button onClick={() => update({ search: '' })} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+                  )}
+                </div>
+                <LieuRadiusPopover
+                  lieu={filters.lieu}
+                  rayon={parseInt(filters.rayon, 10) || 25}
+                  coords={lieuCoords}
+                  onConfirm={(v, r, c) => { update({ lieu: v, rayon: String(r) }); setLieuCoords(c) }}
+                  dark
+                  compact
+                />
+                <button
+                  style={{
+                    padding: '13px 22px', borderRadius: 10, border: 'none',
+                    backgroundColor: C.terracotta, color: C.white,
+                    fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                  }}
+                >
+                  Rechercher
+                </button>
               </div>
-              <input
-                type="text"
-                value={filters.search}
-                onChange={e => update({ search: e.target.value })}
-                placeholder="Poste, compétence, entreprise…"
-                style={{
-                  width: '100%', padding: '11px 36px 11px 38px', fontSize: 14, borderRadius: 10,
-                  border: `1.5px solid ${filters.search ? C.terracotta : 'rgba(255,255,255,0.18)'}`,
-                  backgroundColor: 'rgba(255,255,255,0.97)', color: C.dark,
-                  outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s',
-                }}
-              />
-              {filters.search && (
-                <button onClick={() => update({ search: '' })} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
-              )}
+
+              {/* Ligne 2 — pills */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2,
+              }}>
+                <MultiPillDropdown dark label="Contrat"  value={filters.contrat}  options={CONTRAT_OPTS}  onChange={v => update({ contrat: v })} />
+                <MultiPillDropdown dark label="Domaine"  value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
+                <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}     onChange={v => update({ mode: v })} />
+                <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS} onChange={v => update({ date_pub: v })} />
+
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '7px 12px', borderRadius: 20, fontSize: 14,
+                    fontWeight: drawerActiveCount > 0 ? 600 : 400,
+                    border: `1.5px solid ${drawerActiveCount > 0 ? C.creme : 'rgba(255,255,255,0.30)'}`,
+                    backgroundColor: drawerActiveCount > 0 ? C.creme : 'transparent',
+                    color: drawerActiveCount > 0 ? C.vert : C.creme,
+                    cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+                  </svg>
+                  Filtres
+                  {drawerActiveCount > 0 && (
+                    <span style={{
+                      backgroundColor: C.vert, color: C.creme, borderRadius: '50%',
+                      width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {drawerActiveCount}
+                    </span>
+                  )}
+                </button>
+
+                {hasActiveFilters && (
+                  <button
+                    onClick={resetFilters}
+                    style={{
+                      fontSize: 13, color: C.creme, background: 'none', border: 'none',
+                      cursor: 'pointer', fontFamily: 'inherit', fontWeight: 400,
+                      flexShrink: 0, padding: '4px 4px',
+                      textDecoration: 'underline', textDecorationColor: `${C.creme}70`,
+                    }}
+                  >
+                    Tout effacer
+                  </button>
+                )}
+              </div>
             </div>
-            <LieuRadiusPopover
-              lieu={filters.lieu}
-              rayon={parseInt(filters.rayon, 10) || 25}
-              coords={lieuCoords}
-              onConfirm={(v, r, c) => { update({ lieu: v, rayon: String(r) }); setLieuCoords(c) }}
-              dark
-            />
-            <button
-              style={{
-                padding: '11px 22px', borderRadius: 10, border: 'none',
-                backgroundColor: C.terracotta, color: C.white,
-                fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
-              }}
-            >
-              Rechercher
-            </button>
           </div>
+        </div>
 
-          {/* Ligne 2 — pills */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2,
-          }}>
-            <MultiPillDropdown dark label="Type de contrat" value={filters.contrat}  options={CONTRAT_OPTS}  onChange={v => update({ contrat: v })} />
-            <MultiPillDropdown dark label="Domaine"          value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
-            <MultiPillDropdown dark label="Mode de travail"  value={filters.mode}     options={MODE_OPTS}     onChange={v => update({ mode: v })} />
-            <PillDropdown dark label="Publication"      value={filters.date_pub} options={DATE_PUB_OPTS} onChange={v => update({ date_pub: v })} />
-
+        {/* Barre compacte — s'affiche au scroll */}
+        <div style={{
+          display: 'grid',
+          gridTemplateRows: bandeauCollapsed ? '1fr' : '0fr',
+          transition: 'grid-template-rows 220ms cubic-bezier(.4,0,.2,1)',
+        }}>
+          <div style={{ overflow: 'hidden' }}>
             <button
-              onClick={() => setDrawerOpen(true)}
+              onClick={() => setBandeauCollapsed(false)}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '7px 13px', borderRadius: 20, fontSize: 13,
-                fontWeight: drawerActiveCount > 0 ? 600 : 400,
-                border: `1.5px solid ${drawerActiveCount > 0 ? C.creme : 'rgba(255,255,255,0.30)'}`,
-                backgroundColor: drawerActiveCount > 0 ? C.creme : 'transparent',
-                color: drawerActiveCount > 0 ? C.vert : 'rgba(255,255,255,0.90)',
-                cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
-                whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '0 20px', height: 54,
+                background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                opacity: bandeauCollapsed ? 1 : 0,
+                transition: 'opacity 160ms ease 60ms',
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.70)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-              Tous les filtres
-              {drawerActiveCount > 0 && (
+              <span style={{
+                flex: 1, textAlign: 'left', fontSize: 15, fontWeight: 600,
+                color: C.creme, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {searchSummary || 'Toutes les offres'}
+              </span>
+              {activeFilterCount > 0 && (
                 <span style={{
-                  backgroundColor: C.vert, color: C.creme, borderRadius: '50%',
-                  width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700, flexShrink: 0,
+                  fontSize: 12, color: C.creme,
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0,
                 }}>
-                  {drawerActiveCount}
+                  {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
                 </span>
               )}
+              <svg width="13" height="13" viewBox="0 0 10 10" fill="none">
+                <path d="M2 3.5l3 3 3-3" stroke="rgba(255,255,255,0.70)" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
             </button>
-
-            {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                style={{
-                  fontSize: 12, color: C.sable, background: 'none', border: 'none',
-                  cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
-                  flexShrink: 0, padding: '4px 4px',
-                  textDecoration: 'underline', textDecorationColor: `${C.sable}60`,
-                }}
-              >
-                Tout effacer
-              </button>
-            )}
           </div>
         </div>
 
@@ -1257,7 +1360,7 @@ export default function OffresPage() {
           <div style={{ display: 'flex', width: '100%', maxWidth: 1500, overflow: 'hidden' }}>
 
             {/* Colonne gauche — liste scrollable ~38% */}
-            <div style={{
+            <div ref={leftColRef} style={{
               width: '38%', minWidth: 280,
               overflowY: 'auto',
               borderRight: `1px solid ${C.sable}`,

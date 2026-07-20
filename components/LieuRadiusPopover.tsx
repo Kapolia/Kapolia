@@ -33,12 +33,14 @@ export function LieuRadiusPopover({
   coords,
   onConfirm,
   dark = false,
+  compact = false,
 }: {
   lieu: string
   rayon: number
   coords: GeoCoords | null
   onConfirm: (lieu: string, rayon: number, coords: GeoCoords | null) => void
   dark?: boolean
+  compact?: boolean
 }) {
   const [open, setOpen]           = useState(false)
   const [isMobile, setIsMobile]   = useState(false)
@@ -285,7 +287,7 @@ export function LieuRadiusPopover({
         onClick={openPopover}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '11px 16px', borderRadius: 10, fontSize: 14,
+          padding: compact ? '13px 14px' : '11px 16px', borderRadius: 10, fontSize: compact ? 15 : 14,
           border: `1.5px solid ${triggerBorder}`,
           backgroundColor: triggerBg, color: triggerColor,
           cursor: 'pointer', fontFamily: 'inherit', fontWeight: hasFilter ? 600 : 400,
