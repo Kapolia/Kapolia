@@ -4,6 +4,10 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { calculerScore, type ProfilMatch } from '@/lib/matching'
+import { OffreDetail } from '@/components/OffreDetail'
+import { type GeoCoords } from '@/components/GeoVilleInput'
+import { LieuRadiusPopover } from '@/components/LieuRadiusPopover'
+import { haversineKm } from '@/lib/geo'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -48,16 +52,18 @@ type Offre = {
   date_debut?: string
   created_at: string
   score: number
+  latitude?: number
+  longitude?: number
 }
 
 type SortKey = 'match' | 'recent' | 'salaire_asc' | 'salaire_desc' | 'alpha'
 
 type Filters = {
   search: string
-  domaine: string
-  contrat: string
+  domaine: string[]
+  contrat: string[]
   lieu: string
-  mode: string
+  mode: string[]
   exp: string
   salaire: string
   taille: string
@@ -69,12 +75,14 @@ type Filters = {
   prise_de_poste: string
   duree_contrat: string
   tri: SortKey
+  rayon: string
 }
 
 const EMPTY_FILTERS: Filters = {
-  search: '', domaine: '', contrat: '', lieu: '', mode: '', exp: '', salaire: '',
+  search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
   taille: '', secteur: '', avantages: [], date_pub: '',
   langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '', tri: 'match',
+  rayon: '25',
 }
 
 // ─── Filter config ────────────────────────────────────────────────────────────
@@ -107,7 +115,6 @@ const LANGUE_OPTS     = ['Français uniquement', 'Anglais requis', 'Bilingue', '
 const TYPE_ENT_OPTS   = ['Startup', 'ESN / SSII', 'Agence', 'PME', 'ETI', 'Grand groupe', 'Association / ONG']
 const PRISE_POSTE_OPTS = ['Immédiat', 'Dans le mois', 'Dans 3 mois', 'Flexible']
 const DUREE_OPTS      = ['< 3 mois', '3–6 mois', '6–12 mois', '> 12 mois']
-const VILLES          = ['Paris', 'Lyon', 'Marseille', 'Bordeaux', 'Toulouse', 'Nantes', 'Lille', 'Strasbourg', 'Nice', 'Rennes', 'Montpellier', 'Grenoble']
 
 const TRI_LABELS: Record<SortKey, string> = {
   match:        'Meilleur match',
@@ -122,7 +129,7 @@ const URL_MAP: Partial<Record<keyof Filters, string>> = {
   search: 'q', domaine: 'd', contrat: 'c', lieu: 'l', mode: 'm',
   exp: 'e', salaire: 's', taille: 'tai', secteur: 'sec', avantages: 'av',
   date_pub: 'dp', langue: 'lang', type_ent: 'te',
-  prise_de_poste: 'pp', duree_contrat: 'dc', tri: 'tri',
+  prise_de_poste: 'pp', duree_contrat: 'dc', tri: 'tri', rayon: 'r',
 }
 void URL_MAP // used via spread in URL sync effects
 
@@ -191,53 +198,78 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
 }
 
 function PillDropdown({
-  label, value, options, onChange,
+  label, value, options, onChange, dark = false,
 }: {
-  label: string; value: string; options: string[]; onChange: (v: string) => void
+  label: string; value: string; options: string[]; onChange: (v: string) => void; dark?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const active = !!value
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 190 })
+  const btnRef  = useRef<HTMLButtonElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
+  const active  = !!value
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190) })
+    }
+    setOpen(o => !o)
+  }
 
   useEffect(() => {
     if (!open) return
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
   }, [open])
 
-  const short = value.length > 13 ? value.slice(0, 13) + '…' : value
+  const short        = value.length > 13 ? value.slice(0, 13) + '…' : value
   const displayLabel = active ? `${label} · ${short}` : label
 
+  const pillBg        = dark ? (active ? C.creme   : 'transparent')            : (active ? C.vert  : C.white)
+  const pillBorder    = dark ? (active ? C.creme   : 'rgba(255,255,255,0.30)') : (active ? C.vert  : C.sable)
+  const pillColor     = dark ? (active ? C.vert    : 'rgba(255,255,255,0.90)') : (active ? C.white : C.dark)
+  const chevronStroke = dark ? (active ? C.vert    : 'rgba(255,255,255,0.7)')  : (active ? C.white : C.grey)
+
   return (
-    <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
+    <div style={{ flexShrink: 0 }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={btnRef}
+        onClick={handleToggle}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
           padding: '7px 13px', borderRadius: 20, fontSize: 13,
           fontWeight: active ? 600 : 400,
-          border: `1.5px solid ${active ? C.vert : C.sable}`,
-          backgroundColor: active ? C.vert : C.white,
-          color: active ? C.white : C.dark,
+          border: `1.5px solid ${pillBorder}`,
+          backgroundColor: pillBg, color: pillColor,
           cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
           transition: 'all 0.12s',
         }}
       >
         {displayLabel}
         <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
-          <path d={open ? 'M2 6.5l3-3 3 3' : 'M2 3.5l3 3 3-3'} stroke={active ? C.white : C.grey} strokeWidth="1.6" strokeLinecap="round" />
+          <path d={open ? 'M2 6.5l3-3 3 3' : 'M2 3.5l3 3 3-3'} stroke={chevronStroke} strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       </button>
+
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
-          backgroundColor: C.white, border: `1px solid ${C.sable}`,
-          borderRadius: 12, padding: '6px 4px', minWidth: 190, zIndex: 200,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.11)', animation: 'kavio-fadein 0.12s ease',
-        }}>
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed',
+            top: dropPos.top,
+            left: dropPos.left,
+            minWidth: dropPos.minWidth,
+            backgroundColor: C.white, border: `1px solid ${C.sable}`,
+            borderRadius: 12, padding: '6px 4px', zIndex: 400,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            maxHeight: '60vh', overflowY: 'auto',
+          }}
+        >
           <button
             onClick={() => { onChange(''); setOpen(false) }}
             style={{
@@ -268,6 +300,133 @@ function PillDropdown({
               {opt}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MultiPillDropdown({
+  label, value, options, onChange, dark = false,
+}: {
+  label: string; value: string[]; options: string[]; onChange: (v: string[]) => void; dark?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 190 })
+  const btnRef  = useRef<HTMLButtonElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
+  const active  = value.length > 0
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190) })
+    }
+    setOpen(o => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  function toggle(opt: string) {
+    onChange(value.includes(opt) ? value.filter(v => v !== opt) : [...value, opt])
+  }
+
+  const displayLabel = value.length === 0
+    ? label
+    : value.length === 1
+      ? `${label} · ${value[0].length > 13 ? value[0].slice(0, 13) + '…' : value[0]}`
+      : `${label} (${value.length})`
+
+  const pillBg        = dark ? (active ? C.creme   : 'transparent')            : (active ? C.vert  : C.white)
+  const pillBorder    = dark ? (active ? C.creme   : 'rgba(255,255,255,0.30)') : (active ? C.vert  : C.sable)
+  const pillColor     = dark ? (active ? C.vert    : 'rgba(255,255,255,0.90)') : (active ? C.white : C.dark)
+  const chevronStroke = dark ? (active ? C.vert    : 'rgba(255,255,255,0.7)')  : (active ? C.white : C.grey)
+
+  return (
+    <div style={{ flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        onClick={handleToggle}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '7px 13px', borderRadius: 20, fontSize: 13,
+          fontWeight: active ? 600 : 400,
+          border: `1.5px solid ${pillBorder}`,
+          backgroundColor: pillBg, color: pillColor,
+          cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          transition: 'all 0.12s',
+        }}
+      >
+        {displayLabel}
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+          <path d={open ? 'M2 6.5l3-3 3 3' : 'M2 3.5l3 3 3-3'} stroke={chevronStroke} strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed',
+            top: dropPos.top,
+            left: dropPos.left,
+            minWidth: dropPos.minWidth,
+            backgroundColor: C.white, border: `1px solid ${C.sable}`,
+            borderRadius: 12, padding: '6px 4px', zIndex: 400,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            maxHeight: '60vh', overflowY: 'auto',
+          }}
+        >
+          {active && (
+            <button
+              onClick={() => onChange([])}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '8px 12px', border: 'none', borderRadius: 8,
+                backgroundColor: 'transparent', color: C.terracotta,
+                fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit', marginBottom: 2,
+              }}
+            >
+              Tout décocher
+            </button>
+          )}
+          {options.map(opt => {
+            const sel = value.includes(opt)
+            return (
+              <button
+                key={opt}
+                onClick={() => toggle(opt)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                  padding: '8px 12px', border: 'none', borderRadius: 8,
+                  backgroundColor: sel ? `${C.vert}12` : 'transparent',
+                  color: sel ? C.vert : C.dark,
+                  fontSize: 13, fontWeight: sel ? 600 : 400,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                <span style={{
+                  width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                  border: `1.5px solid ${sel ? C.vert : C.sable}`,
+                  backgroundColor: sel ? C.vert : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {sel && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 1" stroke={C.white} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                </span>
+                {opt}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -342,16 +501,24 @@ function DrawerAvantages({ value, onChange }: { value: string[]; onChange: (v: s
 
 function OffreCard({
   offre, applied, saved, onApply, onToggleSave, isConnected,
+  isSelected = false, onSelect, searchCoords,
 }: {
   offre: Offre; applied: boolean; saved: boolean
   onApply: (id: string) => void; onToggleSave: (id: string) => void; isConnected: boolean
+  isSelected?: boolean; onSelect?: (id: string) => void
+  searchCoords?: GeoCoords | null
 }) {
   const [hov, setHov]           = useState(false)
   const [applying, setApplying] = useState(false)
   const router = useRouter()
+  const compact = !!onSelect  // split view → compact card (Indeed-style)
 
   const entreprise = getEntrepriseNom(offre)
   const salaire    = formatSalaire(offre.salaire_min, offre.salaire_max, offre.periode_salaire)
+
+  const distanceKm = searchCoords && offre.latitude != null && offre.longitude != null
+    ? Math.round(haversineKm(searchCoords, { lat: offre.latitude, lng: offre.longitude }))
+    : null
 
   async function handleApply() {
     if (!isConnected) { router.push('/connexion'); return }
@@ -361,6 +528,78 @@ function OffreCard({
     setApplying(false)
   }
 
+  // ── Compact card (split view) — Indeed density ────────────────────────────
+  if (compact) {
+    return (
+      <div
+        onClick={() => onSelect!(offre.id)}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          backgroundColor: isSelected ? `${C.terracotta}07` : C.white,
+          border: `1px solid ${isSelected ? `${C.terracotta}55` : hov ? '#D4C4B0' : '#EDE7DB'}`,
+          borderLeft: `3px solid ${isSelected ? C.terracotta : hov ? `${C.terracotta}70` : 'transparent'}`,
+          borderRadius: 10,
+          padding: '12px 14px 10px 11px',
+          cursor: 'pointer',
+          transition: 'border-color 0.15s, background-color 0.15s',
+        }}
+      >
+        {/* Title + Star */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 3 }}>
+          <span style={{
+            flex: 1, fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: 700, lineHeight: 1.35,
+            color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
+            transition: 'color 0.15s',
+          }}>
+            {offre.titre}
+          </span>
+          <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />
+        </div>
+
+        {/* Company · City */}
+        <div style={{ fontSize: 12, color: C.grey, marginBottom: 7 }}>
+          <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
+          {offre.ville && <span style={{ color: C.lightGrey }}> · {offre.ville}</span>}
+        </div>
+
+        {/* Badges: salaire, contrat, mode */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {salaire && (
+            <span style={{ fontSize: 11, fontWeight: 700, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '2px 8px', borderRadius: 20 }}>
+              {salaire}
+            </span>
+          )}
+          {offre.type_contrat && (
+            <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '2px 8px', borderRadius: 20 }}>
+              {offre.type_contrat}
+            </span>
+          )}
+          {offre.mode_travail && (
+            <span style={{
+              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+              backgroundColor: offre.mode_travail === '100% remote' ? `${C.vert}14` : offre.mode_travail === 'Hybride' ? '#7B5EA714' : `${C.dark}0A`,
+              color: offre.mode_travail === '100% remote' ? C.vert : offre.mode_travail === 'Hybride' ? '#7B5EA7' : C.grey,
+            }}>
+              {offre.mode_travail}
+            </span>
+          )}
+          {applied && (
+            <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.vert}10`, color: C.vert, padding: '2px 8px', borderRadius: 20 }}>
+              ✓ Postulé
+            </span>
+          )}
+          {distanceKm != null && (
+            <span style={{ fontSize: 11, fontWeight: 500, backgroundColor: '#EEF2FF', color: '#4338CA', padding: '2px 8px', borderRadius: 20 }}>
+              à {distanceKm} km
+            </span>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Full card (mobile) ────────────────────────────────────────────────────
   return (
     <div
       onClick={() => router.push(`/offres/${offre.id}`)}
@@ -378,13 +617,12 @@ function OffreCard({
         cursor: 'pointer',
       }}
     >
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{
             fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700,
-            color: hov ? C.terracotta : C.dark, margin: '0 0 4px',
-            lineHeight: 1.3, transition: 'color 0.15s',
+            color: hov ? C.terracotta : C.dark,
+            margin: '0 0 4px', lineHeight: 1.3, transition: 'color 0.15s',
           }}>
             {offre.titre}
           </h3>
@@ -398,7 +636,6 @@ function OffreCard({
         <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />
       </div>
 
-      {/* Badges */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
         {offre.type_contrat && (
           <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '3px 9px', borderRadius: 20 }}>
@@ -424,9 +661,13 @@ function OffreCard({
             {salaire}
           </span>
         )}
+        {distanceKm != null && (
+          <span style={{ fontSize: 11, fontWeight: 500, backgroundColor: '#EEF2FF', color: '#4338CA', padding: '3px 9px', borderRadius: 20 }}>
+            à {distanceKm} km
+          </span>
+        )}
       </div>
 
-      {/* Description */}
       {offre.description && (
         <p style={{
           fontSize: 13, color: C.grey, margin: 0, lineHeight: 1.6,
@@ -437,7 +678,6 @@ function OffreCard({
         </p>
       )}
 
-      {/* Bottom */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
         paddingTop: 10, borderTop: `1px solid ${C.sable}`,
@@ -529,8 +769,22 @@ export default function OffresPage() {
   const [userId, setUserId]           = useState<string | null>(null)
   const [loadError, setLoadError]     = useState<string | null>(null)
   const [filters, setFilters]         = useState<Filters>(EMPTY_FILTERS)
+  const [lieuCoords, setLieuCoords]   = useState<GeoCoords | null>(null)
   const [drawerOpen, setDrawerOpen]   = useState(false)
   const [triOpen, setTriOpen]         = useState(false)
+  const [triPos, setTriPos]           = useState({ top: 0, left: 0, minWidth: 200 })
+
+  // Split view state
+  const [selectedId, setSelectedId]     = useState<string | null>(null)
+  const [isSplit, setIsSplit]           = useState(false)
+  const [panelApplying, setPanelApplying] = useState(false)
+
+  // Refs for tri dropdown (position:fixed to escape overflow:auto)
+  const triRef    = useRef<HTMLButtonElement>(null)
+  const triDropRef = useRef<HTMLDivElement>(null)
+  // Ref to read selectedId in effects without adding it as a dependency
+  const selectedIdRef = useRef<string | null>(null)
+  selectedIdRef.current = selectedId
 
   void profil // used indirectly via scoring
 
@@ -538,18 +792,26 @@ export default function OffresPage() {
     setFilters(prev => ({ ...prev, ...partial }))
   }
 
-  function resetFilters() { setFilters(EMPTY_FILTERS) }
+  function resetFilters() { setFilters(EMPTY_FILTERS); setLieuCoords(null) }
 
-  // ── Init filters from URL ──────────────────────────────────────────────────
+  // ── Window resize → isSplit ────────────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsSplit(window.innerWidth >= 900)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // ── Init filters + selectedId from URL ────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return
     const p = new URLSearchParams(window.location.search)
     const patch: Partial<Filters> = {}
     if (p.get('q'))     patch.search         = p.get('q')!
-    if (p.get('d'))     patch.domaine        = p.get('d')!
-    if (p.get('c'))     patch.contrat        = p.get('c')!
+    if (p.get('d'))     patch.domaine        = p.get('d')!.split(',').filter(Boolean)
+    if (p.get('c'))     patch.contrat        = p.get('c')!.split(',').filter(Boolean)
     if (p.get('l'))     patch.lieu           = p.get('l')!
-    if (p.get('m'))     patch.mode           = p.get('m')!
+    if (p.get('m'))     patch.mode           = p.get('m')!.split(',').filter(Boolean)
     if (p.get('e'))     patch.exp            = p.get('e')!
     if (p.get('s'))     patch.salaire        = p.get('s')!
     if (p.get('tai'))   patch.taille         = p.get('tai')!
@@ -561,18 +823,20 @@ export default function OffresPage() {
     if (p.get('pp'))    patch.prise_de_poste = p.get('pp')!
     if (p.get('dc'))    patch.duree_contrat  = p.get('dc')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
+    if (p.get('r'))     patch.rayon          = p.get('r')!
     if (Object.keys(patch).length > 0) setFilters(prev => ({ ...prev, ...patch }))
+    if (p.get('offre')) setSelectedId(p.get('offre')!)
   }, [])
 
-  // ── Sync filters to URL ───────────────────────────────────────────────────
+  // ── Sync filters + selectedId to URL ─────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return
     const p = new URLSearchParams()
-    if (filters.search)          p.set('q',   filters.search)
-    if (filters.domaine)         p.set('d',   filters.domaine)
-    if (filters.contrat)         p.set('c',   filters.contrat)
-    if (filters.lieu)            p.set('l',   filters.lieu)
-    if (filters.mode)            p.set('m',   filters.mode)
+    if (filters.search)              p.set('q',   filters.search)
+    if (filters.domaine.length)      p.set('d',   filters.domaine.join(','))
+    if (filters.contrat.length)      p.set('c',   filters.contrat.join(','))
+    if (filters.lieu)                p.set('l',   filters.lieu)
+    if (filters.mode.length)         p.set('m',   filters.mode.join(','))
     if (filters.exp)             p.set('e',   filters.exp)
     if (filters.salaire)         p.set('s',   filters.salaire)
     if (filters.taille)          p.set('tai', filters.taille)
@@ -584,9 +848,11 @@ export default function OffresPage() {
     if (filters.prise_de_poste)  p.set('pp',  filters.prise_de_poste)
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
+    if (filters.rayon !== '25')  p.set('r',   filters.rayon)
+    if (selectedId)              p.set('offre', selectedId)
     const qs = p.toString()
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
-  }, [filters])
+  }, [filters, selectedId])
 
   // ── localStorage ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -628,6 +894,8 @@ export default function OffresPage() {
 
       const scored: Offre[] = (offresRes.data ?? []).map((o: Omit<Offre, 'score'>) => ({
         ...o,
+        latitude:  o.latitude  != null ? parseFloat(o.latitude  as unknown as string) : undefined,
+        longitude: o.longitude != null ? parseFloat(o.longitude as unknown as string) : undefined,
         score: p ? calculerScore(p as ProfilMatch, o as Parameters<typeof calculerScore>[1]) : 0,
       }))
 
@@ -636,6 +904,26 @@ export default function OffresPage() {
     }
     load()
   }, [])
+
+  // ── Tri dropdown : click-outside via document listener ────────────────────
+  useEffect(() => {
+    if (!triOpen) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (triRef.current?.contains(t) || triDropRef.current?.contains(t)) return
+      setTriOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [triOpen])
+
+  function handleTriToggle() {
+    if (!triOpen && triRef.current) {
+      const r = triRef.current.getBoundingClientRect()
+      setTriPos({ top: r.bottom + 6, left: r.right - 200, minWidth: 200 })
+    }
+    setTriOpen(o => !o)
+  }
 
   async function handleApply(offreId: string) {
     if (!userId) return
@@ -653,18 +941,26 @@ export default function OffresPage() {
     })
   }
 
-  // ── Drawer filter count (badge on "Tous les filtres") ─────────────────────
+  async function handlePanelApply() {
+    if (!isConnected) { router.push('/connexion'); return }
+    if (!selectedId || applied.has(selectedId) || panelApplying) return
+    setPanelApplying(true)
+    await handleApply(selectedId)
+    setPanelApplying(false)
+  }
+
+  // ── Drawer filter count ───────────────────────────────────────────────────
   const drawerActiveCount = [
     filters.exp, filters.salaire, filters.taille, filters.secteur,
     filters.langue, filters.type_ent, filters.prise_de_poste, filters.duree_contrat,
   ].filter(Boolean).length + filters.avantages.length
 
   const hasActiveFilters = !!(
-    filters.search || filters.domaine || filters.contrat || filters.lieu ||
-    filters.mode || filters.date_pub || drawerActiveCount > 0
+    filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
+    filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0
   )
 
-  // ── Filter + sort pipeline — LOGIC INCHANGÉE ──────────────────────────────
+  // ── Filter + sort pipeline ────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = [...offres]
 
@@ -679,20 +975,29 @@ export default function OffresPage() {
       )
     }
 
-    if (filters.domaine) {
-      list = list.filter(o => (o.domaine ?? '').toLowerCase().includes(filters.domaine.toLowerCase()))
+    if (filters.domaine.length > 0) {
+      list = list.filter(o => filters.domaine.some(d => (o.domaine ?? '').toLowerCase().includes(d.toLowerCase())))
     }
 
-    if (filters.contrat) {
-      list = list.filter(o => o.type_contrat === filters.contrat)
+    if (filters.contrat.length > 0) {
+      list = list.filter(o => filters.contrat.includes(o.type_contrat ?? ''))
     }
 
     if (filters.lieu) {
-      list = list.filter(o => (o.ville ?? '').toLowerCase().includes(filters.lieu.toLowerCase()))
+      if (lieuCoords) {
+        const maxKm = filters.rayon === '0' ? 0 : parseInt(filters.rayon, 10) || 25
+        list = list.filter(o => {
+          if (o.latitude == null || o.longitude == null) return false
+          const km = haversineKm(lieuCoords, { lat: o.latitude, lng: o.longitude })
+          return km <= maxKm
+        })
+      } else {
+        list = list.filter(o => (o.ville ?? '').toLowerCase().includes(filters.lieu.toLowerCase()))
+      }
     }
 
-    if (filters.mode) {
-      list = list.filter(o => o.mode_travail === filters.mode)
+    if (filters.mode.length > 0) {
+      list = list.filter(o => filters.mode.includes(o.mode_travail ?? ''))
     }
 
     if (filters.exp) {
@@ -728,11 +1033,95 @@ export default function OffresPage() {
     }
 
     return list
-  }, [offres, filters])
+  }, [offres, filters, lieuCoords])
+
+  // ── Auto-select : first offre, or re-select after filter change ───────────
+  useEffect(() => {
+    if (loading) return
+    if (filtered.length === 0) { setSelectedId(null); return }
+    if (!selectedIdRef.current || !filtered.some(o => o.id === selectedIdRef.current)) {
+      setSelectedId(filtered[0].id)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, loading])
+
+  // Selected offre for the panel
+  const selectedOffre = selectedId ? filtered.find(o => o.id === selectedId) ?? null : null
+
+  // ── Reusable list content (counter + sort + cards) ────────────────────────
+  const listContent = (
+    <>
+      {/* Compteur + tri */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ fontSize: 13, color: C.grey }}>
+          {!loading && (
+            <><span style={{ fontWeight: 700, color: C.dark }}>{filtered.length}</span> offre{filtered.length !== 1 ? 's' : ''}</>
+          )}
+        </div>
+
+        <div>
+          <button
+            ref={triRef}
+            onClick={handleTriToggle}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '7px 13px', borderRadius: 10, border: `1px solid ${C.sable}`,
+              backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500,
+              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round">
+              <path d="M3 6h18M7 12h10M11 18h2" />
+            </svg>
+            {TRI_LABELS[filters.tri]}
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+              <path d="M2 3.5l3 3 3-3" stroke={C.grey} strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Contenu */}
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
+        </div>
+      ) : loadError ? (
+        <div style={{ padding: '48px 24px', textAlign: 'center', color: C.terracotta, fontSize: 14, fontWeight: 500 }}>
+          {loadError}
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState hasFilters={hasActiveFilters} onReset={resetFilters} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(offre => (
+            <OffreCard
+              key={offre.id}
+              offre={offre}
+              applied={applied.has(offre.id)}
+              saved={saved.has(offre.id)}
+              onApply={handleApply}
+              onToggleSave={handleToggleSave}
+              isConnected={isConnected}
+              isSelected={isSplit && offre.id === selectedId}
+              onSelect={isSplit ? setSelectedId : undefined}
+              searchCoords={lieuCoords}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  )
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
+    <div style={{
+      backgroundColor: C.creme,
+      marginLeft: 64,
+      ...(isSplit
+        ? { height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+        : { minHeight: '100vh' }),
+    }}>
       <style suppressHydrationWarning>{`
         @keyframes kavio-spin   { to { transform: rotate(360deg); } }
         @keyframes kavio-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
@@ -743,14 +1132,20 @@ export default function OffresPage() {
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* ── BARRE DE RECHERCHE ──────────────────────────────────────────────── */}
-      <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '28px 24px 20px' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto' }}>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: '0 0 16px', lineHeight: 1.2 }}>
+      {/* ── BANDEAU VERT ────────────────────────────────────────────────────── */}
+      <div style={{ backgroundColor: C.vert, position: 'relative', flexShrink: 0 }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: 'clamp(16px, 3vw, 28px) 24px clamp(12px, 2vw, 18px)' }}>
+
+          <h1 style={{
+            fontFamily: 'Georgia, serif', fontStyle: 'italic',
+            fontSize: 'clamp(20px, 3vw, 28px)', color: C.creme,
+            margin: '0 0 clamp(10px, 1.8vw, 16px)', lineHeight: 1.2, fontWeight: 400,
+          }}>
             Offres d&apos;emploi
           </h1>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {/* Mot-clé */}
+
+          {/* Ligne 1 — recherche */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
             <div style={{ position: 'relative', flex: 2, minWidth: 180 }}>
               <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.lightGrey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -764,36 +1159,22 @@ export default function OffresPage() {
                 placeholder="Poste, compétence, entreprise…"
                 style={{
                   width: '100%', padding: '11px 36px 11px 38px', fontSize: 14, borderRadius: 10,
-                  border: `1.5px solid ${filters.search ? C.terracotta : C.sable}`,
-                  backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.15s',
+                  border: `1.5px solid ${filters.search ? C.terracotta : 'rgba(255,255,255,0.18)'}`,
+                  backgroundColor: 'rgba(255,255,255,0.97)', color: C.dark,
+                  outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s',
                 }}
               />
               {filters.search && (
                 <button onClick={() => update({ search: '' })} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
               )}
             </div>
-            {/* Lieu */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 130 }}>
-              <div style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: C.lightGrey, fontSize: 14, lineHeight: 1 }}>◎</div>
-              <input
-                list="kavio-villes"
-                value={filters.lieu}
-                onChange={e => update({ lieu: e.target.value })}
-                placeholder="Ville, région…"
-                style={{
-                  width: '100%', padding: '11px 32px 11px 28px', fontSize: 14, borderRadius: 10,
-                  border: `1.5px solid ${filters.lieu ? C.terracotta : C.sable}`,
-                  backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.15s',
-                }}
-              />
-              {filters.lieu && (
-                <button onClick={() => update({ lieu: '' })} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
-              )}
-              <datalist id="kavio-villes">{VILLES.map(v => <option key={v} value={v} />)}</datalist>
-            </div>
-            {/* Bouton Rechercher */}
+            <LieuRadiusPopover
+              lieu={filters.lieu}
+              rayon={parseInt(filters.rayon, 10) || 25}
+              coords={lieuCoords}
+              onConfirm={(v, r, c) => { update({ lieu: v, rayon: String(r) }); setLieuCoords(c) }}
+              dark
+            />
             <button
               style={{
                 padding: '11px 22px', borderRadius: 10, border: 'none',
@@ -804,152 +1185,150 @@ export default function OffresPage() {
               Rechercher
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* ── PILLS ───────────────────────────────────────────────────────────── */}
-      <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}` }}>
-        <div style={{
-          maxWidth: 800, margin: '0 auto', padding: '12px 24px',
-          display: 'flex', alignItems: 'center', gap: 8,
-          overflowX: 'auto', scrollbarWidth: 'none',
-        }}>
-          <PillDropdown label="Type de contrat" value={filters.contrat}  options={CONTRAT_OPTS}   onChange={v => update({ contrat: v })} />
-          <PillDropdown label="Domaine"          value={filters.domaine}  options={DOMAINE_OPTS}   onChange={v => update({ domaine: v })} />
-          <PillDropdown label="Mode de travail"  value={filters.mode}     options={MODE_OPTS}      onChange={v => update({ mode: v })} />
-          <PillDropdown label="Publication"      value={filters.date_pub} options={DATE_PUB_OPTS}  onChange={v => update({ date_pub: v })} />
+          {/* Ligne 2 — pills */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2,
+          }}>
+            <MultiPillDropdown dark label="Type de contrat" value={filters.contrat}  options={CONTRAT_OPTS}  onChange={v => update({ contrat: v })} />
+            <MultiPillDropdown dark label="Domaine"          value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
+            <MultiPillDropdown dark label="Mode de travail"  value={filters.mode}     options={MODE_OPTS}     onChange={v => update({ mode: v })} />
+            <PillDropdown dark label="Publication"      value={filters.date_pub} options={DATE_PUB_OPTS} onChange={v => update({ date_pub: v })} />
 
-          {/* Tous les filtres */}
-          <button
-            onClick={() => setDrawerOpen(true)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '7px 13px', borderRadius: 20, fontSize: 13,
-              fontWeight: drawerActiveCount > 0 ? 600 : 400,
-              border: `1.5px solid ${drawerActiveCount > 0 ? C.vert : C.sable}`,
-              backgroundColor: drawerActiveCount > 0 ? C.vert : C.white,
-              color: drawerActiveCount > 0 ? C.white : C.dark,
-              cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
-            </svg>
-            Tous les filtres
-            {drawerActiveCount > 0 && (
-              <span style={{
-                backgroundColor: C.white, color: C.vert, borderRadius: '50%',
-                width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 10, fontWeight: 700, flexShrink: 0,
-              }}>
-                {drawerActiveCount}
-              </span>
-            )}
-          </button>
-
-          {/* Tout effacer */}
-          {hasActiveFilters && (
             <button
-              onClick={resetFilters}
+              onClick={() => setDrawerOpen(true)}
               style={{
-                fontSize: 12, color: C.terracotta, background: 'none', border: 'none',
-                cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
-                flexShrink: 0, padding: '4px 4px',
-                textDecoration: 'underline', textDecorationColor: `${C.terracotta}50`,
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '7px 13px', borderRadius: 20, fontSize: 13,
+                fontWeight: drawerActiveCount > 0 ? 600 : 400,
+                border: `1.5px solid ${drawerActiveCount > 0 ? C.creme : 'rgba(255,255,255,0.30)'}`,
+                backgroundColor: drawerActiveCount > 0 ? C.creme : 'transparent',
+                color: drawerActiveCount > 0 ? C.vert : 'rgba(255,255,255,0.90)',
+                cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
+                whiteSpace: 'nowrap',
               }}
             >
-              Tout effacer
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+              </svg>
+              Tous les filtres
+              {drawerActiveCount > 0 && (
+                <span style={{
+                  backgroundColor: C.vert, color: C.creme, borderRadius: '50%',
+                  width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700, flexShrink: 0,
+                }}>
+                  {drawerActiveCount}
+                </span>
+              )}
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* ── LISTE ───────────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px 24px 80px' }}>
-
-        {/* Compteur + tri */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ fontSize: 13, color: C.grey }}>
-            {!loading && (
-              <><span style={{ fontWeight: 700, color: C.dark }}>{filtered.length}</span> offre{filtered.length !== 1 ? 's' : ''}</>
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                style={{
+                  fontSize: 12, color: C.sable, background: 'none', border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500,
+                  flexShrink: 0, padding: '4px 4px',
+                  textDecoration: 'underline', textDecorationColor: `${C.sable}60`,
+                }}
+              >
+                Tout effacer
+              </button>
             )}
           </div>
+        </div>
 
-          {/* Tri */}
-          <div style={{ position: 'relative' }}>
+        {/* Vague maritime */}
+        <svg
+          viewBox="0 0 1440 28"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          style={{ display: 'block', width: '100%', height: 28, marginBottom: -1 }}
+        >
+          <path d="M0,14 C320,28 640,0 960,14 C1120,21 1300,6 1440,14 L1440,28 L0,28 Z" fill={C.creme} />
+        </svg>
+      </div>
+
+      {/* ── SPLIT VIEW (desktop ≥ 900px) ─────────────────────────────────────── */}
+      {isSplit ? (
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', width: '100%', maxWidth: 1500, overflow: 'hidden' }}>
+
+            {/* Colonne gauche — liste scrollable ~38% */}
+            <div style={{
+              width: '38%', minWidth: 280,
+              overflowY: 'auto',
+              borderRight: `1px solid ${C.sable}`,
+              padding: '14px 12px 60px',
+              backgroundColor: C.creme,
+            }}>
+              {listContent}
+            </div>
+
+            {/* Colonne droite — détail scrollable ~62% */}
+            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F0EBE3' }}>
+              {selectedOffre ? (
+                <OffreDetail
+                  offre={selectedOffre}
+                  applied={applied.has(selectedOffre.id)}
+                  applying={panelApplying}
+                  saved={saved.has(selectedOffre.id)}
+                  isConnected={isConnected}
+                  onApply={handlePanelApply}
+                  onToggleSave={() => handleToggleSave(selectedOffre.id)}
+                  mode="panel"
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: C.grey, fontSize: 14 }}>
+                  Sélectionnez une offre
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+      ) : (
+        /* ── LAYOUT MOBILE — liste normale ─────────────────────────────────── */
+        <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px 24px 80px' }}>
+          {listContent}
+        </div>
+      )}
+
+      {/* ── TRI DROPDOWN (position:fixed) ───────────────────────────────────── */}
+      {triOpen && (
+        <div
+          ref={triDropRef}
+          style={{
+            position: 'fixed',
+            top: triPos.top,
+            left: triPos.left,
+            minWidth: triPos.minWidth,
+            backgroundColor: C.white, border: `1px solid ${C.sable}`,
+            borderRadius: 12, padding: 6, zIndex: 400,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.10)', animation: 'kavio-fadein 0.12s ease',
+          }}
+        >
+          {(Object.entries(TRI_LABELS) as [SortKey, string][]).map(([k, label]) => (
             <button
-              onClick={() => setTriOpen(o => !o)}
+              key={k}
+              onClick={() => { update({ tri: k }); setTriOpen(false) }}
               style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                padding: '7px 13px', borderRadius: 10, border: `1px solid ${C.sable}`,
-                backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500,
-                cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '9px 12px', border: 'none', borderRadius: 8,
+                backgroundColor: filters.tri === k ? C.creme : 'transparent',
+                color: filters.tri === k ? C.dark : C.grey,
+                fontSize: 13, fontWeight: filters.tri === k ? 600 : 400,
+                cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round">
-                <path d="M3 6h18M7 12h10M11 18h2" />
-              </svg>
-              {TRI_LABELS[filters.tri]}
-              <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-                <path d="M2 3.5l3 3 3-3" stroke={C.grey} strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              {filters.tri === k && <span style={{ color: C.terracotta, marginRight: 6 }}>✓</span>}
+              {label}
             </button>
-            {triOpen && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                backgroundColor: C.white, border: `1px solid ${C.sable}`,
-                borderRadius: 12, padding: 6, minWidth: 200, zIndex: 50,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.10)', animation: 'kavio-fadein 0.12s ease',
-              }}>
-                {(Object.entries(TRI_LABELS) as [SortKey, string][]).map(([k, label]) => (
-                  <button
-                    key={k}
-                    onClick={() => { update({ tri: k }); setTriOpen(false) }}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '9px 12px', border: 'none', borderRadius: 8,
-                      backgroundColor: filters.tri === k ? C.creme : 'transparent',
-                      color: filters.tri === k ? C.dark : C.grey,
-                      fontSize: 13, fontWeight: filters.tri === k ? 600 : 400,
-                      cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    {filters.tri === k && <span style={{ color: C.terracotta, marginRight: 6 }}>✓</span>}
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
-
-        {/* Contenu */}
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
-          </div>
-        ) : loadError ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', color: C.terracotta, fontSize: 14, fontWeight: 500 }}>
-            {loadError}
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState hasFilters={hasActiveFilters} onReset={resetFilters} />
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtered.map(offre => (
-              <OffreCard
-                key={offre.id}
-                offre={offre}
-                applied={applied.has(offre.id)}
-                saved={saved.has(offre.id)}
-                onApply={handleApply}
-                onToggleSave={handleToggleSave}
-                isConnected={isConnected}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* ── DRAWER FILTRES AVANCÉS ──────────────────────────────────────────── */}
       {drawerOpen && (
@@ -965,7 +1344,6 @@ export default function OffresPage() {
             boxShadow: '-6px 0 32px rgba(0,0,0,0.13)',
             animation: 'kavio-slidein 0.22s ease',
           }}>
-            {/* Header */}
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '18px 24px', borderBottom: `1px solid ${C.sable}`,
@@ -975,7 +1353,6 @@ export default function OffresPage() {
               <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
             </div>
 
-            {/* Body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
               <DrawerSelect label="Expérience"       value={filters.exp}            onChange={v => update({ exp: v })}            options={EXP_OPTS} />
               <DrawerSelect label="Salaire minimum"  value={filters.salaire}        onChange={v => update({ salaire: v })}        options={SALAIRE_SEUILS.map(labelSalaire)} placeholder="Indifférent" />
@@ -988,7 +1365,6 @@ export default function OffresPage() {
               <DrawerSelect label="Durée de contrat"  value={filters.duree_contrat} onChange={v => update({ duree_contrat: v })}  options={DUREE_OPTS} />
             </div>
 
-            {/* Footer */}
             <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, flexShrink: 0 }}>
               <button
                 onClick={() => update({ exp: '', salaire: '', avantages: [], taille: '', secteur: '', langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '' })}
@@ -1005,11 +1381,6 @@ export default function OffresPage() {
             </div>
           </div>
         </>
-      )}
-
-      {/* Click-outside overlay for sort dropdown */}
-      {triOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setTriOpen(false)} />
       )}
     </div>
   )

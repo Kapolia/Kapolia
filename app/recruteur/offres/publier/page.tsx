@@ -18,11 +18,14 @@
   ALTER TABLE public.offres ADD COLUMN IF NOT EXISTS pays                text    default 'France';
   ALTER TABLE public.offres ADD COLUMN IF NOT EXISTS statut              text    default 'publiée';
   ALTER TABLE public.offres ADD COLUMN IF NOT EXISTS statut_publication  text    default 'publiée';
+  ALTER TABLE public.offres ADD COLUMN IF NOT EXISTS latitude            numeric;
+  ALTER TABLE public.offres ADD COLUMN IF NOT EXISTS longitude           numeric;
 */
 
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -473,6 +476,7 @@ function PublierOffrePageInner() {
 
   // Step 2
   const [ville, setVille]           = useState('')
+  const [villeCoords, setVilleCoords] = useState<GeoCoords | null>(null)
   const [pays, setPays]             = useState('France')
   const [modeTravail, setModeTravail] = useState('')
   const [joursRemote, setJoursRemote] = useState(2)
@@ -523,7 +527,7 @@ function PublierOffrePageInner() {
         setDebutImmediat(false)
         setDateDebut(data.date_debut ?? '')
       }
-      setVille(data.ville ?? '')
+      setVille(data.ville ?? ''); setVilleCoords(null)
       setPays(data.pays ?? 'France')
       setModeTravail(data.mode_travail ?? '')
       setJoursRemote(data.jours_remote ?? 2)
@@ -619,6 +623,8 @@ function PublierOffrePageInner() {
       periode_salaire: periode,
       date_debut: debutImmediat ? 'immediat' : dateDebut,
       ville, pays, mode_travail: modeTravail,
+      latitude:  villeCoords?.lat ?? null,
+      longitude: villeCoords?.lng ?? null,
       jours_remote: modeTravail === 'Hybride' ? joursRemote : null,
       deplacements, description,
       missions: missions.filter(m => m.trim()),
@@ -651,7 +657,7 @@ function PublierOffrePageInner() {
 
   function resetForm() {
     setTitre(''); setContrat(''); setDomaine(''); setNiveau(''); setSalaireMin(''); setSalaireMax(''); setPeriode('annuel'); setDebutImmediat(true); setDateDebut('')
-    setVille(''); setPays('France'); setModeTravail(''); setJoursRemote(2); setDeplacements('')
+    setVille(''); setVilleCoords(null); setPays('France'); setModeTravail(''); setJoursRemote(2); setDeplacements('')
     setDescription(''); setMissions(['']); setProfilRecherche(''); setCompetences([]); setCompInput(''); setCompetencesBonus([]); setCompBonusInput(''); setValeurs([])
     setAvantages([]); setProcessRecrutement(['Entretien RH'])
     setStep(1); setErrors({}); setServerError(''); setPublished(false); setIsDraft(false)
@@ -776,7 +782,12 @@ function PublierOffrePageInner() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start' }}>
               <div>
                 <SLabel>Ville *</SLabel>
-                <TInput value={ville} onChange={setVille} placeholder="ex. Paris, Lyon, Bordeaux…" />
+                <GeoVilleInput
+                  value={ville}
+                  onChange={setVille}
+                  onCoordsChange={setVilleCoords}
+                  placeholder="ex. Paris, Lyon, Bordeaux…"
+                />
                 <FieldErr msg={errors.ville} />
               </div>
               <div>
