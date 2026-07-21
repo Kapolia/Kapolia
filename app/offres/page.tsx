@@ -549,7 +549,7 @@ function OffreCard({
         {/* Title + Star */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
           <span style={{
-            flex: 1, fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: 700, lineHeight: 1.35,
+            flex: 1, fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700, lineHeight: 1.35,
             color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
             transition: 'color 0.15s',
           }}>
@@ -559,26 +559,26 @@ function OffreCard({
         </div>
 
         {/* Company · City */}
-        <div style={{ fontSize: 12, color: C.grey, marginBottom: 10 }}>
+        <div style={{ fontSize: 13, color: C.grey, marginBottom: 10 }}>
           <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
           {offre.ville && <span style={{ color: C.lightGrey }}> · {offre.ville}</span>}
         </div>
 
         {/* Badges: salaire, contrat, mode */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {salaire && (
-            <span style={{ fontSize: 11, fontWeight: 700, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '2px 8px', borderRadius: 20 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '3px 10px', borderRadius: 20 }}>
               {salaire}
             </span>
           )}
           {offre.type_contrat && (
-            <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '2px 8px', borderRadius: 20 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '3px 10px', borderRadius: 20 }}>
               {offre.type_contrat}
             </span>
           )}
           {offre.mode_travail && (
             <span style={{
-              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
+              fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
               backgroundColor: offre.mode_travail === '100% remote' ? `${C.vert}14` : offre.mode_travail === 'Hybride' ? '#7B5EA714' : `${C.dark}0A`,
               color: offre.mode_travail === '100% remote' ? C.vert : offre.mode_travail === 'Hybride' ? '#7B5EA7' : C.grey,
             }}>
@@ -586,12 +586,12 @@ function OffreCard({
             </span>
           )}
           {applied && (
-            <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.vert}15`, color: C.vert, padding: '2px 8px', borderRadius: 20 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.vert}15`, color: C.vert, padding: '3px 10px', borderRadius: 20 }}>
               ✓ Candidature envoyée
             </span>
           )}
           {distanceKm != null && (
-            <span style={{ fontSize: 11, fontWeight: 500, backgroundColor: '#EEF2FF', color: '#4338CA', padding: '2px 8px', borderRadius: 20 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, backgroundColor: '#EEF2FF', color: '#4338CA', padding: '3px 10px', borderRadius: 20 }}>
               à {distanceKm} km
             </span>
           )}
@@ -1369,9 +1369,9 @@ export default function OffresPage() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', justifyContent: 'center' }}>
           <div style={{ display: 'flex', width: '100%', maxWidth: 1500, overflow: 'hidden' }}>
 
-            {/* Colonne gauche — liste scrollable ~35% */}
+            {/* Colonne gauche — liste scrollable ~32% */}
             <div ref={leftColRef} style={{
-              width: '35%', minWidth: 300,
+              width: '32%', minWidth: 280,
               overflowY: 'auto',
               borderRight: `1px solid ${C.sable}`,
               padding: '20px 20px 60px 16px',
