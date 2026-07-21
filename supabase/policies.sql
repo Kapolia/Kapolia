@@ -11,9 +11,7 @@
 -- ⚠️  RÈGLE : mettre à jour ce fichier à chaque changement de
 --   politique dans le dashboard Supabase, puis committer.
 --
--- ⚠️  CAPTURE POTENTIELLEMENT PARTIELLE : 20 politiques capturées.
---   Vérifier l'exhaustivité via la requête de régénération
---   décrite dans supabase/README.md.
+-- 25 politiques au total : 18 sur schéma public, 7 sur storage.
 -- ============================================================
 
 
@@ -235,27 +233,70 @@ CREATE POLICY "Lecture vues propres"
 -- ALTER TABLE ENABLE ROW LEVEL SECURITY est géré par Supabase en interne
 -- sur cette table — ne pas l'exécuter manuellement sur une nouvelle instance.
 --
--- ⚠️  CAPTURE POTENTIELLEMENT INCOMPLÈTE : seules 2 politiques storage sont
---   présentes dans cette capture. Les politiques INSERT/DELETE pour les
---   buckets `projets-medias`, `pieces-jointes` et `avatars` (upload, suppression
---   par l'utilisateur) sont peut-être manquantes. Vérifier dans le dashboard.
+-- 7 politiques couvrant les buckets `avatars` et `projets-medias`.
+-- Convention de chemin : le premier segment (storage.foldername(name)[1])
+-- doit correspondre à auth.uid(), ce qui isole chaque utilisateur dans son dossier.
 
--- Lecture publique du bucket `avatars` (accès non authentifié autorisé)
+-- Bucket `avatars` — lecture publique (pas d'authentification requise)
 CREATE POLICY "Lecture avatars publique"
   ON storage.objects AS PERMISSIVE FOR SELECT
   TO public
-  USING (bucket_id = 'avatars');
+  USING (bucket_id = 'avatars'::text);
 
--- Propriétaire : remplacement de son propre fichier dans le bucket `projets-medias`
--- (le premier segment du chemin de fichier doit correspondre à auth.uid())
+-- Bucket `avatars` — upload dans son propre dossier
+CREATE POLICY "Upload avatar propre"
+  ON storage.objects AS PERMISSIVE FOR INSERT
+  TO public
+  WITH CHECK (
+    bucket_id = 'avatars'::text
+    AND (auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+-- Bucket `avatars` — remplacement de son propre avatar
+CREATE POLICY "Mise à jour avatar propre"
+  ON storage.objects AS PERMISSIVE FOR UPDATE
+  TO public
+  USING (
+    bucket_id = 'avatars'::text
+    AND (auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+-- Bucket `avatars` — suppression de son propre avatar
+CREATE POLICY "Suppression avatar propre"
+  ON storage.objects AS PERMISSIVE FOR DELETE
+  TO public
+  USING (
+    bucket_id = 'avatars'::text
+    AND (auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+-- Bucket `projets-medias` — upload dans son propre dossier
+CREATE POLICY "Upload media propre"
+  ON storage.objects AS PERMISSIVE FOR INSERT
+  TO public
+  WITH CHECK (
+    bucket_id = 'projets-medias'::text
+    AND (auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+-- Bucket `projets-medias` — remplacement d'un fichier existant
 CREATE POLICY "Mise a jour media propre"
   ON storage.objects AS PERMISSIVE FOR UPDATE
   TO public
   USING (
-    bucket_id = 'projets-medias'
+    bucket_id = 'projets-medias'::text
     AND (auth.uid())::text = (storage.foldername(name))[1]
   )
   WITH CHECK (
-    bucket_id = 'projets-medias'
+    bucket_id = 'projets-medias'::text
+    AND (auth.uid())::text = (storage.foldername(name))[1]
+  );
+
+-- Bucket `projets-medias` — suppression de son propre fichier
+CREATE POLICY "Suppression media propre"
+  ON storage.objects AS PERMISSIVE FOR DELETE
+  TO public
+  USING (
+    bucket_id = 'projets-medias'::text
     AND (auth.uid())::text = (storage.foldername(name))[1]
   );

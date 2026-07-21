@@ -20,7 +20,7 @@ Snapshot des politiques Row-Level Security (RLS) capturées le **21/07/2026**.
 | `public.profils` | 2 | |
 | `public.reactions` | 3 | |
 | `public.vues_profil` | 2 | |
-| `storage.objects` | 2 | Capture potentiellement incomplète — vérifier les buckets `pieces-jointes` et `avatars` (upload/delete) |
+| `storage.objects` | 7 | Buckets `avatars` et `projets-medias` — SELECT/INSERT/UPDATE/DELETE |
 
 ### Comment appliquer ce fichier sur une nouvelle instance
 
