@@ -76,13 +76,14 @@ type Filters = {
   duree_contrat: string
   tri: SortKey
   rayon: string
+  favoris: boolean
 }
 
 const EMPTY_FILTERS: Filters = {
   search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
   taille: '', secteur: '', avantages: [], date_pub: '',
   langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '', tri: 'match',
-  rayon: '25',
+  rayon: '25', favoris: false,
 }
 
 // ─── Filter config ────────────────────────────────────────────────────────────
@@ -841,6 +842,7 @@ export default function OffresPage() {
     if (p.get('dc'))    patch.duree_contrat  = p.get('dc')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
     if (p.get('r'))     patch.rayon          = p.get('r')!
+    if (p.get('fav') === '1') patch.favoris  = true
     if (Object.keys(patch).length > 0) setFilters(prev => ({ ...prev, ...patch }))
     const lat = p.get('lat'), lng = p.get('lng')
     if (lat && lng) setLieuCoords({ lat: parseFloat(lat), lng: parseFloat(lng) })
@@ -869,16 +871,11 @@ export default function OffresPage() {
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
     if (filters.rayon !== '25')  p.set('r',   filters.rayon)
+    if (filters.favoris)         p.set('fav', '1')
     if (selectedId)              p.set('offre', selectedId)
     const qs = p.toString()
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
   }, [filters, selectedId, lieuCoords])
-
-  // ── localStorage ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('kavio_saved_offers') : null
-    if (raw) setSaved(new Set(JSON.parse(raw)))
-  }, [])
 
   // ── Data load ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -887,13 +884,16 @@ export default function OffresPage() {
       setIsConnected(!!user)
       setUserId(user?.id ?? null)
 
-      const [offresRes, profilRes, candidaturesRes] = await Promise.all([
+      const [offresRes, profilRes, candidaturesRes, favoritesRes] = await Promise.all([
         supabase.from('offres').select('*').eq('active', true).eq('statut_publication', 'publiée').order('created_at', { ascending: false }),
         user
           ? supabase.from('profils').select('domaine, experience, type_poste, valeur, disponibilite, ville').eq('user_id', user.id).single()
           : Promise.resolve({ data: null }),
         user
           ? supabase.from('candidatures').select('offre_id, created_at').eq('candidat_id', user.id)
+          : Promise.resolve({ data: [] }),
+        user
+          ? supabase.from('offres_favorites').select('offre_id').eq('candidat_id', user.id)
           : Promise.resolve({ data: [] }),
       ])
 
@@ -911,6 +911,7 @@ export default function OffresPage() {
         (candidaturesRes.data ?? []).map((c: { offre_id: string; created_at: string }) => [c.offre_id, c.created_at])
       )
       setApplied(appliedMap)
+      setSaved(new Set((favoritesRes.data ?? []).map((f: { offre_id: string }) => f.offre_id)))
 
       const scored: Offre[] = (offresRes.data ?? []).map((o: Omit<Offre, 'score'>) => ({
         ...o,
@@ -931,14 +932,31 @@ export default function OffresPage() {
     if (!error) setApplied(prev => new Map([...prev, [offreId, new Date().toISOString()]]))
   }
 
-  function handleToggleSave(offreId: string) {
+  async function handleToggleSave(offreId: string) {
+    if (!isConnected) { router.push('/connexion'); return }
+    if (!userId) return
+    const isSaved = saved.has(offreId)
     setSaved(prev => {
       const next = new Set(prev)
-      if (next.has(offreId)) next.delete(offreId)
+      if (isSaved) next.delete(offreId)
       else next.add(offreId)
-      localStorage.setItem('kavio_saved_offers', JSON.stringify([...next]))
       return next
     })
+    if (isSaved) {
+      const { error } = await supabase.from('offres_favorites')
+        .delete().eq('candidat_id', userId).eq('offre_id', offreId)
+      if (error) {
+        console.error('Erreur retrait favori:', error.message)
+        setSaved(prev => { const next = new Set(prev); next.add(offreId); return next })
+      }
+    } else {
+      const { error } = await supabase.from('offres_favorites')
+        .insert({ candidat_id: userId, offre_id: offreId })
+      if (error) {
+        console.error('Erreur ajout favori:', error.message)
+        setSaved(prev => { const next = new Set(prev); next.delete(offreId); return next })
+      }
+    }
   }
 
   async function handlePanelApply() {
@@ -957,7 +975,7 @@ export default function OffresPage() {
 
   const hasActiveFilters = !!(
     filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
-    filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0
+    filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0 || filters.favoris
   )
 
   const searchSummary = [
@@ -975,7 +993,7 @@ export default function OffresPage() {
     filters.mode.length > 0, !!filters.exp, !!filters.salaire,
     filters.avantages.length > 0, !!filters.date_pub, !!filters.taille,
     !!filters.secteur, !!filters.langue, !!filters.type_ent,
-    !!filters.prise_de_poste, !!filters.duree_contrat,
+    !!filters.prise_de_poste, !!filters.duree_contrat, filters.favoris,
   ].filter(Boolean).length
 
   // ── Filter + sort pipeline ────────────────────────────────────────────────
@@ -1042,6 +1060,10 @@ export default function OffresPage() {
       list = list.filter(o => filters.avantages.every(av => (o.avantages ?? []).includes(av)))
     }
 
+    if (filters.favoris) {
+      list = list.filter(o => saved.has(o.id))
+    }
+
     switch (filters.tri) {
       case 'match':        list.sort((a, b) => b.score - a.score); break
       case 'recent':       list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break
@@ -1062,7 +1084,7 @@ export default function OffresPage() {
     }
 
     return list
-  }, [offres, filters, lieuCoords])
+  }, [offres, filters, lieuCoords, saved])
 
   // ── Auto-select : first offre, or re-select after filter change ───────────
   useEffect(() => {
@@ -1249,6 +1271,24 @@ export default function OffresPage() {
                 <MultiPillDropdown dark label="Domaine"  value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
                 <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}     onChange={v => update({ mode: v })} />
                 <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS} onChange={v => update({ date_pub: v })} />
+
+                {isConnected && (
+                  <button
+                    onClick={() => update({ favoris: !filters.favoris })}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      padding: '7px 12px', borderRadius: 20, fontSize: 14,
+                      fontWeight: filters.favoris ? 600 : 400,
+                      border: `1.5px solid ${filters.favoris ? C.creme : 'rgba(255,255,255,0.30)'}`,
+                      backgroundColor: filters.favoris ? C.creme : 'transparent',
+                      color: filters.favoris ? C.vert : C.creme,
+                      cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {filters.favoris ? '★' : '☆'} Favoris
+                  </button>
+                )}
 
                 <button
                   onClick={() => setDrawerOpen(true)}

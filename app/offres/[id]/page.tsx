@@ -54,12 +54,6 @@ export default function OffreDetailPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [userId, setUserId]           = useState<string | null>(null)
 
-  // localStorage saved state
-  useEffect(() => {
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('kavio_saved_offers') : null
-    if (raw) setSaved((JSON.parse(raw) as string[]).includes(id))
-  }, [id])
-
   // Data load
   useEffect(() => {
     async function load() {
@@ -67,10 +61,13 @@ export default function OffreDetailPage() {
       setIsConnected(!!user)
       setUserId(user?.id ?? null)
 
-      const [offreRes, candRes] = await Promise.all([
+      const [offreRes, candRes, favRes] = await Promise.all([
         supabase.from('offres').select('*').eq('id', id).single(),
         user
           ? supabase.from('candidatures').select('id, created_at').eq('candidat_id', user.id).eq('offre_id', id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        user
+          ? supabase.from('offres_favorites').select('id').eq('candidat_id', user.id).eq('offre_id', id).maybeSingle()
           : Promise.resolve({ data: null, error: null }),
       ])
 
@@ -84,6 +81,7 @@ export default function OffreDetailPage() {
       setOffre(o)
       setApplied(!!candRes.data)
       setAppliedDate((candRes.data as { created_at?: string } | null)?.created_at ?? null)
+      setSaved(!!favRes.data)
       setLoading(false)
     }
     load()
@@ -102,12 +100,19 @@ export default function OffreDetailPage() {
     setApplying(false)
   }
 
-  function toggleSave() {
-    const raw  = typeof window !== 'undefined' ? localStorage.getItem('kavio_saved_offers') : null
-    const list = raw ? (JSON.parse(raw) as string[]) : []
-    const next = saved ? list.filter(s => s !== id) : [...list, id]
-    localStorage.setItem('kavio_saved_offers', JSON.stringify(next))
+  async function toggleSave() {
+    if (!isConnected) { router.push('/connexion'); return }
+    if (!userId) return
     setSaved(!saved)
+    if (saved) {
+      const { error } = await supabase.from('offres_favorites')
+        .delete().eq('candidat_id', userId).eq('offre_id', id)
+      if (error) { console.error('Erreur retrait favori:', error.message); setSaved(true) }
+    } else {
+      const { error } = await supabase.from('offres_favorites')
+        .insert({ candidat_id: userId, offre_id: id })
+      if (error) { console.error('Erreur ajout favori:', error.message); setSaved(false) }
+    }
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────
