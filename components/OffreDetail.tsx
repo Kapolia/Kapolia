@@ -38,6 +38,7 @@ export type OffreData = {
 type Props = {
   offre: OffreData
   applied: boolean
+  appliedDate?: string | null
   applying: boolean
   saved: boolean
   isConnected: boolean
@@ -45,6 +46,12 @@ type Props = {
   onToggleSave: () => void
   mode?: 'page' | 'panel'
   onBack?: () => void
+}
+
+function formatAppliedLabel(iso: string): string {
+  const d = new Date(iso)
+  if (d.toDateString() === new Date().toDateString()) return 'Postulé aujourd’hui'
+  return `Postulé le ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
 function daysSince(iso: string): string {
@@ -75,8 +82,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function PageApplyButton({ applied, applying, onApply, isConnected }: {
-  applied: boolean; applying: boolean; onApply: () => void; isConnected: boolean
+function PageApplyButton({ applied, appliedDate, applying, onApply, isConnected }: {
+  applied: boolean; appliedDate?: string | null; applying: boolean; onApply: () => void; isConnected: boolean
 }) {
   if (applied) {
     return (
@@ -89,7 +96,7 @@ function PageApplyButton({ applied, applying, onApply, isConnected }: {
         <svg width="14" height="12" viewBox="0 0 12 10" fill="none">
           <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Candidature envoyée
+        {appliedDate ? formatAppliedLabel(appliedDate) : 'Candidature envoyée'}
       </div>
     )
   }
@@ -134,8 +141,8 @@ function PanelSection({ title, children, last = false }: { title: string; childr
   )
 }
 
-function PanelApplyButton({ applied, applying, onApply, isConnected }: {
-  applied: boolean; applying: boolean; onApply: () => void; isConnected: boolean
+function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected }: {
+  applied: boolean; appliedDate?: string | null; applying: boolean; onApply: () => void; isConnected: boolean
 }) {
   if (applied) {
     return (
@@ -148,7 +155,7 @@ function PanelApplyButton({ applied, applying, onApply, isConnected }: {
         <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
           <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Candidature envoyée
+        {appliedDate ? formatAppliedLabel(appliedDate) : 'Candidature envoyée'}
       </div>
     )
   }
@@ -177,7 +184,7 @@ function PanelApplyButton({ applied, applying, onApply, isConnected }: {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OffreDetail({
-  offre, applied, applying, saved, isConnected,
+  offre, applied, appliedDate, applying, saved, isConnected,
   onApply, onToggleSave, mode = 'page', onBack,
 }: Props) {
   const [copied, setCopied] = useState(false)
@@ -262,7 +269,7 @@ export function OffreDetail({
 
           {/* Action row */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <PanelApplyButton applied={applied} applying={applying} onApply={onApply} isConnected={isConnected} />
+            <PanelApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
 
             <button
               onClick={onToggleSave}
@@ -514,7 +521,7 @@ export function OffreDetail({
               : 'Connectez-vous pour postuler rapidement avec votre profil Kavio.'}
           </div>
         </div>
-        <PageApplyButton applied={applied} applying={applying} onApply={onApply} isConnected={isConnected} />
+        <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
       </div>
     </div>
   )
@@ -568,7 +575,7 @@ export function OffreDetail({
               >
                 {saved ? '★' : '☆'}
               </button>
-              <PageApplyButton applied={applied} applying={applying} onApply={onApply} isConnected={isConnected} />
+              <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
             </div>
           </div>
 

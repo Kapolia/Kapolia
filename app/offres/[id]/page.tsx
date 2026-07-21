@@ -48,6 +48,7 @@ export default function OffreDetailPage() {
   const [loading, setLoading]         = useState(true)
   const [notFound, setNotFound]       = useState(false)
   const [applied, setApplied]         = useState(false)
+  const [appliedDate, setAppliedDate] = useState<string | null>(null)
   const [applying, setApplying]       = useState(false)
   const [saved, setSaved]             = useState(false)
   const [isConnected, setIsConnected] = useState(false)
@@ -69,7 +70,7 @@ export default function OffreDetailPage() {
       const [offreRes, candRes] = await Promise.all([
         supabase.from('offres').select('*').eq('id', id).single(),
         user
-          ? supabase.from('candidatures').select('id').eq('candidat_id', user.id).eq('offre_id', id).maybeSingle()
+          ? supabase.from('candidatures').select('id, created_at').eq('candidat_id', user.id).eq('offre_id', id).maybeSingle()
           : Promise.resolve({ data: null, error: null }),
       ])
 
@@ -82,6 +83,7 @@ export default function OffreDetailPage() {
 
       setOffre(o)
       setApplied(!!candRes.data)
+      setAppliedDate((candRes.data as { created_at?: string } | null)?.created_at ?? null)
       setLoading(false)
     }
     load()
@@ -96,7 +98,7 @@ export default function OffreDetailPage() {
       offre_id:    id,
       statut:      'envoyée',
     })
-    if (!error) setApplied(true)
+    if (!error) { setApplied(true); setAppliedDate(new Date().toISOString()) }
     setApplying(false)
   }
 
@@ -161,6 +163,7 @@ export default function OffreDetailPage() {
       <OffreDetail
         offre={offre}
         applied={applied}
+        appliedDate={appliedDate}
         applying={applying}
         saved={saved}
         isConnected={isConnected}

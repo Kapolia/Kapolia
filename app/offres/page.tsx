@@ -585,8 +585,8 @@ function OffreCard({
             </span>
           )}
           {applied && (
-            <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.vert}10`, color: C.vert, padding: '2px 8px', borderRadius: 20 }}>
-              ✓ Postulé
+            <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.vert}15`, color: C.vert, padding: '2px 8px', borderRadius: 20 }}>
+              ✓ Candidature envoyée
             </span>
           )}
           {distanceKm != null && (
@@ -762,7 +762,7 @@ export default function OffresPage() {
 
   const [profil, setProfil]           = useState<Profil | null>(null)
   const [offres, setOffres]           = useState<Offre[]>([])
-  const [applied, setApplied]         = useState<Set<string>>(new Set())
+  const [applied, setApplied]         = useState<Map<string, string>>(new Map())
   const [saved, setSaved]             = useState<Set<string>>(new Set())
   const [loading, setLoading]         = useState(true)
   const [isConnected, setIsConnected] = useState(false)
@@ -894,7 +894,7 @@ export default function OffresPage() {
           ? supabase.from('profils').select('domaine, experience, type_poste, valeur, disponibilite, ville').eq('user_id', user.id).single()
           : Promise.resolve({ data: null }),
         user
-          ? supabase.from('candidatures').select('offre_id').eq('candidat_id', user.id)
+          ? supabase.from('candidatures').select('offre_id, created_at').eq('candidat_id', user.id)
           : Promise.resolve({ data: [] }),
       ])
 
@@ -908,10 +908,10 @@ export default function OffresPage() {
       const p: Profil | null = profilRes.data ?? null
       setProfil(p)
 
-      const appliedIds = new Set<string>(
-        (candidaturesRes.data ?? []).map((c: { offre_id: string }) => c.offre_id)
+      const appliedMap = new Map<string, string>(
+        (candidaturesRes.data ?? []).map((c: { offre_id: string; created_at: string }) => [c.offre_id, c.created_at])
       )
-      setApplied(appliedIds)
+      setApplied(appliedMap)
 
       const scored: Offre[] = (offresRes.data ?? []).map((o: Omit<Offre, 'score'>) => ({
         ...o,
@@ -949,7 +949,7 @@ export default function OffresPage() {
   async function handleApply(offreId: string) {
     if (!userId) return
     const { error } = await supabase.from('candidatures').insert({ candidat_id: userId, offre_id: offreId, statut: 'envoyée' })
-    if (!error) setApplied(prev => new Set([...prev, offreId]))
+    if (!error) setApplied(prev => new Map([...prev, [offreId, new Date().toISOString()]]))
   }
 
   function handleToggleSave(offreId: string) {
@@ -1376,6 +1376,7 @@ export default function OffresPage() {
                 <OffreDetail
                   offre={selectedOffre}
                   applied={applied.has(selectedOffre.id)}
+                  appliedDate={applied.get(selectedOffre.id) ?? null}
                   applying={panelApplying}
                   saved={saved.has(selectedOffre.id)}
                   isConnected={isConnected}
