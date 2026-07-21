@@ -30,6 +30,7 @@ export type OffreData = {
   competences?: string[]
   valeurs?: string[]
   avantages?: string[]
+  langues?: string[]
   date_debut?: string
   created_at: string
 }

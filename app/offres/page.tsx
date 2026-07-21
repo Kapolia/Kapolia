@@ -8,6 +8,7 @@ import { OffreDetail } from '@/components/OffreDetail'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { LieuRadiusPopover } from '@/components/LieuRadiusPopover'
 import { haversineKm } from '@/lib/geo'
+import { LANGUES } from '@/lib/langues'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ type Offre = {
   competences?: string[]
   valeurs?: string[]
   avantages?: string[]
+  langues?: string[]
   date_debut?: string
   created_at: string
   score: number
@@ -68,7 +70,7 @@ type Filters = {
   exp: string
   salaire: string
   date_pub: string
-  langue: string
+  langue: string[]
   prise_de_poste: string
   duree_contrat: string
   tri: SortKey
@@ -77,7 +79,7 @@ type Filters = {
 
 const EMPTY_FILTERS: Filters = {
   search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
-  date_pub: '', langue: '', prise_de_poste: '', duree_contrat: '', tri: 'match',
+  date_pub: '', langue: [], prise_de_poste: '', duree_contrat: '', tri: 'match',
   rayon: '25',
 }
 
@@ -96,7 +98,6 @@ const MODE_OPTS       = ['100% présentiel', 'Hybride', '100% remote']
 const EXP_OPTS        = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
 const SALAIRE_PILL_OPTS = ['20 000 €+', '25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
 const DATE_PUB_OPTS   = ["Aujourd'hui", '3 derniers jours', '5 derniers jours', 'Cette semaine', 'Ce mois-ci']
-const LANGUE_OPTS     = ['Français uniquement', 'Anglais requis', 'Bilingue', 'Autre']
 const PRISE_POSTE_OPTS = ['Immédiat', 'Dans le mois', 'Dans 3 mois', 'Flexible']
 const DUREE_OPTS      = ['< 3 mois', '3–6 mois', '6–12 mois', '> 12 mois']
 
@@ -112,7 +113,7 @@ const TRI_LABELS: Record<SortKey, string> = {
 // URL param mapping
 const URL_MAP: Partial<Record<keyof Filters, string>> = {
   search: 'q', domaine: 'd', contrat: 'c', lieu: 'l', mode: 'm',
-  exp: 'e', salaire: 's', date_pub: 'dp', langue: 'lang',
+  exp: 'e', salaire: 's', date_pub: 'dp',
   prise_de_poste: 'pp', duree_contrat: 'dc', tri: 'tri', rayon: 'r',
 }
 void URL_MAP // used via spread in URL sync effects
@@ -597,6 +598,160 @@ function SalairePillDropdown({
   )
 }
 
+function LangPillDropdown({
+  value, onChange, dark = false,
+}: {
+  value: string[]; onChange: (v: string[]) => void; dark?: boolean
+}) {
+  const [open, setOpen]       = useState(false)
+  const [search, setSearch]   = useState('')
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 220 })
+  const btnRef    = useRef<HTMLButtonElement>(null)
+  const dropRef   = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const active = value.length > 0
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 220) })
+    }
+    if (!open) setSearch('')
+    setOpen(o => !o)
+  }
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 50)
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  function toggle(code: string) {
+    onChange(value.includes(code) ? value.filter(c => c !== code) : [...value, code])
+  }
+
+  const visibleLangs = search.trim()
+    ? LANGUES.filter(l => l.nom.toLowerCase().includes(search.toLowerCase().trim()))
+    : LANGUES
+
+  const displayLabel = value.length === 0
+    ? 'Langue'
+    : value.length === 1
+      ? (() => { const l = LANGUES.find(l => l.code === value[0]); return l ? `${l.drapeau} ${l.nom}` : 'Langue' })()
+      : `Langue (${value.length})`
+
+  const pillBg        = dark ? (active ? C.creme   : 'transparent')            : (active ? C.vert  : C.white)
+  const pillBorder    = dark ? (active ? C.creme   : 'rgba(255,255,255,0.30)') : (active ? C.vert  : C.sable)
+  const pillColor     = dark ? (active ? C.vert    : 'rgba(255,255,255,0.90)') : (active ? C.white : C.dark)
+  const chevronStroke = dark ? (active ? C.vert    : 'rgba(255,255,255,0.7)')  : (active ? C.white : C.grey)
+
+  return (
+    <div style={{ flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        onClick={handleToggle}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '7px 12px', borderRadius: 20, fontSize: 14,
+          fontWeight: active ? 600 : 400,
+          border: `1.5px solid ${pillBorder}`,
+          backgroundColor: pillBg, color: pillColor,
+          cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          transition: 'all 0.12s',
+        }}
+      >
+        {displayLabel}
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+          <path d={open ? 'M2 6.5l3-3 3 3' : 'M2 3.5l3 3 3-3'} stroke={chevronStroke} strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.minWidth,
+            backgroundColor: C.white, border: `1px solid ${C.sable}`,
+            borderRadius: 12, zIndex: 400,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            display: 'flex', flexDirection: 'column',
+          }}
+        >
+          <div style={{ padding: '8px 8px 4px' }}>
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher une langue…"
+              style={{
+                width: '100%', padding: '6px 10px', borderRadius: 8, fontSize: 13,
+                border: `1.5px solid ${C.sable}`, outline: 'none', fontFamily: 'inherit',
+                backgroundColor: C.creme, color: C.dark, boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div style={{ maxHeight: '42vh', overflowY: 'auto', padding: '2px 4px 6px' }}>
+            {active && !search && (
+              <button
+                onClick={() => onChange([])}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '7px 12px', border: 'none', borderRadius: 8,
+                  backgroundColor: 'transparent', color: C.terracotta,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 2,
+                }}
+              >
+                Tout décocher
+              </button>
+            )}
+            {visibleLangs.map(l => {
+              const sel = value.includes(l.code)
+              return (
+                <button
+                  key={l.code}
+                  onClick={() => toggle(l.code)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left',
+                    padding: '7px 12px', border: 'none', borderRadius: 8,
+                    backgroundColor: sel ? `${C.vert}12` : 'transparent',
+                    color: sel ? C.vert : C.dark,
+                    fontSize: 13, fontWeight: sel ? 600 : 400,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  <span style={{
+                    width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                    border: `1.5px solid ${sel ? C.vert : C.sable}`,
+                    backgroundColor: sel ? C.vert : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {sel && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5l2.5 2.5L8 1" stroke={C.white} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                  </span>
+                  <span>{l.drapeau} {l.nom}</span>
+                </button>
+              )
+            })}
+            {visibleLangs.length === 0 && (
+              <div style={{ padding: '12px', fontSize: 13, color: C.grey, textAlign: 'center' }}>
+                Aucune langue trouvée
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DrawerSelect({ label, value, onChange, options, placeholder = 'Tous' }: {
   label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder?: string
 }) {
@@ -963,7 +1118,7 @@ export default function OffresPage() {
     if (p.get('e'))     patch.exp            = p.get('e')!
     if (p.get('s'))     patch.salaire        = p.get('s')!
     if (p.get('dp'))    patch.date_pub       = p.get('dp')!
-    if (p.get('lang'))  patch.langue         = p.get('lang')!
+    if (p.get('lang'))  patch.langue         = p.get('lang')!.split(',').filter(Boolean)
     if (p.get('pp'))    patch.prise_de_poste = p.get('pp')!
     if (p.get('dc'))    patch.duree_contrat  = p.get('dc')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
@@ -987,7 +1142,7 @@ export default function OffresPage() {
     if (filters.exp)             p.set('e',   filters.exp)
     if (filters.salaire)         p.set('s',   filters.salaire)
     if (filters.date_pub)        p.set('dp',  filters.date_pub)
-    if (filters.langue)          p.set('lang',filters.langue)
+    if (filters.langue.length)   p.set('lang', filters.langue.join(','))
     if (filters.prise_de_poste)  p.set('pp',  filters.prise_de_poste)
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
@@ -1089,7 +1244,7 @@ export default function OffresPage() {
 
   // ── Drawer filter count ───────────────────────────────────────────────────
   const drawerActiveCount = [
-    filters.exp, filters.langue, filters.prise_de_poste, filters.duree_contrat,
+    filters.exp, filters.prise_de_poste, filters.duree_contrat,
   ].filter(Boolean).length
 
   const hasActiveFilters = !!(
@@ -1110,7 +1265,7 @@ export default function OffresPage() {
     !!filters.search, !!filters.lieu,
     filters.contrat.length > 0, filters.domaine.length > 0,
     filters.mode.length > 0, !!filters.exp, !!filters.salaire,
-    !!filters.date_pub, !!filters.langue,
+    !!filters.date_pub, filters.langue.length > 0,
     !!filters.prise_de_poste, !!filters.duree_contrat,
   ].filter(Boolean).length
 
@@ -1171,6 +1326,10 @@ export default function OffresPage() {
       if (maxDays !== undefined) {
         list = list.filter(o => (Date.now() - new Date(o.created_at).getTime()) / 86400000 <= maxDays)
       }
+    }
+
+    if (filters.langue.length > 0) {
+      list = list.filter(o => filters.langue.some(l => (o.langues ?? []).includes(l)))
     }
 
     switch (filters.tri) {
@@ -1381,6 +1540,7 @@ export default function OffresPage() {
                 <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}          onChange={v => update({ mode: v })} />
                 <SalairePillDropdown value={filters.salaire} onChange={v => update({ salaire: v })} />
                 <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS}      onChange={v => update({ date_pub: v })} />
+                <LangPillDropdown  dark value={filters.langue} onChange={v => update({ langue: v })} />
 
                 <button
                   onClick={() => setDrawerOpen(true)}
@@ -1552,14 +1712,13 @@ export default function OffresPage() {
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
               <DrawerSelect label="Expérience"       value={filters.exp}            onChange={v => update({ exp: v })}            options={EXP_OPTS} />
-              <DrawerSelect label="Langue"            value={filters.langue}        onChange={v => update({ langue: v })}         options={LANGUE_OPTS} />
               <DrawerSelect label="Prise de poste"    value={filters.prise_de_poste} onChange={v => update({ prise_de_poste: v })} options={PRISE_POSTE_OPTS} />
               <DrawerSelect label="Durée de contrat"  value={filters.duree_contrat} onChange={v => update({ duree_contrat: v })}  options={DUREE_OPTS} />
             </div>
 
             <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, flexShrink: 0 }}>
               <button
-                onClick={() => update({ exp: '', langue: '', prise_de_poste: '', duree_contrat: '' })}
+                onClick={() => update({ exp: '', prise_de_poste: '', duree_contrat: '' })}
                 style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 Réinitialiser
