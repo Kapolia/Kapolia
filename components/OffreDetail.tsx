@@ -18,6 +18,7 @@ export type OffreData = {
   id: string
   titre: string
   entreprise_nom?: string
+  entreprise_logo_url?: string
   type_contrat?: string
   experience?: string
   salaire_min?: number
@@ -45,6 +46,51 @@ type Props = {
   mode?: 'page' | 'panel'
   onBack?: () => void
 }
+
+// ─── EntrepriseLogo ───────────────────────────────────────────────────────────
+
+const LOGO_COLORS = [
+  { bg: '#F5EBE5', color: '#C4673A' },
+  { bg: '#E8EDE9', color: '#2C4A3E' },
+  { bg: '#F0EBF5', color: '#7B5EA7' },
+  { bg: '#F5EDE0', color: '#9B7B48' },
+]
+
+function EntrepriseLogo({ nom, logoUrl, size = 48 }: { nom: string; logoUrl?: string; size?: number }) {
+  const [imgError, setImgError] = useState(false)
+  const initial    = nom.trim().charAt(0).toUpperCase()
+  const { bg, color } = LOGO_COLORS[nom.charCodeAt(0) % LOGO_COLORS.length]
+  const showFallback   = !logoUrl || imgError
+
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: Math.round(size / 4),
+      flexShrink: 0, overflow: 'hidden',
+      border: `1px solid ${showFallback ? 'transparent' : '#E8E8E8'}`,
+      backgroundColor: showFallback ? bg : '#fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      {showFallback ? (
+        <span style={{
+          fontSize: Math.round(size * 0.44),
+          fontFamily: 'Georgia, serif', fontWeight: 700, color,
+          lineHeight: 1, userSelect: 'none',
+        }}>
+          {initial}
+        </span>
+      ) : (
+        <img
+          src={logoUrl}
+          alt={nom}
+          onError={() => setImgError(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: Math.round(size * 0.1) }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Apply button helpers ─────────────────────────────────────────────────────
 
 function formatAppliedLabel(iso: string): string {
   const d = new Date(iso)
@@ -241,16 +287,22 @@ export function OffreDetail({
           {/* Title */}
           <h2 style={{
             fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700,
-            color: C.dark, margin: '0 0 6px', lineHeight: 1.2,
+            color: C.dark, margin: '0 0 12px', lineHeight: 1.2,
           }}>
             {offre.titre}
           </h2>
 
-          {/* Company · City · Mode */}
-          <div style={{ fontSize: 13, color: C.grey, marginBottom: 10, lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 600, color: '#333' }}>{entreprise}</span>
-            {offre.ville && <span> · {offre.ville}</span>}
-            {offre.mode_travail && <span style={{ color: C.grey }}> · {offre.mode_travail}</span>}
+          {/* Bloc identité entreprise */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+            <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={44} />
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
+                {entreprise}
+              </div>
+              <div style={{ fontSize: 12, color: C.grey, marginTop: 3 }}>
+                {[offre.ville, offre.mode_travail].filter(Boolean).join(' · ')}
+              </div>
+            </div>
           </div>
 
           {/* Salary + Contract badges */}
@@ -547,15 +599,23 @@ export function OffreDetail({
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: '0 0 8px', lineHeight: 1.2, fontWeight: 700 }}>
+              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: '0 0 14px', lineHeight: 1.2, fontWeight: 700 }}>
                 {offre.titre}
               </h1>
-              <div style={{ fontSize: 15, color: C.grey }}>
-                <span style={{ fontWeight: 600, color: C.dark }}>{entreprise}</span>
-                {offre.ville && <span> · {offre.ville}</span>}
-                <span style={{ marginLeft: 14, fontSize: 12, color: C.lightGrey }}>
-                  Publié {daysSince(offre.created_at)}
-                </span>
+              {/* Bloc identité entreprise */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={42} />
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
+                    {entreprise}
+                  </div>
+                  <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
+                    {[offre.ville, offre.mode_travail].filter(Boolean).join(' · ')}
+                    <span style={{ marginLeft: 12, fontSize: 12, color: C.lightGrey }}>
+                      Publié {daysSince(offre.created_at)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

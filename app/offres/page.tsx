@@ -37,6 +37,7 @@ type Offre = {
   id: string
   titre: string
   entreprise_nom?: string
+  entreprise_logo_url?: string
   type_contrat?: string
   domaine?: string
   experience?: string
