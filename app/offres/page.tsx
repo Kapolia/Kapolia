@@ -111,7 +111,7 @@ const AVANTAGES_OPTS  = [
   'Stock options', 'Formation', 'Véhicule de fonction',
   'Remboursement transport', 'Télétravail', 'Salle de sport',
 ]
-const DATE_PUB_OPTS   = ["Aujourd'hui", 'Cette semaine', 'Ce mois-ci']
+const DATE_PUB_OPTS   = ["Aujourd'hui", '3 derniers jours', '5 derniers jours', 'Cette semaine', 'Ce mois-ci']
 const LANGUE_OPTS     = ['Français uniquement', 'Anglais requis', 'Bilingue', 'Autre']
 const TYPE_ENT_OPTS   = ['Startup', 'ESN / SSII', 'Agence', 'PME', 'ETI', 'Grand groupe', 'Association / ONG']
 const PRISE_POSTE_OPTS = ['Immédiat', 'Dans le mois', 'Dans 3 mois', 'Flexible']
@@ -1047,7 +1047,7 @@ export default function OffresPage() {
     }
 
     if (filters.date_pub) {
-      const MAX_DAYS: Record<string, number> = { "Aujourd'hui": 1, 'Cette semaine': 7, 'Ce mois-ci': 30 }
+      const MAX_DAYS: Record<string, number> = { "Aujourd'hui": 1, '3 derniers jours': 3, '5 derniers jours': 5, 'Cette semaine': 7, 'Ce mois-ci': 30 }
       const maxDays = MAX_DAYS[filters.date_pub]
       if (maxDays !== undefined) {
         list = list.filter(o => (Date.now() - new Date(o.created_at).getTime()) / 86400000 <= maxDays)
