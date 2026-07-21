@@ -99,7 +99,7 @@ const CONTRAT_OPTS = [
 ]
 const MODE_OPTS       = ['100% présentiel', 'Hybride', '100% remote']
 const EXP_OPTS        = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
-const SALAIRE_PILL_OPTS = ['25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
+const SALAIRE_PILL_OPTS = ['20 000 €+', '25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
 const TAILLE_OPTS     = ['Startup (<50)', 'PME (50–250)', 'ETI (250–5000)', 'Grand groupe (+5000)']
 const SECTEUR_OPTS    = [
   'SaaS / Logiciel', 'E-commerce', 'Fintech', 'Santé / MedTech', 'Industrie',
@@ -425,6 +425,190 @@ function MultiPillDropdown({
               </button>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SalairePillDropdown({
+  value, onChange,
+}: {
+  value: string; onChange: (v: string) => void
+}) {
+  const [open, setOpen]           = useState(false)
+  const [customInput, setCustomInput] = useState('')
+  const [dropPos, setDropPos]     = useState({ top: 0, left: 0, minWidth: 230 })
+  const btnRef  = useRef<HTMLButtonElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
+  const active  = !!value
+
+  // Sync custom input when value comes from URL
+  useEffect(() => {
+    if (value && !SALAIRE_PILL_OPTS.includes(value)) {
+      setCustomInput(value.replace(/[^\d]/g, ''))
+    } else {
+      setCustomInput('')
+    }
+  }, [value])
+
+  function handleToggle() {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 230) })
+    }
+    setOpen(o => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  function selectPreset(opt: string) {
+    onChange(opt === value ? '' : opt)
+    setCustomInput('')
+    setOpen(false)
+  }
+
+  function applyCustom() {
+    const n = parseInt(customInput, 10)
+    if (n > 0 && n < 1_000_000) {
+      onChange(String(n))
+      setOpen(false)
+    }
+  }
+
+  // Format pill display label
+  const isPreset   = SALAIRE_PILL_OPTS.includes(value)
+  const displayLabel = !active
+    ? 'Salaire'
+    : isPreset
+      ? `Salaire · ${value}`
+      : `Salaire · ${parseInt(value, 10).toLocaleString('fr-FR')} €+`
+
+  const short          = displayLabel.length > 26 ? displayLabel.slice(0, 26) + '…' : displayLabel
+  const pillBg         = active ? C.creme   : 'transparent'
+  const pillBorder     = active ? C.creme   : 'rgba(255,255,255,0.30)'
+  const pillColor      = active ? C.vert    : 'rgba(255,255,255,0.90)'
+  const chevronStroke  = active ? C.vert    : 'rgba(255,255,255,0.7)'
+
+  return (
+    <div style={{ flexShrink: 0 }}>
+      <button
+        ref={btnRef}
+        onClick={handleToggle}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '7px 12px', borderRadius: 20, fontSize: 14,
+          fontWeight: active ? 600 : 400,
+          border: `1.5px solid ${pillBorder}`,
+          backgroundColor: pillBg, color: pillColor,
+          cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          transition: 'all 0.12s',
+        }}
+      >
+        {short}
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+          <path d={open ? 'M2 6.5l3-3 3 3' : 'M2 3.5l3 3 3-3'} stroke={chevronStroke} strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          ref={dropRef}
+          style={{
+            position: 'fixed', top: dropPos.top, left: dropPos.left,
+            minWidth: dropPos.minWidth,
+            backgroundColor: C.white, border: `1px solid ${C.sable}`,
+            borderRadius: 12, padding: '6px 4px 8px', zIndex: 400,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+          }}
+        >
+          {/* Effacer */}
+          <button
+            onClick={() => { onChange(''); setCustomInput(''); setOpen(false) }}
+            style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '8px 12px', border: 'none', borderRadius: 8,
+              backgroundColor: !value ? `${C.vert}12` : 'transparent',
+              color: !value ? C.vert : C.grey,
+              fontSize: 13, fontWeight: !value ? 600 : 400,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Tous les salaires
+          </button>
+
+          {/* Paliers */}
+          {SALAIRE_PILL_OPTS.map(opt => (
+            <button
+              key={opt}
+              onClick={() => selectPreset(opt)}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '8px 12px', border: 'none', borderRadius: 8,
+                backgroundColor: value === opt ? `${C.vert}12` : 'transparent',
+                color: value === opt ? C.vert : C.dark,
+                fontSize: 13, fontWeight: value === opt ? 600 : 400,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {value === opt && <span style={{ color: C.vert, marginRight: 5, fontSize: 11 }}>✓</span>}
+              {opt}
+            </button>
+          ))}
+
+          {/* Séparateur + saisie libre */}
+          <div style={{ borderTop: `1px solid ${C.sable}`, margin: '6px 8px 8px', paddingTop: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: 4, marginBottom: 6 }}>
+              Montant précis
+            </div>
+            <div style={{ display: 'flex', gap: 6, padding: '0 4px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input
+                  type="number"
+                  min="0"
+                  max="999999"
+                  value={customInput}
+                  onChange={e => {
+                    setCustomInput(e.target.value)
+                    if (isPreset) onChange('')
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') applyCustom() }}
+                  placeholder="ex. 42000"
+                  style={{
+                    width: '100%', padding: '7px 8px',
+                    fontSize: 13, borderRadius: 8,
+                    border: `1.5px solid ${customInput && !isPreset ? C.vert : C.sable}`,
+                    backgroundColor: C.white, color: C.dark,
+                    outline: 'none', fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <button
+                onClick={applyCustom}
+                style={{
+                  padding: '7px 12px', borderRadius: 8, border: 'none',
+                  backgroundColor: C.terracotta, color: C.white,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  flexShrink: 0,
+                }}
+              >
+                OK
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: C.lightGrey, paddingLeft: 4, marginTop: 4 }}>
+              Saisir un montant annuel en €
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1259,7 +1443,7 @@ export default function OffresPage() {
                 <MultiPillDropdown dark label="Contrat"  value={filters.contrat}  options={CONTRAT_OPTS}  onChange={v => update({ contrat: v })} />
                 <MultiPillDropdown dark label="Domaine"  value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
                 <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}          onChange={v => update({ mode: v })} />
-                <PillDropdown      dark label="Salaire"  value={filters.salaire}  options={SALAIRE_PILL_OPTS}  onChange={v => update({ salaire: v })} />
+                <SalairePillDropdown value={filters.salaire} onChange={v => update({ salaire: v })} />
                 <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS}      onChange={v => update({ date_pub: v })} />
 
                 <button
