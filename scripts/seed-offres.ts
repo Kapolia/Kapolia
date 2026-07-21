@@ -725,6 +725,7 @@ function buildOffres(recruteurId: string) {
       deplacements:       'Jamais',
       teletravail:        false,
       pays:               'France',
+      duree_contrat:      '3–6 mois',
       langues:            ['fr', 'en', 'de'],
       active:             true,
       statut:             'publiée',

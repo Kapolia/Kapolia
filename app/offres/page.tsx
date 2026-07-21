@@ -52,6 +52,7 @@ type Offre = {
   valeurs?: string[]
   avantages?: string[]
   langues?: string[]
+  duree_contrat?: string
   date_debut?: string
   created_at: string
   score: number
@@ -1074,7 +1075,11 @@ export default function OffresPage() {
   void profil // used indirectly via scoring
 
   function update(partial: Partial<Filters>) {
-    setFilters(prev => ({ ...prev, ...partial }))
+    setFilters(prev => {
+      const next = { ...prev, ...partial }
+      if ('contrat' in partial && !next.contrat.includes('CDD')) next.duree_contrat = ''
+      return next
+    })
   }
 
   function resetFilters() { setFilters(EMPTY_FILTERS); setLieuCoords(null) }
@@ -1330,6 +1335,10 @@ export default function OffresPage() {
 
     if (filters.langue.length > 0) {
       list = list.filter(o => filters.langue.some(l => (o.langues ?? []).includes(l)))
+    }
+
+    if (filters.duree_contrat) {
+      list = list.filter(o => o.type_contrat === 'CDD' && o.duree_contrat === filters.duree_contrat)
     }
 
     switch (filters.tri) {
@@ -1713,7 +1722,9 @@ export default function OffresPage() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
               <DrawerSelect label="Expérience"       value={filters.exp}            onChange={v => update({ exp: v })}            options={EXP_OPTS} />
               <DrawerSelect label="Prise de poste"    value={filters.prise_de_poste} onChange={v => update({ prise_de_poste: v })} options={PRISE_POSTE_OPTS} />
-              <DrawerSelect label="Durée de contrat"  value={filters.duree_contrat} onChange={v => update({ duree_contrat: v })}  options={DUREE_OPTS} />
+              {filters.contrat.includes('CDD') && (
+                <DrawerSelect label="Durée de contrat" value={filters.duree_contrat} onChange={v => update({ duree_contrat: v })} options={DUREE_OPTS} />
+              )}
             </div>
 
             <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, flexShrink: 0 }}>

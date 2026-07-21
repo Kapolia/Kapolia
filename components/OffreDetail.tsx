@@ -31,6 +31,7 @@ export type OffreData = {
   valeurs?: string[]
   avantages?: string[]
   langues?: string[]
+  duree_contrat?: string
   date_debut?: string
   created_at: string
 }
