@@ -13,10 +13,16 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const SUPABASE_URL = 'https://twglalraitxmauyltmfp.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_HMQlUq0szDNQzgqDxH-s8A_51DLlTtq'
+const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL
+const SUPABASE_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SEED_EMAIL    = 'PaulQuiquet@gmail.com'
 const SEED_IDS_PATH = join(__dirname, '.seed-ids.json')
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('❌  Variables manquantes. Lancez le script avec :')
+  console.error('    NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SEED_PASSWORD=... npx tsx scripts/seed-offres.ts')
+  process.exit(1)
+}
 
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
