@@ -67,12 +67,8 @@ type Filters = {
   mode: string[]
   exp: string
   salaire: string
-  taille: string
-  secteur: string
-  avantages: string[]
   date_pub: string
   langue: string
-  type_ent: string
   prise_de_poste: string
   duree_contrat: string
   tri: SortKey
@@ -81,8 +77,7 @@ type Filters = {
 
 const EMPTY_FILTERS: Filters = {
   search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
-  taille: '', secteur: '', avantages: [], date_pub: '',
-  langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '', tri: 'match',
+  date_pub: '', langue: '', prise_de_poste: '', duree_contrat: '', tri: 'match',
   rayon: '25',
 }
 
@@ -100,20 +95,8 @@ const CONTRAT_OPTS = [
 const MODE_OPTS       = ['100% présentiel', 'Hybride', '100% remote']
 const EXP_OPTS        = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
 const SALAIRE_PILL_OPTS = ['20 000 €+', '25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
-const TAILLE_OPTS     = ['Startup (<50)', 'PME (50–250)', 'ETI (250–5000)', 'Grand groupe (+5000)']
-const SECTEUR_OPTS    = [
-  'SaaS / Logiciel', 'E-commerce', 'Fintech', 'Santé / MedTech', 'Industrie',
-  'Retail', 'Média / Édition', 'Consulting', 'Énergie', 'BTP / Immobilier',
-  'Agroalimentaire', 'Transport / Logistique', 'Tourisme', 'Sport', 'Education / EdTech', 'Luxe',
-]
-const AVANTAGES_OPTS  = [
-  'Mutuelle', 'RTT', 'Tickets restaurant', 'Intéressement',
-  'Stock options', 'Formation', 'Véhicule de fonction',
-  'Remboursement transport', 'Télétravail', 'Salle de sport',
-]
 const DATE_PUB_OPTS   = ["Aujourd'hui", '3 derniers jours', '5 derniers jours', 'Cette semaine', 'Ce mois-ci']
 const LANGUE_OPTS     = ['Français uniquement', 'Anglais requis', 'Bilingue', 'Autre']
-const TYPE_ENT_OPTS   = ['Startup', 'ESN / SSII', 'Agence', 'PME', 'ETI', 'Grand groupe', 'Association / ONG']
 const PRISE_POSTE_OPTS = ['Immédiat', 'Dans le mois', 'Dans 3 mois', 'Flexible']
 const DUREE_OPTS      = ['< 3 mois', '3–6 mois', '6–12 mois', '> 12 mois']
 
@@ -129,8 +112,7 @@ const TRI_LABELS: Record<SortKey, string> = {
 // URL param mapping
 const URL_MAP: Partial<Record<keyof Filters, string>> = {
   search: 'q', domaine: 'd', contrat: 'c', lieu: 'l', mode: 'm',
-  exp: 'e', salaire: 's', taille: 'tai', secteur: 'sec', avantages: 'av',
-  date_pub: 'dp', langue: 'lang', type_ent: 'te',
+  exp: 'e', salaire: 's', date_pub: 'dp', langue: 'lang',
   prise_de_poste: 'pp', duree_contrat: 'dc', tri: 'tri', rayon: 'r',
 }
 void URL_MAP // used via spread in URL sync effects
@@ -649,38 +631,6 @@ function DrawerSelect({ label, value, onChange, options, placeholder = 'Tous' }:
   )
 }
 
-function DrawerAvantages({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <label style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em', display: 'block', marginBottom: 8 }}>
-        Avantages
-      </label>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {AVANTAGES_OPTS.map(av => {
-          const sel = value.includes(av)
-          return (
-            <button
-              key={av}
-              type="button"
-              onClick={() => onChange(sel ? value.filter(v => v !== av) : [...value, av])}
-              style={{
-                padding: '5px 12px', borderRadius: 20, fontSize: 12,
-                fontWeight: sel ? 600 : 400,
-                border: `1.5px solid ${sel ? C.vert : C.sable}`,
-                backgroundColor: sel ? `${C.vert}12` : C.white,
-                color: sel ? C.vert : C.dark,
-                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.1s',
-              }}
-            >
-              {av}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 function OffreCard({
   offre, applied, saved, onApply, onToggleSave, isConnected,
   isSelected = false, onSelect, searchCoords,
@@ -1012,12 +962,8 @@ export default function OffresPage() {
     if (p.get('m'))     patch.mode           = p.get('m')!.split(',').filter(Boolean)
     if (p.get('e'))     patch.exp            = p.get('e')!
     if (p.get('s'))     patch.salaire        = p.get('s')!
-    if (p.get('tai'))   patch.taille         = p.get('tai')!
-    if (p.get('sec'))   patch.secteur        = p.get('sec')!
-    if (p.get('av'))    patch.avantages      = p.get('av')!.split(',').filter(Boolean)
     if (p.get('dp'))    patch.date_pub       = p.get('dp')!
     if (p.get('lang'))  patch.langue         = p.get('lang')!
-    if (p.get('te'))    patch.type_ent       = p.get('te')!
     if (p.get('pp'))    patch.prise_de_poste = p.get('pp')!
     if (p.get('dc'))    patch.duree_contrat  = p.get('dc')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
@@ -1040,12 +986,8 @@ export default function OffresPage() {
     if (filters.mode.length)         p.set('m',   filters.mode.join(','))
     if (filters.exp)             p.set('e',   filters.exp)
     if (filters.salaire)         p.set('s',   filters.salaire)
-    if (filters.taille)          p.set('tai', filters.taille)
-    if (filters.secteur)         p.set('sec', filters.secteur)
-    if (filters.avantages.length) p.set('av', filters.avantages.join(','))
     if (filters.date_pub)        p.set('dp',  filters.date_pub)
     if (filters.langue)          p.set('lang',filters.langue)
-    if (filters.type_ent)        p.set('te',  filters.type_ent)
     if (filters.prise_de_poste)  p.set('pp',  filters.prise_de_poste)
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
@@ -1147,9 +1089,8 @@ export default function OffresPage() {
 
   // ── Drawer filter count ───────────────────────────────────────────────────
   const drawerActiveCount = [
-    filters.exp, filters.taille, filters.secteur,
-    filters.langue, filters.type_ent, filters.prise_de_poste, filters.duree_contrat,
-  ].filter(Boolean).length + filters.avantages.length
+    filters.exp, filters.langue, filters.prise_de_poste, filters.duree_contrat,
+  ].filter(Boolean).length
 
   const hasActiveFilters = !!(
     filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
@@ -1169,8 +1110,7 @@ export default function OffresPage() {
     !!filters.search, !!filters.lieu,
     filters.contrat.length > 0, filters.domaine.length > 0,
     filters.mode.length > 0, !!filters.exp, !!filters.salaire,
-    filters.avantages.length > 0, !!filters.date_pub, !!filters.taille,
-    !!filters.secteur, !!filters.langue, !!filters.type_ent,
+    !!filters.date_pub, !!filters.langue,
     !!filters.prise_de_poste, !!filters.duree_contrat,
   ].filter(Boolean).length
 
@@ -1231,10 +1171,6 @@ export default function OffresPage() {
       if (maxDays !== undefined) {
         list = list.filter(o => (Date.now() - new Date(o.created_at).getTime()) / 86400000 <= maxDays)
       }
-    }
-
-    if (filters.avantages.length > 0) {
-      list = list.filter(o => filters.avantages.every(av => (o.avantages ?? []).includes(av)))
     }
 
     switch (filters.tri) {
@@ -1616,18 +1552,14 @@ export default function OffresPage() {
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
               <DrawerSelect label="Expérience"       value={filters.exp}            onChange={v => update({ exp: v })}            options={EXP_OPTS} />
-              <DrawerAvantages value={filters.avantages} onChange={v => update({ avantages: v })} />
-              <DrawerSelect label="Taille entreprise" value={filters.taille}        onChange={v => update({ taille: v })}         options={TAILLE_OPTS} />
-              <DrawerSelect label="Secteur"           value={filters.secteur}       onChange={v => update({ secteur: v })}        options={SECTEUR_OPTS} />
               <DrawerSelect label="Langue"            value={filters.langue}        onChange={v => update({ langue: v })}         options={LANGUE_OPTS} />
-              <DrawerSelect label="Type d'entreprise" value={filters.type_ent}      onChange={v => update({ type_ent: v })}       options={TYPE_ENT_OPTS} />
               <DrawerSelect label="Prise de poste"    value={filters.prise_de_poste} onChange={v => update({ prise_de_poste: v })} options={PRISE_POSTE_OPTS} />
               <DrawerSelect label="Durée de contrat"  value={filters.duree_contrat} onChange={v => update({ duree_contrat: v })}  options={DUREE_OPTS} />
             </div>
 
             <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, flexShrink: 0 }}>
               <button
-                onClick={() => update({ exp: '', avantages: [], taille: '', secteur: '', langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '' })}
+                onClick={() => update({ exp: '', langue: '', prise_de_poste: '', duree_contrat: '' })}
                 style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 Réinitialiser
