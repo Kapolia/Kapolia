@@ -1380,8 +1380,8 @@ export default function OffresPage() {
               {listContent}
             </div>
 
-            {/* Colonne droite — détail scrollable ~62% */}
-            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F0EBE3' }}>
+            {/* Colonne droite — carte flottante sur fond sable */}
+            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F0EBE3', padding: '20px 20px 24px 16px', display: 'flex', flexDirection: 'column' }}>
               {selectedOffre ? (
                 <OffreDetail
                   offre={selectedOffre}

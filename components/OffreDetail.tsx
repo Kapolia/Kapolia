@@ -14,8 +14,6 @@ const C = {
   white:      '#FFFFFF',
 }
 
-const PANEL_BG = '#F0EBE3'
-
 export type OffreData = {
   id: string
   titre: string
@@ -222,13 +220,22 @@ export function OffreDetail({
     let sIdx = 0
 
     return (
-      <>
-        {/* Sticky header — sticks to top of parent scroll container */}
+      <div style={{
+        backgroundColor: C.white,
+        borderRadius: 16,
+        border: `1px solid ${C.sable}`,
+        boxShadow: '0 4px 20px rgba(44,74,62,0.08)',
+        overflow: 'hidden',
+        maxHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        {/* Header — ancré en haut de la carte */}
         <div style={{
-          position: 'sticky', top: 0, zIndex: 10,
           backgroundColor: C.white,
           borderBottom: `1px solid ${C.sable}`,
           padding: '20px 28px 16px',
+          flexShrink: 0,
           boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
         }}>
           {/* Title */}
@@ -337,14 +344,8 @@ export function OffreDetail({
           </div>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: '20px 20px 60px', backgroundColor: PANEL_BG }}>
-          <div style={{
-            backgroundColor: C.white,
-            borderRadius: 16,
-            boxShadow: '0 2px 12px rgba(44,74,62,0.07)',
-            overflow: 'hidden',
-          }}>
+        {/* Body scrollable */}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
 
             {/* Détails du poste */}
             {hasDetails && (
@@ -421,14 +422,12 @@ export function OffreDetail({
               </PanelSection>
             )}
 
-          </div>
-
           {/* Published date */}
-          <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: C.lightGrey }}>
+          <div style={{ textAlign: 'center', padding: '16px 0 28px', fontSize: 12, color: C.lightGrey }}>
             Publié {daysSince(offre.created_at)}
           </div>
         </div>
-      </>
+      </div>
     )
   }
 
