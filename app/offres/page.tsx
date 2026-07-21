@@ -56,7 +56,7 @@ type Offre = {
   longitude?: number
 }
 
-type SortKey = 'match' | 'recent' | 'salaire_asc' | 'salaire_desc' | 'alpha'
+type SortKey = 'match' | 'recent' | 'salaire_asc' | 'salaire_desc' | 'alpha' | 'distance'
 
 type Filters = {
   search: string
@@ -117,11 +117,12 @@ const PRISE_POSTE_OPTS = ['Immédiat', 'Dans le mois', 'Dans 3 mois', 'Flexible'
 const DUREE_OPTS      = ['< 3 mois', '3–6 mois', '6–12 mois', '> 12 mois']
 
 const TRI_LABELS: Record<SortKey, string> = {
-  match:        'Meilleur match',
-  recent:       'Plus récent',
+  match:        'Pertinence',
+  recent:       'Plus récentes',
   salaire_asc:  'Salaire croissant',
   salaire_desc: 'Salaire décroissant',
   alpha:        'Alphabétique',
+  distance:     'Distance',
 }
 
 // URL param mapping
@@ -771,17 +772,12 @@ export default function OffresPage() {
   const [filters, setFilters]         = useState<Filters>(EMPTY_FILTERS)
   const [lieuCoords, setLieuCoords]   = useState<GeoCoords | null>(null)
   const [drawerOpen, setDrawerOpen]   = useState(false)
-  const [triOpen, setTriOpen]         = useState(false)
-  const [triPos, setTriPos]           = useState({ top: 0, left: 0, minWidth: 200 })
 
   // Split view state
   const [selectedId, setSelectedId]     = useState<string | null>(null)
   const [isSplit, setIsSplit]           = useState(false)
   const [panelApplying, setPanelApplying] = useState(false)
 
-  // Refs for tri dropdown (position:fixed to escape overflow:auto)
-  const triRef    = useRef<HTMLButtonElement>(null)
-  const triDropRef = useRef<HTMLDivElement>(null)
   // Ref to read selectedId in effects without adding it as a dependency
   const selectedIdRef = useRef<string | null>(null)
   selectedIdRef.current = selectedId
@@ -846,6 +842,8 @@ export default function OffresPage() {
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
     if (p.get('r'))     patch.rayon          = p.get('r')!
     if (Object.keys(patch).length > 0) setFilters(prev => ({ ...prev, ...patch }))
+    const lat = p.get('lat'), lng = p.get('lng')
+    if (lat && lng) setLieuCoords({ lat: parseFloat(lat), lng: parseFloat(lng) })
     if (p.get('offre')) setSelectedId(p.get('offre')!)
   }, [])
 
@@ -857,6 +855,7 @@ export default function OffresPage() {
     if (filters.domaine.length)      p.set('d',   filters.domaine.join(','))
     if (filters.contrat.length)      p.set('c',   filters.contrat.join(','))
     if (filters.lieu)                p.set('l',   filters.lieu)
+    if (lieuCoords) { p.set('lat', lieuCoords.lat.toFixed(6)); p.set('lng', lieuCoords.lng.toFixed(6)) }
     if (filters.mode.length)         p.set('m',   filters.mode.join(','))
     if (filters.exp)             p.set('e',   filters.exp)
     if (filters.salaire)         p.set('s',   filters.salaire)
@@ -873,7 +872,7 @@ export default function OffresPage() {
     if (selectedId)              p.set('offre', selectedId)
     const qs = p.toString()
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
-  }, [filters, selectedId])
+  }, [filters, selectedId, lieuCoords])
 
   // ── localStorage ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -925,26 +924,6 @@ export default function OffresPage() {
     }
     load()
   }, [])
-
-  // ── Tri dropdown : click-outside via document listener ────────────────────
-  useEffect(() => {
-    if (!triOpen) return
-    function onDoc(e: MouseEvent) {
-      const t = e.target as Node
-      if (triRef.current?.contains(t) || triDropRef.current?.contains(t)) return
-      setTriOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
-  }, [triOpen])
-
-  function handleTriToggle() {
-    if (!triOpen && triRef.current) {
-      const r = triRef.current.getBoundingClientRect()
-      setTriPos({ top: r.bottom + 6, left: r.right - 200, minWidth: 200 })
-    }
-    setTriOpen(o => !o)
-  }
 
   async function handleApply(offreId: string) {
     if (!userId) return
@@ -1067,8 +1046,19 @@ export default function OffresPage() {
       case 'match':        list.sort((a, b) => b.score - a.score); break
       case 'recent':       list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break
       case 'salaire_asc':  list.sort((a, b) => (a.salaire_min ?? 0) - (b.salaire_min ?? 0)); break
-      case 'salaire_desc': list.sort((a, b) => (b.salaire_max ?? b.salaire_min ?? 0) - (a.salaire_max ?? a.salaire_min ?? 0)); break
+      case 'salaire_desc': list.sort((a, b) => {
+        const va = b.salaire_max ?? b.salaire_min ?? -1
+        const vb = a.salaire_max ?? a.salaire_min ?? -1
+        return va - vb
+      }); break
       case 'alpha':        list.sort((a, b) => a.titre.localeCompare(b.titre, 'fr')); break
+      case 'distance':
+        if (lieuCoords) list.sort((a, b) => {
+          const da = a.latitude != null && a.longitude != null ? haversineKm(lieuCoords, { lat: a.latitude, lng: a.longitude }) : Infinity
+          const db = b.latitude != null && b.longitude != null ? haversineKm(lieuCoords, { lat: b.latitude, lng: b.longitude }) : Infinity
+          return da - db
+        })
+        break
     }
 
     return list
@@ -1091,33 +1081,34 @@ export default function OffresPage() {
   const listContent = (
     <>
       {/* Compteur + tri */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ fontSize: 13, color: C.grey }}>
-          {!loading && (
-            <><span style={{ fontWeight: 700, color: C.dark }}>{filtered.length}</span> offre{filtered.length !== 1 ? 's' : ''}</>
-          )}
-        </div>
-
-        <div>
-          <button
-            ref={triRef}
-            onClick={handleTriToggle}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              padding: '7px 13px', borderRadius: 10, border: `1px solid ${C.sable}`,
-              backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500,
-              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round">
-              <path d="M3 6h18M7 12h10M11 18h2" />
-            </svg>
-            {TRI_LABELS[filters.tri]}
-            <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-              <path d="M2 3.5l3 3 3-3" stroke={C.grey} strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        {!loading && (
+          <>
+            <span style={{ fontSize: 13 }}>
+              <span style={{ fontWeight: 700, color: C.dark }}>{filtered.length}</span>
+              <span style={{ color: C.grey }}> offre{filtered.length !== 1 ? 's' : ''}</span>
+            </span>
+            <span style={{ color: C.lightGrey, fontSize: 13 }}>·</span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 13, color: C.grey }}>
+              Trier par
+              <select
+                className="kavio-tri"
+                value={filters.tri}
+                onChange={e => update({ tri: e.target.value as SortKey })}
+                style={{
+                  border: 'none', background: 'none', fontFamily: 'inherit',
+                  fontSize: 13, color: C.dark, fontWeight: 600,
+                  cursor: 'pointer', outline: 'none', padding: '0 2px',
+                }}
+              >
+                <option value="match">Pertinence</option>
+                <option value="recent">Plus récentes</option>
+                <option value="salaire_desc">Salaire décroissant</option>
+                {lieuCoords && <option value="distance">Distance</option>}
+              </select>
+            </label>
+          </>
+        )}
       </div>
 
       {/* Contenu */}
@@ -1168,6 +1159,7 @@ export default function OffresPage() {
         @keyframes kavio-slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
         * { box-sizing: border-box; }
         select { appearance: none; -webkit-appearance: none; }
+        select.kavio-tri { appearance: auto; -webkit-appearance: auto; }
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
@@ -1230,7 +1222,10 @@ export default function OffresPage() {
                   lieu={filters.lieu}
                   rayon={parseInt(filters.rayon, 10) || 25}
                   coords={lieuCoords}
-                  onConfirm={(v, r, c) => { update({ lieu: v, rayon: String(r) }); setLieuCoords(c) }}
+                  onConfirm={(v, r, c) => {
+                    update({ lieu: v, rayon: String(r), ...(c && filters.tri === 'match' ? { tri: 'distance' } : {}) })
+                    setLieuCoords(c)
+                  }}
                   dark
                   compact
                 />
@@ -1397,40 +1392,6 @@ export default function OffresPage() {
         /* ── LAYOUT MOBILE — liste normale ─────────────────────────────────── */
         <div style={{ maxWidth: 800, margin: '0 auto', padding: '20px 24px 80px' }}>
           {listContent}
-        </div>
-      )}
-
-      {/* ── TRI DROPDOWN (position:fixed) ───────────────────────────────────── */}
-      {triOpen && (
-        <div
-          ref={triDropRef}
-          style={{
-            position: 'fixed',
-            top: triPos.top,
-            left: triPos.left,
-            minWidth: triPos.minWidth,
-            backgroundColor: C.white, border: `1px solid ${C.sable}`,
-            borderRadius: 12, padding: 6, zIndex: 400,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.10)', animation: 'kavio-fadein 0.12s ease',
-          }}
-        >
-          {(Object.entries(TRI_LABELS) as [SortKey, string][]).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => { update({ tri: k }); setTriOpen(false) }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '9px 12px', border: 'none', borderRadius: 8,
-                backgroundColor: filters.tri === k ? C.creme : 'transparent',
-                color: filters.tri === k ? C.dark : C.grey,
-                fontSize: 13, fontWeight: filters.tri === k ? 600 : 400,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              {filters.tri === k && <span style={{ color: C.terracotta, marginRight: 6 }}>✓</span>}
-              {label}
-            </button>
-          ))}
         </div>
       )}
 
