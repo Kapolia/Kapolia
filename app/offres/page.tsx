@@ -99,7 +99,7 @@ const CONTRAT_OPTS = [
 ]
 const MODE_OPTS       = ['100% présentiel', 'Hybride', '100% remote']
 const EXP_OPTS        = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
-const SALAIRE_SEUILS  = [20000, 25000, 30000, 35000, 40000, 45000, 50000, 60000, 70000, 80000, 100000]
+const SALAIRE_PILL_OPTS = ['25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
 const TAILLE_OPTS     = ['Startup (<50)', 'PME (50–250)', 'ETI (250–5000)', 'Grand groupe (+5000)']
 const SECTEUR_OPTS    = [
   'SaaS / Logiciel', 'E-commerce', 'Fintech', 'Santé / MedTech', 'Industrie',
@@ -150,10 +150,6 @@ function formatSalaire(min?: number, max?: number, periode?: string): string | n
   const range = min && max ? `${fmt(min)} – ${fmt(max)} €` : `${fmt(min || max!)} €`
   const per = periode === 'mensuel' ? '/mois' : '/an'
   return range + per
-}
-
-function labelSalaire(n: number): string {
-  return `${n / 1000}k €/an`
 }
 
 function getEntrepriseNom(offre: Offre): string {
@@ -967,7 +963,7 @@ export default function OffresPage() {
 
   // ── Drawer filter count ───────────────────────────────────────────────────
   const drawerActiveCount = [
-    filters.exp, filters.salaire, filters.taille, filters.secteur,
+    filters.exp, filters.taille, filters.secteur,
     filters.langue, filters.type_ent, filters.prise_de_poste, filters.duree_contrat,
   ].filter(Boolean).length + filters.avantages.length
 
@@ -1039,8 +1035,7 @@ export default function OffresPage() {
     }
 
     if (filters.salaire) {
-      const m = filters.salaire.match(/^(\d+)k/)
-      const minSalaire = m ? parseInt(m[1]) * 1000 : 0
+      const minSalaire = parseInt(filters.salaire.replace(/[^\d]/g, ''))
       if (minSalaire > 0) {
         list = list.filter(o => (o.salaire_min ?? 0) >= minSalaire || (o.salaire_max ?? 0) >= minSalaire)
       }
@@ -1263,8 +1258,9 @@ export default function OffresPage() {
               }}>
                 <MultiPillDropdown dark label="Contrat"  value={filters.contrat}  options={CONTRAT_OPTS}  onChange={v => update({ contrat: v })} />
                 <MultiPillDropdown dark label="Domaine"  value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
-                <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}     onChange={v => update({ mode: v })} />
-                <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS} onChange={v => update({ date_pub: v })} />
+                <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}          onChange={v => update({ mode: v })} />
+                <PillDropdown      dark label="Salaire"  value={filters.salaire}  options={SALAIRE_PILL_OPTS}  onChange={v => update({ salaire: v })} />
+                <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS}      onChange={v => update({ date_pub: v })} />
 
                 <button
                   onClick={() => setDrawerOpen(true)}
@@ -1436,7 +1432,6 @@ export default function OffresPage() {
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
               <DrawerSelect label="Expérience"       value={filters.exp}            onChange={v => update({ exp: v })}            options={EXP_OPTS} />
-              <DrawerSelect label="Salaire minimum"  value={filters.salaire}        onChange={v => update({ salaire: v })}        options={SALAIRE_SEUILS.map(labelSalaire)} placeholder="Indifférent" />
               <DrawerAvantages value={filters.avantages} onChange={v => update({ avantages: v })} />
               <DrawerSelect label="Taille entreprise" value={filters.taille}        onChange={v => update({ taille: v })}         options={TAILLE_OPTS} />
               <DrawerSelect label="Secteur"           value={filters.secteur}       onChange={v => update({ secteur: v })}        options={SECTEUR_OPTS} />
@@ -1448,7 +1443,7 @@ export default function OffresPage() {
 
             <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, flexShrink: 0 }}>
               <button
-                onClick={() => update({ exp: '', salaire: '', avantages: [], taille: '', secteur: '', langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '' })}
+                onClick={() => update({ exp: '', avantages: [], taille: '', secteur: '', langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '' })}
                 style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 Réinitialiser
