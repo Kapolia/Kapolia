@@ -134,7 +134,7 @@ function PanelSectionTitle({ children }: { children: React.ReactNode }) {
 
 function PanelSection({ title, children, last = false }: { title: string; children: React.ReactNode; last?: boolean }) {
   return (
-    <div style={{ padding: '18px 24px', borderBottom: last ? 'none' : `1px solid ${C.sable}` }}>
+    <div style={{ padding: '24px 28px', borderBottom: last ? 'none' : `1px solid ${C.sable}` }}>
       <PanelSectionTitle>{title}</PanelSectionTitle>
       {children}
     </div>
@@ -338,7 +338,7 @@ export function OffreDetail({
         </div>
 
         {/* Body */}
-        <div style={{ padding: '16px 16px 60px', backgroundColor: PANEL_BG }}>
+        <div style={{ padding: '20px 20px 60px', backgroundColor: PANEL_BG }}>
           <div style={{
             backgroundColor: C.white,
             borderRadius: 16,
@@ -389,7 +389,7 @@ export function OffreDetail({
             {/* Description */}
             {hasDescription && (
               <PanelSection title="Description du poste" last={lastIdx === sIdx++}>
-                <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+                <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 2.0, whiteSpace: 'pre-wrap' }}>
                   {offre.description}
                 </p>
               </PanelSection>

@@ -76,14 +76,13 @@ type Filters = {
   duree_contrat: string
   tri: SortKey
   rayon: string
-  favoris: boolean
 }
 
 const EMPTY_FILTERS: Filters = {
   search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
   taille: '', secteur: '', avantages: [], date_pub: '',
   langue: '', type_ent: '', prise_de_poste: '', duree_contrat: '', tri: 'match',
-  rayon: '25', favoris: false,
+  rayon: '25',
 }
 
 // ─── Filter config ────────────────────────────────────────────────────────────
@@ -542,13 +541,13 @@ function OffreCard({
           border: `1px solid ${isSelected ? `${C.terracotta}55` : hov ? '#D4C4B0' : '#EDE7DB'}`,
           borderLeft: `3px solid ${isSelected ? C.terracotta : hov ? `${C.terracotta}70` : 'transparent'}`,
           borderRadius: 10,
-          padding: '12px 14px 10px 11px',
+          padding: '14px 16px 12px 13px',
           cursor: 'pointer',
           transition: 'border-color 0.15s, background-color 0.15s',
         }}
       >
         {/* Title + Star */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 3 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
           <span style={{
             flex: 1, fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: 700, lineHeight: 1.35,
             color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
@@ -560,7 +559,7 @@ function OffreCard({
         </div>
 
         {/* Company · City */}
-        <div style={{ fontSize: 12, color: C.grey, marginBottom: 7 }}>
+        <div style={{ fontSize: 12, color: C.grey, marginBottom: 10 }}>
           <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
           {offre.ville && <span style={{ color: C.lightGrey }}> · {offre.ville}</span>}
         </div>
@@ -842,7 +841,6 @@ export default function OffresPage() {
     if (p.get('dc'))    patch.duree_contrat  = p.get('dc')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
     if (p.get('r'))     patch.rayon          = p.get('r')!
-    if (p.get('fav') === '1') patch.favoris  = true
     if (Object.keys(patch).length > 0) setFilters(prev => ({ ...prev, ...patch }))
     const lat = p.get('lat'), lng = p.get('lng')
     if (lat && lng) setLieuCoords({ lat: parseFloat(lat), lng: parseFloat(lng) })
@@ -871,7 +869,6 @@ export default function OffresPage() {
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
     if (filters.rayon !== '25')  p.set('r',   filters.rayon)
-    if (filters.favoris)         p.set('fav', '1')
     if (selectedId)              p.set('offre', selectedId)
     const qs = p.toString()
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
@@ -975,7 +972,7 @@ export default function OffresPage() {
 
   const hasActiveFilters = !!(
     filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
-    filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0 || filters.favoris
+    filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0
   )
 
   const searchSummary = [
@@ -993,7 +990,7 @@ export default function OffresPage() {
     filters.mode.length > 0, !!filters.exp, !!filters.salaire,
     filters.avantages.length > 0, !!filters.date_pub, !!filters.taille,
     !!filters.secteur, !!filters.langue, !!filters.type_ent,
-    !!filters.prise_de_poste, !!filters.duree_contrat, filters.favoris,
+    !!filters.prise_de_poste, !!filters.duree_contrat,
   ].filter(Boolean).length
 
   // ── Filter + sort pipeline ────────────────────────────────────────────────
@@ -1060,10 +1057,6 @@ export default function OffresPage() {
       list = list.filter(o => filters.avantages.every(av => (o.avantages ?? []).includes(av)))
     }
 
-    if (filters.favoris) {
-      list = list.filter(o => saved.has(o.id))
-    }
-
     switch (filters.tri) {
       case 'match':        list.sort((a, b) => b.score - a.score); break
       case 'recent':       list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break
@@ -1084,7 +1077,7 @@ export default function OffresPage() {
     }
 
     return list
-  }, [offres, filters, lieuCoords, saved])
+  }, [offres, filters, lieuCoords])
 
   // ── Auto-select : first offre, or re-select after filter change ───────────
   useEffect(() => {
@@ -1103,7 +1096,7 @@ export default function OffresPage() {
   const listContent = (
     <>
       {/* Compteur + tri */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
         {!loading && (
           <>
             <span style={{ fontSize: 13 }}>
@@ -1135,7 +1128,7 @@ export default function OffresPage() {
 
       {/* Contenu */}
       {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
         </div>
       ) : loadError ? (
@@ -1145,7 +1138,7 @@ export default function OffresPage() {
       ) : filtered.length === 0 ? (
         <EmptyState hasFilters={hasActiveFilters} onReset={resetFilters} />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {filtered.map(offre => (
             <OffreCard
               key={offre.id}
@@ -1272,24 +1265,6 @@ export default function OffresPage() {
                 <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}     onChange={v => update({ mode: v })} />
                 <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS} onChange={v => update({ date_pub: v })} />
 
-                {isConnected && (
-                  <button
-                    onClick={() => update({ favoris: !filters.favoris })}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      padding: '7px 12px', borderRadius: 20, fontSize: 14,
-                      fontWeight: filters.favoris ? 600 : 400,
-                      border: `1.5px solid ${filters.favoris ? C.creme : 'rgba(255,255,255,0.30)'}`,
-                      backgroundColor: filters.favoris ? C.creme : 'transparent',
-                      color: filters.favoris ? C.vert : C.creme,
-                      cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {filters.favoris ? '★' : '☆'} Favoris
-                  </button>
-                )}
-
                 <button
                   onClick={() => setDrawerOpen(true)}
                   style={{
@@ -1394,12 +1369,12 @@ export default function OffresPage() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', justifyContent: 'center' }}>
           <div style={{ display: 'flex', width: '100%', maxWidth: 1500, overflow: 'hidden' }}>
 
-            {/* Colonne gauche — liste scrollable ~38% */}
+            {/* Colonne gauche — liste scrollable ~35% */}
             <div ref={leftColRef} style={{
-              width: '38%', minWidth: 280,
+              width: '35%', minWidth: 300,
               overflowY: 'auto',
               borderRight: `1px solid ${C.sable}`,
-              padding: '14px 12px 60px',
+              padding: '20px 20px 60px 16px',
               backgroundColor: C.creme,
             }}>
               {listContent}
