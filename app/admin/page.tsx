@@ -24,8 +24,6 @@ const C = {
   amber:      '#C88A2A',
 }
 
-const ADMIN_EMAIL = 'charley1foucher@gmail.com'
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Profil = {
@@ -229,12 +227,6 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || user.email !== ADMIN_EMAIL) {
-        router.replace('/')
-        return
-      }
-
       const [total, candidats, recruteurs, nOffres, nCands] = await Promise.all([
         fetchCount('profils'),
         fetchCount('profils', { col: 'type_compte', val: 'candidat' }),
