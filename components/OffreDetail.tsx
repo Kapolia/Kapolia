@@ -378,16 +378,19 @@ export function OffreDetail({
                 </>
               )}
             </button>
-          </div>
 
-          {/* Open-in-page link */}
-          <div style={{ marginTop: 10 }}>
             <Link
               href={`/offres/${offre.id}`}
               style={{
-                fontSize: 12, color: C.vert, textDecoration: 'none',
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontWeight: 500, opacity: 0.8,
+                height: 36, padding: '0 12px',
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                borderRadius: 10,
+                border: `1px solid ${C.vert}50`,
+                backgroundColor: `${C.vert}07`,
+                color: C.vert,
+                fontSize: 12, fontWeight: 600,
+                textDecoration: 'none', fontFamily: 'inherit',
+                whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
               }}
             >
               Ouvrir dans une page
