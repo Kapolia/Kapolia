@@ -1070,8 +1070,7 @@ export default function OffresPage() {
   selectedIdRef.current = selectedId
 
   const [bandeauCollapsed, setBandeauCollapsed] = useState(false)
-  const leftColRef         = useRef<HTMLDivElement>(null)
-  const initialScrollDone  = useRef(false)
+  const leftColRef = useRef<HTMLDivElement>(null)
 
   void profil // used indirectly via scoring
 
@@ -1374,14 +1373,16 @@ export default function OffresPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, loading])
 
-  // ── Scroll selected card into view on initial load (restore navigation position) ──
+  // ── Restore scroll position after returning from /offres/[id] ───────────────
   useEffect(() => {
-    if (loading || !selectedId || !isSplit || initialScrollDone.current) return
-    initialScrollDone.current = true
+    if (loading) return
+    const offreId = sessionStorage.getItem('kavio-offre-return')
+    if (!offreId) return
+    sessionStorage.removeItem('kavio-offre-return')
     requestAnimationFrame(() => {
-      document.getElementById(`offre-card-${selectedId}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+      document.getElementById(`offre-card-${offreId}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
     })
-  }, [loading, selectedId, isSplit])
+  }, [loading])
 
   // Selected offre for the panel
   const selectedOffre = selectedId ? filtered.find(o => o.id === selectedId) ?? null : null

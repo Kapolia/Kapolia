@@ -381,6 +381,7 @@ export function OffreDetail({
 
             <Link
               href={`/offres/${offre.id}`}
+              onClick={() => sessionStorage.setItem('kavio-offre-return', offre.id)}
               style={{
                 height: 36, padding: '0 12px',
                 display: 'inline-flex', alignItems: 'center', gap: 5,
