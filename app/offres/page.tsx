@@ -1070,8 +1070,8 @@ export default function OffresPage() {
   selectedIdRef.current = selectedId
 
   const [bandeauCollapsed, setBandeauCollapsed] = useState(false)
-  const leftColRef      = useRef<HTMLDivElement>(null)
-  const scrollRestored  = useRef(false)
+  const leftColRef         = useRef<HTMLDivElement>(null)
+  const initialScrollDone  = useRef(false)
 
   void profil // used indirectly via scoring
 
@@ -1099,10 +1099,7 @@ export default function OffresPage() {
     if (!isSplit) return
     const el = leftColRef.current
     if (!el) return
-    const fn = () => {
-      setBandeauCollapsed(el.scrollTop > 80)
-      sessionStorage.setItem('offres-list-scroll', el.scrollTop.toString())
-    }
+    const fn = () => setBandeauCollapsed(el.scrollTop > 80)
     el.addEventListener('scroll', fn, { passive: true })
     return () => el.removeEventListener('scroll', fn)
   }, [isSplit])
@@ -1206,14 +1203,6 @@ export default function OffresPage() {
 
       setOffres(scored)
       setLoading(false)
-
-      if (!scrollRestored.current && isSplit) {
-        scrollRestored.current = true
-        const saved = sessionStorage.getItem('offres-list-scroll')
-        if (saved) requestAnimationFrame(() => {
-          if (leftColRef.current) leftColRef.current.scrollTop = parseInt(saved, 10)
-        })
-      }
     }
     load()
   }, [])
@@ -1385,6 +1374,15 @@ export default function OffresPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, loading])
 
+  // ── Scroll selected card into view on initial load (restore navigation position) ──
+  useEffect(() => {
+    if (loading || !selectedId || !isSplit || initialScrollDone.current) return
+    initialScrollDone.current = true
+    requestAnimationFrame(() => {
+      document.getElementById(`offre-card-${selectedId}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+    })
+  }, [loading, selectedId, isSplit])
+
   // Selected offre for the panel
   const selectedOffre = selectedId ? filtered.find(o => o.id === selectedId) ?? null : null
 
@@ -1436,18 +1434,19 @@ export default function OffresPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {filtered.map(offre => (
-            <OffreCard
-              key={offre.id}
-              offre={offre}
-              applied={applied.has(offre.id)}
-              saved={saved.has(offre.id)}
-              onApply={handleApply}
-              onToggleSave={handleToggleSave}
-              isConnected={isConnected}
-              isSelected={isSplit && offre.id === selectedId}
-              onSelect={isSplit ? setSelectedId : undefined}
-              searchCoords={lieuCoords}
-            />
+            <div key={offre.id} id={`offre-card-${offre.id}`}>
+              <OffreCard
+                offre={offre}
+                applied={applied.has(offre.id)}
+                saved={saved.has(offre.id)}
+                onApply={handleApply}
+                onToggleSave={handleToggleSave}
+                isConnected={isConnected}
+                isSelected={isSplit && offre.id === selectedId}
+                onSelect={isSplit ? setSelectedId : undefined}
+                searchCoords={lieuCoords}
+              />
+            </div>
           ))}
         </div>
       )}
