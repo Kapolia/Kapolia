@@ -1070,7 +1070,8 @@ export default function OffresPage() {
   selectedIdRef.current = selectedId
 
   const [bandeauCollapsed, setBandeauCollapsed] = useState(false)
-  const leftColRef = useRef<HTMLDivElement>(null)
+  const leftColRef      = useRef<HTMLDivElement>(null)
+  const scrollRestored  = useRef(false)
 
   void profil // used indirectly via scoring
 
@@ -1098,7 +1099,10 @@ export default function OffresPage() {
     if (!isSplit) return
     const el = leftColRef.current
     if (!el) return
-    const fn = () => setBandeauCollapsed(el.scrollTop > 80)
+    const fn = () => {
+      setBandeauCollapsed(el.scrollTop > 80)
+      sessionStorage.setItem('offres-list-scroll', el.scrollTop.toString())
+    }
     el.addEventListener('scroll', fn, { passive: true })
     return () => el.removeEventListener('scroll', fn)
   }, [isSplit])
@@ -1202,6 +1206,14 @@ export default function OffresPage() {
 
       setOffres(scored)
       setLoading(false)
+
+      if (!scrollRestored.current && isSplit) {
+        scrollRestored.current = true
+        const saved = sessionStorage.getItem('offres-list-scroll')
+        if (saved) requestAnimationFrame(() => {
+          if (leftColRef.current) leftColRef.current.scrollTop = parseInt(saved, 10)
+        })
+      }
     }
     load()
   }, [])
