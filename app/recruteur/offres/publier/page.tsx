@@ -48,7 +48,6 @@ const DOMAINES    = ['Tech', 'Design', 'Marketing', 'Finance', 'Commerce', 'RH',
 const NIVEAUX     = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
 const MODES       = ['100% présentiel', 'Hybride', '100% remote']
 const DEPLACS     = ['Jamais', 'Occasionnels', 'Fréquents']
-const VALEURS     = ['Impact', 'Autonomie', 'Innovation', 'Équipe', 'Rigueur', 'Créativité', 'Leadership']
 const AVANTAGES   = ['Mutuelle', 'RTT', 'Tickets restaurant', 'Intéressement', 'Stock options', 'Formation', 'Véhicule de fonction', 'Remboursement transport', 'Télétravail', 'Salle de sport']
 const PAYS_OPTS   = ['France', 'Belgique', 'Suisse', 'Luxembourg', 'Canada', 'Allemagne', 'Autre']
 const STEP_LABELS = ['Informations générales', 'Localisation', 'Description', 'Publication']
@@ -85,7 +84,7 @@ type PreviewData = {
   dateDebut: string; debutImmediat: boolean
   description: string; missions: string[]; profilRecherche: string
   competences: string[]; competencesBonus: string[]
-  valeurs: string[]; avantages: string[]
+  avantages: string[]
   processRecrutement: string[]
 }
 
@@ -275,11 +274,6 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
               : d.dateDebut ? <div style={{ fontSize: 13, color: C.grey }}>📅 {d.dateDebut}</div> : null}
           </div>
 
-          {d.valeurs.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14 }}>
-              {d.valeurs.map(v => <span key={v} style={{ padding: '3px 12px', borderRadius: 20, backgroundColor: `${C.vert}10`, border: `1px solid ${C.vert}25`, fontSize: 12, color: C.vert, fontWeight: 600 }}>{v}</span>)}
-            </div>
-          )}
         </div>
 
         {/* Body */}
@@ -490,15 +484,14 @@ function PublierOffrePageInner() {
   const [compInput, setCompInput]     = useState('')
   const [competencesBonus, setCompetencesBonus] = useState<string[]>([])
   const [compBonusInput, setCompBonusInput] = useState('')
-  const [valeurs, setValeurs]         = useState<string[]>([])
 
   // Step 4
   const [avantages, setAvantages]   = useState<string[]>([])
   const [processRecrutement, setProcessRecrutement] = useState<string[]>(['Entretien RH'])
 
   // F2 — Ref for auto-save (avoids stale closures)
-  const formRef = useRef({ titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, valeurs, avantages, processRecrutement })
-  formRef.current = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, valeurs, avantages, processRecrutement }
+  const formRef = useRef({ titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement })
+  formRef.current = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement }
 
   // ── Toast helper ──────────────────────────────────────────────────────────
 
@@ -537,7 +530,6 @@ function PublierOffrePageInner() {
       setProfilRecherche(data.profil_recherche ?? '')
       setCompetences(data.competences ?? [])
       setCompetencesBonus(data.competences_bonus ?? [])
-      setValeurs(data.valeurs ?? [])
       setAvantages(data.avantages ?? [])
       setProcessRecrutement(data.process_recrutement?.length ? data.process_recrutement : ['Entretien RH'])
     }
@@ -565,7 +557,7 @@ function PublierOffrePageInner() {
         missions: f.missions.filter(m => m.trim()),
         profil_recherche: f.profilRecherche,
         competences: f.competences, competences_bonus: f.competencesBonus,
-        valeurs: f.valeurs, avantages: f.avantages,
+        avantages: f.avantages,
         process_recrutement: f.processRecrutement.filter(p => p.trim()),
         statut: 'brouillon',
       })
@@ -630,7 +622,7 @@ function PublierOffrePageInner() {
       missions: missions.filter(m => m.trim()),
       profil_recherche: profilRecherche,
       competences, competences_bonus: competencesBonus,
-      valeurs, avantages,
+      avantages,
       process_recrutement: processRecrutement.filter(p => p.trim()),
       statut,
     }
@@ -658,7 +650,7 @@ function PublierOffrePageInner() {
   function resetForm() {
     setTitre(''); setContrat(''); setDomaine(''); setNiveau(''); setSalaireMin(''); setSalaireMax(''); setPeriode('annuel'); setDebutImmediat(true); setDateDebut('')
     setVille(''); setVilleCoords(null); setPays('France'); setModeTravail(''); setJoursRemote(2); setDeplacements('')
-    setDescription(''); setMissions(['']); setProfilRecherche(''); setCompetences([]); setCompInput(''); setCompetencesBonus([]); setCompBonusInput(''); setValeurs([])
+    setDescription(''); setMissions(['']); setProfilRecherche(''); setCompetences([]); setCompInput(''); setCompetencesBonus([]); setCompBonusInput('')
     setAvantages([]); setProcessRecrutement(['Entretien RH'])
     setStep(1); setErrors({}); setServerError(''); setPublished(false); setIsDraft(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -666,7 +658,7 @@ function PublierOffrePageInner() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const previewData: PreviewData = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, ville, pays, modeTravail, joursRemote, dateDebut, debutImmediat, description, missions, profilRecherche, competences, competencesBonus, valeurs, avantages, processRecrutement }
+  const previewData: PreviewData = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, ville, pays, modeTravail, joursRemote, dateDebut, debutImmediat, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement }
   const descLen    = description.trim().length
   const descColor  = descLen > DESC_MAX ? C.error : descLen >= DESC_MIN ? C.vert : C.grey
   const suggestions = (COMP_SUGGESTIONS[domaine] ?? []).filter(s => !competences.includes(s))
@@ -876,12 +868,6 @@ function PublierOffrePageInner() {
             <div>
               <SLabel sub="Compétences appréciées mais non bloquantes. Max. 5.">Compétences bonus ✦</SLabel>
               <TagInput tags={competencesBonus} onAdd={addCompBonus} onRemove={t => setCompetencesBonus(p => p.filter(x => x !== t))} placeholder="ex. Notion, Docker, SEO…" max={5} inputVal={compBonusInput} onInputChange={setCompBonusInput} color={C.vert} />
-            </div>
-            <Divider />
-            <div>
-              <SLabel sub="Apparaissent sur l'annonce, filtrent les candidats partageant la même vision.">Valeurs importantes pour ce poste</SLabel>
-              <Pills options={VALEURS} value={valeurs} onChange={v => { const a = v as string[]; if (a.length <= 4) setValeurs(a) }} multi color={C.vert} />
-              <div style={{ fontSize: 11, color: C.grey, marginTop: 6 }}>{valeurs.length}/4 valeurs sélectionnées</div>
             </div>
           </Card>
         )}

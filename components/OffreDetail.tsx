@@ -20,20 +20,42 @@ export type OffreData = {
   entreprise_nom?: string
   entreprise_logo_url?: string
   type_contrat?: string
+  domaine?: string
   experience?: string
   salaire_min?: number
   salaire_max?: number
   periode_salaire?: string
   mode_travail?: string
+  jours_remote?: number
+  deplacements?: string
   ville?: string
   description?: string
+  missions?: string[]
+  profil_recherche?: string
   competences?: string[]
+  competences_bonus?: string[]
   valeurs?: string[]
   avantages?: string[]
+  process_recrutement?: string[]
   langues?: string[]
   duree_contrat?: string
   date_debut?: string
   created_at: string
+  latitude?: number
+  longitude?: number
+}
+
+export type OffreSimilaire = {
+  id: string
+  titre: string
+  entreprise_nom?: string
+  type_contrat?: string
+  domaine?: string
+  ville?: string
+  salaire_min?: number
+  salaire_max?: number
+  periode_salaire?: string
+  mode_travail?: string
 }
 
 type Props = {
@@ -43,10 +65,59 @@ type Props = {
   applying: boolean
   saved: boolean
   isConnected: boolean
+  similaires?: OffreSimilaire[]
+  similairesTitle?: string
   onApply: () => void
   onToggleSave: () => void
+  onSelectSimilaire?: (id: string) => void
   mode?: 'page' | 'panel'
   onBack?: () => void
+}
+
+// ─── SimilaireCard ───────────────────────────────────────────────────────────
+
+function SimilaireCard({ s, onSelect, compact = false }: { s: OffreSimilaire; onSelect?: (id: string) => void; compact?: boolean }) {
+  const sal = (s.salaire_min || s.salaire_max)
+    ? ((s.salaire_min && s.salaire_max)
+        ? `${Math.round(s.salaire_min / 1000)}–${Math.round(s.salaire_max / 1000)}k`
+        : `${Math.round(((s.salaire_min || s.salaire_max) as number) / 1000)}k`)
+      + (s.periode_salaire === 'mensuel' ? '/mois' : '/an')
+    : null
+
+  const inner = (
+    <div style={{ padding: compact ? '10px 12px' : '12px 14px' }}>
+      <div style={{ fontSize: compact ? 12 : 13, fontWeight: 600, color: C.dark, lineHeight: 1.3, marginBottom: 3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+        {s.titre}
+      </div>
+      <div style={{ fontSize: 11, color: C.grey, marginBottom: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {[s.entreprise_nom, s.ville].filter(Boolean).join(' · ')}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        {s.type_contrat && (
+          <span style={{ fontSize: 10, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '2px 7px', borderRadius: 20 }}>
+            {s.type_contrat}
+          </span>
+        )}
+        {sal && (
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#16A34A', padding: '2px 7px', borderRadius: 20, backgroundColor: '#F0FDF4' }}>
+            {sal}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+
+  const baseStyle: React.CSSProperties = {
+    display: 'block', borderRadius: 12,
+    border: `1px solid ${C.sable}`, backgroundColor: C.white,
+    cursor: 'pointer', textDecoration: 'none',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+  }
+
+  if (onSelect) {
+    return <div style={baseStyle} onClick={() => onSelect(s.id)}>{inner}</div>
+  }
+  return <Link href={`/offres/${s.id}`} style={baseStyle}>{inner}</Link>
 }
 
 // ─── EntrepriseLogo ───────────────────────────────────────────────────────────
@@ -231,7 +302,7 @@ function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected
 
 export function OffreDetail({
   offre, applied, appliedDate, applying, saved, isConnected,
-  onApply, onToggleSave, mode = 'page', onBack,
+  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack,
 }: Props) {
   const [copied, setCopied] = useState(false)
 
@@ -248,22 +319,30 @@ export function OffreDetail({
   // ── Panel mode ─────────────────────────────────────────────────────────────
 
   if (mode === 'panel') {
+    const modeTravailLabel = offre.mode_travail
+      ? offre.mode_travail + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j télétravail/sem` : '')
+      : undefined
+
     const details: { label: string; value: string }[] = [
-      ...(offre.type_contrat  ? [{ label: 'Contrat',         value: offre.type_contrat }]  : []),
-      ...(offre.experience    ? [{ label: 'Expérience',      value: offre.experience }]     : []),
-      ...(offre.mode_travail  ? [{ label: 'Mode de travail', value: offre.mode_travail }]   : []),
-      ...(offre.date_debut    ? [{ label: 'Prise de poste',  value: offre.date_debut }]     : []),
+      ...(offre.type_contrat   ? [{ label: 'Contrat',         value: offre.type_contrat }]   : []),
+      ...(offre.experience     ? [{ label: 'Expérience',      value: offre.experience }]      : []),
+      ...(offre.domaine        ? [{ label: 'Domaine',         value: offre.domaine }]         : []),
+      ...(modeTravailLabel     ? [{ label: 'Mode de travail', value: modeTravailLabel }]      : []),
+      ...(offre.deplacements   ? [{ label: 'Déplacements',    value: offre.deplacements }]    : []),
+      ...(offre.date_debut     ? [{ label: 'Prise de poste',  value: offre.date_debut }]      : []),
     ]
 
     // Compute which sections exist to apply last-child logic
-    const hasDetails     = details.length > 0
-    const hasLieu        = !!offre.ville
-    const hasAvantages   = (offre.avantages?.length ?? 0) > 0
-    const hasDescription = !!offre.description
-    const hasCompetences = (offre.competences?.length ?? 0) > 0
-    const hasValeurs     = (offre.valeurs?.length ?? 0) > 0
+    const hasDetails         = details.length > 0
+    const hasLieu            = !!offre.ville
+    const hasDescription     = !!offre.description
+    const hasMissions        = (offre.missions?.filter(m => m.trim()).length ?? 0) > 0
+    const hasProfilRecherche = !!offre.profil_recherche
+    const hasCompetences     = (offre.competences?.length ?? 0) > 0 || (offre.competences_bonus?.length ?? 0) > 0
+    const hasAvantages       = (offre.avantages?.length ?? 0) > 0
+    const hasProcess         = (offre.process_recrutement?.filter(p => p.trim()).length ?? 0) > 0
 
-    const sections = [hasDetails, hasLieu, hasAvantages, hasDescription, hasCompetences, hasValeurs]
+    const sections = [hasDetails, hasLieu, hasDescription, hasMissions, hasProfilRecherche, hasCompetences, hasAvantages, hasProcess]
     const lastIdx  = sections.lastIndexOf(true)
     let sIdx = 0
 
@@ -302,7 +381,7 @@ export function OffreDetail({
                 {entreprise}
               </div>
               <div style={{ fontSize: 12, color: C.grey, marginTop: 3 }}>
-                {[offre.ville, offre.mode_travail].filter(Boolean).join(' · ')}
+                {[offre.ville, modeTravailLabel].filter(Boolean).join(' · ')}
               </div>
             </div>
           </div>
@@ -434,7 +513,54 @@ export function OffreDetail({
               </PanelSection>
             )}
 
-            {/* Avantages — bullet list */}
+            {/* Description */}
+            {hasDescription && (
+              <PanelSection title="Description du poste" last={lastIdx === sIdx++}>
+                <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 2.0, whiteSpace: 'pre-wrap' }}>
+                  {offre.description}
+                </p>
+              </PanelSection>
+            )}
+
+            {/* Missions */}
+            {hasMissions && (
+              <PanelSection title="Missions principales" last={lastIdx === sIdx++}>
+                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {offre.missions!.filter(m => m.trim()).map((m, i) => (
+                    <li key={i} style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>{m}</li>
+                  ))}
+                </ul>
+              </PanelSection>
+            )}
+
+            {/* Profil recherché */}
+            {hasProfilRecherche && (
+              <PanelSection title="Profil recherché" last={lastIdx === sIdx++}>
+                <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 2.0, whiteSpace: 'pre-wrap' }}>
+                  {offre.profil_recherche}
+                </p>
+              </PanelSection>
+            )}
+
+            {/* Compétences */}
+            {hasCompetences && (
+              <PanelSection title="Compétences" last={lastIdx === sIdx++}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {(offre.competences ?? []).map(s => (
+                    <span key={s} style={{ fontSize: 13, fontWeight: 500, backgroundColor: C.creme, border: `1px solid ${C.sable}`, color: C.dark, padding: '4px 12px', borderRadius: 8 }}>
+                      {s}
+                    </span>
+                  ))}
+                  {(offre.competences_bonus ?? []).map(s => (
+                    <span key={s} style={{ fontSize: 13, fontWeight: 400, backgroundColor: C.white, border: `1px dashed ${C.sable}`, color: C.grey, padding: '4px 12px', borderRadius: 8 }}>
+                      {s} <span style={{ fontSize: 10, letterSpacing: '0.04em' }}>BONUS</span>
+                    </span>
+                  ))}
+                </div>
+              </PanelSection>
+            )}
+
+            {/* Avantages */}
             {hasAvantages && (
               <PanelSection title="Avantages" last={lastIdx === sIdx++}>
                 <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -445,40 +571,33 @@ export function OffreDetail({
               </PanelSection>
             )}
 
-            {/* Description */}
-            {hasDescription && (
-              <PanelSection title="Description du poste" last={lastIdx === sIdx++}>
-                <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 2.0, whiteSpace: 'pre-wrap' }}>
-                  {offre.description}
-                </p>
-              </PanelSection>
-            )}
-
-            {/* Compétences */}
-            {hasCompetences && (
-              <PanelSection title="Compétences recherchées" last={lastIdx === sIdx++}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                  {offre.competences!.map(s => (
-                    <span key={s} style={{ fontSize: 13, fontWeight: 500, backgroundColor: C.creme, border: `1px solid ${C.sable}`, color: C.dark, padding: '4px 12px', borderRadius: 8 }}>
-                      {s}
-                    </span>
+            {/* Processus de recrutement */}
+            {hasProcess && (
+              <PanelSection title="Processus de recrutement" last={lastIdx === sIdx++}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {offre.process_recrutement!.filter(p => p.trim()).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: '50%', backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {i + 1}
+                      </div>
+                      <span style={{ fontSize: 14, color: C.dark }}>{p}</span>
+                    </div>
                   ))}
                 </div>
               </PanelSection>
             )}
 
-            {/* Valeurs */}
-            {hasValeurs && (
-              <PanelSection title="Nos valeurs" last={lastIdx === sIdx++}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                  {offre.valeurs!.map(v => (
-                    <span key={v} style={{ fontSize: 13, fontWeight: 600, backgroundColor: `${C.vert}10`, color: C.vert, border: `1px solid ${C.vert}20`, padding: '4px 12px', borderRadius: 20 }}>
-                      {v}
-                    </span>
-                  ))}
-                </div>
-              </PanelSection>
-            )}
+          {/* Offres similaires */}
+          {similaires && similaires.length > 0 && (
+            <div style={{ padding: '20px 28px', borderTop: `1px solid ${C.sable}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.09em', marginBottom: 12 }}>
+                {similairesTitle ?? 'Offres similaires'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {similaires.map(s => <SimilaireCard key={s.id} s={s} onSelect={onSelectSimilaire} compact />)}
+              </div>
+            </div>
+          )}
 
           {/* Published date */}
           <div style={{ textAlign: 'center', padding: '16px 0 28px', fontSize: 12, color: C.lightGrey }}>
@@ -491,6 +610,10 @@ export function OffreDetail({
 
   // ── Page mode ──────────────────────────────────────────────────────────────
 
+  const pageModeLabel = offre.mode_travail
+    ? offre.mode_travail + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j/sem` : '')
+    : undefined
+
   const badges = (mt: number) => (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: mt }}>
       {offre.type_contrat && (
@@ -498,13 +621,18 @@ export function OffreDetail({
           {offre.type_contrat}
         </span>
       )}
-      {offre.mode_travail && (
+      {offre.domaine && (
+        <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.vert}12`, color: C.vert, padding: '4px 13px', borderRadius: 20 }}>
+          {offre.domaine}
+        </span>
+      )}
+      {pageModeLabel && (
         <span style={{
           fontSize: 12, fontWeight: 600, padding: '4px 13px', borderRadius: 20,
           backgroundColor: offre.mode_travail === '100% remote' ? `${C.vert}14` : offre.mode_travail === 'Hybride' ? '#7B5EA714' : `${C.dark}0A`,
           color: offre.mode_travail === '100% remote' ? C.vert : offre.mode_travail === 'Hybride' ? '#7B5EA7' : C.grey,
         }}>
-          {offre.mode_travail}
+          {pageModeLabel}
         </span>
       )}
       {offre.experience && (
@@ -520,6 +648,9 @@ export function OffreDetail({
     </div>
   )
 
+  const validMissions = offre.missions?.filter(m => m.trim()) ?? []
+  const validProcess  = offre.process_recrutement?.filter(p => p.trim()) ?? []
+
   const bodySections = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {offre.description && (
@@ -529,23 +660,33 @@ export function OffreDetail({
           </p>
         </Section>
       )}
-      {(offre.competences?.length ?? 0) > 0 && (
-        <Section title="Compétences recherchées">
+      {validMissions.length > 0 && (
+        <Section title="Missions principales">
+          <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {validMissions.map((m, i) => (
+              <li key={i} style={{ fontSize: 14, color: C.dark, lineHeight: 1.65 }}>{m}</li>
+            ))}
+          </ul>
+        </Section>
+      )}
+      {offre.profil_recherche && (
+        <Section title="Profil recherché">
+          <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+            {offre.profil_recherche}
+          </p>
+        </Section>
+      )}
+      {((offre.competences?.length ?? 0) > 0 || (offre.competences_bonus?.length ?? 0) > 0) && (
+        <Section title="Compétences">
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {offre.competences!.map(s => (
+            {(offre.competences ?? []).map(s => (
               <span key={s} style={{ fontSize: 13, fontWeight: 500, backgroundColor: C.creme, border: `1px solid ${C.sable}`, color: C.dark, padding: '5px 14px', borderRadius: 8 }}>
                 {s}
               </span>
             ))}
-          </div>
-        </Section>
-      )}
-      {(offre.valeurs?.length ?? 0) > 0 && (
-        <Section title="Nos valeurs">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {offre.valeurs!.map(v => (
-              <span key={v} style={{ fontSize: 13, fontWeight: 600, backgroundColor: `${C.vert}10`, color: C.vert, border: `1px solid ${C.vert}20`, padding: '5px 14px', borderRadius: 20 }}>
-                {v}
+            {(offre.competences_bonus ?? []).map(s => (
+              <span key={s} style={{ fontSize: 13, fontWeight: 400, backgroundColor: C.white, border: `1.5px dashed ${C.sable}`, color: C.grey, padding: '5px 14px', borderRadius: 8 }}>
+                {s} <span style={{ fontSize: 10, letterSpacing: '0.04em' }}>BONUS</span>
               </span>
             ))}
           </div>
@@ -558,6 +699,20 @@ export function OffreDetail({
               <span key={a} style={{ fontSize: 13, fontWeight: 500, backgroundColor: `${C.terracotta}0A`, color: C.terracotta, border: `1px solid ${C.terracotta}20`, padding: '5px 14px', borderRadius: 20 }}>
                 {a}
               </span>
+            ))}
+          </div>
+        </Section>
+      )}
+      {validProcess.length > 0 && (
+        <Section title="Processus de recrutement">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {validProcess.map((p, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <span style={{ fontSize: 14, color: C.dark }}>{p}</span>
+              </div>
             ))}
           </div>
         </Section>
@@ -616,7 +771,7 @@ export function OffreDetail({
                     {entreprise}
                   </div>
                   <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
-                    {[offre.ville, offre.mode_travail].filter(Boolean).join(' · ')}
+                    {[offre.ville, pageModeLabel].filter(Boolean).join(' · ')}
                     <span style={{ marginLeft: 12, fontSize: 12, color: C.lightGrey }}>
                       Publié {daysSince(offre.created_at)}
                     </span>
@@ -650,6 +805,16 @@ export function OffreDetail({
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 40px 80px' }}>
         {bodySections}
+        {similaires && similaires.length > 0 && (
+          <div style={{ marginTop: 40, paddingTop: 36, borderTop: `1px solid ${C.sable}` }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark, margin: '0 0 20px', fontWeight: 600 }}>
+              {similairesTitle ?? 'Offres similaires'}
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+              {similaires.map(s => <SimilaireCard key={s.id} s={s} onSelect={onSelectSimilaire} />)}
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
