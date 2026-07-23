@@ -395,6 +395,7 @@ export default function DashboardPage() {
   const [statusLoading, setStatusLoading] = useState(false)
   const [activites, setActivites]       = useState<ActivityItem[]>([])
   const [vueCount, setVueCount]         = useState(0)
+  const [vueTotal, setVueTotal]         = useState(0)
   const [vuesRecentes, setVuesRecentes] = useState<VueRecente[]>([])
   const [favOffres, setFavOffres]       = useState<FavOffre[]>([])
 
@@ -530,15 +531,25 @@ export default function DashboardPage() {
       items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       setActivites(items.slice(0, 5))
 
-      // Vues profil — compteur 30 jours + two-step noms visiteurs
+      // Vues profil — visiteurs DISTINCTS sur 30 jours + two-step noms
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
-      const vueList = ((vuesData ?? []) as VueProfil[])
-      const vueList30 = vueList.filter(v => v.created_at >= thirtyDaysAgo)
-      setVueCount(vueList30.length)
+      const vueList30 = ((vuesData ?? []) as VueProfil[]).filter(v => v.created_at >= thirtyDaysAgo)
 
-      const visitorIds = [...new Set(
-        vueList30.slice(0, 3).map(v => v.visiteur_id).filter((id): id is string => !!id)
-      )]
+      // Déduplique par visiteur_id : garde la vue la plus récente par visiteur
+      const vueByVisitor = new Map<string, VueProfil>()
+      for (const v of vueList30) {
+        const vid = v.visiteur_id
+        if (!vid) continue
+        const existing = vueByVisitor.get(vid)
+        if (!existing || v.created_at > existing.created_at) vueByVisitor.set(vid, v)
+      }
+      const uniqueVisitors = [...vueByVisitor.values()]
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+      setVueCount(uniqueVisitors.length)
+      setVueTotal(vueList30.length)
+
+      const visitorIds = uniqueVisitors.slice(0, 3).map(v => v.visiteur_id!).filter(Boolean)
       const visitorMap: Record<string, string> = {}
       if (visitorIds.length) {
         const { data: vData } = await supabase
@@ -547,8 +558,8 @@ export default function DashboardPage() {
           visitorMap[r.user_id] = `${r.prenom ?? ''} ${r.nom ?? ''}`.trim() || 'Recruteur'
         }
       }
-      setVuesRecentes(vueList30.slice(0, 3).map(v => ({
-        nom: v.visiteur_id ? (visitorMap[v.visiteur_id] ?? 'Recruteur') : 'Recruteur',
+      setVuesRecentes(uniqueVisitors.slice(0, 3).map(v => ({
+        nom: visitorMap[v.visiteur_id!] ?? 'Recruteur',
         created_at: v.created_at,
       })))
 
@@ -1010,7 +1021,10 @@ export default function DashboardPage() {
               <div style={{ fontSize: 13, color: C.grey, marginTop: 6, lineHeight: 1.5 }}>
                 {vueCount === 1 ? 'recruteur a consulté' : 'recruteurs ont consulté'} votre profil
                 <br />
-                <span style={{ fontSize: 11 }}>ces 30 derniers jours</span>
+                <span style={{ fontSize: 11 }}>
+                  ces 30 derniers jours
+                  {vueTotal > vueCount && ` · ${vueTotal} consultation${vueTotal > 1 ? 's' : ''}`}
+                </span>
               </div>
             </div>
 
