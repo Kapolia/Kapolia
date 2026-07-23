@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Avatar from '@/components/Avatar'
+import { useFavoris } from '@/lib/favoris-context'
 
 const C = {
   terracotta: '#C4673A',
@@ -20,6 +21,7 @@ export const SIDEBAR_WIDTH = 64
 const NAV = [
   { id: 'dashboard',    label: 'Dashboard',     href: '/dashboard',          exact: true  },
   { id: 'offres',       label: 'Offres',         href: '/offres',             exact: false },
+  { id: 'favoris',      label: 'Favoris',        href: '/favoris',            exact: true  },
   { id: 'candidatures', label: 'Candidatures',   href: '/candidatures',       exact: false },
   { id: 'messages',     label: 'Messages',       href: '/dashboard/messages', exact: true  },
   { id: 'profil',       label: 'Profil',         href: '/profil',             exact: false },
@@ -44,13 +46,15 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       return <svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
     case 'profil':
       return <svg {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+    case 'favoris':
+      return <svg {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
     case 'parametres':
       return <svg {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
     default: return null
   }
 }
 
-function SidebarNavItem({ item, active }: { item: typeof NAV[number]; active: boolean }) {
+function SidebarNavItem({ item, active, badge }: { item: typeof NAV[number]; active: boolean; badge?: number }) {
   const router  = useRouter()
   const [hov, setHov] = useState(false)
 
@@ -67,9 +71,22 @@ function SidebarNavItem({ item, active }: { item: typeof NAV[number]; active: bo
           backgroundColor: active ? `${C.terracotta}18` : hov ? `${C.dark}07` : 'transparent',
           border: 'none', cursor: 'pointer',
           transition: 'background-color 0.15s',
+          position: 'relative',
         }}
       >
         <NavIcon id={item.id} active={active} />
+        {badge !== undefined && badge > 0 && (
+          <span style={{
+            position: 'absolute', top: 6, right: 6,
+            minWidth: 16, height: 16, padding: '0 3px',
+            backgroundColor: C.terracotta, color: C.white,
+            borderRadius: 8, fontSize: 9, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1, boxSizing: 'border-box',
+          }}>
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
       </button>
 
       {hov && (
@@ -217,8 +234,12 @@ export default function CandidatSidebar({
     avatar_url?: string; avatar_type?: string; prenom?: string; nom?: string
   }>({ prenom, nom, avatar_url: avatarUrl, avatar_type: avatarType })
 
+  const { favIds, loaded: favsLoaded } = useFavoris()
+  // undefined tant que non chargé → badge masqué (pas de "0" qui clignote)
+  const favCount = favsLoaded ? favIds.size : undefined
+
   useEffect(() => {
-    async function fetchAvatar() {
+    async function fetchProfile() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data } = await supabase
@@ -233,9 +254,9 @@ export default function CandidatSidebar({
         nom:         data.nom         ?? nom,
       })
     }
-    fetchAvatar()
+    fetchProfile()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [pathname])
 
   function isActive(item: typeof NAV[number]) {
     if (item.exact) return pathname === item.href
@@ -263,7 +284,12 @@ export default function CandidatSidebar({
       {/* Nav items */}
       <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0', width: '100%', alignItems: 'center' }}>
         {NAV.map(item => (
-          <SidebarNavItem key={item.id} item={item} active={isActive(item)} />
+          <SidebarNavItem
+            key={item.id}
+            item={item}
+            active={isActive(item)}
+            badge={item.id === 'favoris' ? favCount : undefined}
+          />
         ))}
       </nav>
 

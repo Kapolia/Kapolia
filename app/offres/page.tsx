@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { calculerScore, type ProfilMatch } from '@/lib/matching'
-import { OffreDetail } from '@/components/OffreDetail'
+import { OffreDetail, type OffreSimilaire } from '@/components/OffreDetail'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { LieuRadiusPopover } from '@/components/LieuRadiusPopover'
 import { haversineKm } from '@/lib/geo'
 import { LANGUES } from '@/lib/langues'
+import { useFavoris } from '@/lib/favoris-context'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -472,7 +473,7 @@ function SalairePillDropdown({
   // Format pill display label
   const isPreset   = SALAIRE_PILL_OPTS.includes(value)
   const displayLabel = !active
-    ? 'Salaire'
+    ? 'Salaire min.'
     : isPreset
       ? `Salaire · ${value}`
       : `Salaire · ${parseInt(value, 10).toLocaleString('fr-FR')} €+`
@@ -552,7 +553,7 @@ function SalairePillDropdown({
           {/* Séparateur + saisie libre */}
           <div style={{ borderTop: `1px solid ${C.sable}`, margin: '6px 8px 8px', paddingTop: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: 4, marginBottom: 6 }}>
-              Montant précis
+              Montant minimum annuel
             </div>
             <div style={{ display: 'flex', gap: 6, padding: '0 4px' }}>
               <div style={{ position: 'relative', flex: 1 }}>
@@ -566,7 +567,7 @@ function SalairePillDropdown({
                     if (isPreset) onChange('')
                   }}
                   onKeyDown={e => { if (e.key === 'Enter') applyCustom() }}
-                  placeholder="ex. 42000"
+                  placeholder="Ex : 40 000 €"
                   style={{
                     width: '100%', padding: '7px 8px',
                     fontSize: 13, borderRadius: 8,
@@ -588,9 +589,6 @@ function SalairePillDropdown({
               >
                 OK
               </button>
-            </div>
-            <div style={{ fontSize: 11, color: C.lightGrey, paddingLeft: 4, marginTop: 4 }}>
-              Saisir un montant annuel en €
             </div>
           </div>
         </div>
@@ -1043,15 +1041,47 @@ function EmptyState({ hasFilters, onReset }: { hasFilters: boolean; onReset: () 
   )
 }
 
+// ─── Similaires scoring ───────────────────────────────────────────────────────
+
+const SIM_EXP_ORDER = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
+
+function simSalMid(min?: number, max?: number) {
+  if (min && max) return (min + max) / 2
+  return min ?? max ?? 0
+}
+
+function scoreForSim(ref: Offre, cand: Offre): number {
+  let s = 0
+  if (ref.experience && cand.experience) {
+    const ri = SIM_EXP_ORDER.indexOf(ref.experience)
+    const ci = SIM_EXP_ORDER.indexOf(cand.experience)
+    if (ri !== -1 && ci !== -1) {
+      const d = Math.abs(ri - ci)
+      if (d === 0) s += 2
+      else if (d === 1) s += 1
+    }
+  }
+  if (ref.type_contrat && cand.type_contrat === ref.type_contrat) s += 2
+  const refMid = simSalMid(ref.salaire_min, ref.salaire_max)
+  const candMid = simSalMid(cand.salaire_min, cand.salaire_max)
+  if (refMid > 0 && candMid > 0 && Math.abs(refMid - candMid) / refMid <= 0.3) s += 1
+  return s
+}
+
+function offreToSimilaire(o: Offre): OffreSimilaire {
+  return { id: o.id, titre: o.titre, entreprise_nom: o.entreprise_nom, type_contrat: o.type_contrat, domaine: o.domaine, ville: o.ville, salaire_min: o.salaire_min, salaire_max: o.salaire_max, periode_salaire: o.periode_salaire, mode_travail: o.mode_travail }
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OffresPage() {
   const router = useRouter()
 
+  const { favIds, toggleFav } = useFavoris()
+
   const [profil, setProfil]           = useState<Profil | null>(null)
   const [offres, setOffres]           = useState<Offre[]>([])
   const [applied, setApplied]         = useState<Map<string, string>>(new Map())
-  const [saved, setSaved]             = useState<Set<string>>(new Set())
   const [loading, setLoading]         = useState(true)
   const [isConnected, setIsConnected] = useState(false)
   const [userId, setUserId]           = useState<string | null>(null)
@@ -1164,16 +1194,13 @@ export default function OffresPage() {
       setIsConnected(!!user)
       setUserId(user?.id ?? null)
 
-      const [offresRes, profilRes, candidaturesRes, favoritesRes] = await Promise.all([
+      const [offresRes, profilRes, candidaturesRes] = await Promise.all([
         supabase.from('offres').select('*').eq('active', true).eq('statut_publication', 'publiée').order('created_at', { ascending: false }),
         user
           ? supabase.from('profils').select('domaine, experience, type_poste, valeur, disponibilite, ville').eq('user_id', user.id).single()
           : Promise.resolve({ data: null }),
         user
           ? supabase.from('candidatures').select('offre_id, created_at').eq('candidat_id', user.id)
-          : Promise.resolve({ data: [] }),
-        user
-          ? supabase.from('offres_favorites').select('offre_id').eq('candidat_id', user.id)
           : Promise.resolve({ data: [] }),
       ])
 
@@ -1191,7 +1218,6 @@ export default function OffresPage() {
         (candidaturesRes.data ?? []).map((c: { offre_id: string; created_at: string }) => [c.offre_id, c.created_at])
       )
       setApplied(appliedMap)
-      setSaved(new Set((favoritesRes.data ?? []).map((f: { offre_id: string }) => f.offre_id)))
 
       const scored: Offre[] = (offresRes.data ?? []).map((o: Omit<Offre, 'score'>) => ({
         ...o,
@@ -1212,32 +1238,6 @@ export default function OffresPage() {
     if (!error) setApplied(prev => new Map([...prev, [offreId, new Date().toISOString()]]))
   }
 
-  async function handleToggleSave(offreId: string) {
-    if (!isConnected) { router.push('/connexion'); return }
-    if (!userId) return
-    const isSaved = saved.has(offreId)
-    setSaved(prev => {
-      const next = new Set(prev)
-      if (isSaved) next.delete(offreId)
-      else next.add(offreId)
-      return next
-    })
-    if (isSaved) {
-      const { error } = await supabase.from('offres_favorites')
-        .delete().eq('candidat_id', userId).eq('offre_id', offreId)
-      if (error) {
-        console.error('Erreur retrait favori:', error.message)
-        setSaved(prev => { const next = new Set(prev); next.add(offreId); return next })
-      }
-    } else {
-      const { error } = await supabase.from('offres_favorites')
-        .insert({ candidat_id: userId, offre_id: offreId })
-      if (error) {
-        console.error('Erreur ajout favori:', error.message)
-        setSaved(prev => { const next = new Set(prev); next.delete(offreId); return next })
-      }
-    }
-  }
 
   async function handlePanelApply() {
     if (!isConnected) { router.push('/connexion'); return }
@@ -1387,6 +1387,44 @@ export default function OffresPage() {
   // Selected offre for the panel
   const selectedOffre = selectedId ? filtered.find(o => o.id === selectedId) ?? null : null
 
+  // ── Offres similaires (computed from already-loaded list) ─────────────────
+  const { similaires, similairesTitle } = useMemo<{ similaires: OffreSimilaire[]; similairesTitle: string }>(() => {
+    if (!selectedOffre) return { similaires: [], similairesTitle: '' }
+    const candidates = offres.filter(o => o.id !== selectedOffre.id && !applied.has(o.id))
+
+    // Phase 1: same domain
+    const domainPool = selectedOffre.domaine ? candidates.filter(o => o.domaine === selectedOffre.domaine) : []
+    if (domainPool.length >= 2) {
+      const scored = domainPool
+        .map(o => ({ o, score: scoreForSim(selectedOffre, o) }))
+        .sort((a, b) => b.score - a.score || new Date(b.o.created_at).getTime() - new Date(a.o.created_at).getTime())
+      const withExtra = scored.filter(({ score }) => score >= 1)
+      if (withExtra.length >= 2) {
+        return { similaires: withExtra.slice(0, 4).map(({ o }) => offreToSimilaire(o)), similairesTitle: 'Offres similaires' }
+      }
+      return {
+        similaires: scored.slice(0, 4).map(({ o }) => offreToSimilaire(o)),
+        similairesTitle: selectedOffre.domaine ? `Autres offres en ${selectedOffre.domaine}` : 'Autres offres',
+      }
+    }
+
+    // Phase 2: zone fallback
+    if (selectedOffre.latitude != null && selectedOffre.longitude != null) {
+      const nearby = candidates.filter(o =>
+        o.latitude != null && o.longitude != null &&
+        haversineKm({ lat: selectedOffre.latitude!, lng: selectedOffre.longitude! }, { lat: o.latitude, lng: o.longitude }) < 50
+      )
+      if (nearby.length >= 2) {
+        return {
+          similaires: nearby.slice(0, 4).map(offreToSimilaire),
+          similairesTitle: selectedOffre.ville ? `Autres offres près de ${selectedOffre.ville}` : 'Autres offres à proximité',
+        }
+      }
+    }
+
+    return { similaires: [], similairesTitle: '' }
+  }, [selectedOffre, offres, applied])
+
   // ── Reusable list content (counter + sort + cards) ────────────────────────
   const listContent = (
     <>
@@ -1439,9 +1477,9 @@ export default function OffresPage() {
               <OffreCard
                 offre={offre}
                 applied={applied.has(offre.id)}
-                saved={saved.has(offre.id)}
+                saved={favIds.has(offre.id)}
                 onApply={handleApply}
-                onToggleSave={handleToggleSave}
+                onToggleSave={toggleFav}
                 isConnected={isConnected}
                 isSelected={isSplit && offre.id === selectedId}
                 onSelect={isSplit ? setSelectedId : undefined}
@@ -1686,10 +1724,13 @@ export default function OffresPage() {
                   applied={applied.has(selectedOffre.id)}
                   appliedDate={applied.get(selectedOffre.id) ?? null}
                   applying={panelApplying}
-                  saved={saved.has(selectedOffre.id)}
+                  saved={favIds.has(selectedOffre.id)}
                   isConnected={isConnected}
+                  similaires={similaires}
+                  similairesTitle={similairesTitle}
                   onApply={handlePanelApply}
-                  onToggleSave={() => handleToggleSave(selectedOffre.id)}
+                  onToggleSave={() => toggleFav(selectedOffre.id)}
+                  onSelectSimilaire={id => setSelectedId(id)}
                   mode="panel"
                 />
               ) : (
