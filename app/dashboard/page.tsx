@@ -61,8 +61,11 @@ type Offre = {
   teletravail?: boolean
   active?: boolean
   statut_publication?: string
+  created_at?: string
   score?: number
 }
+
+type OffresMode = 'match' | 'recent'
 
 type Candidature = {
   id: string
@@ -147,11 +150,11 @@ function calcCompletion(p: Profil): number {
   return Math.round((filled / PROFIL_COMPLETION.length) * 100)
 }
 
-function getDynamicPhrase(): string {
-  const h = new Date().getHours()
-  if (h >= 6  && h < 12) return 'Votre prochaine opportunité vous attend.'
-  if (h >= 12 && h < 18) return 'De nouvelles offres correspondent à votre profil.'
-  return 'Prenez le temps de consulter vos messages.'
+function getContextPhrase(unread: number, nbCandidatures: number, completion: number): string {
+  if (unread > 0) return `Vous avez ${unread} message${unread > 1 ? 's' : ''} non lu${unread > 1 ? 's' : ''}.`
+  if (nbCandidatures > 0) return `${nbCandidatures} candidature${nbCandidatures > 1 ? 's' : ''} en cours — bonne chance !`
+  if (completion < 60) return 'Complétez votre profil pour être mieux repéré.'
+  return 'Bienvenue — de nouvelles opportunités vous attendent.'
 }
 
 function daysSince(iso: string): string {
@@ -262,7 +265,6 @@ function StatusBadge({ statut }: { statut: string }) {
 
 function OffreCard({ offre, onPostuler }: { offre: Offre; onPostuler: (id: string) => void }) {
   const [hov, setHov] = useState(false)
-  const score = offre.score ?? 0
   return (
     <div
       onMouseEnter={() => setHov(true)}
@@ -276,32 +278,12 @@ function OffreCard({ offre, onPostuler }: { offre: Offre; onPostuler: (id: strin
         display: 'flex', flexDirection: 'column', gap: 12,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 4 }}>
-            {offre.titre}
-          </div>
-          <div style={{ fontSize: 13, color: C.grey }}>
-            {offre.entreprise_nom} · {offre.ville}
-          </div>
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 4 }}>
+          {offre.titre}
         </div>
-        <div style={{ flexShrink: 0, textAlign: 'right' }}>
-          {score >= 80 && (
-            <div style={{
-              fontSize: 11, fontWeight: 700,
-              backgroundColor: `${C.vert}15`, color: C.vert,
-              padding: '3px 10px', borderRadius: 20, marginBottom: 6,
-              whiteSpace: 'nowrap',
-            }}>
-              ⚡ Très bon match
-            </div>
-          )}
-          <div style={{
-            fontSize: 13, fontWeight: 700,
-            color: score >= 70 ? C.vert : score >= 40 ? C.terracotta : C.grey,
-          }}>
-            {score}%
-          </div>
+        <div style={{ fontSize: 13, color: C.grey }}>
+          {[offre.entreprise_nom, offre.ville].filter(Boolean).join(' · ')}
         </div>
       </div>
 
@@ -400,6 +382,8 @@ export default function DashboardPage() {
 
   const [profil, setProfil]             = useState<Profil | null>(null)
   const [offres, setOffres]             = useState<Offre[]>([])
+  const [offresMode, setOffresMode]     = useState<OffresMode>('match')
+  const [matchCount, setMatchCount]     = useState(0)
   const [candidatures, setCandidatures] = useState<Candidature[]>([])
   const [unreadCount, setUnreadCount]   = useState(0)
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -445,11 +429,22 @@ export default function DashboardPage() {
       setCandidatures((candidaturesData as Candidature[]) ?? [])
 
       if (offresData) {
-        const scored = (offresData as Offre[])
-          .map(o => ({ ...o, score: calculerScore(p, o) }))
+        const MATCH_THRESHOLD = 50
+        const scored = (offresData as Offre[]).map(o => ({ ...o, score: calculerScore(p, o) }))
+        const matching = scored
+          .filter(o => (o.score ?? 0) >= MATCH_THRESHOLD)
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-          .slice(0, 3)
-        setOffres(scored)
+        setMatchCount(matching.length)
+        if (matching.length >= 1) {
+          setOffres(matching.slice(0, 3))
+          setOffresMode('match')
+        } else {
+          const recent = [...scored].sort((a, b) =>
+            new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+          )
+          setOffres(recent.slice(0, 3))
+          setOffresMode('recent')
+        }
       }
 
       // Two-step : récupère les profils recruteurs + messages non-lus reçus
@@ -561,7 +556,10 @@ export default function DashboardPage() {
   const initials      = `${p.prenom?.[0] ?? ''}${p.nom?.[0] ?? ''}`.toUpperCase() || 'K'
   const completion    = calcCompletion(p)
   const statusValue   = p.disponibilite ?? 'maintenant'
-  const phrase        = getDynamicPhrase()
+  const phrase        = getContextPhrase(unreadCount, candidatures.length, completion)
+  const offresBlocTitle = offresMode === 'match'
+    ? 'Offres qui correspondent à votre profil'
+    : 'Offres récentes'
 
   const missingFields = PROFIL_COMPLETION
     .filter(({ key }) => {
@@ -624,7 +622,7 @@ export default function DashboardPage() {
             marginTop: 28, display: 'flex', gap: 24, flexWrap: 'wrap',
           }}>
             {[
-              { label: `${offres.length} offre${offres.length !== 1 ? 's' : ''} matche${offres.length !== 1 ? 'nt' : ''} votre profil`, icon: '✦' },
+              { label: matchCount > 0 ? `${matchCount} offre${matchCount !== 1 ? 's' : ''} correspond${matchCount !== 1 ? 'ent' : ''} à votre profil` : 'Aucune offre ne correspond encore', icon: '✦' },
               { label: `${candidatures.length} candidature${candidatures.length !== 1 ? 's' : ''} en cours`, icon: '📋' },
               { label: `${unreadCount} message${unreadCount !== 1 ? 's' : ''} non lu${unreadCount !== 1 ? 's' : ''}`, icon: '💬' },
             ].map(({ label, icon }) => (
@@ -658,7 +656,7 @@ export default function DashboardPage() {
           {/* BLOC 1 — Offres recommandées */}
           <Card>
             <SectionTitle
-              title="Offres qui correspondent à votre profil"
+              title={offresBlocTitle}
               link="Voir toutes les offres →"
               href="/offres"
             />
@@ -716,7 +714,7 @@ export default function DashboardPage() {
                         {c.offres?.titre ?? '—'}
                       </div>
                       <div style={{ fontSize: 12, color: C.grey }}>
-                        {c.offres?.entreprise_nom ?? ''} · {daysSince(c.created_at)}
+                        {[c.offres?.entreprise_nom, daysSince(c.created_at)].filter(Boolean).join(' · ')}
                       </div>
                     </div>
                     <StatusBadge statut={c.statut} />
@@ -895,9 +893,9 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {conversations.map(conv => {
                   const recruteur = conv.profils
-                  const nom = recruteur
+                  const nom = (recruteur
                     ? `${recruteur.prenom ?? ''} ${recruteur.nom ?? ''}`.trim()
-                    : 'Recruteur'
+                    : '') || 'Recruteur'
                   return (
                     <button
                       key={conv.id}
