@@ -35,7 +35,12 @@ type Profil = {
   passions?: string[]
   type_poste?: string[]
   structure?: string
+  mode_travail?: string[]
   projet_phare?: string
+  projet_titre?: string
+  projet_impact?: string
+  plus_grande_reussite?: string
+  ce_que_je_veux_apprendre?: string
   photo_url?: string
   side_project?: string
   disponibilite?: string
@@ -47,6 +52,7 @@ type Profil = {
   langues?: string[]
   linkedin_url?: string
   portfolio_url?: string
+  video_presentation_url?: string | null
 }
 
 type Offre = {
@@ -125,33 +131,92 @@ const STATUS_OPTIONS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const PROFIL_COMPLETION: { key: keyof Profil; label: string }[] = [
-  { key: 'prenom',               label: 'Prénom' },
-  { key: 'nom',                  label: 'Nom' },
-  { key: 'domaine',              label: 'Domaine' },
-  { key: 'experience',           label: "Niveau d'expérience" },
-  { key: 'signature',            label: 'Phrase signature' },
-  { key: 'qualites',             label: 'Compétences' },
-  { key: 'projet_phare',         label: 'Projet phare' },
-  { key: 'passions',             label: 'Passions / hobbies' },
-  { key: 'ville',                label: 'Ville' },
-  { key: 'avatar_url',           label: 'Photo de profil' },
-  { key: 'competences_acquises', label: 'Compétences acquises' },
-  { key: 'experiences',          label: 'Expériences professionnelles' },
-  { key: 'diplomes',             label: 'Diplômes' },
-  { key: 'langues',              label: 'Langues' },
-  { key: 'linkedin_url',         label: 'LinkedIn' },
-  { key: 'portfolio_url',        label: 'Portfolio / Site web' },
+type CompletionField = { key: keyof Profil; label: string }
+type CompletionSection = { label: string; weight: number; fields: CompletionField[] }
+
+const COMPLETION_SECTIONS: CompletionSection[] = [
+  {
+    label: 'Identité', weight: 0.20,
+    fields: [
+      { key: 'prenom',     label: 'Prénom' },
+      { key: 'nom',        label: 'Nom' },
+      { key: 'domaine',    label: 'Domaine' },
+      { key: 'experience', label: "Niveau d'expérience" },
+      { key: 'ville',      label: 'Ville' },
+      { key: 'avatar_url', label: 'Photo de profil' },
+    ],
+  },
+  {
+    label: 'Ma recherche', weight: 0.20,
+    fields: [
+      { key: 'type_poste',    label: 'Type de poste' },
+      { key: 'mode_travail',  label: 'Environnement recherché' },
+      { key: 'structure',     label: 'Mode de travail' },
+      { key: 'disponibilite', label: 'Disponibilité' },
+      { key: 'langues',       label: 'Langues' },
+    ],
+  },
+  {
+    label: 'Mon histoire', weight: 0.25,
+    fields: [
+      { key: 'signature',               label: 'Phrase signature' },
+      { key: 'projet_titre',            label: 'Titre du projet phare' },
+      { key: 'projet_phare',            label: 'Description du projet' },
+      { key: 'projet_impact',           label: 'Impact du projet' },
+      { key: 'plus_grande_reussite',    label: 'Plus grande réussite' },
+      { key: 'ce_que_je_veux_apprendre', label: 'Ce que je veux apprendre' },
+      { key: 'valeur',                  label: 'Ce qui m\'anime' },
+    ],
+  },
+  {
+    label: 'Mon parcours', weight: 0.20,
+    fields: [
+      { key: 'experiences',        label: 'Expériences' },
+      { key: 'qualites',           label: 'Compétences' },
+      { key: 'competences_acquises', label: 'Compétences acquises' },
+      { key: 'passions',           label: 'Passions' },
+      { key: 'diplomes',           label: 'Diplômes' },
+    ],
+  },
+  {
+    label: 'Ma présentation', weight: 0.15,
+    fields: [
+      { key: 'video_presentation_url', label: 'Vidéo de présentation' },
+    ],
+  },
 ]
 
+// Priority-ordered suggestions shown in the dashboard card (max 3)
+const COMPLETION_SUGGESTIONS: { key: keyof Profil; label: string }[] = [
+  { key: 'video_presentation_url', label: 'Ajoutez une vidéo de présentation' },
+  { key: 'signature',               label: 'Rédigez votre phrase signature' },
+  { key: 'valeur',                  label: 'Précisez ce qui vous anime' },
+  { key: 'plus_grande_reussite',    label: 'Partagez votre plus grande réussite' },
+  { key: 'ce_que_je_veux_apprendre', label: 'Décrivez ce que vous voulez apprendre' },
+  { key: 'projet_titre',            label: 'Décrivez votre projet phare' },
+  { key: 'type_poste',              label: 'Précisez le type de poste recherché' },
+  { key: 'langues',                 label: 'Renseignez vos langues' },
+  { key: 'mode_travail',            label: 'Ajoutez votre environnement préféré' },
+  { key: 'ville',                   label: 'Indiquez votre ville' },
+  { key: 'avatar_url',              label: 'Ajoutez une photo de profil' },
+  { key: 'experiences',             label: 'Ajoutez vos expériences professionnelles' },
+  { key: 'competences_acquises',    label: 'Listez vos compétences acquises' },
+]
+
+function isFilled(p: Profil, key: keyof Profil): boolean {
+  const v = p[key]
+  if (v == null) return false
+  if (Array.isArray(v)) return v.length > 0
+  return String(v).trim().length > 0
+}
+
 function calcCompletion(p: Profil): number {
-  const filled = PROFIL_COMPLETION.filter(({ key }) => {
-    const v = p[key]
-    if (!v) return false
-    if (Array.isArray(v)) return v.length > 0
-    return String(v).trim().length > 0
-  }).length
-  return Math.round((filled / PROFIL_COMPLETION.length) * 100)
+  let score = 0
+  for (const section of COMPLETION_SECTIONS) {
+    const filled = section.fields.filter(({ key }) => isFilled(p, key)).length
+    score += section.weight * (filled / section.fields.length)
+  }
+  return Math.round(score * 100)
 }
 
 function getContextPhrase(unread: number, nbCandidatures: number, completion: number): string {
@@ -609,14 +674,9 @@ export default function DashboardPage() {
     ? 'Offres qui correspondent à votre profil'
     : 'Offres récentes'
 
-  const missingFields = PROFIL_COMPLETION
-    .filter(({ key }) => {
-      const v = p[key]
-      if (!v) return true
-      if (Array.isArray(v)) return v.length === 0
-      return String(v).trim().length === 0
-    })
-    .map(({ label }) => label)
+  const missingSuggestions = COMPLETION_SUGGESTIONS
+    .filter(({ key }) => !isFilled(p, key))
+    .slice(0, 3)
 
   return (
     <div style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
@@ -859,21 +919,31 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Missing fields */}
-            {missingFields.length > 0 && (
+            {/* Priority suggestions */}
+            {missingSuggestions.length > 0 && (
               <div style={{
                 backgroundColor: `${C.terracotta}0D`,
                 border: `1px solid ${C.terracotta}30`,
                 borderRadius: 10, padding: '10px 14px',
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 6 }}>
-                  Champs manquants :
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 8 }}>
+                  Pour aller plus loin :
                 </div>
-                {missingFields.map(f => (
-                  <div key={f} style={{ fontSize: 12, color: C.terracotta, marginBottom: 2 }}>
-                    · {f}
-                  </div>
+                {missingSuggestions.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => router.push('/profil?edit=true')}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      fontSize: 12, color: C.terracotta, marginBottom: 4,
+                      background: 'none', border: 'none', padding: 0,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      textDecoration: 'underline', textDecorationStyle: 'dotted',
+                    }}
+                  >
+                    → {label}
+                  </button>
                 ))}
               </div>
             )}
