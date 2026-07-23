@@ -102,8 +102,12 @@ type ActivityItem = {
 
 type VueProfil = {
   created_at: string
+  visiteur_id?: string
   visiteur_type?: string
 }
+
+type VueRecente = { nom: string; created_at: string }
+type FavOffre = { id: string; titre: string; entreprise_nom?: string; ville?: string }
 
 type MessageActivite = {
   created_at: string
@@ -390,6 +394,9 @@ export default function DashboardPage() {
   const [loading, setLoading]           = useState(true)
   const [statusLoading, setStatusLoading] = useState(false)
   const [activites, setActivites]       = useState<ActivityItem[]>([])
+  const [vueCount, setVueCount]         = useState(0)
+  const [vuesRecentes, setVuesRecentes] = useState<VueRecente[]>([])
+  const [favOffres, setFavOffres]       = useState<FavOffre[]>([])
 
   useEffect(() => {
     async function load() {
@@ -402,6 +409,7 @@ export default function DashboardPage() {
         { data: offresData },
         { data: convsRaw },
         { data: vuesData },
+        { data: favData },
       ] = await Promise.all([
         supabase.from('profils').select('*').eq('user_id', user.id).single(),
         supabase.from('candidatures')
@@ -418,8 +426,13 @@ export default function DashboardPage() {
           .eq('candidat_id', user.id)
           .order('derniere_activite', { ascending: false }),
         supabase.from('vues_profil')
-          .select('created_at, visiteur_type')
+          .select('created_at, visiteur_id, visiteur_type')
           .eq('profil_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(30),
+        supabase.from('offres_favorites')
+          .select('created_at, offres(id, titre, entreprise_nom, ville)')
+          .eq('candidat_id', user.id)
           .order('created_at', { ascending: false })
           .limit(3),
       ])
@@ -516,6 +529,43 @@ export default function DashboardPage() {
 
       items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       setActivites(items.slice(0, 5))
+
+      // Vues profil — compteur 30 jours + two-step noms visiteurs
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
+      const vueList = ((vuesData ?? []) as VueProfil[])
+      const vueList30 = vueList.filter(v => v.created_at >= thirtyDaysAgo)
+      setVueCount(vueList30.length)
+
+      const visitorIds = [...new Set(
+        vueList30.slice(0, 3).map(v => v.visiteur_id).filter((id): id is string => !!id)
+      )]
+      const visitorMap: Record<string, string> = {}
+      if (visitorIds.length) {
+        const { data: vData } = await supabase
+          .from('profils').select('user_id, prenom, nom').in('user_id', visitorIds)
+        for (const r of (vData ?? [])) {
+          visitorMap[r.user_id] = `${r.prenom ?? ''} ${r.nom ?? ''}`.trim() || 'Recruteur'
+        }
+      }
+      setVuesRecentes(vueList30.slice(0, 3).map(v => ({
+        nom: v.visiteur_id ? (visitorMap[v.visiteur_id] ?? 'Recruteur') : 'Recruteur',
+        created_at: v.created_at,
+      })))
+
+      // Favoris récents
+      type FavRaw = {
+        created_at: string
+        offres: { id: string; titre: string; entreprise_nom: string | null; ville: string | null } | null
+      }
+      const favList: FavOffre[] = ((favData ?? []) as unknown as FavRaw[])
+        .filter(f => f.offres != null)
+        .map(f => ({
+          id:            f.offres!.id,
+          titre:         f.offres!.titre,
+          entreprise_nom: f.offres!.entreprise_nom ?? undefined,
+          ville:         f.offres!.ville ?? undefined,
+        }))
+      setFavOffres(favList)
 
       setLoading(false)
     }
@@ -945,6 +995,117 @@ export default function DashboardPage() {
               Voir tous les messages
             </button>
           </Card>
+
+          {/* BLOC 6 — Vues du profil */}
+          <Card>
+            <SectionTitle title="Qui a consulté votre profil" />
+
+            <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
+              <div style={{
+                fontFamily: 'Georgia, serif',
+                fontSize: 40, fontWeight: 700, color: C.vert, lineHeight: 1,
+              }}>
+                {vueCount}
+              </div>
+              <div style={{ fontSize: 13, color: C.grey, marginTop: 6, lineHeight: 1.5 }}>
+                {vueCount === 1 ? 'recruteur a consulté' : 'recruteurs ont consulté'} votre profil
+                <br />
+                <span style={{ fontSize: 11 }}>ces 30 derniers jours</span>
+              </div>
+            </div>
+
+            {vueCount === 0 ? (
+              <div style={{ textAlign: 'center', paddingBottom: 4 }}>
+                <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px', lineHeight: 1.6 }}>
+                  Complétez votre profil pour être mieux repéré par les recruteurs.
+                </p>
+                <button
+                  onClick={() => router.push('/profil')}
+                  style={{
+                    backgroundColor: C.vert, color: C.white,
+                    border: 'none', borderRadius: 10,
+                    padding: '8px 18px', fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Compléter mon profil
+                </button>
+              </div>
+            ) : (
+              <div style={{
+                borderTop: `1px solid ${C.sable}`,
+                paddingTop: 14,
+                display: 'flex', flexDirection: 'column', gap: 10,
+              }}>
+                {vuesRecentes.map((v, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                      backgroundColor: `${C.vert}15`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 700, color: C.vert,
+                    }}>
+                      {v.nom[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{v.nom}</div>
+                      <div style={{ fontSize: 11, color: C.grey }}>{timeAgo(v.created_at)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* BLOC 7 — Favoris récents */}
+          <Card>
+            <SectionTitle title="Vos favoris" link="Voir tous mes favoris →" href="/favoris" />
+
+            {favOffres.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
+                <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px', lineHeight: 1.6 }}>
+                  Aucune offre sauvegardée pour le moment.
+                </p>
+                <button
+                  onClick={() => router.push('/offres')}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${C.sable}`, borderRadius: 10,
+                    padding: '8px 18px', fontSize: 12, fontWeight: 600,
+                    color: C.dark, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Parcourir les offres
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {favOffres.map(o => (
+                  <button
+                    key={o.id}
+                    onClick={() => router.push(`/offres/${o.id}`)}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                      padding: '10px 12px', borderRadius: 10, border: 'none',
+                      backgroundColor: 'transparent', cursor: 'pointer',
+                      textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                      transition: 'background-color 0.12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, lineHeight: 1.3 }}>
+                      {o.titre}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>
+                      {[o.entreprise_nom, o.ville].filter(Boolean).join(' · ')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+
         </div>
       </div>
     </div>
