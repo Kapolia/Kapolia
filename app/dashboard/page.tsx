@@ -188,15 +188,17 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
 
 // Priority-ordered suggestions shown in the dashboard card (max 3)
 const COMPLETION_SUGGESTIONS: { key: keyof Profil; label: string }[] = [
-  { key: 'video_presentation_url', label: 'Ajoutez une vidéo de présentation' },
+  { key: 'video_presentation_url',  label: 'Ajoutez une vidéo de présentation' },
   { key: 'signature',               label: 'Rédigez votre phrase signature' },
   { key: 'valeur',                  label: 'Précisez ce qui vous anime' },
   { key: 'plus_grande_reussite',    label: 'Partagez votre plus grande réussite' },
   { key: 'ce_que_je_veux_apprendre', label: 'Décrivez ce que vous voulez apprendre' },
   { key: 'projet_titre',            label: 'Décrivez votre projet phare' },
   { key: 'type_poste',              label: 'Précisez le type de poste recherché' },
+  { key: 'disponibilite',           label: 'Confirmez votre disponibilité' },
   { key: 'langues',                 label: 'Renseignez vos langues' },
   { key: 'mode_travail',            label: 'Ajoutez votre environnement préféré' },
+  { key: 'structure',               label: 'Précisez votre mode de travail préféré' },
   { key: 'ville',                   label: 'Indiquez votre ville' },
   { key: 'avatar_url',              label: 'Ajoutez une photo de profil' },
   { key: 'experiences',             label: 'Ajoutez vos expériences professionnelles' },
