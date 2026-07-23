@@ -106,7 +106,7 @@ type VueProfil = {
   visiteur_type?: string
 }
 
-type VueRecente = { nom: string; created_at: string }
+type VueRecente = { created_at: string }
 type FavOffre = { id: string; titre: string; entreprise_nom?: string; ville?: string }
 
 type MessageActivite = {
@@ -548,20 +548,7 @@ export default function DashboardPage() {
 
       setVueCount(uniqueVisitors.length)
       setVueTotal(vueList30.length)
-
-      const visitorIds = uniqueVisitors.slice(0, 3).map(v => v.visiteur_id!).filter(Boolean)
-      const visitorMap: Record<string, string> = {}
-      if (visitorIds.length) {
-        const { data: vData } = await supabase
-          .from('profils').select('user_id, prenom, nom').in('user_id', visitorIds)
-        for (const r of (vData ?? [])) {
-          visitorMap[r.user_id] = `${r.prenom ?? ''} ${r.nom ?? ''}`.trim() || 'Recruteur'
-        }
-      }
-      setVuesRecentes(uniqueVisitors.slice(0, 3).map(v => ({
-        nom: visitorMap[v.visiteur_id!] ?? 'Recruteur',
-        created_at: v.created_at,
-      })))
+      setVuesRecentes(uniqueVisitors.slice(0, 3).map(v => ({ created_at: v.created_at })))
 
       // Favoris récents
       type FavRaw = {
@@ -1052,19 +1039,12 @@ export default function DashboardPage() {
                 display: 'flex', flexDirection: 'column', gap: 10,
               }}>
                 {vuesRecentes.map((v, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                      backgroundColor: `${C.vert}15`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 12, fontWeight: 700, color: C.vert,
-                    }}>
-                      {v.nom[0]?.toUpperCase() ?? '?'}
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{v.nom}</div>
-                      <div style={{ fontSize: 11, color: C.grey }}>{timeAgo(v.created_at)}</div>
-                    </div>
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '6px 0',
+                  }}>
+                    <div style={{ fontSize: 13, color: C.dark }}>Un recruteur</div>
+                    <div style={{ fontSize: 11, color: C.grey }}>{timeAgo(v.created_at)}</div>
                   </div>
                 ))}
               </div>
