@@ -131,7 +131,9 @@ const STATUS_OPTIONS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-type CompletionField = { key: keyof Profil; label: string }
+// suggestion: texte encourageant affiché dans le dashboard ; omis pour les champs
+// toujours remplis après onboarding (prenom, nom, domaine, experience).
+type CompletionField = { key: keyof Profil; label: string; suggestion?: string }
 type CompletionSection = { label: string; weight: number; fields: CompletionField[] }
 
 const COMPLETION_SECTIONS: CompletionSection[] = [
@@ -142,68 +144,60 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
       { key: 'nom',        label: 'Nom' },
       { key: 'domaine',    label: 'Domaine' },
       { key: 'experience', label: "Niveau d'expérience" },
-      { key: 'ville',      label: 'Ville' },
-      { key: 'avatar_url', label: 'Photo de profil' },
+      { key: 'ville',      label: 'Ville',           suggestion: 'Indiquez votre ville' },
+      { key: 'avatar_url', label: 'Photo de profil', suggestion: 'Ajoutez une photo de profil' },
     ],
   },
   {
     label: 'Ma recherche', weight: 0.20,
     fields: [
-      { key: 'type_poste',    label: 'Type de poste' },
-      { key: 'mode_travail',  label: 'Environnement recherché' },
-      { key: 'structure',     label: 'Mode de travail' },
-      { key: 'disponibilite', label: 'Disponibilité' },
-      { key: 'langues',       label: 'Langues' },
+      { key: 'type_poste',    label: 'Type de poste',         suggestion: 'Précisez le type de poste recherché' },
+      { key: 'mode_travail',  label: 'Environnement',         suggestion: 'Ajoutez votre environnement préféré' },
+      { key: 'structure',     label: 'Mode de travail',       suggestion: 'Précisez votre mode de travail préféré' },
+      { key: 'disponibilite', label: 'Disponibilité',         suggestion: 'Confirmez votre disponibilité' },
+      { key: 'langues',       label: 'Langues',               suggestion: 'Renseignez vos langues' },
     ],
   },
   {
     label: 'Mon histoire', weight: 0.25,
     fields: [
-      { key: 'signature',               label: 'Phrase signature' },
-      { key: 'projet_titre',            label: 'Titre du projet phare' },
-      { key: 'projet_phare',            label: 'Description du projet' },
-      { key: 'projet_impact',           label: 'Impact du projet' },
-      { key: 'plus_grande_reussite',    label: 'Plus grande réussite' },
-      { key: 'ce_que_je_veux_apprendre', label: 'Ce que je veux apprendre' },
-      { key: 'valeur',                  label: 'Ce qui m\'anime' },
+      { key: 'signature',                label: 'Phrase signature',      suggestion: 'Rédigez votre phrase signature' },
+      { key: 'valeur',                   label: "Ce qui m'anime",        suggestion: 'Précisez ce qui vous anime' },
+      { key: 'plus_grande_reussite',     label: 'Plus grande réussite',  suggestion: 'Partagez votre plus grande réussite' },
+      { key: 'ce_que_je_veux_apprendre', label: 'Ce que je veux apprendre', suggestion: 'Décrivez ce que vous voulez apprendre' },
+      { key: 'projet_titre',             label: 'Titre du projet',       suggestion: 'Donnez un titre à votre projet phare' },
+      { key: 'projet_phare',             label: 'Description du projet', suggestion: 'Décrivez votre projet phare en détail' },
+      { key: 'projet_impact',            label: 'Impact du projet',      suggestion: "Précisez l'impact de votre projet" },
     ],
   },
   {
     label: 'Mon parcours', weight: 0.20,
     fields: [
-      { key: 'experiences',        label: 'Expériences' },
-      { key: 'qualites',           label: 'Compétences' },
-      { key: 'competences_acquises', label: 'Compétences acquises' },
-      { key: 'passions',           label: 'Passions' },
-      { key: 'diplomes',           label: 'Diplômes' },
+      { key: 'experiences',          label: 'Expériences',         suggestion: 'Ajoutez vos expériences professionnelles' },
+      { key: 'qualites',             label: 'Compétences',         suggestion: 'Listez vos compétences clés' },
+      { key: 'competences_acquises', label: 'Compétences acquises', suggestion: 'Listez vos compétences acquises' },
+      { key: 'passions',             label: 'Passions',            suggestion: 'Ajoutez vos passions et loisirs' },
+      { key: 'diplomes',             label: 'Diplômes',            suggestion: 'Renseignez vos diplômes ou formations' },
     ],
   },
   {
     label: 'Ma présentation', weight: 0.15,
     fields: [
-      { key: 'video_presentation_url', label: 'Vidéo de présentation' },
+      { key: 'video_presentation_url', label: 'Vidéo de présentation', suggestion: 'Ajoutez une vidéo de présentation' },
     ],
   },
 ]
 
-// Priority-ordered suggestions shown in the dashboard card (max 3)
-const COMPLETION_SUGGESTIONS: { key: keyof Profil; label: string }[] = [
-  { key: 'video_presentation_url',  label: 'Ajoutez une vidéo de présentation' },
-  { key: 'signature',               label: 'Rédigez votre phrase signature' },
-  { key: 'valeur',                  label: 'Précisez ce qui vous anime' },
-  { key: 'plus_grande_reussite',    label: 'Partagez votre plus grande réussite' },
-  { key: 'ce_que_je_veux_apprendre', label: 'Décrivez ce que vous voulez apprendre' },
-  { key: 'projet_titre',            label: 'Décrivez votre projet phare' },
-  { key: 'type_poste',              label: 'Précisez le type de poste recherché' },
-  { key: 'disponibilite',           label: 'Confirmez votre disponibilité' },
-  { key: 'langues',                 label: 'Renseignez vos langues' },
-  { key: 'mode_travail',            label: 'Ajoutez votre environnement préféré' },
-  { key: 'structure',               label: 'Précisez votre mode de travail préféré' },
-  { key: 'ville',                   label: 'Indiquez votre ville' },
-  { key: 'avatar_url',              label: 'Ajoutez une photo de profil' },
-  { key: 'experiences',             label: 'Ajoutez vos expériences professionnelles' },
-  { key: 'competences_acquises',    label: 'Listez vos compétences acquises' },
+// Ordre de priorité d'affichage des suggestions (indépendant de l'ordre des sections)
+const SUGGESTION_PRIORITY: (keyof Profil)[] = [
+  'video_presentation_url',
+  'signature', 'valeur', 'plus_grande_reussite', 'ce_que_je_veux_apprendre',
+  'projet_titre', 'projet_phare', 'projet_impact',
+  'type_poste', 'disponibilite', 'langues', 'mode_travail', 'structure',
+  'experiences', 'qualites', 'competences_acquises', 'passions', 'diplomes',
+  'ville', 'avatar_url',
 ]
+const SUGGESTION_RANK = Object.fromEntries(SUGGESTION_PRIORITY.map((k, i) => [k, i]))
 
 function isFilled(p: Profil, key: keyof Profil): boolean {
   const v = p[key]
@@ -676,9 +670,12 @@ export default function DashboardPage() {
     ? 'Offres qui correspondent à votre profil'
     : 'Offres récentes'
 
-  const missingSuggestions = COMPLETION_SUGGESTIONS
-    .filter(({ key }) => !isFilled(p, key))
+  const missingSuggestions = COMPLETION_SECTIONS
+    .flatMap(s => s.fields)
+    .filter(f => f.suggestion && !isFilled(p, f.key))
+    .sort((a, b) => (SUGGESTION_RANK[a.key as string] ?? 99) - (SUGGESTION_RANK[b.key as string] ?? 99))
     .slice(0, 3)
+    .map(f => ({ key: f.key, label: f.suggestion! }))
 
   return (
     <div style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
