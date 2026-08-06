@@ -462,15 +462,33 @@ export default function MesOffresPage() {
       setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
-      console.log('recruteur_id:', user.id)
+
       const { data, error } = await supabase
         .from('offres')
-        .select('*, candidatures(count)')
+        .select('*')
         .eq('recruteur_id', user.id)
         .order('created_at', { ascending: false })
-      console.log('offres:', data)
-      console.log('offres error:', error)
-      if (!error && data) setOffres(data as OffreRow[])
+
+      if (!error && data) {
+        // Compte séparé pour exclure les candidatures 'annulée'.
+        // candidatures(count) est un agrégat PostgREST non filtrable via le client JS.
+        const offreIds = (data as OffreRow[]).map(o => o.id)
+        const countMap = new Map<string, number>()
+        if (offreIds.length) {
+          const { data: countData } = await supabase
+            .from('candidatures')
+            .select('offre_id')
+            .in('offre_id', offreIds)
+            .neq('statut', 'annulée')
+          for (const c of countData ?? []) {
+            countMap.set(c.offre_id, (countMap.get(c.offre_id) ?? 0) + 1)
+          }
+        }
+        setOffres((data as OffreRow[]).map(o => ({
+          ...o,
+          candidatures: [{ count: countMap.get(o.id) ?? 0 }],
+        })))
+      }
       setLoading(false)
     }
     load()
@@ -503,9 +521,13 @@ export default function MesOffresPage() {
     const { data, error } = await supabase
       .from('offres')
       .insert({ ...rest, titre: `${o.titre} (copie)`, statut: 'brouillon', recruteur_id: user.id })
-      .select('*, candidatures(count)')
+      .select('*')
       .single()
-    if (!error && data) { setOffres(p => [data as OffreRow, ...p]); showToast('Offre dupliquée en brouillon') }
+    if (!error && data) {
+      // Offre fraîchement créée : 0 candidature par définition
+      setOffres(p => [{ ...(data as OffreRow), candidatures: [{ count: 0 }] }, ...p])
+      showToast('Offre dupliquée en brouillon')
+    }
   }
 
   async function deleteOffre(id: string) {
