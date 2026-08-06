@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { OffreDetail, type OffreData } from '@/components/OffreDetail'
 import { useFavoris } from '@/lib/favoris-context'
+import { getStatut } from '@/lib/statuts'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Statut = 'envoyée' | 'vue' | 'en_cours' | 'acceptée' | 'refusée'
+type SortKey = 'cand_desc' | 'cand_asc' | 'offre_desc' | 'statut' | 'entreprise'
 
 type OffreResume = {
   id: string
@@ -29,6 +30,7 @@ type OffreResume = {
   type_contrat: string | null
   ville: string | null
   entreprise_nom: string | null
+  created_at: string | null
 }
 
 type Candidature = {
@@ -36,9 +38,11 @@ type Candidature = {
   created_at: string
   candidat_id: string
   offre_id: string
-  statut: Statut
+  statut: string
   offres: OffreResume | null
 }
+
+type ModalAction = { type: 'annuler' | 'supprimer'; candId: string } | null
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,17 +73,13 @@ function dateLabel(iso: string) {
   return `Il y a ${Math.floor(days / 30)} mois`
 }
 
-// ─── Statut config ────────────────────────────────────────────────────────────
-
-type StatutConfig = { label: string; bg: string; color: string; dot: string }
-
-const STATUT: Record<Statut, StatutConfig> = {
-  envoyée:  { label: 'Envoyée',   bg: '#F0F0F0',           color: C.grey,       dot: C.lightGrey },
-  vue:      { label: 'Vue',       bg: '#EBF0FF',           color: '#3B5BDB',    dot: '#3B5BDB' },
-  en_cours: { label: 'En cours',  bg: `${C.terracotta}15`, color: C.terracotta, dot: C.terracotta },
-  acceptée: { label: 'Acceptée',  bg: `${C.vert}15`,       color: C.vert,       dot: C.vert },
-  refusée:  { label: 'Refusée',   bg: '#FDECEA',           color: '#C0392B',    dot: '#C0392B' },
+// Ordre pour le tri "par statut" : les plus positifs d'abord, annulée/refusée en bas
+const STATUT_RANK: Record<string, number> = {
+  'acceptée': 0, 'en cours': 1, 'vue': 2, 'envoyée': 3, 'annulée': 4, 'refusée': 5,
 }
+
+// Statuts pour lesquels "Retirer" a encore un sens
+const STATUTS_RETIRABLE = new Set(['envoyée', 'vue', 'en cours'])
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -119,8 +119,8 @@ function StatCard({ icon, value, label, accent }: {
   )
 }
 
-function BadgeStatut({ statut }: { statut: Statut }) {
-  const s = STATUT[statut] ?? STATUT.envoyée
+function BadgeStatut({ statut }: { statut: string }) {
+  const s = getStatut(statut)
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -137,78 +137,217 @@ function BadgeStatut({ statut }: { statut: Statut }) {
   )
 }
 
-// Carte complète (vue liste sans panneau ouvert)
-function CandidatureCardFull({ cand, onViewOffre }: {
-  cand: Candidature
-  onViewOffre: () => void
+function ConfirmModal({ title, body, confirmLabel, isDanger, onConfirm, onDismiss }: {
+  title: string
+  body: string
+  confirmLabel: string
+  isDanger: boolean
+  onConfirm: () => void
+  onDismiss: () => void
 }) {
-  const offre = cand.offres
-  const nom   = offre?.entreprise_nom ?? null
-  const bg    = avatarColor(cand.offre_id)
-
   return (
-    <div style={{
-      backgroundColor: C.white, border: `1px solid ${C.sable}`,
-      borderRadius: 16, padding: '20px 24px',
-      display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-    }}>
-      <div style={{
-        width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-        backgroundColor: bg,
+    <div
+      onClick={onDismiss}
+      style={{
+        position: 'fixed', inset: 0,
+        backgroundColor: 'rgba(26,26,26,0.45)',
+        zIndex: 500,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: C.white, fontWeight: 700, fontSize: 14,
-      }}>
-        {initiales(nom)}
-      </div>
-
-      <div style={{ flex: 1, minWidth: 180 }}>
-        <div style={{
-          fontFamily: 'Georgia, serif', fontSize: 15,
-          color: C.dark, fontWeight: 600, marginBottom: 4, lineHeight: 1.2,
-        }}>
-          {offre?.titre ?? 'Offre supprimée'}
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          {nom && <span style={{ fontSize: 13, color: C.grey }}>{nom}</span>}
-          {offre?.ville && (
-            <>
-              <span style={{ fontSize: 12, color: C.lightGrey }}>·</span>
-              <span style={{ fontSize: 12, color: C.grey }}>◎ {offre.ville}</span>
-            </>
-          )}
-          {offre?.type_contrat && (
-            <>
-              <span style={{ fontSize: 12, color: C.lightGrey }}>·</span>
-              <span style={{ fontSize: 12, color: C.grey }}>{offre.type_contrat}</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div style={{ fontSize: 12, color: C.lightGrey, flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-        {dateLabel(cand.created_at)}
-      </div>
-
-      <BadgeStatut statut={cand.statut} />
-
-      <button
-        onClick={onViewOffre}
-        disabled={!offre}
+        padding: '0 16px',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
         style={{
-          backgroundColor: 'transparent', border: `1px solid ${C.sable}`,
-          borderRadius: 10, padding: '8px 14px', fontSize: 13,
-          color: offre ? C.dark : C.lightGrey,
-          cursor: offre ? 'pointer' : 'default',
-          fontWeight: 500, flexShrink: 0, whiteSpace: 'nowrap', fontFamily: 'inherit',
+          backgroundColor: C.white, borderRadius: 16,
+          padding: '28px 28px 24px', maxWidth: 400, width: '100%',
+          boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
         }}
       >
-        Voir l'offre →
-      </button>
+        <h3 style={{
+          fontFamily: 'Georgia, serif', fontSize: 18,
+          color: C.dark, margin: '0 0 10px', fontWeight: 400,
+        }}>
+          {title}
+        </h3>
+        <p style={{ fontSize: 13, color: C.grey, lineHeight: 1.65, margin: '0 0 24px' }}>
+          {body}
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onDismiss}
+            style={{
+              padding: '9px 18px', borderRadius: 10,
+              border: `1px solid ${C.sable}`, backgroundColor: 'transparent',
+              color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            {isDanger ? 'Annuler' : 'Garder ma candidature'}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: '9px 18px', borderRadius: 10, border: 'none',
+              backgroundColor: isDanger ? '#C0392B' : C.grey,
+              color: C.white, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
 
-// Carte compacte (colonne gauche du split view)
+function SortSelector({ value, onChange }: { value: SortKey; onChange: (k: SortKey) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, color: C.grey, flexShrink: 0 }}>Trier par</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value as SortKey)}
+        style={{
+          fontSize: 12, color: C.dark,
+          border: `1px solid ${C.sable}`, borderRadius: 8,
+          padding: '5px 10px', backgroundColor: C.white,
+          cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
+        }}
+      >
+        <option value="cand_desc">Date de candidature (récentes)</option>
+        <option value="cand_asc">Date de candidature (anciennes)</option>
+        <option value="offre_desc">Date de publication (récentes)</option>
+        <option value="statut">Par statut</option>
+        <option value="entreprise">Par entreprise</option>
+      </select>
+    </div>
+  )
+}
+
+// Carte complète — vue liste sans panneau ouvert
+function CandidatureCardFull({ cand, onViewOffre, onAnnuler, onSupprimer }: {
+  cand: Candidature
+  onViewOffre: () => void
+  onAnnuler: () => void
+  onSupprimer: () => void
+}) {
+  const [hov, setHov] = useState(false)
+  const offre = cand.offres
+  const nom   = offre?.entreprise_nom ?? null
+  const bg    = avatarColor(cand.offre_id)
+  const canRetire = STATUTS_RETIRABLE.has(cand.statut)
+
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        backgroundColor: C.white, border: `1px solid ${C.sable}`,
+        borderRadius: 16, padding: '20px 24px',
+        opacity: cand.statut === 'annulée' ? 0.65 : 1,
+        transition: 'opacity 0.2s',
+      }}
+    >
+      {/* Ligne principale */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+          backgroundColor: bg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: C.white, fontWeight: 700, fontSize: 14,
+        }}>
+          {initiales(nom)}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{
+            fontFamily: 'Georgia, serif', fontSize: 15,
+            color: C.dark, fontWeight: 600, marginBottom: 4, lineHeight: 1.2,
+          }}>
+            {offre?.titre ?? 'Offre supprimée'}
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {nom && <span style={{ fontSize: 13, color: C.grey }}>{nom}</span>}
+            {offre?.ville && (
+              <>
+                <span style={{ fontSize: 12, color: C.lightGrey }}>·</span>
+                <span style={{ fontSize: 12, color: C.grey }}>◎ {offre.ville}</span>
+              </>
+            )}
+            {offre?.type_contrat && (
+              <>
+                <span style={{ fontSize: 12, color: C.lightGrey }}>·</span>
+                <span style={{ fontSize: 12, color: C.grey }}>{offre.type_contrat}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: C.lightGrey, flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+          {dateLabel(cand.created_at)}
+        </div>
+
+        <BadgeStatut statut={cand.statut} />
+
+        <button
+          onClick={onViewOffre}
+          disabled={!offre}
+          style={{
+            backgroundColor: 'transparent', border: `1px solid ${C.sable}`,
+            borderRadius: 10, padding: '8px 14px', fontSize: 13,
+            color: offre ? C.dark : C.lightGrey,
+            cursor: offre ? 'pointer' : 'default',
+            fontWeight: 500, flexShrink: 0, whiteSpace: 'nowrap', fontFamily: 'inherit',
+          }}
+        >
+          Voir l&apos;offre →
+        </button>
+      </div>
+
+      {/* Pied de carte — actions secondaires */}
+      <div style={{
+        marginTop: 12, paddingTop: 10,
+        borderTop: `1px solid rgba(232,213,183,0.5)`,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        {canRetire ? (
+          <button
+            onClick={e => { e.stopPropagation(); onAnnuler() }}
+            style={{
+              background: 'none', border: 'none', padding: '0 2px',
+              fontSize: 12, color: C.grey, cursor: 'pointer',
+              fontFamily: 'inherit',
+              textDecoration: 'underline',
+              textDecorationColor: `${C.grey}55`,
+            }}
+          >
+            Retirer ma candidature
+          </button>
+        ) : (
+          <span />
+        )}
+
+        {/* Poubelle : visible seulement au survol */}
+        <button
+          onClick={e => { e.stopPropagation(); onSupprimer() }}
+          title="Supprimer définitivement"
+          style={{
+            background: 'none', border: 'none', padding: '2px 4px',
+            fontSize: 13, cursor: 'pointer', lineHeight: 1,
+            color: hov ? '#C0392B' : C.lightGrey,
+            opacity: hov ? 1 : 0,
+            transition: 'color 0.15s, opacity 0.15s',
+          }}
+        >
+          🗑
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Carte compacte — colonne gauche du split view
 function CandidatureCardCompact({ cand, isSelected, onViewOffre }: {
   cand: Candidature
   isSelected: boolean
@@ -232,6 +371,7 @@ function CandidatureCardCompact({ cand, isSelected, onViewOffre }: {
         borderRadius: 12, padding: '12px 14px',
         display: 'flex', alignItems: 'center', gap: 10,
         cursor: 'pointer', transition: 'all 0.12s',
+        opacity: cand.statut === 'annulée' ? 0.55 : 1,
       }}
     >
       <div style={{
@@ -271,12 +411,13 @@ export default function CandidaturesPage() {
 
   const [candidatures, setCandidatures] = useState<Candidature[]>([])
   const [loading, setLoading]           = useState(true)
-  const [selectedCandId, setSelectedCandId]     = useState<string | null>(null)
-  const [selectedOffre, setSelectedOffre]       = useState<OffreData | null>(null)
-  const [offreLoading, setOffreLoading]         = useState(false)
-  const [isMobile, setIsMobile]                 = useState(false)
+  const [selectedCandId, setSelectedCandId] = useState<string | null>(null)
+  const [selectedOffre, setSelectedOffre]   = useState<OffreData | null>(null)
+  const [offreLoading, setOffreLoading]     = useState(false)
+  const [isMobile, setIsMobile]             = useState(false)
+  const [sortKey, setSortKey]               = useState<SortKey>('cand_desc')
+  const [modal, setModal]                   = useState<ModalAction>(null)
 
-  // Detect mobile
   useEffect(() => {
     function onResize() { setIsMobile(window.innerWidth < 900) }
     onResize()
@@ -291,7 +432,7 @@ export default function CandidaturesPage() {
 
       const { data } = await supabase
         .from('candidatures')
-        .select('*, offres(id, titre, type_contrat, ville, entreprise_nom)')
+        .select('*, offres(id, titre, type_contrat, ville, entreprise_nom, created_at)')
         .eq('candidat_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -301,19 +442,58 @@ export default function CandidaturesPage() {
     load()
   }, [router])
 
+  // ── Tri côté client ───────────────────────────────────────────────────────
+
+  const sorted = useMemo(() => {
+    const arr = [...candidatures]
+    switch (sortKey) {
+      case 'cand_asc':
+        return arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      case 'offre_desc':
+        return arr.sort((a, b) => {
+          const da = a.offres?.created_at ? new Date(a.offres.created_at).getTime() : 0
+          const db = b.offres?.created_at ? new Date(b.offres.created_at).getTime() : 0
+          return db - da
+        })
+      case 'statut':
+        return arr.sort((a, b) => (STATUT_RANK[a.statut] ?? 99) - (STATUT_RANK[b.statut] ?? 99))
+      case 'entreprise':
+        return arr.sort((a, b) =>
+          (a.offres?.entreprise_nom ?? '').localeCompare(b.offres?.entreprise_nom ?? '', 'fr')
+        )
+      default: // cand_desc
+        return arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+  }, [candidatures, sortKey])
+
+  // ── Actions candidature ───────────────────────────────────────────────────
+
+  async function handleAnnuler(candId: string) {
+    // Mise à jour optimiste immédiate
+    setCandidatures(prev => prev.map(c => c.id === candId ? { ...c, statut: 'annulée' } : c))
+    setModal(null)
+    await supabase.from('candidatures').update({ statut: 'annulée' }).eq('id', candId)
+  }
+
+  async function handleSupprimer(candId: string) {
+    // Retrait immédiat de la liste + fermeture du panneau si c'était la candidature affichée
+    setCandidatures(prev => prev.filter(c => c.id !== candId))
+    setModal(null)
+    if (selectedCandId === candId) {
+      setSelectedCandId(null)
+      setSelectedOffre(null)
+    }
+    await supabase.from('candidatures').delete().eq('id', candId)
+  }
+
   const handleViewOffre = useCallback(async (cand: Candidature) => {
     if (!cand.offres) return
-
-    // Mobile : navigation classique
     if (isMobile) { router.push(`/offres/${cand.offre_id}`); return }
-
-    // Toggle : cliquer la même ligne ferme le panneau
     if (selectedCandId === cand.id) {
       setSelectedCandId(null)
       setSelectedOffre(null)
       return
     }
-
     setSelectedCandId(cand.id)
     setSelectedOffre(null)
     setOffreLoading(true)
@@ -329,32 +509,57 @@ export default function CandidaturesPage() {
 
   if (loading) return <Spinner fullPage />
 
-  const total      = candidatures.length
-  const enAttente  = candidatures.filter(c => c.statut === 'envoyée').length
-  const enCours    = candidatures.filter(c => c.statut === 'en_cours' || c.statut === 'vue').length
-  const acceptees  = candidatures.filter(c => c.statut === 'acceptée').length
+  // ── Compteurs (annulée exclue) ────────────────────────────────────────────
+
+  const actives   = candidatures.filter(c => c.statut !== 'annulée')
+  const total     = actives.length
+  const enAttente = actives.filter(c => c.statut === 'envoyée').length
+  const enCours   = actives.filter(c => c.statut === 'en cours' || c.statut === 'vue').length
+  const acceptees = actives.filter(c => c.statut === 'acceptée').length
+
   const selectedCand = candidatures.find(c => c.id === selectedCandId) ?? null
 
-  // ── Split view ─────────────────────────────────────────────────────────────
+  // Libellé de l'offre pour les modals
+  const modalOffre = modal
+    ? (candidatures.find(c => c.id === modal.candId)?.offres?.titre ?? 'cette offre')
+    : ''
+
+  // ── Rendu modal ───────────────────────────────────────────────────────────
+
+  function renderModal() {
+    if (!modal) return null
+    const isSuppr = modal.type === 'supprimer'
+    return (
+      <ConfirmModal
+        title={isSuppr ? 'Supprimer définitivement' : 'Retirer ma candidature'}
+        body={isSuppr
+          ? `Cette action est irréversible. La candidature pour « ${modalOffre} » sera supprimée définitivement — elle disparaîtra de votre historique et le recruteur ne pourra plus la retrouver.`
+          : `Vous souhaitez vous retirer de « ${modalOffre} » ? Votre candidature restera dans votre historique, marquée « Annulée ». Le recruteur ne la verra plus.`
+        }
+        confirmLabel={isSuppr ? 'Supprimer définitivement' : 'Retirer ma candidature'}
+        isDanger={isSuppr}
+        onConfirm={() => isSuppr ? handleSupprimer(modal.candId) : handleAnnuler(modal.candId)}
+        onDismiss={() => setModal(null)}
+      />
+    )
+  }
+
+  // ── Split view ────────────────────────────────────────────────────────────
 
   if (selectedCandId) {
     return (
       <main style={{
-        backgroundColor: C.creme,
-        marginLeft: 64,
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
+        backgroundColor: C.creme, marginLeft: 64,
+        height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
 
-        {/* Barre de titre compacte */}
+        {renderModal()}
+
+        {/* Barre de titre */}
         <div style={{
-          padding: '12px 20px',
-          borderBottom: `1px solid ${C.sable}`,
-          backgroundColor: C.white,
-          flexShrink: 0,
+          padding: '12px 20px', borderBottom: `1px solid ${C.sable}`,
+          backgroundColor: C.white, flexShrink: 0,
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <h1 style={{
@@ -364,6 +569,9 @@ export default function CandidaturesPage() {
             Mes candidatures
           </h1>
           <span style={{ fontSize: 13, color: C.grey }}>· {total}</span>
+          <div style={{ marginLeft: 'auto' }}>
+            <SortSelector value={sortKey} onChange={setSortKey} />
+          </div>
         </div>
 
         {/* Colonnes */}
@@ -371,14 +579,12 @@ export default function CandidaturesPage() {
 
           {/* Gauche — liste compacte */}
           <div style={{
-            width: 340, flexShrink: 0,
-            overflowY: 'auto',
-            padding: '12px 10px',
-            borderRight: `1px solid ${C.sable}`,
+            width: 340, flexShrink: 0, overflowY: 'auto',
+            padding: '12px 10px', borderRight: `1px solid ${C.sable}`,
             backgroundColor: C.creme,
             display: 'flex', flexDirection: 'column', gap: 6,
           }}>
-            {candidatures.map(cand => (
+            {sorted.map(cand => (
               <CandidatureCardCompact
                 key={cand.id}
                 cand={cand}
@@ -388,25 +594,68 @@ export default function CandidaturesPage() {
             ))}
           </div>
 
-          {/* Droite — détail de l'offre */}
-          <div style={{ flex: 1, overflowY: 'auto', backgroundColor: C.creme }}>
+          {/* Droite — détail offre */}
+          <div style={{
+            flex: 1, overflow: 'hidden', backgroundColor: C.creme,
+            display: 'flex', flexDirection: 'column',
+          }}>
             {offreLoading ? (
               <Spinner />
             ) : selectedOffre ? (
-              <OffreDetail
-                offre={selectedOffre}
-                applied={true}
-                appliedDate={selectedCand?.created_at ?? null}
-                applying={false}
-                saved={favIds.has(selectedCand?.offre_id ?? '')}
-                isConnected={true}
-                similaires={[]}
-                onApply={() => {}}
-                onToggleSave={() => selectedCand && toggleFav(selectedCand.offre_id)}
-                onSelectSimilaire={simId => router.push(`/offres/${simId}`)}
-                mode="panel"
-                onBack={closePanel}
-              />
+              <>
+                {/* Barre d'actions : épinglée en haut, ne défile pas */}
+                {selectedCand && (
+                  <div style={{
+                    flexShrink: 0,
+                    padding: '10px 16px',
+                    backgroundColor: C.white,
+                    borderBottom: `1px solid ${C.sable}`,
+                    display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end',
+                  }}>
+                    {STATUTS_RETIRABLE.has(selectedCand.statut) && (
+                      <button
+                        onClick={() => setModal({ type: 'annuler', candId: selectedCand.id })}
+                        style={{
+                          background: 'none', border: 'none', padding: '4px 6px',
+                          fontSize: 12, color: C.grey, cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          textDecoration: 'underline',
+                          textDecorationColor: `${C.grey}55`,
+                        }}
+                      >
+                        Retirer ma candidature
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setModal({ type: 'supprimer', candId: selectedCand.id })}
+                      title="Supprimer définitivement"
+                      style={{
+                        background: 'none', border: 'none', padding: '4px 6px',
+                        fontSize: 14, color: C.lightGrey, cursor: 'pointer', lineHeight: 1,
+                      }}
+                    >
+                      🗑
+                    </button>
+                  </div>
+                )}
+                {/* Zone défilante */}
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  <OffreDetail
+                    offre={selectedOffre}
+                    applied={true}
+                    appliedDate={selectedCand?.created_at ?? null}
+                    applying={false}
+                    saved={favIds.has(selectedCand?.offre_id ?? '')}
+                    isConnected={true}
+                    similaires={[]}
+                    onApply={() => {}}
+                    onToggleSave={() => selectedCand && toggleFav(selectedCand.offre_id)}
+                    onSelectSimilaire={simId => router.push(`/offres/${simId}`)}
+                    mode="panel"
+                    onBack={closePanel}
+                  />
+                </div>
+              </>
             ) : (
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -422,11 +671,13 @@ export default function CandidaturesPage() {
     )
   }
 
-  // ── Vue liste pleine largeur ────────────────────────────────────────────────
+  // ── Vue liste pleine largeur ──────────────────────────────────────────────
 
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
       <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+
+      {renderModal()}
 
       <div style={{ maxWidth: 820, margin: '0 auto', padding: '48px 24px 80px' }}>
 
@@ -440,16 +691,16 @@ export default function CandidaturesPage() {
             Mes candidatures
           </h1>
           <p style={{ fontSize: 14, color: C.grey, margin: 0 }}>
-            Suivez l'avancement de vos candidatures
+            Suivez l&apos;avancement de vos candidatures
             {total > 0 && (
-              <> · <strong style={{ color: C.dark }}>{total}</strong> envoyée{total > 1 ? 's' : ''}</>
+              <> · <strong style={{ color: C.dark }}>{total}</strong> active{total > 1 ? 's' : ''}</>
             )}
           </p>
         </div>
 
-        {/* Stats */}
+        {/* Stats — annulée exclue des compteurs */}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 36 }}>
-          <StatCard icon="◎" value={total}     label="Total envoyées"  accent={C.dark} />
+          <StatCard icon="◎" value={total}     label="Total actives"   accent={C.dark} />
           <StatCard icon="◷" value={enAttente}  label="En attente"      accent={C.grey} />
           <StatCard icon="⬡" value={enCours}    label="En cours / Vues" accent={C.terracotta} />
           <StatCard icon="✦" value={acceptees}  label="Acceptées"       accent={C.vert} />
@@ -466,7 +717,7 @@ export default function CandidaturesPage() {
               fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark,
               margin: '0 0 8px', fontWeight: 400,
             }}>
-              Vous n'avez pas encore postulé.
+              Vous n&apos;avez pas encore postulé.
             </h2>
             <p style={{ fontSize: 14, color: C.grey, margin: '0 0 28px', lineHeight: 1.6 }}>
               Explorez les offres disponibles et postulez en un clic grâce à votre profil Kavio.
@@ -484,15 +735,23 @@ export default function CandidaturesPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {candidatures.map(cand => (
-              <CandidatureCardFull
-                key={cand.id}
-                cand={cand}
-                onViewOffre={() => handleViewOffre(cand)}
-              />
-            ))}
-          </div>
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+              <SortSelector value={sortKey} onChange={setSortKey} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {sorted.map(cand => (
+                <CandidatureCardFull
+                  key={cand.id}
+                  cand={cand}
+                  onViewOffre={() => handleViewOffre(cand)}
+                  onAnnuler={() => setModal({ type: 'annuler', candId: cand.id })}
+                  onSupprimer={() => setModal({ type: 'supprimer', candId: cand.id })}
+                />
+              ))}
+            </div>
+          </>
         )}
 
       </div>

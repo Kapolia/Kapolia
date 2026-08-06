@@ -14,6 +14,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ouvrirConversation } from '@/lib/conversations'
 import { calculerScore, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { getStatut } from '@/lib/statuts'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -95,16 +96,8 @@ function dateLabel(iso: string) {
   return `Il y a ${Math.floor(days / 30)} mois`
 }
 
-function statutInfo(s: string) {
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    'envoyée':  { label: 'Envoyée',   bg: `${C.grey}18`,  color: C.grey },
-    'vue':      { label: 'Vue',       bg: `${C.amber}18`, color: C.amber },
-    'en cours': { label: 'En cours',  bg: `${C.blue}14`,  color: C.blue },
-    'acceptée': { label: 'Acceptée',  bg: `${C.vert}14`,  color: C.vert },
-    'refusée':  { label: 'Refusée',   bg: '#FDECEA',      color: C.red },
-  }
-  return map[s] ?? { label: s, bg: C.creme, color: C.grey }
-}
+// Délégué à lib/statuts — source unique partagée avec la page candidat
+const statutInfo = getStatut
 
 function computeScore(cand: Candidature, offre: OffreRow | null): number {
   if (!offre || !cand.profil) return 0
@@ -488,10 +481,15 @@ export default function CandidaturesPage() {
       if (offreData) setOffre(offreData as OffreRow)
 
       // Étape 1 : charger les candidatures
+      // Filtre applicatif : les candidatures annulées par le candidat sont exclues de la vue recruteur.
+      // ⚠️ SPRINT SÉCURITÉ PRÉ-LANCEMENT : durcir en ajoutant AND statut != 'annulée' dans la
+      // politique RLS "Recruteur peut voir ses candidatures" (dashboard Supabase → policies.sql).
+      // Sans ce durcissement, un recruteur peut contourner le filtre via l'API Supabase directement.
       const { data: candidaturesData, error: candError } = await supabase
         .from('candidatures')
         .select('id, created_at, statut, candidat_id, offre_id')
         .eq('offre_id', params.id)
+        .neq('statut', 'annulée')
         .order('created_at', { ascending: false })
 
       if (candError) console.log('erreur candidatures:', candError)
