@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useFavoris } from '@/lib/favoris-context'
+import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -20,27 +21,11 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type FavOffre = {
-  id: string
-  titre: string
-  entreprise_nom?: string
-  type_contrat?: string
-  ville?: string
-  mode_travail?: string
-  salaire_min?: number
-  salaire_max?: number
-  periode_salaire?: string
+type FavOffre = OffreCardData & {
   fav_created_at: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatSalaire(min?: number, max?: number, periode?: string): string | null {
-  if (!min && !max) return null
-  const fmt = (n: number) => n.toLocaleString('fr-FR')
-  const range = min && max ? `${fmt(min)} – ${fmt(max)} €` : `${fmt(min || max!)} €`
-  return range + (periode === 'mensuel' ? '/mois' : '/an')
-}
 
 function ajoutLabel(iso: string): string {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
@@ -112,149 +97,45 @@ function EmptyFavoris({ onBrowse }: { onBrowse: () => void }) {
   )
 }
 
-function FavoriCard({
-  offre,
-  onRemove,
-}: {
-  offre: FavOffre
-  onRemove: () => void
-}) {
-  const router = useRouter()
-  const [hov, setHov] = useState(false)
-  const [starHov, setStarHov] = useState(false)
-
-  const salaire  = formatSalaire(offre.salaire_min, offre.salaire_max, offre.periode_salaire)
-  const initiale = (offre.entreprise_nom ?? 'E')[0].toUpperCase()
-
-  return (
-    <div
-      onClick={() => router.push(`/offres/${offre.id}`)}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        backgroundColor: C.white,
-        borderRadius: 14,
-        border: `1px solid ${hov ? C.sable : '#EDE7DB'}`,
-        borderLeft: `3px solid ${C.terracotta}`,
-        padding: '18px 20px',
-        cursor: 'pointer',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
-        boxShadow: hov ? '0 4px 16px rgba(0,0,0,0.07)' : '0 1px 4px rgba(0,0,0,0.04)',
-        display: 'flex', gap: 14, alignItems: 'flex-start',
-      }}
-    >
-      {/* Logo placeholder */}
-      <div style={{
-        width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-        backgroundColor: `${C.vert}15`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 17, fontWeight: 700, color: C.vert, fontFamily: 'Georgia, serif',
-      }}>
-        {initiale}
-      </div>
-
-      {/* Contenu */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{
-              fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 600, color: C.dark,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {offre.titre}
-            </div>
-            <div style={{ fontSize: 13, color: C.grey, marginTop: 2 }}>
-              {offre.entreprise_nom ?? 'Entreprise'}
-            </div>
-          </div>
-
-          {/* Bouton retrait favori */}
-          <button
-            onClick={e => { e.stopPropagation(); onRemove() }}
-            onMouseEnter={() => setStarHov(true)}
-            onMouseLeave={() => setStarHov(false)}
-            title="Retirer des favoris"
-            style={{
-              width: 32, height: 32, flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8,
-              border: `1px solid ${starHov ? '#F59E0B80' : '#F59E0B50'}`,
-              backgroundColor: starHov ? '#FEF3C760' : '#FEF3C730',
-              cursor: 'pointer', fontSize: 16,
-              transition: 'all 0.15s',
-            }}
-          >
-            ★
-          </button>
-        </div>
-
-        {/* Pills */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, alignItems: 'center' }}>
-          {offre.type_contrat && (
-            <span style={{
-              fontSize: 12, backgroundColor: C.creme, color: C.dark,
-              padding: '3px 9px', borderRadius: 20, fontWeight: 500,
-            }}>
-              {offre.type_contrat}
-            </span>
-          )}
-          {offre.ville && (
-            <span style={{ fontSize: 12, color: C.grey }}>
-              ◎ {offre.ville}
-            </span>
-          )}
-          {offre.mode_travail && (
-            <span style={{
-              fontSize: 12, backgroundColor: C.creme, color: C.grey,
-              padding: '3px 9px', borderRadius: 20,
-            }}>
-              {offre.mode_travail}
-            </span>
-          )}
-        </div>
-
-        {/* Ligne bas */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-          {salaire ? (
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.vert }}>{salaire}</span>
-          ) : <span />}
-          <span style={{ fontSize: 11, color: C.lightGrey }}>
-            {ajoutLabel(offre.fav_created_at)}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FavorisPage() {
   const router = useRouter()
   const { toggleFav } = useFavoris()
 
-  const [offres, setOffres]   = useState<FavOffre[]>([])
-  const [loading, setLoading] = useState(true)
+  const [offres, setOffres]         = useState<FavOffre[]>([])
+  const [applied, setApplied]       = useState<Set<string>>(new Set())
+  const [isConnected, setIsConnected] = useState(false)
+  const [userId, setUserId]         = useState<string | null>(null)
+  const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
+      setIsConnected(true)
+      setUserId(user.id)
 
-      const { data, error } = await supabase
-        .from('offres_favorites')
-        .select(`
-          created_at,
-          offres (
-            id, titre, entreprise_nom, type_contrat, ville,
-            mode_travail, salaire_min, salaire_max, periode_salaire,
-            active, statut_publication
-          )
-        `)
-        .eq('candidat_id', user.id)
-        .order('created_at', { ascending: false })
+      const [favsRes, candidaturesRes] = await Promise.all([
+        supabase
+          .from('offres_favorites')
+          .select(`
+            created_at,
+            offres (
+              id, titre, entreprise_nom, type_contrat, ville,
+              mode_travail, salaire_min, salaire_max, periode_salaire,
+              active, statut_publication
+            )
+          `)
+          .eq('candidat_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('candidatures')
+          .select('offre_id')
+          .eq('candidat_id', user.id),
+      ])
 
-      if (error) { console.error(error.message); setLoading(false); return }
+      if (favsRes.error) { console.error(favsRes.error.message); setLoading(false); return }
 
       type RawRow = {
         created_at: string
@@ -267,7 +148,7 @@ export default function FavorisPage() {
         } | null
       }
 
-      const list: FavOffre[] = ((data as unknown as RawRow[]) ?? [])
+      const list: FavOffre[] = ((favsRes.data as unknown as RawRow[]) ?? [])
         .filter(row => row.offres?.active === true && row.offres.statut_publication === 'publiée')
         .map(row => {
           const o = row.offres!
@@ -286,12 +167,25 @@ export default function FavorisPage() {
         })
 
       setOffres(list)
+      setApplied(new Set(
+        ((candidaturesRes.data ?? []) as { offre_id: string }[]).map(c => c.offre_id)
+      ))
       setLoading(false)
     }
     load()
   }, [router])
 
-  function handleRemove(offreId: string) {
+  async function handleApply(offreId: string) {
+    if (!userId) return
+    const { error } = await supabase.from('candidatures').insert({
+      candidat_id: userId,
+      offre_id:    offreId,
+      statut:      'envoyée',
+    })
+    if (!error) setApplied(prev => new Set([...prev, offreId]))
+  }
+
+  function handleToggleSave(offreId: string) {
     setOffres(prev => prev.filter(o => o.id !== offreId))
     toggleFav(offreId)  // context: optimistic update + DB + rollback si erreur
   }
@@ -301,6 +195,7 @@ export default function FavorisPage() {
     <div style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
       <style suppressHydrationWarning>{`
         @keyframes kavio-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
+        @keyframes kavio-spin  { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
       `}</style>
 
@@ -339,10 +234,15 @@ export default function FavorisPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {offres.map(offre => (
-              <FavoriCard
+              <OffreCard
                 key={offre.id}
                 offre={offre}
-                onRemove={() => handleRemove(offre.id)}
+                applied={applied.has(offre.id)}
+                saved={true}
+                onApply={handleApply}
+                onToggleSave={handleToggleSave}
+                isConnected={isConnected}
+                dateLabel={ajoutLabel(offre.fav_created_at)}
               />
             ))}
           </div>
