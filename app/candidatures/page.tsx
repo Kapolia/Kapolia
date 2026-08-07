@@ -42,7 +42,7 @@ type Candidature = {
   offres: OffreResume | null
 }
 
-type ModalAction = { type: 'annuler' | 'supprimer'; candId: string } | null
+type ModalAction = { candId: string } | null
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,13 +73,9 @@ function dateLabel(iso: string) {
   return `Il y a ${Math.floor(days / 30)} mois`
 }
 
-// Ordre pour le tri "par statut" : les plus positifs d'abord, annulée/refusée en bas
 const STATUT_RANK: Record<string, number> = {
-  'acceptée': 0, 'en cours': 1, 'vue': 2, 'envoyée': 3, 'annulée': 4, 'refusée': 5,
+  'acceptée': 0, 'en cours': 1, 'vue': 2, 'envoyée': 3, 'refusée': 4,
 }
-
-// Statuts pour lesquels "Retirer" a encore un sens
-const STATUTS_RETIRABLE = new Set(['envoyée', 'vue', 'en cours'])
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -137,11 +133,10 @@ function BadgeStatut({ statut }: { statut: string }) {
   )
 }
 
-function ConfirmModal({ title, body, confirmLabel, isDanger, onConfirm, onDismiss }: {
+function ConfirmModal({ title, body, confirmLabel, onConfirm, onDismiss }: {
   title: string
   body: string
   confirmLabel: string
-  isDanger: boolean
   onConfirm: () => void
   onDismiss: () => void
 }) {
@@ -182,13 +177,13 @@ function ConfirmModal({ title, body, confirmLabel, isDanger, onConfirm, onDismis
               color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            {isDanger ? 'Annuler' : 'Garder ma candidature'}
+            Annuler
           </button>
           <button
             onClick={onConfirm}
             style={{
               padding: '9px 18px', borderRadius: 10, border: 'none',
-              backgroundColor: isDanger ? '#C0392B' : C.grey,
+              backgroundColor: C.grey,
               color: C.white, fontSize: 13, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
             }}
@@ -226,17 +221,15 @@ function SortSelector({ value, onChange }: { value: SortKey; onChange: (k: SortK
 }
 
 // Carte complète — vue liste sans panneau ouvert
-function CandidatureCardFull({ cand, onViewOffre, onAnnuler, onSupprimer }: {
+function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
   cand: Candidature
   onViewOffre: () => void
-  onAnnuler: () => void
   onSupprimer: () => void
 }) {
   const [hov, setHov] = useState(false)
   const offre = cand.offres
   const nom   = offre?.entreprise_nom ?? null
   const bg    = avatarColor(cand.offre_id)
-  const canRetire = STATUTS_RETIRABLE.has(cand.statut)
 
   return (
     <div
@@ -245,8 +238,6 @@ function CandidatureCardFull({ cand, onViewOffre, onAnnuler, onSupprimer }: {
       style={{
         backgroundColor: C.white, border: `1px solid ${C.sable}`,
         borderRadius: 16, padding: '20px 24px',
-        opacity: cand.statut === 'annulée' ? 0.65 : 1,
-        transition: 'opacity 0.2s',
       }}
     >
       {/* Ligne principale */}
@@ -311,27 +302,12 @@ function CandidatureCardFull({ cand, onViewOffre, onAnnuler, onSupprimer }: {
         borderTop: `1px solid rgba(232,213,183,0.5)`,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        {canRetire ? (
-          <button
-            onClick={e => { e.stopPropagation(); onAnnuler() }}
-            style={{
-              background: 'none', border: 'none', padding: '0 2px',
-              fontSize: 12, color: C.grey, cursor: 'pointer',
-              fontFamily: 'inherit',
-              textDecoration: 'underline',
-              textDecorationColor: `${C.grey}55`,
-            }}
-          >
-            Retirer ma candidature
-          </button>
-        ) : (
-          <span />
-        )}
+        <span />
 
         {/* Poubelle : visible seulement au survol */}
         <button
           onClick={e => { e.stopPropagation(); onSupprimer() }}
-          title="Supprimer définitivement"
+          title="Supprimer de mon suivi"
           style={{
             background: 'none', border: 'none', padding: '2px 4px',
             fontSize: 13, cursor: 'pointer', lineHeight: 1,
@@ -371,7 +347,6 @@ function CandidatureCardCompact({ cand, isSelected, onViewOffre }: {
         borderRadius: 12, padding: '12px 14px',
         display: 'flex', alignItems: 'center', gap: 10,
         cursor: 'pointer', transition: 'all 0.12s',
-        opacity: cand.statut === 'annulée' ? 0.55 : 1,
       }}
     >
       <div style={{
@@ -434,6 +409,7 @@ export default function CandidaturesPage() {
         .from('candidatures')
         .select('*, offres(id, titre, type_contrat, ville, entreprise_nom, created_at)')
         .eq('candidat_id', user.id)
+        .eq('masquee_candidat', false)
         .order('created_at', { ascending: false })
 
       setCandidatures((data as Candidature[]) ?? [])
@@ -468,22 +444,14 @@ export default function CandidaturesPage() {
 
   // ── Actions candidature ───────────────────────────────────────────────────
 
-  async function handleAnnuler(candId: string) {
-    // Mise à jour optimiste immédiate
-    setCandidatures(prev => prev.map(c => c.id === candId ? { ...c, statut: 'annulée' } : c))
-    setModal(null)
-    await supabase.from('candidatures').update({ statut: 'annulée' }).eq('id', candId)
-  }
-
   async function handleSupprimer(candId: string) {
-    // Retrait immédiat de la liste + fermeture du panneau si c'était la candidature affichée
     setCandidatures(prev => prev.filter(c => c.id !== candId))
     setModal(null)
     if (selectedCandId === candId) {
       setSelectedCandId(null)
       setSelectedOffre(null)
     }
-    await supabase.from('candidatures').delete().eq('id', candId)
+    await supabase.from('candidatures').update({ masquee_candidat: true }).eq('id', candId)
   }
 
   const handleViewOffre = useCallback(async (cand: Candidature) => {
@@ -509,13 +477,12 @@ export default function CandidaturesPage() {
 
   if (loading) return <Spinner fullPage />
 
-  // ── Compteurs (annulée exclue) ────────────────────────────────────────────
+  // ── Compteurs ─────────────────────────────────────────────────────────────
 
-  const actives   = candidatures.filter(c => c.statut !== 'annulée')
-  const total     = actives.length
-  const enAttente = actives.filter(c => c.statut === 'envoyée').length
-  const enCours   = actives.filter(c => c.statut === 'en cours' || c.statut === 'vue').length
-  const acceptees = actives.filter(c => c.statut === 'acceptée').length
+  const total     = candidatures.length
+  const enAttente = candidatures.filter(c => c.statut === 'envoyée').length
+  const enCours   = candidatures.filter(c => c.statut === 'en cours' || c.statut === 'vue').length
+  const acceptees = candidatures.filter(c => c.statut === 'acceptée').length
 
   const selectedCand = candidatures.find(c => c.id === selectedCandId) ?? null
 
@@ -528,17 +495,12 @@ export default function CandidaturesPage() {
 
   function renderModal() {
     if (!modal) return null
-    const isSuppr = modal.type === 'supprimer'
     return (
       <ConfirmModal
-        title={isSuppr ? 'Supprimer définitivement' : 'Retirer ma candidature'}
-        body={isSuppr
-          ? `Cette action est irréversible. La candidature pour « ${modalOffre} » sera supprimée définitivement — elle disparaîtra de votre historique et le recruteur ne pourra plus la retrouver.`
-          : `Vous souhaitez vous retirer de « ${modalOffre} » ? Votre candidature restera dans votre historique, marquée « Annulée ». Le recruteur ne la verra plus.`
-        }
-        confirmLabel={isSuppr ? 'Supprimer définitivement' : 'Retirer ma candidature'}
-        isDanger={isSuppr}
-        onConfirm={() => isSuppr ? handleSupprimer(modal.candId) : handleAnnuler(modal.candId)}
+        title="Supprimer de mon suivi"
+        body={`« ${modalOffre} » n'apparaîtra plus dans votre liste. Le recruteur conserve votre candidature et peut toujours la consulter.`}
+        confirmLabel="Supprimer de mon suivi"
+        onConfirm={() => handleSupprimer(modal.candId)}
         onDismiss={() => setModal(null)}
       />
     )
@@ -612,23 +574,9 @@ export default function CandidaturesPage() {
                     borderBottom: `1px solid ${C.sable}`,
                     display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end',
                   }}>
-                    {STATUTS_RETIRABLE.has(selectedCand.statut) && (
-                      <button
-                        onClick={() => setModal({ type: 'annuler', candId: selectedCand.id })}
-                        style={{
-                          background: 'none', border: 'none', padding: '4px 6px',
-                          fontSize: 12, color: C.grey, cursor: 'pointer',
-                          fontFamily: 'inherit',
-                          textDecoration: 'underline',
-                          textDecorationColor: `${C.grey}55`,
-                        }}
-                      >
-                        Retirer ma candidature
-                      </button>
-                    )}
                     <button
-                      onClick={() => setModal({ type: 'supprimer', candId: selectedCand.id })}
-                      title="Supprimer définitivement"
+                      onClick={() => setModal({ candId: selectedCand.id })}
+                      title="Supprimer de mon suivi"
                       style={{
                         background: 'none', border: 'none', padding: '4px 6px',
                         fontSize: 14, color: C.lightGrey, cursor: 'pointer', lineHeight: 1,
@@ -698,9 +646,9 @@ export default function CandidaturesPage() {
           </p>
         </div>
 
-        {/* Stats — annulée exclue des compteurs */}
+        {/* Stats */}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 36 }}>
-          <StatCard icon="◎" value={total}     label="Total actives"   accent={C.dark} />
+          <StatCard icon="◎" value={total}     label="Total"           accent={C.dark} />
           <StatCard icon="◷" value={enAttente}  label="En attente"      accent={C.grey} />
           <StatCard icon="⬡" value={enCours}    label="En cours / Vues" accent={C.terracotta} />
           <StatCard icon="✦" value={acceptees}  label="Acceptées"       accent={C.vert} />
@@ -746,8 +694,7 @@ export default function CandidaturesPage() {
                   key={cand.id}
                   cand={cand}
                   onViewOffre={() => handleViewOffre(cand)}
-                  onAnnuler={() => setModal({ type: 'annuler', candId: cand.id })}
-                  onSupprimer={() => setModal({ type: 'supprimer', candId: cand.id })}
+                  onSupprimer={() => setModal({ candId: cand.id })}
                 />
               ))}
             </div>

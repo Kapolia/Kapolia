@@ -465,29 +465,12 @@ export default function MesOffresPage() {
 
       const { data, error } = await supabase
         .from('offres')
-        .select('*')
+        .select('*, candidatures(count)')
         .eq('recruteur_id', user.id)
         .order('created_at', { ascending: false })
 
       if (!error && data) {
-        // Compte séparé pour exclure les candidatures 'annulée'.
-        // candidatures(count) est un agrégat PostgREST non filtrable via le client JS.
-        const offreIds = (data as OffreRow[]).map(o => o.id)
-        const countMap = new Map<string, number>()
-        if (offreIds.length) {
-          const { data: countData } = await supabase
-            .from('candidatures')
-            .select('offre_id')
-            .in('offre_id', offreIds)
-            .neq('statut', 'annulée')
-          for (const c of countData ?? []) {
-            countMap.set(c.offre_id, (countMap.get(c.offre_id) ?? 0) + 1)
-          }
-        }
-        setOffres((data as OffreRow[]).map(o => ({
-          ...o,
-          candidatures: [{ count: countMap.get(o.id) ?? 0 }],
-        })))
+        setOffres(data as OffreRow[])
       }
       setLoading(false)
     }

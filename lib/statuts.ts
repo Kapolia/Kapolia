@@ -2,7 +2,7 @@
 // Toute divergence label/couleur entre pages candidat et recruteur passe par ici.
 
 export const STATUT_VALUES = [
-  'envoyée', 'vue', 'en cours', 'acceptée', 'refusée', 'annulée',
+  'envoyée', 'vue', 'en cours', 'acceptée', 'refusée',
 ] as const
 
 export type StatutCandidature = typeof STATUT_VALUES[number]
@@ -20,7 +20,6 @@ export const STATUTS: Record<StatutCandidature, StatutConfig> = {
   'en cours': { label: 'En cours',  bg: 'rgba(37,99,235,0.08)',   color: '#2563EB', dot: '#2563EB' },
   'acceptée': { label: 'Acceptée',  bg: 'rgba(44,74,62,0.08)',    color: '#2C4A3E', dot: '#2C4A3E' },
   'refusée':  { label: 'Refusée',   bg: '#FDECEA',               color: '#C0392B', dot: '#C0392B' },
-  'annulée':  { label: 'Annulée',   bg: 'rgba(107,107,107,0.06)', color: '#9B9B9B', dot: '#C8C8C8' },
 }
 
 export function getStatut(s: string): StatutConfig {

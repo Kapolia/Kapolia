@@ -3,7 +3,8 @@
 /*
   SQL :
   ALTER TABLE public.candidatures ADD COLUMN IF NOT EXISTS statut text default 'envoyée';
-  -- Valeurs : 'envoyée', 'vue', 'en cours', 'acceptée', 'refusée'
+  ALTER TABLE public.candidatures ADD COLUMN IF NOT EXISTS masquee_candidat boolean NOT NULL DEFAULT false;
+  -- Valeurs statut : 'envoyée', 'vue', 'en cours', 'acceptée', 'refusée'
   -- La table profils doit avoir : prenom, nom, domaine, experience, ville,
   --   signature, qualites (text[]), passions (text[]), type_poste, valeur,
   --   disponibilite, projet_phare, photo_url, competences (text[])
@@ -481,15 +482,10 @@ export default function CandidaturesPage() {
       if (offreData) setOffre(offreData as OffreRow)
 
       // Étape 1 : charger les candidatures
-      // Filtre applicatif : les candidatures annulées par le candidat sont exclues de la vue recruteur.
-      // ⚠️ SPRINT SÉCURITÉ PRÉ-LANCEMENT : durcir en ajoutant AND statut != 'annulée' dans la
-      // politique RLS "Recruteur peut voir ses candidatures" (dashboard Supabase → policies.sql).
-      // Sans ce durcissement, un recruteur peut contourner le filtre via l'API Supabase directement.
       const { data: candidaturesData, error: candError } = await supabase
         .from('candidatures')
         .select('id, created_at, statut, candidat_id, offre_id')
         .eq('offre_id', params.id)
-        .neq('statut', 'annulée')
         .order('created_at', { ascending: false })
 
       if (candError) console.log('erreur candidatures:', candError)

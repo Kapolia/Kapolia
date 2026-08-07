@@ -253,12 +253,10 @@ export default function StatistiquesPage() {
       if (!offreData?.length) { setLoading(false); return }
 
       const offreIds = offreData.map((o: Offre) => o.id)
-      // Exclure les candidatures annulées (retrait volontaire du candidat).
       const { data: candRaw, error: candError } = await supabase
         .from('candidatures')
         .select('id, created_at, offre_id, statut, candidat_id')
         .in('offre_id', offreIds)
-        .neq('statut', 'annulée')
 
       if (candError) {
         console.error('statistiques candidatures:', candError.message, candError.code)
