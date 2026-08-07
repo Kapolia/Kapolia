@@ -237,7 +237,7 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
       onMouseLeave={() => setHov(false)}
       style={{
         backgroundColor: C.white, border: `1px solid ${C.sable}`,
-        borderRadius: 16, padding: '20px 24px',
+        borderRadius: 16, padding: '16px 22px',
       }}
     >
       {/* Ligne principale */}
@@ -280,40 +280,37 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
         </div>
 
         <BadgeStatut statut={cand.statut} />
+      </div>
 
+      {/* Actions — Voir l'offre + poubelle sur une seule ligne, sans séparateur */}
+      <div style={{
+        marginTop: 10,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
         <button
           onClick={onViewOffre}
           disabled={!offre}
           style={{
             backgroundColor: 'transparent', border: `1px solid ${C.sable}`,
-            borderRadius: 10, padding: '8px 14px', fontSize: 13,
+            borderRadius: 10, padding: '7px 14px', fontSize: 13,
             color: offre ? C.dark : C.lightGrey,
             cursor: offre ? 'pointer' : 'default',
-            fontWeight: 500, flexShrink: 0, whiteSpace: 'nowrap', fontFamily: 'inherit',
+            fontWeight: 500, whiteSpace: 'nowrap', fontFamily: 'inherit',
           }}
         >
           Voir l&apos;offre →
         </button>
-      </div>
-
-      {/* Pied de carte — actions secondaires */}
-      <div style={{
-        marginTop: 12, paddingTop: 10,
-        borderTop: `1px solid rgba(232,213,183,0.5)`,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
-        <span />
 
         {/* Poubelle : visible seulement au survol */}
         <button
           onClick={e => { e.stopPropagation(); onSupprimer() }}
           title="Supprimer de mon suivi"
           style={{
-            background: 'none', border: 'none', padding: '2px 4px',
+            background: 'none', border: 'none', padding: '4px 6px',
             fontSize: 13, cursor: 'pointer', lineHeight: 1,
-            color: hov ? '#C0392B' : C.lightGrey,
+            color: C.lightGrey,
             opacity: hov ? 1 : 0,
-            transition: 'color 0.15s, opacity 0.15s',
+            transition: 'opacity 0.15s',
           }}
         >
           🗑
