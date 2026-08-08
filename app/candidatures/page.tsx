@@ -285,10 +285,12 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
         <span style={{ fontSize: 12, color: C.lightGrey, flexShrink: 0, whiteSpace: 'nowrap' }}>
           {dateLabel(cand.created_at)}
         </span>
-        <BadgeStatut statut={cand.statut} />
+        <div style={{ flexShrink: 0 }}>
+          <BadgeStatut statut={cand.statut} />
+        </div>
 
         {/* Spacer */}
-        <span style={{ flex: 1 }} />
+        <div style={{ flex: 1, minWidth: 0 }} />
 
         <button
           onClick={onViewOffre}
@@ -304,16 +306,14 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
           Voir l&apos;offre →
         </button>
 
-        {/* Poubelle : visible seulement au survol */}
         <button
           onClick={e => { e.stopPropagation(); onSupprimer() }}
           title="Supprimer de mon suivi"
           style={{
             background: 'none', border: 'none', padding: '4px 4px',
             fontSize: 13, cursor: 'pointer', lineHeight: 1,
-            color: C.lightGrey, flexShrink: 0,
-            opacity: hov ? 1 : 0,
-            transition: 'opacity 0.15s',
+            color: hov ? C.grey : C.lightGrey,
+            flexShrink: 0, transition: 'color 0.15s',
           }}
         >
           🗑
