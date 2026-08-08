@@ -240,8 +240,8 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
         borderRadius: 16, padding: '16px 22px',
       }}
     >
-      {/* Ligne principale */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      {/* Ligne principale — avatar + info seulement, nowrap */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12, flexShrink: 0,
           backgroundColor: bg,
@@ -251,10 +251,11 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
           {initiales(nom)}
         </div>
 
-        <div style={{ flex: 1, minWidth: 180 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontFamily: 'Georgia, serif', fontSize: 15,
             color: C.dark, fontWeight: 600, marginBottom: 4, lineHeight: 1.2,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             {offre?.titre ?? 'Offre supprimée'}
           </div>
@@ -274,26 +275,27 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
             )}
           </div>
         </div>
-
-        <div style={{ fontSize: 12, color: C.lightGrey, flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-          {dateLabel(cand.created_at)}
-        </div>
-
-        <BadgeStatut statut={cand.statut} />
       </div>
 
-      {/* Actions — Voir l'offre + poubelle alignés à droite sur une seule ligne */}
+      {/* Ligne basse unique — date · badge ── Voir l'offre → 🗑 */}
       <div style={{
         marginTop: 10,
-        display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
-        gap: 8, flexWrap: 'nowrap',
+        display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 8,
       }}>
+        <span style={{ fontSize: 12, color: C.lightGrey, flexShrink: 0, whiteSpace: 'nowrap' }}>
+          {dateLabel(cand.created_at)}
+        </span>
+        <BadgeStatut statut={cand.statut} />
+
+        {/* Spacer */}
+        <span style={{ flex: 1 }} />
+
         <button
           onClick={onViewOffre}
           disabled={!offre}
           style={{
             backgroundColor: 'transparent', border: `1px solid ${C.sable}`,
-            borderRadius: 10, padding: '7px 14px', fontSize: 13,
+            borderRadius: 10, padding: '6px 12px', fontSize: 12,
             color: offre ? C.dark : C.lightGrey,
             cursor: offre ? 'pointer' : 'default',
             fontWeight: 500, whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
@@ -307,7 +309,7 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
           onClick={e => { e.stopPropagation(); onSupprimer() }}
           title="Supprimer de mon suivi"
           style={{
-            background: 'none', border: 'none', padding: '4px 6px',
+            background: 'none', border: 'none', padding: '4px 4px',
             fontSize: 13, cursor: 'pointer', lineHeight: 1,
             color: C.lightGrey, flexShrink: 0,
             opacity: hov ? 1 : 0,
