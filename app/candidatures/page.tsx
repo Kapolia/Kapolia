@@ -282,10 +282,11 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
         <BadgeStatut statut={cand.statut} />
       </div>
 
-      {/* Actions — Voir l'offre + poubelle sur une seule ligne, sans séparateur */}
+      {/* Actions — Voir l'offre + poubelle alignés à droite sur une seule ligne */}
       <div style={{
         marginTop: 10,
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+        gap: 8, flexWrap: 'nowrap',
       }}>
         <button
           onClick={onViewOffre}
@@ -295,7 +296,7 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
             borderRadius: 10, padding: '7px 14px', fontSize: 13,
             color: offre ? C.dark : C.lightGrey,
             cursor: offre ? 'pointer' : 'default',
-            fontWeight: 500, whiteSpace: 'nowrap', fontFamily: 'inherit',
+            fontWeight: 500, whiteSpace: 'nowrap', fontFamily: 'inherit', flexShrink: 0,
           }}
         >
           Voir l&apos;offre →
@@ -308,7 +309,7 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
           style={{
             background: 'none', border: 'none', padding: '4px 6px',
             fontSize: 13, cursor: 'pointer', lineHeight: 1,
-            color: C.lightGrey,
+            color: C.lightGrey, flexShrink: 0,
             opacity: hov ? 1 : 0,
             transition: 'opacity 0.15s',
           }}
