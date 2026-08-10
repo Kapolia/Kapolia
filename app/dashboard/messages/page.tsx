@@ -50,6 +50,12 @@ function isImage(nom: string) {
   return IMAGE_EXTS.has(nom.split('.').pop()?.toLowerCase() ?? '')
 }
 
+function formatBytes(b: number) {
+  if (b < 1024) return `${b} o`
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} Ko`
+  return `${(b / 1024 / 1024).toFixed(1)} Mo`
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ReactionData = { emoji: string; count: number; mine: boolean }
@@ -151,7 +157,7 @@ function FileBubble({ nom, url, type, fromMe }: { nom: string; url?: string; typ
     )
   }
   return (
-    <a href={url ?? '#'} target="_blank" rel="noreferrer"
+    <a href={url} target="_blank" rel="noopener noreferrer"
       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, backgroundColor: fromMe ? 'rgba(255,255,255,0.15)' : C.creme, border: `1px solid ${fromMe ? 'rgba(255,255,255,0.2)' : C.sable}`, textDecoration: 'none', maxWidth: 260, cursor: url ? 'pointer' : 'default' }}>
       <span style={{ fontSize: 20 }}>📄</span>
       <span style={{ fontSize: 12, color: fromMe ? 'rgba(255,255,255,0.9)' : C.dark, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
@@ -309,6 +315,7 @@ export default function CandidatMessagesPage() {
   const [input, setInput]             = useState('')
   const [sending, setSending]         = useState(false)
   const [uploading, setUploading]     = useState(false)
+  const [pendingFile, setPendingFile] = useState<{ file: File; nom: string; type: string; preview?: string } | null>(null)
   const [menuId, setMenuId]           = useState<string | null>(null)
   const [menuPos, setMenuPos]         = useState<{ top: number; right: number } | null>(null)
   const [hovConvId, setHovConvId]     = useState<string | null>(null)
@@ -610,25 +617,50 @@ export default function CandidatMessagesPage() {
 
   // ── Send message ──────────────────────────────────────────────────────────
 
-  async function send(contenu: string, pjNom?: string, pjUrl?: string, pjType?: string) {
-    if (!contenu.trim() && !pjNom) return
+  async function send(contenu: string) {
+    const pf = pendingFile
+    if (!contenu.trim() && !pf) return
     if (!activeConv) return
 
     const heure = nowHeure()
+    const tmpId = `tmp-${Date.now()}`
+    const replySnap = replyingTo
+
     const msg: LocalMsg = {
-      id: `tmp-${Date.now()}`, fromMe: true, lu: false, contenu: contenu.trim(), heure,
-      pjUrl, pjNom, pjType,
-      replyToId: replyingTo?.id, replyToContenu: replyingTo?.contenu,
+      id: tmpId, fromMe: true, lu: false, contenu: contenu.trim(), heure,
+      pjNom: pf?.nom, pjUrl: undefined, pjType: pf?.type,
+      replyToId: replySnap?.id, replyToContenu: replySnap?.contenu,
       reactions: [],
     }
     setMsgCache(prev => ({ ...prev, [activeId]: [...(prev[activeId] ?? []), msg] }))
-    setConvs(prev => prev.map(c => c.id === activeId ? { ...c, dernierMsg: contenu || (pjNom ?? ''), derniereHeure: heure } : c))
+    setConvs(prev => prev.map(c => c.id === activeId ? { ...c, dernierMsg: contenu.trim() || (pf?.nom ?? ''), derniereHeure: heure } : c))
     setInput(''); setReplyingTo(null)
     if (textaRef.current) textaRef.current.style.height = 'auto'
+    if (pf?.preview) { setPendingFile(null); URL.revokeObjectURL(pf.preview) } else { setPendingFile(null) }
+
+    let pjNom: string | undefined
+    let pjUrl: string | undefined
+    let pjType: string | undefined
+
+    if (pf && userIdRef.current && activeId) {
+      setUploading(true)
+      const path = `${activeId}/${Date.now()}-${pf.nom}`
+      const { data: up, error } = await supabase.storage.from('pieces-jointes').upload(path, pf.file)
+      if (error) {
+        alert(`Impossible d'envoyer le fichier : ${error.message}`)
+        setUploading(false)
+        setMsgCache(prev => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter(m => m.id !== tmpId) }))
+        return
+      }
+      pjUrl = supabase.storage.from('pieces-jointes').getPublicUrl(path).data.publicUrl
+      pjNom = pf.nom
+      pjType = pf.type
+      setUploading(false)
+      setMsgCache(prev => ({ ...prev, [activeId]: (prev[activeId] ?? []).map(m => m.id === tmpId ? { ...m, pjUrl } : m) }))
+    }
 
     if (userIdRef.current && activeId) {
       setSending(true)
-      const tmpId = msg.id
       const { data: inserted } = await supabase.from('messages').insert({
         expediteur_id: userIdRef.current,
         conversation_id: activeId,
@@ -636,7 +668,7 @@ export default function CandidatMessagesPage() {
         piece_jointe_url: pjUrl ?? null,
         piece_jointe_nom: pjNom ?? null,
         piece_jointe_type: pjType ?? null,
-        reply_to_id: replyingTo?.id ?? null,
+        reply_to_id: replySnap?.id ?? null,
       }).select('id').single()
       if (inserted) {
         setMsgCache(prev => ({
@@ -658,21 +690,15 @@ export default function CandidatMessagesPage() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
   }
 
-  // ── File upload ───────────────────────────────────────────────────────────
+  // ── File selection (no upload yet — upload happens on send) ───────────────
 
-  async function handleFile(e: ChangeEvent<HTMLInputElement>) {
+  function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return; e.target.value = ''
     if (file.size > MAX_BYTES) { alert('Fichier trop volumineux (maximum 10 Mo).'); return }
-    setUploading(true)
-    const path = `${activeId}/${Date.now()}-${file.name}`
-    const { data: up, error } = await supabase.storage.from('pieces-jointes').upload(path, file)
-    const url = (!error && up)
-      ? supabase.storage.from('pieces-jointes').getPublicUrl(path).data.publicUrl
-      : undefined
-    const type = isImage(file.name) ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'file'
-    if (error) console.warn('[upload]', error.message)
-    setUploading(false)
-    await send('', file.name, url, type)
+    const nom = file.name
+    const type = isImage(nom) ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'file'
+    const preview = isImage(nom) ? URL.createObjectURL(file) : undefined
+    setPendingFile({ file, nom, type, preview })
   }
 
   // ── Reactions ─────────────────────────────────────────────────────────────
@@ -919,6 +945,21 @@ export default function CandidatMessagesPage() {
             <ReplyBar reply={replyingTo} nom={activeConv.nom.split(' ')[0]} onCancel={() => setReplyingTo(null)} />
           )}
 
+          {/* Pending file preview */}
+          {pendingFile && (
+            <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.sable}`, backgroundColor: `${C.terracotta}06`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              {pendingFile.preview
+                ? <img src={pendingFile.preview} alt={pendingFile.nom} style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+                : <span style={{ fontSize: 22, flexShrink: 0 }}>📄</span>
+              }
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingFile.nom}</div>
+                <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>{formatBytes(pendingFile.file.size)}</div>
+              </div>
+              <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPendingFile(null) }} title="Retirer" style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4, flexShrink: 0 }}>✕</button>
+            </div>
+          )}
+
           {/* Input bar */}
           <div style={{ padding: '10px 18px', backgroundColor: C.white, borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
             <div style={{ marginBottom: 4, flexShrink: 0 }}>
@@ -937,12 +978,12 @@ export default function CandidatMessagesPage() {
               onKeyDown={handleKey}
               placeholder={`Écrire à ${activeConv.nom.split(' ')[0]}…`}
               rows={1}
-              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
+              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
             />
 
-            <button onClick={() => send(input)} disabled={!input.trim() || sending}
-              style={{ height: 38, padding: '0 18px', borderRadius: 12, border: 'none', backgroundColor: input.trim() && !sending ? C.terracotta : C.sable, color: input.trim() && !sending ? C.white : C.grey, fontSize: 14, fontWeight: 600, cursor: input.trim() && !sending ? 'pointer' : 'default', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {sending ? 'Envoi…' : (
+            <button onClick={() => send(input)} disabled={(!input.trim() && !pendingFile) || sending}
+              style={{ height: 38, padding: '0 18px', borderRadius: 12, border: 'none', backgroundColor: (input.trim() || pendingFile) && !sending ? C.terracotta : C.sable, color: (input.trim() || pendingFile) && !sending ? C.white : C.grey, fontSize: 14, fontWeight: 600, cursor: (input.trim() || pendingFile) && !sending ? 'pointer' : 'default', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {sending || uploading ? 'Envoi…' : (
                 <>Envoyer <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></>
               )}
             </button>
