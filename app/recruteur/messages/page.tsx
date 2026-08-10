@@ -150,7 +150,8 @@ function Avatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
 
 function Checks({ lu }: { lu: boolean }) {
   const col = lu ? C.terracotta : C.lightGrey
-  return <svg width="18" height="11" viewBox="0 0 18 11" fill="none" style={{ flexShrink: 0 }}><polyline points="1,6 4,9 9,2" stroke={col} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /><polyline points="6,6 9,9 14,2" stroke={col} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  const lineStyle = { stroke: col, strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
+  return <svg width="18" height="11" viewBox="0 0 18 11" style={{ flexShrink: 0, overflow: 'visible' }}><polyline points="1,6 4,9 9,2" style={lineStyle} /><polyline points="6,6 9,9 14,2" style={lineStyle} /></svg>
 }
 
 // ─── FileBubble ───────────────────────────────────────────────────────────────
@@ -344,7 +345,9 @@ function MessagesPageInner() {
   const textaRef      = useRef<HTMLTextAreaElement>(null)
   const fileRef       = useRef<HTMLInputElement>(null)
   const userIdRef     = useRef<string | null>(null)
-  const realtimeRef   = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const realtimeRef     = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const realtimeConvsRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const reactIdMapRef    = useRef<Record<string, { message_id: string; user_id: string; emoji: string }>>({})
   const pressTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingRef = useRef<number>(0)
@@ -380,6 +383,37 @@ function MessagesPageInner() {
       const builtGroups = Object.values(map)
       setGroups(builtGroups)
 
+      // ── Realtime : conversations ──────────────────────────────────────
+      realtimeConvsRef.current = supabase
+        .channel('recruteur-conversations')
+        .on('postgres_changes',
+          { event: 'DELETE', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${user.id}` },
+          payload => {
+            const { id: convId } = payload.old as { id: string }
+            setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.filter(c => c.id !== convId) })))
+            setActiveId(cur => cur === convId ? '' : cur)
+            setMsgCache(prev => { const n = { ...prev }; delete n[convId]; return n })
+          }
+        )
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${user.id}` },
+          payload => {
+            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu?: number }
+            setGroups(prev => prev.map(g => ({
+              ...g,
+              convs: g.convs.map(conv => conv.id !== c.id ? conv : {
+                ...conv,
+                dernierMsg:    c.dernier_message  ?? conv.dernierMsg,
+                derniereHeure: c.derniere_activite
+                  ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                  : conv.derniereHeure,
+                nonLu: c.non_lu ?? conv.nonLu,
+              }),
+            })))
+          }
+        )
+        .subscribe()
+
       const convParam = searchParams.get('conv')
       if (convParam) {
         const targetGroup = builtGroups.find(g => g.convs.some(c => c.id === convParam))
@@ -404,7 +438,11 @@ function MessagesPageInner() {
               reactions: [],
             })),
           }))
-          supabase.from('messages').update({ lu: true }).eq('conversation_id', convParam).neq('expediteur_id', user.id).then()
+          await supabase
+            .from('messages')
+            .update({ lu: true })
+            .eq('conversation_id', convParam)
+            .neq('expediteur_id', user.id)
           supabase.from('conversations').update({ non_lu: 0 }).eq('id', convParam).then()
         }
       }
@@ -412,6 +450,7 @@ function MessagesPageInner() {
     init()
     return () => {
       if (realtimeRef.current) supabase.removeChannel(realtimeRef.current)
+      if (realtimeConvsRef.current) supabase.removeChannel(realtimeConvsRef.current)
       if (typingTimer.current) clearTimeout(typingTimer.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -461,7 +500,8 @@ function MessagesPageInner() {
 
       // ── Réactions INSERT (skip ses propres événements — update optimiste déjà appliqué)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions' }, payload => {
-        const r = payload.new as { message_id: string; user_id: string; emoji: string }
+        const r = payload.new as { id: string; message_id: string; user_id: string; emoji: string }
+        if (r.id) reactIdMapRef.current[r.id] = { message_id: r.message_id, user_id: r.user_id, emoji: r.emoji }
         if (r.user_id === userIdRef.current) return
         setMsgCache(prev => {
           const msgs = prev[convId]
@@ -478,22 +518,25 @@ function MessagesPageInner() {
         })
       })
 
-      // ── Réactions DELETE (nécessite REPLICA IDENTITY FULL sur reactions)
+      // ── Réactions DELETE — payload.old ne contient que l'id → résolution via reactIdMapRef
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' }, payload => {
-        console.log('[RT reactions DELETE recruteur] payload.old =', payload.old)
-        const r = payload.old as { message_id: string; user_id: string; emoji: string }
-        if (r.user_id === userIdRef.current) return
+        const { id } = payload.old as { id: string }
+        const cached = reactIdMapRef.current[id]
+        if (!cached) return
+        const { message_id, user_id, emoji } = cached
+        delete reactIdMapRef.current[id]
+        if (user_id === userIdRef.current) return
         setMsgCache(prev => {
           const msgs = prev[convId]
-          if (!msgs?.some(m => m.id === r.message_id)) return prev
+          if (!msgs?.some(m => m.id === message_id)) return prev
           return {
             ...prev,
             [convId]: msgs.map(msg => {
-              if (msg.id !== r.message_id) return msg
+              if (msg.id !== message_id) return msg
               return {
                 ...msg,
                 reactions: msg.reactions
-                  .map(x => x.emoji === r.emoji ? { ...x, count: x.count - 1 } : x)
+                  .map(x => x.emoji === emoji ? { ...x, count: x.count - 1 } : x)
                   .filter(x => x.count > 0),
               }
             }),
@@ -528,10 +571,12 @@ function MessagesPageInner() {
     if (id.startsWith('f')) return
     const { data } = await supabase.from('messages').select('*, reply:reply_to_id(id,contenu)').eq('conversation_id', id).order('created_at')
     if (data?.length) {
-      const { data: reacts } = await supabase.from('reactions').select('emoji,user_id,message_id').in('message_id', data.map(m => m.id))
+      const { data: reacts } = await supabase.from('reactions').select('id,emoji,user_id,message_id').in('message_id', data.map(m => m.id))
       const reactMap: Record<string, ReactionData[]> = {}
+      reactIdMapRef.current = {}
       if (reacts) {
         for (const r of reacts) {
+          reactIdMapRef.current[r.id] = { message_id: r.message_id, user_id: r.user_id, emoji: r.emoji }
           if (!reactMap[r.message_id]) reactMap[r.message_id] = []
           const ex = reactMap[r.message_id].find(x => x.emoji === r.emoji)
           if (ex) { ex.count++; if (r.user_id === userIdRef.current) ex.mine = true }
@@ -540,7 +585,13 @@ function MessagesPageInner() {
       }
       setMsgCache(prev => ({ ...prev, [id]: data.map(m => ({ id: m.id, fromMe: m.expediteur_id === userIdRef.current, lu: m.lu ?? false, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: (m.reply as { contenu?: string } | null)?.contenu, reactions: reactMap[m.id] ?? [] })) }))
     }
-    if (userIdRef.current) supabase.from('messages').update({ lu: true }).eq('conversation_id', id).neq('expediteur_id', userIdRef.current).then()
+    if (userIdRef.current) {
+      await supabase
+        .from('messages')
+        .update({ lu: true })
+        .eq('conversation_id', id)
+        .neq('expediteur_id', userIdRef.current)
+    }
     supabase.from('conversations').update({ non_lu: 0 }).eq('id', id).then()
     const conv = allConvs.find(c => c.id === id)
     if (conv?.candidatId) {
