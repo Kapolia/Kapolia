@@ -351,6 +351,7 @@ function MessagesPageInner() {
   const pressTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingRef = useRef<number>(0)
+  const activeIdRef   = useRef<string>('')
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -384,14 +385,18 @@ function MessagesPageInner() {
       setGroups(builtGroups)
 
       // ── Realtime : conversations ──────────────────────────────────────
+      if (realtimeConvsRef.current) {
+        supabase.removeChannel(realtimeConvsRef.current)
+        realtimeConvsRef.current = null
+      }
       realtimeConvsRef.current = supabase
-        .channel('recruteur-conversations')
+        .channel(`recruteur-conversations-${user.id}`)
         .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${user.id}` },
           payload => {
             const { id: convId } = payload.old as { id: string }
             setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.filter(c => c.id !== convId) })))
-            setActiveId(cur => cur === convId ? '' : cur)
+            if (activeIdRef.current === convId) { setActiveId(''); activeIdRef.current = '' }
             setMsgCache(prev => { const n = { ...prev }; delete n[convId]; return n })
           }
         )
@@ -407,7 +412,7 @@ function MessagesPageInner() {
                 derniereHeure: c.derniere_activite
                   ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                   : conv.derniereHeure,
-                nonLu: c.non_lu ?? conv.nonLu,
+                nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu ?? conv.nonLu),
               }),
             })))
           }
@@ -418,7 +423,7 @@ function MessagesPageInner() {
       if (convParam) {
         const targetGroup = builtGroups.find(g => g.convs.some(c => c.id === convParam))
         if (targetGroup) setExpanded(prev => new Set([...prev, targetGroup.id]))
-        setActiveId(convParam)
+        setActiveId(convParam); activeIdRef.current = convParam
         subscribeToConv(convParam)
         const { data: msgs } = await supabase
           .from('messages')
@@ -449,8 +454,8 @@ function MessagesPageInner() {
     }
     init()
     return () => {
-      if (realtimeRef.current) supabase.removeChannel(realtimeRef.current)
-      if (realtimeConvsRef.current) supabase.removeChannel(realtimeConvsRef.current)
+      if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null }
+      if (realtimeConvsRef.current) { supabase.removeChannel(realtimeConvsRef.current); realtimeConvsRef.current = null }
       if (typingTimer.current) clearTimeout(typingTimer.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -478,14 +483,19 @@ function MessagesPageInner() {
     if (!convId) return
 
     realtimeRef.current = supabase
-      .channel(`conv-${convId}`)
+      .channel(`conv-${convId}-${Date.now()}`)
 
       // ── Nouveaux messages ─────────────────────────────────────────────
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` }, payload => {
         const m = payload.new as { id: string; expediteur_id: string; contenu: string; created_at: string; lu: boolean; piece_jointe_url?: string; piece_jointe_nom?: string; piece_jointe_type?: string; reply_to_id?: string }
         if (m.expediteur_id === userIdRef.current) return
-        setMsgCache(prev => ({ ...prev, [convId]: [...(prev[convId] ?? []), { id: m.id, fromMe: false, lu: false, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [] }] }))
-        setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.map(c => c.id === convId ? { ...c, dernierMsg: m.contenu || (m.piece_jointe_nom ?? ''), nonLu: c.nonLu + 1 } : c) })))
+        const isActive = convId === activeIdRef.current
+        setMsgCache(prev => ({ ...prev, [convId]: [...(prev[convId] ?? []), { id: m.id, fromMe: false, lu: isActive, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [] }] }))
+        setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.map(c => c.id === convId ? { ...c, dernierMsg: m.contenu || (m.piece_jointe_nom ?? ''), ...(isActive ? {} : { nonLu: c.nonLu + 1 }) } : c) })))
+        if (isActive && userIdRef.current) {
+          supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
+          supabase.from('conversations').update({ non_lu: 0 }).eq('id', convId).then()
+        }
       })
 
       // ── Lecture (flèches orange) ──────────────────────────────────────
@@ -564,7 +574,7 @@ function MessagesPageInner() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   async function selectConv(id: string) {
-    setActiveId(id); setMenuId(null); setProfilOpen(false); setReplyingTo(null)
+    setActiveId(id); activeIdRef.current = id; setMenuId(null); setProfilOpen(false); setReplyingTo(null)
     setActiveProfil(FICT_PROFILS[id] ?? null)
     setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.map(c => c.id === id ? { ...c, nonLu: 0 } : c) })))
     subscribeToConv(id)
@@ -693,7 +703,7 @@ function MessagesPageInner() {
     const conv = allConvs.find(c => c.id === id)
     if (!conv || !confirm(`Supprimer la conversation avec ${conv.nom} ?`)) return
     setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.filter(c => c.id !== id) })))
-    if (activeId === id) setActiveId(allConvs.find(c => c.id !== id)?.id ?? '')
+    if (activeId === id) { const nextId = allConvs.find(c => c.id !== id)?.id ?? ''; setActiveId(nextId); activeIdRef.current = nextId }
     if (!id.startsWith('f')) supabase.from('conversations').delete().eq('id', id).then()
   }, [allConvs, activeId])
 

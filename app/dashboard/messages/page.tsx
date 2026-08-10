@@ -330,6 +330,7 @@ export default function CandidatMessagesPage() {
   const reactIdMapRef    = useRef<Record<string, { message_id: string; user_id: string; emoji: string }>>({})
   const typingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingRef = useRef<number>(0)
+  const activeIdRef   = useRef<string>('')
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -380,18 +381,22 @@ export default function CandidatMessagesPage() {
         }
       })
       setConvs(loaded)
-      if (loaded.length) setActiveId(loaded[0].id)
+      if (loaded.length) { setActiveId(loaded[0].id); activeIdRef.current = loaded[0].id }
       setLoadingConvs(false)
 
       // ── Realtime : conversations ──────────────────────────────────────
+      if (realtimeConvsRef.current) {
+        supabase.removeChannel(realtimeConvsRef.current)
+        realtimeConvsRef.current = null
+      }
       realtimeConvsRef.current = supabase
-        .channel('candidat-conversations')
+        .channel(`candidat-conversations-${user.id}`)
         .on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${user.id}` },
           payload => {
             const { id: convId } = payload.old as { id: string }
             setConvs(prev => prev.filter(c => c.id !== convId))
-            setActiveId(cur => cur === convId ? '' : cur)
+            if (activeIdRef.current === convId) { setActiveId(''); activeIdRef.current = '' }
             setMsgCache(prev => { const n = { ...prev }; delete n[convId]; return n })
           }
         )
@@ -405,7 +410,7 @@ export default function CandidatMessagesPage() {
               derniereHeure: c.derniere_activite
                 ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : conv.derniereHeure,
-              nonLu: c.non_lu ?? conv.nonLu,
+              nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu ?? conv.nonLu),
             }))
           }
         )
@@ -413,8 +418,8 @@ export default function CandidatMessagesPage() {
     }
     init()
     return () => {
-      if (realtimeRef.current) supabase.removeChannel(realtimeRef.current)
-      if (realtimeConvsRef.current) supabase.removeChannel(realtimeConvsRef.current)
+      if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null }
+      if (realtimeConvsRef.current) { supabase.removeChannel(realtimeConvsRef.current); realtimeConvsRef.current = null }
       if (typingTimer.current) clearTimeout(typingTimer.current)
     }
   }, [])
@@ -438,7 +443,7 @@ export default function CandidatMessagesPage() {
     if (!convId) return
 
     realtimeRef.current = supabase
-      .channel(`conv-${convId}`)
+      .channel(`conv-${convId}-${Date.now()}`)
 
       // ── Nouveaux messages ─────────────────────────────────────────────
       .on('postgres_changes',
@@ -449,18 +454,23 @@ export default function CandidatMessagesPage() {
             piece_jointe_url?: string; piece_jointe_nom?: string; piece_jointe_type?: string; reply_to_id?: string
           }
           if (m.expediteur_id === userIdRef.current) return
+          const isActive = convId === activeIdRef.current
           setMsgCache(prev => ({
             ...prev,
             [convId]: [...(prev[convId] ?? []), {
-              id: m.id, fromMe: false, lu: false, contenu: m.contenu,
+              id: m.id, fromMe: false, lu: isActive, contenu: m.contenu,
               heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
               pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type,
               replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [],
             }],
           }))
           setConvs(prev => prev.map(c =>
-            c.id === convId ? { ...c, dernierMsg: m.contenu || (m.piece_jointe_nom ?? ''), nonLu: c.nonLu + 1 } : c
+            c.id === convId ? { ...c, dernierMsg: m.contenu || (m.piece_jointe_nom ?? ''), ...(isActive ? {} : { nonLu: c.nonLu + 1 }) } : c
           ))
+          if (isActive && userIdRef.current) {
+            supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
+            supabase.from('conversations').update({ non_lu: 0 }).eq('id', convId).then()
+          }
         }
       )
 
@@ -543,7 +553,7 @@ export default function CandidatMessagesPage() {
   // ── Select conversation ────────────────────────────────────────────────────
 
   async function selectConv(id: string) {
-    setActiveId(id); setMenuId(null); setReplyingTo(null)
+    setActiveId(id); activeIdRef.current = id; setMenuId(null); setReplyingTo(null)
     setConvs(prev => prev.map(c => c.id === id ? { ...c, nonLu: 0 } : c))
     subscribeToConv(id)
     if (id.startsWith('f')) return
@@ -726,7 +736,8 @@ export default function CandidatMessagesPage() {
     setConvs(prev => prev.filter(c => c.id !== id))
     if (activeId === id) {
       const next = convs.find(c => c.id !== id)
-      setActiveId(next?.id ?? '')
+      const nextId = next?.id ?? ''
+      setActiveId(nextId); activeIdRef.current = nextId
     }
     if (!id.startsWith('f')) supabase.from('conversations').delete().eq('id', id).then()
   }, [convs, activeId])

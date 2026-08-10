@@ -17,14 +17,8 @@ const C = {
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
-const NAV: {
-  id: string
-  label: string
-  badge?: number
-  href: string
-  activeExact?: boolean
-}[] = [
-  { id: 'messages', label: 'Messages',           href: '/recruteur/messages',      badge: 3 },
+const NAV = [
+  { id: 'messages', label: 'Messages',           href: '/recruteur/messages' },
   { id: 'offres',   label: 'Mes offres',          href: '/recruteur/offres',        activeExact: true },
   { id: 'publier',  label: 'Publier une offre',   href: '/recruteur/offres/publier' },
   { id: 'stats',    label: 'Statistiques',        href: '/recruteur/statistiques' },
@@ -167,6 +161,34 @@ export default function RecruiterSidebar({
   const router   = useRouter()
   const pathname = usePathname()
 
+  const [msgCount, setMsgCount] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    let ch: ReturnType<typeof supabase.channel> | null = null
+
+    async function fetchMsgTotal(uid: string) {
+      const { data } = await supabase
+        .from('conversations')
+        .select('non_lu')
+        .eq('recruteur_id', uid)
+      const total = (data ?? []).reduce((s: number, r: { non_lu: number | null }) => s + (r.non_lu ?? 0), 0)
+      setMsgCount(total)
+    }
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      const uid = user.id
+      fetchMsgTotal(uid)
+      ch = supabase
+        .channel(`sidebar-recru-convs-${uid}-${Date.now()}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${uid}` },
+          () => fetchMsgTotal(uid))
+        .subscribe()
+    })
+
+    return () => { if (ch) supabase.removeChannel(ch) }
+  }, [])
+
   function isActive(item: typeof NAV[number]) {
     if (item.activeExact) return pathname === item.href
     return pathname === item.href || pathname.startsWith(item.href + '/')
@@ -221,14 +243,14 @@ export default function RecruiterSidebar({
             >
               <NavIcon id={item.id} active={active} />
               <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge !== undefined && (
+              {item.id === 'messages' && msgCount !== undefined && msgCount > 0 && (
                 <span style={{
                   fontSize: '10px', fontWeight: '700', minWidth: '18px', textAlign: 'center',
                   padding: '1px 5px', borderRadius: '20px',
                   backgroundColor: active ? C.terracotta : 'rgba(255,255,255,0.12)',
                   color: active ? C.white : 'rgba(255,255,255,0.6)',
                 }}>
-                  {item.badge}
+                  {msgCount > 9 ? '9+' : msgCount}
                 </span>
               )}
             </button>

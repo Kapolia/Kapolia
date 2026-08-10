@@ -235,8 +235,35 @@ export default function CandidatSidebar({
   }>({ prenom, nom, avatar_url: avatarUrl, avatar_type: avatarType })
 
   const { favIds, loaded: favsLoaded } = useFavoris()
-  // undefined tant que non chargé → badge masqué (pas de "0" qui clignote)
   const favCount = favsLoaded ? favIds.size : undefined
+
+  const [msgCount, setMsgCount] = useState<number | undefined>(undefined)
+
+  useEffect(() => {
+    let ch: ReturnType<typeof supabase.channel> | null = null
+
+    async function fetchMsgTotal(uid: string) {
+      const { data } = await supabase
+        .from('conversations')
+        .select('non_lu')
+        .eq('candidat_id', uid)
+      const total = (data ?? []).reduce((s: number, r: { non_lu: number | null }) => s + (r.non_lu ?? 0), 0)
+      setMsgCount(total)
+    }
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      const uid = user.id
+      fetchMsgTotal(uid)
+      ch = supabase
+        .channel(`sidebar-cand-convs-${uid}-${Date.now()}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${uid}` },
+          () => fetchMsgTotal(uid))
+        .subscribe()
+    })
+
+    return () => { if (ch) supabase.removeChannel(ch) }
+  }, [])
 
   useEffect(() => {
     async function fetchProfile() {
@@ -288,7 +315,7 @@ export default function CandidatSidebar({
             key={item.id}
             item={item}
             active={isActive(item)}
-            badge={item.id === 'favoris' ? favCount : undefined}
+            badge={item.id === 'favoris' ? favCount : item.id === 'messages' ? msgCount : undefined}
           />
         ))}
       </nav>
