@@ -51,6 +51,20 @@ function isImage(nom: string) {
   return IMAGE_EXTS.has(nom.split('.').pop()?.toLowerCase() ?? '')
 }
 
+function msgDate(isoStr: string): string {
+  const d = new Date(isoStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function dateLabel(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const diff = Math.round((today.getTime() - d.getTime()) / 86400000)
+  if (diff === 0) return "Aujourd'hui"
+  if (diff === 1) return 'Hier'
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+}
+
 function formatBytes(b: number) {
   if (b < 1024) return `${b} o`
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} Ko`
@@ -72,6 +86,7 @@ type LocalConv = {
 
 type LocalMsg = {
   id: string; fromMe: boolean; contenu: string; heure: string; lu: boolean
+  date?: string  // YYYY-MM-DD, pour séparateurs de date
   pjUrl?: string; pjNom?: string; pjType?: string
   replyToId?: string; replyToContenu?: string
   reactions: ReactionData[]
@@ -536,6 +551,7 @@ function CandidatMessagesPageInner() {
             [convId]: [...(prev[convId] ?? []), {
               id: m.id, fromMe: false, lu: isActive, contenu: m.contenu,
               heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+              date: msgDate(m.created_at),
               pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type,
               replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [],
             }],
@@ -666,6 +682,7 @@ function CandidatMessagesPageInner() {
           lu: m.lu ?? false,
           contenu: m.contenu,
           heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          date: msgDate(m.created_at),
           pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type,
           replyToId: m.reply_to_id,
           replyToContenu: (m.reply as { contenu?: string } | null)?.contenu,
@@ -697,6 +714,7 @@ function CandidatMessagesPageInner() {
 
     const msg: LocalMsg = {
       id: tmpId, fromMe: true, lu: false, contenu: contenu.trim(), heure,
+      date: msgDate(new Date().toISOString()),
       pjNom: pf?.nom, pjUrl: undefined, pjType: pf?.type,
       replyToId: replySnap?.id, replyToContenu: replySnap?.contenu,
       reactions: [],
@@ -1019,49 +1037,68 @@ function CandidatMessagesPageInner() {
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
             {activeMsgs.map((msg, i) => {
-              const prevSame = i > 0 && activeMsgs[i-1].fromMe === msg.fromMe
+              const prev = activeMsgs[i - 1]
+              const next = activeMsgs[i + 1]
+              const dateChanged  = msg.date && (!prev || prev.date !== msg.date)
+              const isFirstGroup = !prev || prev.fromMe !== msg.fromMe || dateChanged
+              const isLastGroup  = !next || next.fromMe !== msg.fromMe || (msg.date && next.date !== msg.date)
+              const mt = i === 0 || dateChanged ? 0 : isFirstGroup ? 14 : 3
               return (
-                <div key={msg.id}
-                  onMouseEnter={() => setHovMsgId(msg.id)}
-                  onMouseLeave={() => setHovMsgId(null)}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: msg.fromMe ? 'flex-end' : 'flex-start', marginTop: prevSame ? -4 : 0 }}>
+                <React.Fragment key={msg.id}>
 
-                  {/* Reply quote */}
-                  {msg.replyToId && (
-                    <div style={{ maxWidth: '66%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      ↩ {msg.replyToContenu ?? activeMsgs.find(m => m.id === msg.replyToId)?.contenu ?? '…'}
+                  {/* Date separator */}
+                  {dateChanged && msg.date && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: `${i === 0 ? 0 : 16}px 0 14px` }}>
+                      <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
+                      <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' }}>{dateLabel(msg.date)}</span>
+                      <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
                     </div>
                   )}
 
-                  {/* Bubble + hover actions */}
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: msg.fromMe ? 'row-reverse' : 'row' }}>
-                    {msg.pjNom
-                      ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
-                      : (
-                        <div style={{ maxWidth: '68%', padding: '10px 16px', borderRadius: 15, backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                          {msg.contenu}
-                        </div>
-                      )
-                    }
-                    <div style={{ display: 'flex', gap: 3, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s', flexShrink: 0 }}>
-                      <ActionBtn title="Répondre" onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}>↩</ActionBtn>
-                      <ActionBtn title="Réagir" onClick={e => openReactionPicker(e, msg.id)}>😊</ActionBtn>
+                  <div
+                    onMouseEnter={() => setHovMsgId(msg.id)}
+                    onMouseLeave={() => setHovMsgId(null)}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: msg.fromMe ? 'flex-end' : 'flex-start', marginTop: mt }}>
+
+                    {/* Reply quote */}
+                    {msg.replyToId && (
+                      <div style={{ maxWidth: '66%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        ↩ {msg.replyToContenu ?? activeMsgs.find(m => m.id === msg.replyToId)?.contenu ?? '…'}
+                      </div>
+                    )}
+
+                    {/* Bubble + hover actions */}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: msg.fromMe ? 'row-reverse' : 'row' }}>
+                      {msg.pjNom
+                        ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
+                        : (
+                          <div style={{ maxWidth: '68%', padding: '10px 16px', borderRadius: 15, backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                            {msg.contenu}
+                          </div>
+                        )
+                      }
+                      <div style={{ display: 'flex', gap: 3, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s', flexShrink: 0 }}>
+                        <ActionBtn title="Répondre" onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}>↩</ActionBtn>
+                        <ActionBtn title="Réagir" onClick={e => openReactionPicker(e, msg.id)}>😊</ActionBtn>
+                      </div>
+                    </div>
+
+                    {/* Time + checks — dernier message du groupe seulement */}
+                    {isLastGroup && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, paddingInline: 4 }}>
+                        <span style={{ fontSize: 11, color: C.grey }}>{msg.heure}</span>
+                        {msg.fromMe && <Checks lu={msg.lu} />}
+                      </div>
+                    )}
+
+                    {/* Reactions */}
+                    <div style={{ paddingInline: 4 }}>
+                      <ReactionsBar reactions={msg.reactions} onToggle={e => toggleReaction(msg.id, e)} />
                     </div>
                   </div>
-
-                  {/* Time + checks */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2, paddingInline: 4 }}>
-                    <span style={{ fontSize: 11, color: C.grey }}>{msg.heure}</span>
-                    {msg.fromMe && <Checks lu={msg.lu} />}
-                  </div>
-
-                  {/* Reactions */}
-                  <div style={{ paddingInline: 4 }}>
-                    <ReactionsBar reactions={msg.reactions} onToggle={e => toggleReaction(msg.id, e)} />
-                  </div>
-                </div>
+                </React.Fragment>
               )
             })}
 
