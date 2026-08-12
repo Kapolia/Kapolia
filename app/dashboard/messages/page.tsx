@@ -23,9 +23,10 @@
   ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
 
@@ -304,8 +305,9 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function CandidatMessagesPage() {
+function CandidatMessagesPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [userProfil, setUserProfil]   = useState<AvatarProfil>({})
   const [convs, setConvs]             = useState<LocalConv[]>([])
@@ -359,7 +361,7 @@ export default function CandidatMessagesPage() {
 
       const { data: convsRaw, error } = await supabase
         .from('conversations')
-        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu, epinglee, offres(titre)')
+        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, epinglee, offres(titre)')
         .eq('candidat_id', user.id)
         .eq('masquee_candidat', false)
         .order('derniere_activite', { ascending: false })
@@ -388,11 +390,10 @@ export default function CandidatMessagesPage() {
           derniereHeure: row.derniere_activite
             ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
             : '',
-          nonLu: row.non_lu ?? 0, epinglee: row.epinglee ?? false,
+          nonLu: row.non_lu_candidat ?? 0, epinglee: row.epinglee ?? false,
         }
       })
       setConvs(loaded)
-      if (loaded.length) { setActiveId(loaded[0].id); activeIdRef.current = loaded[0].id }
       setLoadingConvs(false)
 
       // ── Realtime : conversations ──────────────────────────────────────
@@ -413,22 +414,50 @@ export default function CandidatMessagesPage() {
         )
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${user.id}` },
-          payload => {
-            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu?: number }
-            setConvs(prev => prev.map(conv => conv.id !== c.id ? conv : {
-              ...conv,
-              dernierMsg:    c.dernier_message  ?? conv.dernierMsg,
-              derniereHeure: c.derniere_activite
-                ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-                : conv.derniereHeure,
-              nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu ?? conv.nonLu),
-            }))
+          async payload => {
+            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu_candidat?: number; masquee_candidat?: boolean; recruteur_id?: string; offre_id?: string }
+            let convInList = false
+            setConvs(prev => {
+              if (!prev.some(conv => conv.id === c.id)) return prev
+              convInList = true
+              return prev.map(conv => conv.id !== c.id ? conv : {
+                ...conv,
+                dernierMsg:    c.dernier_message  ?? conv.dernierMsg,
+                derniereHeure: c.derniere_activite
+                  ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                  : conv.derniereHeure,
+                nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu_candidat ?? conv.nonLu),
+              })
+            })
+            if (!convInList && c.masquee_candidat === false && c.recruteur_id) {
+              const [{ data: offre }, { data: profil }] = await Promise.all([
+                c.offre_id
+                  ? supabase.from('offres').select('titre').eq('id', c.offre_id).single()
+                  : Promise.resolve({ data: null }),
+                supabase.from('profils').select('prenom, nom').eq('user_id', c.recruteur_id).single(),
+              ])
+              const p   = profil as { prenom?: string; nom?: string } | null
+              const nom = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Recruteur'
+              const restored: LocalConv = {
+                id: c.id, recruteurId: c.recruteur_id,
+                nom, initiales: nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
+                avatarBg: '#4A7C6E', entreprise: '',
+                offreTitre: (offre as { titre?: string } | null)?.titre ?? '',
+                offreId: c.offre_id ?? undefined,
+                dernierMsg: c.dernier_message ?? '',
+                derniereHeure: c.derniere_activite
+                  ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                  : '',
+                nonLu: c.non_lu_candidat ?? 0, epinglee: false,
+              }
+              setConvs(prev => prev.some(x => x.id === c.id) ? prev : [restored, ...prev])
+            }
           }
         )
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${user.id}` },
           async payload => {
-            const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu?: number; epinglee?: boolean }
+            const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_candidat?: number; epinglee?: boolean }
             const [{ data: offre }, { data: profil }] = await Promise.all([
               row.offre_id
                 ? supabase.from('offres').select('titre').eq('id', row.offre_id).single()
@@ -447,7 +476,7 @@ export default function CandidatMessagesPage() {
               derniereHeure: row.derniere_activite
                 ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : '',
-              nonLu: row.non_lu ?? 0, epinglee: row.epinglee ?? false,
+              nonLu: row.non_lu_candidat ?? 0, epinglee: row.epinglee ?? false,
             }
             setConvs(prev => {
               if (prev.some(c => c.id === row.id)) return prev
@@ -456,6 +485,12 @@ export default function CandidatMessagesPage() {
           }
         )
         .subscribe()
+
+      // Accès direct via ?conv=<id>
+      const convParam = searchParams.get('conv')
+      if (convParam && loaded.some(c => c.id === convParam)) {
+        selectConv(convParam)
+      }
     }
     init()
     return () => {
@@ -510,7 +545,7 @@ export default function CandidatMessagesPage() {
           ))
           if (isActive && userIdRef.current) {
             supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
-            supabase.from('conversations').update({ non_lu: 0 }).eq('id', convId).then()
+            supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', convId).then()
           }
         }
       )
@@ -646,7 +681,7 @@ export default function CandidatMessagesPage() {
         .eq('conversation_id', id)
         .neq('expediteur_id', userIdRef.current)
     }
-    supabase.from('conversations').update({ non_lu: 0 }).eq('id', id).then()
+    supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', id).then()
   }
 
   // ── Send message ──────────────────────────────────────────────────────────
@@ -1084,13 +1119,22 @@ export default function CandidatMessagesPage() {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center', color: C.grey }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>💬</div>
-            <div style={{ fontSize: 15 }}>Sélectionnez une conversation</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+          <div style={{ textAlign: 'center', maxWidth: 300 }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
+            <div style={{ fontFamily: 'Georgia, serif', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
+            <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+export default function CandidatMessagesPage() {
+  return (
+    <Suspense>
+      <CandidatMessagesPageInner />
+    </Suspense>
   )
 }

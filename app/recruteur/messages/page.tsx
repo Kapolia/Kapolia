@@ -372,27 +372,66 @@ function MessagesPageInner() {
       userIdRef.current = user.id
       const { data, error } = await supabase.from('conversations').select('*, offres(titre)').eq('recruteur_id', user.id).eq('masquee_recruteur', false)
       if (error) { console.error('conversations select', error.message, error.code, error.details, error.hint); return }
-      if (!data || !data.length) return
 
-      const candidatIds = [...new Set(data.map(r => r.candidat_id).filter(Boolean))]
-      const { data: profilsData } = candidatIds.length
-        ? await supabase.from('profils').select('user_id, prenom, nom').in('user_id', candidatIds)
-        : { data: [] }
-      const profilMap: Record<string, { prenom?: string; nom?: string }> = {}
-      for (const p of profilsData ?? []) profilMap[p.user_id] = p
+      let builtGroups: OffreGroup[] = []
+      if (data && data.length) {
+        const candidatIds = [...new Set(data.map(r => r.candidat_id).filter(Boolean))]
+        const { data: profilsData } = candidatIds.length
+          ? await supabase.from('profils').select('user_id, prenom, nom').in('user_id', candidatIds)
+          : { data: [] }
+        const profilMap: Record<string, { prenom?: string; nom?: string }> = {}
+        for (const p of profilsData ?? []) profilMap[p.user_id] = p
 
-      const map: Record<string, OffreGroup> = {}
-      for (const row of data) {
-        const offreId = row.offre_id ?? 'sans-offre'
-        const titre   = (row.offres as { titre?: string } | null)?.titre ?? 'Sans offre'
-        const p       = profilMap[row.candidat_id]
-        const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
-        const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0,2)
-        if (!map[offreId]) map[offreId] = { id: offreId, titre, convs: [] }
-        map[offreId].convs.push({ id: row.id, candidatId: row.candidat_id, nom, initiales: init, avatarBg: '#4A7C6E', offreId, offreTitre: titre, dernierMsg: row.dernier_message ?? '', derniereHeure: row.derniere_activite ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '', nonLu: row.non_lu ?? 0, epinglee: row.epinglee ?? false, positionOrdre: row.position_ordre ?? 0 })
+        const map: Record<string, OffreGroup> = {}
+        for (const row of data) {
+          const offreId = row.offre_id ?? 'sans-offre'
+          const titre   = (row.offres as { titre?: string } | null)?.titre ?? 'Sans offre'
+          const p       = profilMap[row.candidat_id]
+          const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
+          const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0,2)
+          if (!map[offreId]) map[offreId] = { id: offreId, titre, convs: [] }
+          map[offreId].convs.push({ id: row.id, candidatId: row.candidat_id, nom, initiales: init, avatarBg: '#4A7C6E', offreId, offreTitre: titre, dernierMsg: row.dernier_message ?? '', derniereHeure: row.derniere_activite ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '', nonLu: row.non_lu_recruteur ?? 0, epinglee: row.epinglee ?? false, positionOrdre: row.position_ordre ?? 0 })
+        }
+        builtGroups = Object.values(map)
+        setGroups(builtGroups)
       }
-      const builtGroups = Object.values(map)
-      setGroups(builtGroups)
+
+      async function reouvrirSiMasquee(convId: string) {
+        await supabase.from('conversations')
+          .update({ masquee_recruteur: false, masquee_candidat: false })
+          .eq('id', convId)
+        const { data: row } = await supabase.from('conversations')
+          .select('candidat_id, offre_id, dernier_message, derniere_activite, non_lu_recruteur, epinglee, position_ordre')
+          .eq('id', convId).single()
+        if (!row) return
+        const r = row as { candidat_id: string; offre_id?: string; dernier_message?: string; derniere_activite?: string; non_lu_recruteur?: number; epinglee?: boolean; position_ordre?: number }
+        const [{ data: offre }, { data: profil }] = await Promise.all([
+          r.offre_id ? supabase.from('offres').select('titre').eq('id', r.offre_id).single() : Promise.resolve({ data: null }),
+          supabase.from('profils').select('prenom, nom').eq('user_id', r.candidat_id).single(),
+        ])
+        const offreId = r.offre_id ?? 'sans-offre'
+        const titre   = (offre as { titre?: string } | null)?.titre ?? 'Sans offre'
+        const p       = profil as { prenom?: string; nom?: string } | null
+        const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
+        const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2)
+        const restored: LocalConv = {
+          id: convId, candidatId: r.candidat_id,
+          nom, initiales: init, avatarBg: '#4A7C6E',
+          offreId, offreTitre: titre,
+          dernierMsg: r.dernier_message ?? '',
+          derniereHeure: r.derniere_activite
+            ? new Date(r.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            : '',
+          nonLu: r.non_lu_recruteur ?? 0, epinglee: r.epinglee ?? false, positionOrdre: r.position_ordre ?? 0,
+        }
+        setGroups(prev => {
+          if (prev.some(g => g.convs.some(c => c.id === convId))) return prev
+          const existing = prev.find(g => g.id === offreId)
+          if (existing) return prev.map(g => g.id === offreId ? { ...g, convs: [...g.convs, restored] } : g)
+          return [...prev, { id: offreId, titre, convs: [restored] }]
+        })
+        setExpanded(prev => new Set([...prev, offreId]))
+      }
 
       // ── Realtime : conversations ──────────────────────────────────────
       if (realtimeConvsRef.current) {
@@ -412,26 +451,60 @@ function MessagesPageInner() {
         )
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${user.id}` },
-          payload => {
-            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu?: number }
-            setGroups(prev => prev.map(g => ({
-              ...g,
-              convs: g.convs.map(conv => conv.id !== c.id ? conv : {
-                ...conv,
-                dernierMsg:    c.dernier_message  ?? conv.dernierMsg,
+          async payload => {
+            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu_recruteur?: number; masquee_recruteur?: boolean; candidat_id?: string; offre_id?: string }
+            let convInGroups = false
+            setGroups(prev => {
+              if (!prev.some(g => g.convs.some(conv => conv.id === c.id))) return prev
+              convInGroups = true
+              return prev.map(g => ({
+                ...g,
+                convs: g.convs.map(conv => conv.id !== c.id ? conv : {
+                  ...conv,
+                  dernierMsg:    c.dernier_message  ?? conv.dernierMsg,
+                  derniereHeure: c.derniere_activite
+                    ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                    : conv.derniereHeure,
+                  nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu_recruteur ?? conv.nonLu),
+                }),
+              }))
+            })
+            if (!convInGroups && c.masquee_recruteur === false && c.candidat_id) {
+              const [{ data: offre }, { data: profil }] = await Promise.all([
+                c.offre_id
+                  ? supabase.from('offres').select('titre').eq('id', c.offre_id).single()
+                  : Promise.resolve({ data: null }),
+                supabase.from('profils').select('prenom, nom').eq('user_id', c.candidat_id).single(),
+              ])
+              const offreId = c.offre_id ?? 'sans-offre'
+              const titre   = (offre as { titre?: string } | null)?.titre ?? 'Sans offre'
+              const p       = profil as { prenom?: string; nom?: string } | null
+              const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
+              const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2)
+              const restored: LocalConv = {
+                id: c.id, candidatId: c.candidat_id,
+                nom, initiales: init, avatarBg: '#4A7C6E',
+                offreId, offreTitre: titre,
+                dernierMsg: c.dernier_message ?? '',
                 derniereHeure: c.derniere_activite
                   ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-                  : conv.derniereHeure,
-                nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu ?? conv.nonLu),
-              }),
-            })))
+                  : '',
+                nonLu: c.non_lu_recruteur ?? 0, epinglee: false, positionOrdre: 0,
+              }
+              setGroups(prev => {
+                if (prev.some(g => g.convs.some(conv => conv.id === c.id))) return prev
+                const existing = prev.find(g => g.id === offreId)
+                if (existing) return prev.map(g => g.id === offreId ? { ...g, convs: [...g.convs, restored] } : g)
+                return [...prev, { id: offreId, titre, convs: [restored] }]
+              })
+              setExpanded(prev => new Set([...prev, offreId]))
+            }
           }
         )
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${user.id}` },
           async payload => {
-            console.log('[RT INSERT conversation recruteur] payload =', JSON.stringify(payload, null, 2))
-            const row = payload.new as { id: string; candidat_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu?: number; epinglee?: boolean; position_ordre?: number }
+            const row = payload.new as { id: string; candidat_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_recruteur?: number; epinglee?: boolean; position_ordre?: number }
             const [{ data: offre }, { data: profil }] = await Promise.all([
               row.offre_id
                 ? supabase.from('offres').select('titre').eq('id', row.offre_id).single()
@@ -451,14 +524,10 @@ function MessagesPageInner() {
               derniereHeure: row.derniere_activite
                 ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : '',
-              nonLu: row.non_lu ?? 0, epinglee: row.epinglee ?? false, positionOrdre: row.position_ordre ?? 0,
+              nonLu: row.non_lu_recruteur ?? 0, epinglee: row.epinglee ?? false, positionOrdre: row.position_ordre ?? 0,
             }
-            console.log('[RT INSERT conversation recruteur] ajout groupe =', offreId, '| conv =', newConv)
             setGroups(prev => {
-              if (prev.some(g => g.convs.some(c => c.id === row.id))) {
-                console.log('[RT INSERT conversation recruteur] conv déjà présente, ignorée')
-                return prev
-              }
+              if (prev.some(g => g.convs.some(c => c.id === row.id))) return prev
               const existing = prev.find(g => g.id === offreId)
               if (existing) return prev.map(g => g.id === offreId ? { ...g, convs: [...g.convs, newConv] } : g)
               return [...prev, { id: offreId, titre, convs: [newConv] }]
@@ -472,6 +541,7 @@ function MessagesPageInner() {
       if (convParam) {
         const targetGroup = builtGroups.find(g => g.convs.some(c => c.id === convParam))
         if (targetGroup) setExpanded(prev => new Set([...prev, targetGroup.id]))
+        else await reouvrirSiMasquee(convParam)
         setActiveId(convParam); activeIdRef.current = convParam
         subscribeToConv(convParam)
         const { data: msgs } = await supabase
@@ -497,7 +567,7 @@ function MessagesPageInner() {
             .update({ lu: true })
             .eq('conversation_id', convParam)
             .neq('expediteur_id', user.id)
-          supabase.from('conversations').update({ non_lu: 0 }).eq('id', convParam).then()
+          supabase.from('conversations').update({ non_lu_recruteur: 0 }).eq('id', convParam).then()
         }
         return
       }
@@ -511,6 +581,7 @@ function MessagesPageInner() {
         if (existingId) {
           const targetGroup = builtGroups.find(g => g.convs.some(c => c.id === existingId))
           if (targetGroup) setExpanded(prev => new Set([...prev, targetGroup.id]))
+          else await reouvrirSiMasquee(existingId)
           setActiveId(existingId); activeIdRef.current = existingId
           subscribeToConv(existingId)
         } else {
@@ -575,7 +646,7 @@ function MessagesPageInner() {
         setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.map(c => c.id === convId ? { ...c, dernierMsg: m.contenu || (m.piece_jointe_nom ?? ''), ...(isActive ? {} : { nonLu: c.nonLu + 1 }) } : c) })))
         if (isActive && userIdRef.current) {
           supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
-          supabase.from('conversations').update({ non_lu: 0 }).eq('id', convId).then()
+          supabase.from('conversations').update({ non_lu_recruteur: 0 }).eq('id', convId).then()
         }
       })
 
@@ -684,7 +755,7 @@ function MessagesPageInner() {
         .eq('conversation_id', id)
         .neq('expediteur_id', userIdRef.current)
     }
-    supabase.from('conversations').update({ non_lu: 0 }).eq('id', id).then()
+    supabase.from('conversations').update({ non_lu_recruteur: 0 }).eq('id', id).then()
     const conv = allConvs.find(c => c.id === id)
     if (conv?.candidatId) {
       const { data: p } = await supabase.from('profils').select('prenom,nom,domaine,experience,ville,signature,qualites,projet_phare,passions').eq('user_id', conv.candidatId).single()
@@ -1018,8 +1089,12 @@ function MessagesPageInner() {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center', color: C.grey }}><div style={{ fontSize: 40, marginBottom: 14 }}>💬</div><div style={{ fontSize: 15 }}>Sélectionnez une conversation</div></div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+          <div style={{ textAlign: 'center', maxWidth: 300 }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
+            <div style={{ fontFamily: 'Georgia, serif', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
+            <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
+          </div>
         </div>
       )}
 

@@ -60,17 +60,51 @@ CREATE POLICY "Recruteur peut modifier statut candidatures"
 
 -- ===== TABLE : public.conversations ===========================
 --
--- SCHÉMA — colonnes ajoutées (2026-08-12) :
+-- SCHÉMA — colonnes ajoutées :
+--
+--   (2026-08-12) masquage soft-delete :
 --   ALTER TABLE public.conversations
 --     ADD COLUMN IF NOT EXISTS masquee_candidat  boolean NOT NULL DEFAULT false,
 --     ADD COLUMN IF NOT EXISTS masquee_recruteur boolean NOT NULL DEFAULT false;
 --
--- Ces colonnes remplacent le DELETE réel par un masquage côté client :
---   - candidat  : UPDATE masquee_candidat  = true  (ne détruit pas les données recruteur)
---   - recruteur : UPDATE masquee_recruteur = true  (ne détruit pas les données candidat)
--- Chaque page filtre .eq('masquee_candidat', false) / .eq('masquee_recruteur', false)
--- au chargement. Les conversations masquées des deux côtés sont orphelines
--- (nettoyage possible via job planifié, non implémenté).
+--   Ces colonnes remplacent le DELETE réel par un masquage côté client :
+--     - candidat  : UPDATE masquee_candidat  = true  (ne détruit pas les données recruteur)
+--     - recruteur : UPDATE masquee_recruteur = true  (ne détruit pas les données candidat)
+--   Chaque page filtre .eq('masquee_candidat', false) / .eq('masquee_recruteur', false)
+--   au chargement. Les conversations masquées des deux côtés sont orphelines
+--   (nettoyage possible via job planifié, non implémenté).
+--   Recevoir un nouveau message dé-masque automatiquement la conversation via trigger.
+--
+--   (2026-08-12) compteurs de non-lus séparés par participant :
+--   ALTER TABLE public.conversations
+--     ADD COLUMN IF NOT EXISTS non_lu_candidat  integer NOT NULL DEFAULT 0,
+--     ADD COLUMN IF NOT EXISTS non_lu_recruteur integer NOT NULL DEFAULT 0;
+--
+--   Remplacent l'ancienne colonne non_lu (gardée pour rétrocompatibilité, non supprimée).
+--   non_lu_candidat  = messages non lus par le candidat  (incrémenté par le recruteur)
+--   non_lu_recruteur = messages non lus par le recruteur (incrémenté par le candidat)
+--   Mis à jour par le trigger maj_conversation_apres_message (SECURITY DEFINER).
+--   Réinitialisés à 0 par chaque participant à l'ouverture de sa propre conversation.
+--
+-- TRIGGER — maj_conversation_apres_message (SECURITY DEFINER, après INSERT messages) :
+--   Met à jour dernier_message, derniere_activite, non_lu_candidat, non_lu_recruteur,
+--   masquee_candidat et masquee_recruteur en une seule UPDATE atomique.
+--   CREATE OR REPLACE FUNCTION public.maj_conversation_apres_message()
+--   RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $function$
+--   BEGIN
+--     UPDATE conversations
+--     SET dernier_message   = LEFT(COALESCE(NEW.contenu, 'Pièce jointe'), 100),
+--         derniere_activite = NEW.created_at,
+--         non_lu_candidat   = CASE WHEN recruteur_id = NEW.expediteur_id
+--                                  THEN non_lu_candidat + 1 ELSE non_lu_candidat END,
+--         non_lu_recruteur  = CASE WHEN candidat_id  = NEW.expediteur_id
+--                                  THEN non_lu_recruteur + 1 ELSE non_lu_recruteur END,
+--         masquee_candidat  = CASE WHEN recruteur_id = NEW.expediteur_id THEN false ELSE masquee_candidat END,
+--         masquee_recruteur = CASE WHEN candidat_id  = NEW.expediteur_id THEN false ELSE masquee_recruteur END
+--     WHERE id = NEW.conversation_id;
+--     RETURN NEW;
+--   END;
+--   $function$;
 --
 -- ⚠️  TODO SPRINT SÉCURITÉ PRÉ-LANCEMENT — durcissement RLS column-level :
 --   La policy "Accès conversations" (FOR ALL) autorise actuellement le candidat
