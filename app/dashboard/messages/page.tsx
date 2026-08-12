@@ -158,10 +158,10 @@ function FileBubble({ nom, url, type, fromMe }: { nom: string; url?: string; typ
   }
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
-      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, backgroundColor: fromMe ? 'rgba(255,255,255,0.15)' : C.creme, border: `1px solid ${fromMe ? 'rgba(255,255,255,0.2)' : C.sable}`, textDecoration: 'none', maxWidth: 260, cursor: url ? 'pointer' : 'default' }}>
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, backgroundColor: C.white, border: `1px solid ${C.sable}`, textDecoration: 'none', maxWidth: 260, cursor: url ? 'pointer' : 'default' }}>
       <span style={{ fontSize: 20 }}>📄</span>
-      <span style={{ fontSize: 12, color: fromMe ? 'rgba(255,255,255,0.9)' : C.dark, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
-      {url && <span style={{ fontSize: 11, color: fromMe ? 'rgba(255,255,255,0.7)' : C.terracotta, fontWeight: 600, flexShrink: 0 }}>Télécharger</span>}
+      <span style={{ fontSize: 12, color: C.dark, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
+      {url && <span style={{ fontSize: 11, color: C.terracotta, fontWeight: 600, flexShrink: 0 }}>Télécharger</span>}
     </a>
   )
 }
@@ -327,6 +327,9 @@ export default function CandidatMessagesPage() {
   // Étape 5
   const [reactPickId, setReactPickId]   = useState<string | null>(null)
   const [reactPickPos, setReactPickPos] = useState<{ top: number; left: number } | null>(null)
+  // Sélection multiple
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected]     = useState<Set<string>>(new Set())
 
   const endRef        = useRef<HTMLDivElement>(null)
   const textaRef      = useRef<HTMLTextAreaElement>(null)
@@ -358,6 +361,7 @@ export default function CandidatMessagesPage() {
         .from('conversations')
         .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu, epinglee, offres(titre)')
         .eq('candidat_id', user.id)
+        .eq('masquee_candidat', false)
         .order('derniere_activite', { ascending: false })
 
       if (error) { console.error('conversations:', error.message, error.code); setLoadingConvs(false); return }
@@ -419,6 +423,36 @@ export default function CandidatMessagesPage() {
                 : conv.derniereHeure,
               nonLu: c.id === activeIdRef.current ? 0 : (c.non_lu ?? conv.nonLu),
             }))
+          }
+        )
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${user.id}` },
+          async payload => {
+            const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu?: number; epinglee?: boolean }
+            const [{ data: offre }, { data: profil }] = await Promise.all([
+              row.offre_id
+                ? supabase.from('offres').select('titre').eq('id', row.offre_id).single()
+                : Promise.resolve({ data: null }),
+              supabase.from('profils').select('prenom, nom').eq('user_id', row.recruteur_id).single(),
+            ])
+            const p   = profil as { prenom?: string; nom?: string } | null
+            const nom = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Recruteur'
+            const newConv: LocalConv = {
+              id: row.id, recruteurId: row.recruteur_id,
+              nom, initiales: nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
+              avatarBg: '#4A7C6E', entreprise: '',
+              offreTitre: (offre as { titre?: string } | null)?.titre ?? '',
+              offreId: row.offre_id ?? undefined,
+              dernierMsg: row.dernier_message ?? '',
+              derniereHeure: row.derniere_activite
+                ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+                : '',
+              nonLu: row.non_lu ?? 0, epinglee: row.epinglee ?? false,
+            }
+            setConvs(prev => {
+              if (prev.some(c => c.id === row.id)) return prev
+              return [newConv, ...prev]
+            })
           }
         )
         .subscribe()
@@ -758,15 +792,39 @@ export default function CandidatMessagesPage() {
 
   const deleteConv = useCallback((id: string) => {
     const conv = convs.find(c => c.id === id)
-    if (!conv || !confirm(`Supprimer la conversation avec ${conv.entreprise || conv.nom} ?`)) return
+    if (!conv || !confirm(`Retirer la conversation avec ${conv.entreprise || conv.nom} de votre messagerie ?`)) return
     setConvs(prev => prev.filter(c => c.id !== id))
     if (activeId === id) {
       const next = convs.find(c => c.id !== id)
       const nextId = next?.id ?? ''
       setActiveId(nextId); activeIdRef.current = nextId
     }
-    if (!id.startsWith('f')) supabase.from('conversations').delete().eq('id', id).then()
+    // Masquage côté candidat — ne détruit pas les données du recruteur
+    // TODO sprint sécurité : restreindre la policy RLS pour que seul le candidat puisse écrire masquee_candidat
+    if (!id.startsWith('f')) supabase.from('conversations').update({ masquee_candidat: true }).eq('id', id).then()
   }, [convs, activeId])
+
+  function toggleSelectMode() {
+    setSelectMode(m => !m)
+    setSelected(new Set())
+    setMenuId(null); setMenuPos(null)
+  }
+
+  function toggleSelected(id: string) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  const maskSelected = useCallback(() => {
+    const ids = [...selected].filter(id => !id.startsWith('f'))
+    if (!ids.length) { setSelectMode(false); setSelected(new Set()); return }
+    const n = ids.length
+    if (!confirm(`Retirer ${n} conversation${n > 1 ? 's' : ''} de votre messagerie ?\nVos messages ne seront pas supprimés côté recruteur.`)) return
+    setConvs(prev => prev.filter(c => !selected.has(c.id)))
+    if (selected.has(activeId)) { setActiveId(''); activeIdRef.current = '' }
+    setSelected(new Set())
+    setSelectMode(false)
+    supabase.from('conversations').update({ masquee_candidat: true }).in('id', ids).then()
+  }, [selected, activeId])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -797,12 +855,20 @@ export default function CandidatMessagesPage() {
       <div style={{ width: 280, flexShrink: 0, height: '100%', backgroundColor: C.white, borderRight: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.sable}`, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark }}>Mes messages</span>
-            {totalUnread > 0 && (
-              <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>
-                {totalUnread}
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark }}>Mes messages</span>
+              {!selectMode && totalUnread > 0 && (
+                <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>
+                  {totalUnread}
+                </span>
+              )}
+            </div>
+            {convs.length > 0 && (
+              <button onClick={toggleSelectMode}
+                style={{ fontSize: 12, fontWeight: 600, color: selectMode ? C.terracotta : C.grey, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontFamily: 'inherit' }}>
+                {selectMode ? 'Annuler' : 'Sélectionner'}
+              </button>
             )}
           </div>
           <div style={{ position: 'relative' }}>
@@ -821,24 +887,30 @@ export default function CandidatMessagesPage() {
           ) : sortedConvs.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: C.grey, fontSize: 13 }}>Aucune conversation</div>
           ) : sortedConvs.map(conv => {
-            const isActive = conv.id === activeId
+            const isActive   = conv.id === activeId
+            const isSel      = selected.has(conv.id)
+            const borderLeft = selectMode
+              ? `3px solid ${isSel ? C.terracotta : 'transparent'}`
+              : `3px solid ${isActive ? C.terracotta : conv.epinglee ? C.vert : 'transparent'}`
+            const bgColor    = selectMode
+              ? (isSel ? `${C.terracotta}10` : 'transparent')
+              : (isActive ? `${C.terracotta}08` : 'transparent')
             return (
               <div key={conv.id} className="dk-conv-row"
                 onMouseEnter={() => setHovConvId(conv.id)}
                 onMouseLeave={() => setHovConvId(null)}
                 style={{ position: 'relative' }}>
-                <button onClick={() => selectConv(conv.id)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 36px 12px 14px', border: 'none', borderBottom: `1px solid ${C.sable}`, borderLeft: `3px solid ${isActive ? C.terracotta : conv.epinglee ? C.vert : 'transparent'}`, backgroundColor: isActive ? `${C.terracotta}08` : 'transparent', cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s' }}>
+                <button onClick={() => selectMode ? toggleSelected(conv.id) : selectConv(conv.id)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 36px 12px 14px', border: 'none', borderBottom: `1px solid ${C.sable}`, borderLeft, backgroundColor: bgColor, cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s' }}>
                   <ConvAvatar i={conv.initiales} bg={conv.avatarBg} s={40} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {conv.epinglee && <span style={{ fontSize: 10 }}>📌</span>}
+                        {!selectMode && conv.epinglee && <span style={{ fontSize: 10 }}>📌</span>}
                         {conv.entreprise || conv.nom}
                       </span>
                       <span style={{ fontSize: 10, color: C.grey, flexShrink: 0, marginLeft: 4 }}>{conv.derniereHeure}</span>
                     </div>
-                    {/* Recruiter name + offre */}
                     <div style={{ fontSize: 11, color: C.grey, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {conv.nom}{conv.offreTitre ? ` · ${conv.offreTitre}` : ''}
                     </div>
@@ -846,7 +918,7 @@ export default function CandidatMessagesPage() {
                       <span style={{ fontSize: 12, color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                         {conv.dernierMsg}
                       </span>
-                      {conv.nonLu > 0 && (
+                      {!selectMode && conv.nonLu > 0 && (
                         <span style={{ width: 17, height: 17, borderRadius: '50%', flexShrink: 0, backgroundColor: C.terracotta, color: C.white, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {conv.nonLu}
                         </span>
@@ -854,13 +926,35 @@ export default function CandidatMessagesPage() {
                     </div>
                   </div>
                 </button>
-                <button className="dk-cmb" onClick={e => openMenu(e, conv.id)}
-                  style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.creme : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }}
-                  title="Options">···</button>
+                {selectMode ? (
+                  <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, borderRadius: '50%', border: `2px solid ${isSel ? C.terracotta : C.lightGrey}`, backgroundColor: isSel ? C.terracotta : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', flexShrink: 0 }}>
+                    {isSel && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                ) : (
+                  <button className="dk-cmb" onClick={e => openMenu(e, conv.id)}
+                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.creme : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }}
+                    title="Options">···</button>
+                )}
               </div>
             )
           })}
         </div>
+
+        {/* ── Barre d'action sélection multiple ──────────────────────────── */}
+        {selectMode && (
+          <div style={{ padding: '10px 12px', borderTop: `1px solid ${C.sable}`, flexShrink: 0, backgroundColor: C.white, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => setSelected(prev => prev.size === sortedConvs.length ? new Set() : new Set(sortedConvs.map(c => c.id)))}
+              style={{ fontSize: 12, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '6px 0', flex: 1, textAlign: 'left' }}>
+              {selected.size === sortedConvs.length ? 'Tout décocher' : 'Tout sélectionner'}
+            </button>
+            {selected.size > 0 && (
+              <button onClick={maskSelected}
+                style={{ padding: '7px 12px', borderRadius: 8, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                Retirer ({selected.size})
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── CENTER COLUMN ────────────────────────────────────────────────── */}

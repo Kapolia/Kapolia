@@ -59,10 +59,31 @@ CREATE POLICY "Recruteur peut modifier statut candidatures"
 
 
 -- ===== TABLE : public.conversations ===========================
+--
+-- SCHÉMA — colonnes ajoutées (2026-08-12) :
+--   ALTER TABLE public.conversations
+--     ADD COLUMN IF NOT EXISTS masquee_candidat  boolean NOT NULL DEFAULT false,
+--     ADD COLUMN IF NOT EXISTS masquee_recruteur boolean NOT NULL DEFAULT false;
+--
+-- Ces colonnes remplacent le DELETE réel par un masquage côté client :
+--   - candidat  : UPDATE masquee_candidat  = true  (ne détruit pas les données recruteur)
+--   - recruteur : UPDATE masquee_recruteur = true  (ne détruit pas les données candidat)
+-- Chaque page filtre .eq('masquee_candidat', false) / .eq('masquee_recruteur', false)
+-- au chargement. Les conversations masquées des deux côtés sont orphelines
+-- (nettoyage possible via job planifié, non implémenté).
+--
+-- ⚠️  TODO SPRINT SÉCURITÉ PRÉ-LANCEMENT — durcissement RLS column-level :
+--   La policy "Accès conversations" (FOR ALL) autorise actuellement le candidat
+--   à écrire masquee_RECRUTEUR et vice-versa via l'API Supabase directe.
+--   Corriger avec deux policies UPDATE séparées :
+--     - candidat  : WITH CHECK (auth.uid() = candidat_id)  sur masquee_candidat seulement
+--     - recruteur : WITH CHECK (auth.uid() = recruteur_id) sur masquee_recruteur seulement
+--   Supprimer la policy FOR ALL et la remplacer par SELECT + INSERT + DELETE + UPDATE(x2).
 
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 
 -- Candidat et recruteur : accès complet à leurs conversations communes
+-- (voir TODO ci-dessus pour le durcissement à faire sur UPDATE)
 CREATE POLICY "Accès conversations"
   ON public.conversations AS PERMISSIVE FOR ALL
   TO public
