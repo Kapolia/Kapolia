@@ -951,7 +951,7 @@ function MessagesPageInner() {
                 <button onClick={() => toggleGroup(group.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: 'none', backgroundColor: C.creme, cursor: 'pointer', borderBottom: `1px solid ${C.sable}`, textAlign: 'left' }}>
                   <span style={{ fontSize: 10, color: C.grey, display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.vert, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>{group.titre}</span>
-                  <span style={{ fontSize: 10, color: C.grey, backgroundColor: C.sable, borderRadius: 8, padding: '1px 6px', flexShrink: 0 }}>{group.convs.length}</span>
+                  {(() => { const n = group.convs.filter(c => c.nonLu > 0).length; return n > 0 ? <span style={{ minWidth: 18, height: 18, borderRadius: 9, flexShrink: 0, backgroundColor: C.terracotta, color: C.white, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>{n}</span> : null })()}
                 </button>
                 {open && sortedConvs(group.convs).map(conv => {
                   const isActive = conv.id === activeId; const isDragged = conv.id === draggingId; const isTarget = conv.id === dragOverId
