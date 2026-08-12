@@ -96,7 +96,7 @@ type Conversation = {
 type ConvRaw = {
   id: string; recruteur_id: string; offre_id?: string
   dernier_message?: string; derniere_activite?: string
-  non_lu: number; offres?: { titre?: string } | null
+  non_lu_candidat: number; offres?: { titre?: string } | null
 }
 
 type ActivityItem = {
@@ -484,8 +484,9 @@ export default function DashboardPage() {
           .eq('statut_publication', 'publiée')
           .limit(6),
         supabase.from('conversations')
-          .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu, offres(titre)')
+          .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, offres(titre)')
           .eq('candidat_id', user.id)
+          .eq('masquee_candidat', false)
           .order('derniere_activite', { ascending: false }),
         supabase.from('vues_profil')
           .select('created_at, visiteur_id, visiteur_type')
@@ -547,7 +548,7 @@ export default function DashboardPage() {
         activeMsgs = (mData ?? []) as MessageActivite[]
       }
 
-      setUnreadCount(convList.reduce((sum, c) => sum + (c.non_lu ?? 0), 0))
+      setUnreadCount(convList.reduce((sum, c) => sum + (c.non_lu_candidat ?? 0), 0))
       setConversations(convList.slice(0, 3).map(c => ({
         id:             c.id,
         created_at:     c.derniere_activite ?? '',

@@ -169,9 +169,10 @@ export default function RecruiterSidebar({
     async function fetchMsgTotal(uid: string) {
       const { data } = await supabase
         .from('conversations')
-        .select('non_lu')
+        .select('non_lu_recruteur')
         .eq('recruteur_id', uid)
-      const total = (data ?? []).reduce((s: number, r: { non_lu: number | null }) => s + (r.non_lu ?? 0), 0)
+        .eq('masquee_recruteur', false)
+      const total = (data ?? []).reduce((s: number, r: { non_lu_recruteur: number | null }) => s + (r.non_lu_recruteur ?? 0), 0)
       setMsgCount(total)
     }
 

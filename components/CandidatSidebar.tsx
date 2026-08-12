@@ -245,9 +245,10 @@ export default function CandidatSidebar({
     async function fetchMsgTotal(uid: string) {
       const { data } = await supabase
         .from('conversations')
-        .select('non_lu')
+        .select('non_lu_candidat')
         .eq('candidat_id', uid)
-      const total = (data ?? []).reduce((s: number, r: { non_lu: number | null }) => s + (r.non_lu ?? 0), 0)
+        .eq('masquee_candidat', false)
+      const total = (data ?? []).reduce((s: number, r: { non_lu_candidat: number | null }) => s + (r.non_lu_candidat ?? 0), 0)
       setMsgCount(total)
     }
 
