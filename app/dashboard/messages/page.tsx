@@ -376,7 +376,7 @@ function CandidatMessagesPageInner() {
 
       const { data: convsRaw, error } = await supabase
         .from('conversations')
-        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, epinglee, offres(titre)')
+        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, epinglee, offres(titre, entreprise_nom)')
         .eq('candidat_id', user.id)
         .eq('masquee_candidat', false)
         .order('derniere_activite', { ascending: false })
@@ -393,13 +393,16 @@ function CandidatMessagesPageInner() {
       for (const r of (rData ?? [])) profilMap[r.user_id] = r
 
       const loaded: LocalConv[] = convsRaw.map(row => {
-        const p   = profilMap[row.recruteur_id]
-        const nom = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Recruteur'
+        const p          = profilMap[row.recruteur_id]
+        const offre      = row.offres as { titre?: string; entreprise_nom?: string } | null
+        const entreprise = offre?.entreprise_nom ?? ''
+        const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
+        const displayKey = entreprise || nom
         return {
           id: row.id, recruteurId: row.recruteur_id,
-          nom, initiales: nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
-          avatarBg: '#4A7C6E', entreprise: '',
-          offreTitre: (row.offres as { titre?: string } | null)?.titre ?? '',
+          nom, initiales: initEntreprise(displayKey),
+          avatarBg: '#4A7C6E', entreprise,
+          offreTitre: offre?.titre ?? '',
           offreId: row.offre_id ?? undefined,
           dernierMsg: row.dernier_message ?? '',
           derniereHeure: row.derniere_activite
@@ -447,17 +450,20 @@ function CandidatMessagesPageInner() {
             if (!convInList && c.masquee_candidat === false && c.recruteur_id) {
               const [{ data: offre }, { data: profil }] = await Promise.all([
                 c.offre_id
-                  ? supabase.from('offres').select('titre').eq('id', c.offre_id).single()
+                  ? supabase.from('offres').select('titre, entreprise_nom').eq('id', c.offre_id).single()
                   : Promise.resolve({ data: null }),
                 supabase.from('profils').select('prenom, nom').eq('user_id', c.recruteur_id).single(),
               ])
-              const p   = profil as { prenom?: string; nom?: string } | null
-              const nom = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Recruteur'
+              const p          = profil as { prenom?: string; nom?: string } | null
+              const o          = offre as { titre?: string; entreprise_nom?: string } | null
+              const entreprise = o?.entreprise_nom ?? ''
+              const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
+              const displayKey = entreprise || nom
               const restored: LocalConv = {
                 id: c.id, recruteurId: c.recruteur_id,
-                nom, initiales: nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
-                avatarBg: '#4A7C6E', entreprise: '',
-                offreTitre: (offre as { titre?: string } | null)?.titre ?? '',
+                nom, initiales: initEntreprise(displayKey),
+                avatarBg: '#4A7C6E', entreprise,
+                offreTitre: o?.titre ?? '',
                 offreId: c.offre_id ?? undefined,
                 dernierMsg: c.dernier_message ?? '',
                 derniereHeure: c.derniere_activite
@@ -475,17 +481,20 @@ function CandidatMessagesPageInner() {
             const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_candidat?: number; epinglee?: boolean }
             const [{ data: offre }, { data: profil }] = await Promise.all([
               row.offre_id
-                ? supabase.from('offres').select('titre').eq('id', row.offre_id).single()
+                ? supabase.from('offres').select('titre, entreprise_nom').eq('id', row.offre_id).single()
                 : Promise.resolve({ data: null }),
               supabase.from('profils').select('prenom, nom').eq('user_id', row.recruteur_id).single(),
             ])
-            const p   = profil as { prenom?: string; nom?: string } | null
-            const nom = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Recruteur'
+            const p          = profil as { prenom?: string; nom?: string } | null
+            const o          = offre as { titre?: string; entreprise_nom?: string } | null
+            const entreprise = o?.entreprise_nom ?? ''
+            const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
+            const displayKey = entreprise || nom
             const newConv: LocalConv = {
               id: row.id, recruteurId: row.recruteur_id,
-              nom, initiales: nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2),
-              avatarBg: '#4A7C6E', entreprise: '',
-              offreTitre: (offre as { titre?: string } | null)?.titre ?? '',
+              nom, initiales: initEntreprise(displayKey),
+              avatarBg: '#4A7C6E', entreprise,
+              offreTitre: o?.titre ?? '',
               offreId: row.offre_id ?? undefined,
               dernierMsg: row.dernier_message ?? '',
               derniereHeure: row.derniere_activite
@@ -965,7 +974,7 @@ function CandidatMessagesPageInner() {
                       <span style={{ fontSize: 10, color: C.grey, flexShrink: 0, marginLeft: 4 }}>{conv.derniereHeure}</span>
                     </div>
                     <div style={{ fontSize: 11, color: C.grey, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {conv.nom}{conv.offreTitre ? ` · ${conv.offreTitre}` : ''}
+                      {[conv.nom, conv.offreTitre].filter(Boolean).join(' · ')}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
                       <span style={{ fontSize: 12, color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -1021,7 +1030,7 @@ function CandidatMessagesPageInner() {
             <ConvAvatar i={activeConv.initiales} bg={activeConv.avatarBg} s={44} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>{activeConv.entreprise || activeConv.nom}</div>
-              <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>{activeConv.nom}</div>
+              {activeConv.nom && <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>{activeConv.nom}</div>}
               {activeConv.offreTitre && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', marginTop: 4, padding: '2px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}15`, border: `1px solid ${C.terracotta}30` }}>
                   <span style={{ fontSize: 11, color: C.terracotta, fontWeight: 600 }}>{activeConv.offreTitre}</span>
@@ -1102,13 +1111,13 @@ function CandidatMessagesPageInner() {
               )
             })}
 
-            {isTyping && <TypingIndicator nom={activeConv.nom.split(' ')[0]} />}
+            {isTyping && <TypingIndicator nom={(activeConv.entreprise || activeConv.nom).split(' ')[0]} />}
             <div ref={endRef} />
           </div>
 
           {/* Reply bar */}
           {replyingTo && (
-            <ReplyBar reply={replyingTo} nom={activeConv.nom.split(' ')[0]} onCancel={() => setReplyingTo(null)} />
+            <ReplyBar reply={replyingTo} nom={(activeConv.entreprise || activeConv.nom).split(' ')[0]} onCancel={() => setReplyingTo(null)} />
           )}
 
           {/* Pending file preview */}
@@ -1142,7 +1151,7 @@ function CandidatMessagesPageInner() {
             <textarea ref={textaRef} value={input}
               onChange={e => { setInput(e.target.value); adjustTA(); sendTypingSignal() }}
               onKeyDown={handleKey}
-              placeholder={`Écrire à ${activeConv.nom.split(' ')[0]}…`}
+              placeholder={`Écrire à ${(activeConv.entreprise || activeConv.nom).split(' ')[0]}…`}
               rows={1}
               style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
             />
