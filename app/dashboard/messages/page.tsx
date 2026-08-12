@@ -1030,7 +1030,7 @@ function CandidatMessagesPageInner() {
 
                   {/* Reply quote */}
                   {msg.replyToId && (
-                    <div style={{ maxWidth: '58%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ maxWidth: '66%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       ↩ {msg.replyToContenu ?? activeMsgs.find(m => m.id === msg.replyToId)?.contenu ?? '…'}
                     </div>
                   )}
@@ -1040,7 +1040,7 @@ function CandidatMessagesPageInner() {
                     {msg.pjNom
                       ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
                       : (
-                        <div style={{ maxWidth: '60%', padding: '10px 14px', borderRadius: msg.fromMe ? '18px 18px 5px 18px' : '18px 18px 18px 5px', backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ maxWidth: '68%', padding: '10px 16px', borderRadius: 15, backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                           {msg.contenu}
                         </div>
                       )
