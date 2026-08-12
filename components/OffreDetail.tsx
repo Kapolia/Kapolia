@@ -72,6 +72,7 @@ type Props = {
   onSelectSimilaire?: (id: string) => void
   mode?: 'page' | 'panel'
   onBack?: () => void
+  removeAction?: () => void
 }
 
 // ─── SimilaireCard ───────────────────────────────────────────────────────────
@@ -302,7 +303,7 @@ function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected
 
 export function OffreDetail({
   offre, applied, appliedDate, applying, saved, isConnected,
-  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack,
+  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, removeAction,
 }: Props) {
   const [copied, setCopied] = useState(false)
 
@@ -478,6 +479,27 @@ export function OffreDetail({
                 <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
               </svg>
             </Link>
+
+            {removeAction && (
+              <button
+                onClick={removeAction}
+                title="Supprimer de mon suivi"
+                style={{
+                  height: 36, width: 36,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: 10,
+                  border: `1px solid ${C.sable}`,
+                  backgroundColor: C.white,
+                  color: C.lightGrey, fontSize: 14,
+                  cursor: 'pointer', flexShrink: 0,
+                  transition: 'color 0.15s, border-color 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.grey }}
+                onMouseLeave={e => { e.currentTarget.style.color = C.lightGrey; e.currentTarget.style.borderColor = C.sable }}
+              >
+                🗑
+              </button>
+            )}
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ouvrirConversation } from '@/lib/conversations'
+import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import { LANGUES, findLangue } from '@/lib/langues'
 
@@ -1252,10 +1252,10 @@ export default function ProfilView({
                     <button
                       onClick={async () => {
                         setWritingMsg(true)
-                        const convId = await ouvrirConversation(userId)
+                        const existing = await trouverConversation(userId)
                         setWritingMsg(false)
-                        if (!convId) { alert("Impossible d'ouvrir la conversation"); return }
-                        router.push(`/recruteur/messages?conv=${convId}`)
+                        if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
+                        router.push(`/recruteur/messages?new=${userId}`)
                       }}
                       disabled={writingMsg}
                       style={{

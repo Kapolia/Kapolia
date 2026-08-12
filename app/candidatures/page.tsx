@@ -196,10 +196,10 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onDismiss }: {
   )
 }
 
-function SortSelector({ value, onChange }: { value: SortKey; onChange: (k: SortKey) => void }) {
+function SortSelector({ value, onChange, labelColor }: { value: SortKey; onChange: (k: SortKey) => void; labelColor?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 12, color: C.grey, flexShrink: 0 }}>Trier par</span>
+      <span style={{ fontSize: 12, color: labelColor ?? C.grey, flexShrink: 0 }}>Trier par</span>
       <select
         value={value}
         onChange={e => onChange(e.target.value as SortKey)}
@@ -520,19 +520,20 @@ export default function CandidaturesPage() {
 
         {/* Barre de titre */}
         <div style={{
-          padding: '12px 20px', borderBottom: `1px solid ${C.sable}`,
-          backgroundColor: C.white, flexShrink: 0,
+          height: 64, padding: '0 20px', flexShrink: 0,
+          backgroundColor: C.vert,
+          borderBottom: `1px solid rgba(0,0,0,0.12)`,
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <h1 style={{
             fontFamily: 'Georgia, serif', fontSize: 17,
-            color: C.dark, margin: 0, fontWeight: 400,
+            color: C.creme, margin: 0, fontWeight: 400,
           }}>
             Mes candidatures
           </h1>
-          <span style={{ fontSize: 13, color: C.grey }}>· {total}</span>
+          <span style={{ fontSize: 13, color: 'rgba(247,242,235,0.60)' }}>· {total}</span>
           <div style={{ marginLeft: 'auto' }}>
-            <SortSelector value={sortKey} onChange={setSortKey} />
+            <SortSelector value={sortKey} onChange={setSortKey} labelColor="rgba(247,242,235,0.75)" />
           </div>
         </div>
 
@@ -564,46 +565,23 @@ export default function CandidaturesPage() {
             {offreLoading ? (
               <Spinner />
             ) : selectedOffre ? (
-              <>
-                {/* Barre d'actions : épinglée en haut, ne défile pas */}
-                {selectedCand && (
-                  <div style={{
-                    flexShrink: 0,
-                    padding: '10px 16px',
-                    backgroundColor: C.white,
-                    borderBottom: `1px solid ${C.sable}`,
-                    display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end',
-                  }}>
-                    <button
-                      onClick={() => setModal({ candId: selectedCand.id })}
-                      title="Supprimer de mon suivi"
-                      style={{
-                        background: 'none', border: 'none', padding: '4px 6px',
-                        fontSize: 14, color: C.lightGrey, cursor: 'pointer', lineHeight: 1,
-                      }}
-                    >
-                      🗑
-                    </button>
-                  </div>
-                )}
-                {/* Zone défilante */}
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                  <OffreDetail
-                    offre={selectedOffre}
-                    applied={true}
-                    appliedDate={selectedCand?.created_at ?? null}
-                    applying={false}
-                    saved={favIds.has(selectedCand?.offre_id ?? '')}
-                    isConnected={true}
-                    similaires={[]}
-                    onApply={() => {}}
-                    onToggleSave={() => selectedCand && toggleFav(selectedCand.offre_id)}
-                    onSelectSimilaire={simId => router.push(`/offres/${simId}`)}
-                    mode="panel"
-                    onBack={closePanel}
-                  />
-                </div>
-              </>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <OffreDetail
+                  offre={selectedOffre}
+                  applied={true}
+                  appliedDate={selectedCand?.created_at ?? null}
+                  applying={false}
+                  saved={favIds.has(selectedCand?.offre_id ?? '')}
+                  isConnected={true}
+                  similaires={[]}
+                  onApply={() => {}}
+                  onToggleSave={() => selectedCand && toggleFav(selectedCand.offre_id)}
+                  onSelectSimilaire={simId => router.push(`/offres/${simId}`)}
+                  mode="panel"
+                  onBack={closePanel}
+                  removeAction={selectedCand ? () => setModal({ candId: selectedCand.id }) : undefined}
+                />
+              </div>
             ) : (
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

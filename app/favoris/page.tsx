@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useFavoris } from '@/lib/favoris-context'
@@ -21,8 +21,11 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type SortKey = 'fav_desc' | 'fav_asc' | 'salaire_desc' | 'offre_desc' | 'entreprise'
+
 type FavOffre = OffreCardData & {
-  fav_created_at: string
+  fav_created_at:  string
+  offre_created_at: string
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,6 +111,7 @@ export default function FavorisPage() {
   const [isConnected, setIsConnected] = useState(false)
   const [userId, setUserId]         = useState<string | null>(null)
   const [loading, setLoading]       = useState(true)
+  const [sortKey, setSortKey]       = useState<SortKey>('fav_desc')
 
   useEffect(() => {
     async function load() {
@@ -124,7 +128,7 @@ export default function FavorisPage() {
             offres (
               id, titre, entreprise_nom, type_contrat, ville,
               mode_travail, salaire_min, salaire_max, periode_salaire,
-              active, statut_publication
+              active, statut_publication, created_at
             )
           `)
           .eq('candidat_id', user.id)
@@ -144,7 +148,7 @@ export default function FavorisPage() {
           type_contrat: string | null; ville: string | null
           mode_travail: string | null; salaire_min: string | null
           salaire_max: string | null; periode_salaire: string | null
-          active: boolean; statut_publication: string
+          active: boolean; statut_publication: string; created_at: string
         } | null
       }
 
@@ -162,7 +166,8 @@ export default function FavorisPage() {
             salaire_min:     o.salaire_min  != null ? parseFloat(o.salaire_min)  : undefined,
             salaire_max:     o.salaire_max  != null ? parseFloat(o.salaire_max)  : undefined,
             periode_salaire: o.periode_salaire ?? undefined,
-            fav_created_at:  row.created_at,
+            fav_created_at:   row.created_at,
+            offre_created_at: o.created_at,
           }
         })
 
@@ -189,6 +194,33 @@ export default function FavorisPage() {
     setOffres(prev => prev.filter(o => o.id !== offreId))
     toggleFav(offreId)  // context: optimistic update + DB + rollback si erreur
   }
+
+  const sorted = useMemo(() => {
+    const arr = [...offres]
+    switch (sortKey) {
+      case 'fav_asc':
+        return arr.sort((a, b) => new Date(a.fav_created_at).getTime() - new Date(b.fav_created_at).getTime())
+      case 'salaire_desc':
+        return arr.sort((a, b) => {
+          const sa = a.salaire_max ?? a.salaire_min ?? null
+          const sb = b.salaire_max ?? b.salaire_min ?? null
+          if (sa === null && sb === null) return 0
+          if (sa === null) return 1
+          if (sb === null) return -1
+          return sb - sa
+        })
+      case 'offre_desc':
+        return arr.sort((a, b) =>
+          new Date(b.offre_created_at).getTime() - new Date(a.offre_created_at).getTime()
+        )
+      case 'entreprise':
+        return arr.sort((a, b) =>
+          (a.entreprise_nom ?? '').localeCompare(b.entreprise_nom ?? '', 'fr')
+        )
+      default: // fav_desc
+        return arr.sort((a, b) => new Date(b.fav_created_at).getTime() - new Date(a.fav_created_at).getTime())
+    }
+  }, [offres, sortKey])
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -232,20 +264,44 @@ export default function FavorisPage() {
         ) : offres.length === 0 ? (
           <EmptyFavoris onBrowse={() => router.push('/offres')} />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {offres.map(offre => (
-              <OffreCard
-                key={offre.id}
-                offre={offre}
-                applied={applied.has(offre.id)}
-                saved={true}
-                onApply={handleApply}
-                onToggleSave={handleToggleSave}
-                isConnected={isConnected}
-                dateLabel={ajoutLabel(offre.fav_created_at)}
-              />
-            ))}
-          </div>
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: C.grey, flexShrink: 0 }}>Trier par</span>
+                <select
+                  value={sortKey}
+                  onChange={e => setSortKey(e.target.value as SortKey)}
+                  style={{
+                    fontSize: 12, color: C.dark,
+                    border: `1px solid ${C.sable}`, borderRadius: 8,
+                    padding: '5px 10px', backgroundColor: C.white,
+                    cursor: 'pointer', fontFamily: 'inherit', outline: 'none',
+                  }}
+                >
+                  <option value="fav_desc">Ajout récent</option>
+                  <option value="fav_asc">Ajout ancien</option>
+                  <option value="salaire_desc">Salaire décroissant</option>
+                  <option value="offre_desc">Publication récente</option>
+                  <option value="entreprise">Par entreprise</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {sorted.map(offre => (
+                <OffreCard
+                  key={offre.id}
+                  offre={offre}
+                  applied={applied.has(offre.id)}
+                  saved={true}
+                  onApply={handleApply}
+                  onToggleSave={handleToggleSave}
+                  isConnected={isConnected}
+                  dateLabel={ajoutLabel(offre.fav_created_at)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

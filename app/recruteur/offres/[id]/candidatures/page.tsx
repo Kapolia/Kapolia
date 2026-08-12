@@ -13,7 +13,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ouvrirConversation } from '@/lib/conversations'
+import { trouverConversation } from '@/lib/conversations'
 import { calculerScore, type ProfilMatch, type OffreMatch } from '@/lib/matching'
 import { getStatut } from '@/lib/statuts'
 
@@ -653,9 +653,11 @@ export default function CandidaturesPage() {
                           onClick={() => setActive(prev => prev?.id === c.id ? null : c)}
                           onStatusChange={changeStatus}
                           onMessage={async () => {
-                            const convId = await ouvrirConversation(c.candidat_id, offre?.id)
-                            if (!convId) { alert("Impossible d'ouvrir la conversation"); return }
-                            router.push(`/recruteur/messages?conv=${convId}`)
+                            const existing = await trouverConversation(c.candidat_id, offre?.id)
+                            if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
+                            const p = new URLSearchParams({ new: c.candidat_id })
+                            if (offre?.id) p.set('offre', offre.id)
+                            router.push(`/recruteur/messages?${p}`)
                           }}
                         />
                       ))}
@@ -675,9 +677,11 @@ export default function CandidaturesPage() {
             onClose={() => setActive(null)}
             onStatusChange={changeStatus}
             onMessage={async () => {
-              const convId = await ouvrirConversation(active.candidat_id, offre?.id)
-              if (!convId) { alert("Impossible d'ouvrir la conversation"); return }
-              router.push(`/recruteur/messages?conv=${convId}`)
+              const existing = await trouverConversation(active.candidat_id, offre?.id)
+              if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
+              const p = new URLSearchParams({ new: active.candidat_id })
+              if (offre?.id) p.set('offre', offre.id)
+              router.push(`/recruteur/messages?${p}`)
             }}
           />
         )}

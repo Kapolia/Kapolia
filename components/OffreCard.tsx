@@ -183,8 +183,8 @@ export function OffreCard({
         border: `1px solid ${hov ? '#D4C4B0' : '#EDE7DB'}`,
         borderLeft: `3px solid ${hov ? C.terracotta : 'transparent'}`,
         borderRadius: 14,
-        padding: '18px 22px 16px 21px',
-        display: 'flex', flexDirection: 'column', gap: 11,
+        padding: '16px 22px 14px 21px',
+        display: 'flex', flexDirection: 'column', gap: 9,
         boxShadow: hov ? '0 4px 18px rgba(44,74,62,0.09)' : '0 1px 3px rgba(0,0,0,0.04)',
         transition: 'box-shadow 0.18s, border-color 0.18s, border-left-color 0.18s',
         cursor: 'pointer',
@@ -252,7 +252,6 @@ export function OffreCard({
 
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-        paddingTop: 10, borderTop: `1px solid ${C.sable}`,
       }}>
         {applied ? (
           <div style={{
