@@ -193,31 +193,30 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           animation: kv-fade 0.7s ease-out both;
         }
 
-        /* Boussole héros — droite, légèrement débordante */
+        /* Boussole héros — très grande, ancrée bas-droite, débordante */
         .kv-compass-hero {
           position: absolute;
-          right: -6%;
-          top: 50%;
-          transform: translateY(-50%);
-          width: clamp(340px, 54vh, 580px);
-          height: clamp(340px, 54vh, 580px);
+          right: -20%;
+          bottom: -25%;
+          width: clamp(520px, 85vh, 900px);
+          height: clamp(520px, 85vh, 900px);
           z-index: 1;
-          animation: kv-compass-in 1.1s cubic-bezier(0.22,1,0.36,1) 0.1s both;
+          animation: kv-compass-in 1.2s cubic-bezier(0.22,1,0.36,1) 0.1s both;
         }
 
         /* Aiguille — CSS overrides SVG transform attr */
         .kv-needle {
           transform-box: fill-box;
           transform-origin: center;
-          animation: kv-needle-settle 2.4s cubic-bezier(0.22,1,0.36,1) 0.45s both;
+          animation: kv-needle-settle 2.4s cubic-bezier(0.22,1,0.36,1) 0.5s both;
         }
 
         /* Texte — gauche, centré verticalement */
         .kv-text {
           position: relative;
           z-index: 2;
-          width: 52%;
-          padding: clamp(72px, 9vh, 88px) 0 clamp(48px, 6vh, 64px) clamp(28px, 4.5vw, 72px);
+          width: 50%;
+          padding-left: clamp(28px, 4.5vw, 72px);
           animation: kv-rise 0.85s cubic-bezier(0.22,1,0.36,1) 0.3s both;
         }
 
@@ -237,8 +236,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes kv-compass-in {
-          from { opacity: 0; transform: translateY(-50%) scale(0.93); }
-          to   { opacity: 1; transform: translateY(-50%) scale(1); }
+          from { opacity: 0; transform: scale(0.95); }
+          to   { opacity: 1; transform: scale(1); }
         }
         @keyframes kv-needle-settle {
           from { transform: rotate(11deg); }
@@ -254,11 +253,10 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           .kv-compass-hero {
             position: relative;
             order: 1;
-            right: auto; top: auto;
-            transform: none;
-            width: clamp(160px, 46vw, 230px);
-            height: clamp(160px, 46vw, 230px);
-            margin: clamp(72px, 12vh, 92px) auto 20px;
+            right: auto; bottom: auto;
+            width: clamp(180px, 52vw, 260px);
+            height: clamp(180px, 52vw, 260px);
+            margin: clamp(72px, 12vh, 92px) auto 24px;
             animation: kv-fade 0.9s ease-out 0.1s both;
           }
           .kv-text {
@@ -282,9 +280,9 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         </span>
       </div>
 
-      {/* Boussole héros — vraies couleurs, droite, légèrement débordante */}
+      {/* Boussole héros — fond transparent, très grande, débordante bas-droite */}
       <div className="kv-compass-hero">
-        <BoussoleKavio size="100%" needleClassName="kv-needle" />
+        <BoussoleKavio size="100%" ringFill="transparent" needleClassName="kv-needle" />
       </div>
 
       {/* Texte — gauche, centré verticalement par flexbox */}
@@ -297,7 +295,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           textTransform: 'uppercase',
           marginBottom: '18px', marginTop: 0,
         }}>
-          Trouvez votre cap.
+          Trouvez votre cap
         </p>
         <h1 style={{
           fontFamily: 'Georgia, serif',
@@ -308,7 +306,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           letterSpacing: '-0.01em',
           marginBottom: '24px', marginTop: 0,
         }}>
-          Bienvenue sur Kavio.
+          Bienvenue sur Kavio
         </h1>
         <p style={{
           fontSize: 'clamp(14px, 1.1vw, 16px)',
