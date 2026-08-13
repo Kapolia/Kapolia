@@ -11,6 +11,7 @@
  *   SEED_PASSWORD=xxx npx tsx scripts/geocode-offres.ts --force   # toutes les offres
  */
 
+import './env'
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -18,8 +19,8 @@ const SUPABASE_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SEED_EMAIL    = 'PaulQuiquet@gmail.com'
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌  Variables manquantes. Lancez le script avec :')
-  console.error('    NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SEED_PASSWORD=... npx tsx scripts/geocode-offres.ts')
+  console.error('❌  Variables Supabase introuvables dans .env.local.')
+  console.error('    Vérifiez que .env.local contient NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.')
   process.exit(1)
 }
 

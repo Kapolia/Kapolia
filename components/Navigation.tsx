@@ -150,6 +150,10 @@ export default function Navigation() {
     router.replace('/')
   }, [router])
 
+  // Pages plein écran — aucune navigation (ni sidebar ni navbar)
+  const FULLSCREEN = ['/onboarding', '/connexion', '/inscription']
+  if (FULLSCREEN.some(p => pathname === p || pathname.startsWith(p + '/'))) return null
+
   // Recruteur sidebar is handled by app/recruteur/layout.tsx
   if (pathname.startsWith('/recruteur')) return null
   if (nav.status === 'recruteur') return null

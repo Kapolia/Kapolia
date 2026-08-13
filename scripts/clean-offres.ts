@@ -5,6 +5,7 @@
  * Lit scripts/.seed-ids.json et supprime les entrées correspondantes dans Supabase.
  */
 
+import './env'
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
@@ -17,8 +18,8 @@ const SUPABASE_KEY  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const SEED_IDS_PATH = join(__dirname, '.seed-ids.json')
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌  Variables manquantes. Lancez le script avec :')
-  console.error('    NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... npx tsx scripts/clean-offres.ts')
+  console.error('❌  Variables Supabase introuvables dans .env.local.')
+  console.error('    Vérifiez que .env.local contient NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.')
   process.exit(1)
 }
 

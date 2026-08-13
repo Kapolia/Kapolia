@@ -6,6 +6,7 @@
  * pour pouvoir les supprimer proprement via scripts/clean-offres.ts
  */
 
+import './env'
 import { createClient } from '@supabase/supabase-js'
 import { writeFileSync, existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
@@ -19,8 +20,8 @@ const SEED_EMAIL    = 'PaulQuiquet@gmail.com'
 const SEED_IDS_PATH = join(__dirname, '.seed-ids.json')
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌  Variables manquantes. Lancez le script avec :')
-  console.error('    NEXT_PUBLIC_SUPABASE_URL=... NEXT_PUBLIC_SUPABASE_ANON_KEY=... SEED_PASSWORD=... npx tsx scripts/seed-offres.ts')
+  console.error('❌  Variables Supabase introuvables dans .env.local.')
+  console.error('    Vérifiez que .env.local contient NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY.')
   process.exit(1)
 }
 
