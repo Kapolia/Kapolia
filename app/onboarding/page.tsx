@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -386,6 +386,142 @@ function StyledTextArea({ value, onChange, placeholder, rows = 5 }: {
   )
 }
 
+function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; rows?: number
+}) {
+  const [supported,  setSupported]  = useState(false)
+  const [listening,  setListening]  = useState(false)
+  const [permError,  setPermError]  = useState(false)
+  const [interim,    setInterim]    = useState('')
+  const recogRef  = useRef<any>(null)
+  const valueRef  = useRef(value)
+  useEffect(() => { valueRef.current = value }, [value])
+
+  useEffect(() => {
+    setSupported('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+    return () => { recogRef.current?.stop() }
+  }, [])
+
+  function start() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+    const recog = new SR()
+    recog.lang = 'fr-FR'
+    recog.continuous = true
+    recog.interimResults = true
+
+    recog.onresult = (e: any) => {
+      let final = '', interimText = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript
+        if (e.results[i].isFinal) final += t
+        else interimText += t
+      }
+      if (final.trim()) {
+        const cur = valueRef.current
+        const sep = cur.length > 0 && !cur.endsWith('\n') ? ' ' : ''
+        onChange(cur + sep + final.trim())
+        setInterim('')
+      } else {
+        setInterim(interimText)
+      }
+    }
+
+    recog.onerror = (e: any) => {
+      if (e.error === 'not-allowed') setPermError(true)
+      setListening(false)
+      setInterim('')
+      recogRef.current = null
+    }
+
+    recog.onend = () => {
+      setListening(false)
+      setInterim('')
+      recogRef.current = null
+    }
+
+    recogRef.current = recog
+    try { recog.start(); setListening(true); setPermError(false) }
+    catch { setListening(false) }
+  }
+
+  function stop() {
+    recogRef.current?.stop()
+    recogRef.current = null
+    setListening(false)
+    setInterim('')
+  }
+
+  const active = value.length > 0 || listening
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        style={{
+          width: '100%', padding: '13px 16px',
+          paddingBottom: supported ? '46px' : '13px',
+          fontSize: '15px',
+          borderRadius: '12px', border: `2px solid ${active ? C.terracotta : C.sable}`,
+          backgroundColor: C.white, color: C.dark, outline: 'none',
+          boxSizing: 'border-box', resize: 'vertical', lineHeight: '1.65',
+          fontFamily: 'inherit', transition: 'border-color 0.2s',
+        }}
+      />
+
+      {/* Texte intermédiaire pendant la dictée */}
+      {interim && (
+        <p style={{
+          fontSize: '13px', color: C.terracotta, fontStyle: 'italic',
+          position: 'absolute', bottom: '48px', left: '16px', right: '48px',
+          margin: 0, lineHeight: '1.4', pointerEvents: 'none',
+          backgroundColor: 'rgba(247,242,235,0.9)',
+          borderRadius: '4px', padding: '2px 4px',
+        }}>
+          {interim}…
+        </p>
+      )}
+
+      {/* Bouton micro */}
+      {supported && (
+        <button
+          type="button"
+          onClick={listening ? stop : start}
+          title={listening ? 'Arrêter la dictée' : 'Dicter avec le micro (fr)'}
+          style={{
+            position: 'absolute', bottom: '10px', right: '10px',
+            width: '32px', height: '32px', borderRadius: '50%',
+            border: `1.5px solid ${listening ? C.terracotta : C.sable}`,
+            backgroundColor: listening ? C.terracotta : C.white,
+            color: listening ? C.white : C.grey,
+            cursor: 'pointer', padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s',
+            animation: listening ? 'kavio-pulse 1.4s ease-in-out infinite' : 'none',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0014 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="8"  y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+          </svg>
+        </button>
+      )}
+
+      {/* Erreur de permission */}
+      {permError && (
+        <p style={{ fontSize: '12px', color: '#C0392B', marginTop: '6px' }}>
+          Accès au microphone refusé — vérifiez les permissions dans votre navigateur.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, countLabel = 'éléments' }: {
   tags: string[]; onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void
   maxTags?: number; placeholder?: string; countLabel?: string
@@ -593,7 +729,7 @@ export default function OnboardingPage() {
         return (
           <>
             <QuestionLabel num={step} text="Racontez-nous votre parcours." sub={MICRO_TEXTS[step]} />
-            <StyledTextArea
+            <VoiceTextArea
               value={data.parcours}
               onChange={v => set('parcours', v)}
               placeholder="Formations, expériences, reconversions, particularités… Soyez vous-même."
@@ -667,7 +803,7 @@ export default function OnboardingPage() {
         return (
           <>
             <QuestionLabel num={step} text="Quel est le projet dont vous êtes le plus fier ?" sub={MICRO_TEXTS[step]} />
-            <StyledTextArea
+            <VoiceTextArea
               value={data.projet}
               onChange={v => set('projet', v)}
               placeholder="Un projet perso, pro, associatif… Qu'est-ce qui l'a rendu spécial ?"
@@ -694,7 +830,7 @@ export default function OnboardingPage() {
         return (
           <>
             <QuestionLabel num={step} text="Avez-vous des projets personnels ou créatifs ?" sub={MICRO_TEXTS[step]} />
-            <StyledTextArea
+            <VoiceTextArea
               value={data.sideProject}
               onChange={v => set('sideProject', v)}
               placeholder="Side-project, blog, association, app, œuvre… ou simplement « pas pour l'instant »."
@@ -999,7 +1135,13 @@ export default function OnboardingPage() {
 
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <style suppressHydrationWarning>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <style suppressHydrationWarning>{`
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes kavio-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(196,103,58,0.45); }
+          50%       { box-shadow: 0 0 0 7px rgba(196,103,58,0); }
+        }
+      `}</style>
 
       {/* Header */}
       <header style={{
