@@ -193,15 +193,15 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           animation: kv-fade 0.7s ease-out both;
         }
 
-        /* Boussole héros — très grande, ancrée bas-droite, débordante */
+        /* Boussole héros — grande, centrée verticalement, anneau débordant à droite */
         .kv-compass-hero {
           position: absolute;
-          right: -20%;
-          bottom: -25%;
-          width: clamp(520px, 85vh, 900px);
-          height: clamp(520px, 85vh, 900px);
+          right: -5%;
+          top: 50%;
+          width: clamp(520px, 72vh, 740px);
+          height: clamp(520px, 72vh, 740px);
           z-index: 1;
-          animation: kv-compass-in 1.2s cubic-bezier(0.22,1,0.36,1) 0.1s both;
+          animation: kv-compass-in 1.1s cubic-bezier(0.22,1,0.36,1) 0.1s both;
         }
 
         /* Aiguille — CSS overrides SVG transform attr */
@@ -236,8 +236,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes kv-compass-in {
-          from { opacity: 0; transform: scale(0.95); }
-          to   { opacity: 1; transform: scale(1); }
+          from { opacity: 0; transform: translateY(-50%) scale(0.95); }
+          to   { opacity: 1; transform: translateY(-50%) scale(1); }
         }
         @keyframes kv-needle-settle {
           from { transform: rotate(11deg); }
