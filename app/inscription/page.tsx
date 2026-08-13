@@ -106,7 +106,6 @@ export default function InscriptionPage() {
   const router = useRouter()
 
   const [accountType, setAccountType] = useState<AccountType>(null)
-  const [prenom, setPrenom] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -123,7 +122,6 @@ export default function InscriptionPage() {
 
   const isValid =
     accountType !== null &&
-    prenom.trim().length > 0 &&
     isValidEmail(email) &&
     password.length >= 8 &&
     confirm === password
@@ -152,7 +150,6 @@ export default function InscriptionPage() {
     if (data.user) {
       await supabase.from('profils').insert({
         user_id: data.user.id,
-        prenom,
         type_compte: accountType,
       })
     }
@@ -229,14 +226,6 @@ export default function InscriptionPage() {
 
           {/* Divider */}
           <div style={{ height: '1px', backgroundColor: C.sable }} />
-
-          {/* Prénom */}
-          <Field
-            label="Prénom"
-            value={prenom}
-            onChange={setPrenom}
-            placeholder="Sophie"
-          />
 
           {/* Email */}
           <Field
