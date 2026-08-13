@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import BoussoleKavio from '@/components/BoussoleKavio'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -174,52 +175,50 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
   return (
     <div className="kv-welcome">
       <style suppressHydrationWarning>{`
-        /* ── WELCOME SCREEN ── */
         .kv-welcome {
           position: relative;
           min-height: 100vh;
-          background: #2C4A3E;
+          background: #F7F2EB;
           overflow: hidden;
-          font-family: inherit;
+          display: flex;
+          align-items: center;
         }
 
         /* Logo — haut gauche */
         .kv-logo {
           position: absolute;
-          top: 0; left: 0;
-          padding: clamp(24px,3.5vh,44px) clamp(28px,4.5vw,64px);
-          display: flex; align-items: center; gap: 11px;
-          z-index: 2;
-          animation: kv-fade 0.8s ease-out both;
+          top: clamp(24px, 3.5vh, 44px);
+          left: clamp(28px, 4.5vw, 72px);
+          z-index: 3;
+          animation: kv-fade 0.7s ease-out both;
         }
 
-        /* Boussole héros — droite, débordante */
-        .kv-compass-wrap {
+        /* Boussole héros — droite, légèrement débordante */
+        .kv-compass-hero {
           position: absolute;
-          right: -7%;
+          right: -6%;
           top: 50%;
           transform: translateY(-50%);
-          width: clamp(380px, 68vh, 720px);
-          height: clamp(380px, 68vh, 720px);
-          z-index: 0;
-          animation: kv-compass-appear 1.1s cubic-bezier(0.22,1,0.36,1) 0.1s both;
+          width: clamp(340px, 54vh, 580px);
+          height: clamp(340px, 54vh, 580px);
+          z-index: 1;
+          animation: kv-compass-in 1.1s cubic-bezier(0.22,1,0.36,1) 0.1s both;
         }
 
-        /* Aiguille — animation de stabilisation */
+        /* Aiguille — CSS overrides SVG transform attr */
         .kv-needle {
           transform-box: fill-box;
           transform-origin: center;
-          animation: kv-needle-settle 2.2s cubic-bezier(0.22,1,0.36,1) 0.35s both;
+          animation: kv-needle-settle 2.4s cubic-bezier(0.22,1,0.36,1) 0.45s both;
         }
 
-        /* Texte — bas gauche */
-        .kv-content {
-          position: absolute;
-          bottom: 0; left: 0;
-          padding: 0 clamp(28px,4.5vw,72px) clamp(40px,5.5vh,60px);
-          max-width: 530px;
+        /* Texte — gauche, centré verticalement */
+        .kv-text {
+          position: relative;
           z-index: 2;
-          animation: kv-content-appear 0.9s cubic-bezier(0.22,1,0.36,1) 0.55s both;
+          width: 52%;
+          padding: clamp(72px, 9vh, 88px) 0 clamp(48px, 6vh, 64px) clamp(28px, 4.5vw, 72px);
+          animation: kv-rise 0.85s cubic-bezier(0.22,1,0.36,1) 0.3s both;
         }
 
         .kv-btn {
@@ -230,113 +229,93 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           transform: translateY(-1px);
         }
 
-        /* Keyframes */
         @keyframes kv-fade {
-          from { opacity: 0; }
-          to   { opacity: 1; }
+          from { opacity: 0; } to { opacity: 1; }
         }
-        @keyframes kv-compass-appear {
-          from { opacity: 0; transform: translateY(-50%) scale(0.91); }
+        @keyframes kv-rise {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes kv-compass-in {
+          from { opacity: 0; transform: translateY(-50%) scale(0.93); }
           to   { opacity: 1; transform: translateY(-50%) scale(1); }
         }
         @keyframes kv-needle-settle {
-          from { transform: rotate(-24deg); }
-          to   { transform: rotate(0deg); }
-        }
-        @keyframes kv-content-appear {
-          from { opacity: 0; transform: translateY(22px); }
-          to   { opacity: 1; transform: translateY(0); }
+          from { transform: rotate(11deg); }
+          to   { transform: rotate(35deg); }
         }
 
         /* Mobile */
         @media (max-width: 768px) {
-          .kv-compass-wrap {
-            right: auto;
-            top: 34%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80vw; height: 80vw;
-            opacity: 0.22;
-            animation: none;
+          .kv-welcome {
+            flex-direction: column;
+            align-items: stretch;
           }
-          .kv-needle { animation: none; }
-          .kv-content {
-            right: 0;
-            max-width: none;
-            padding: 0 26px clamp(40px,5vh,56px);
+          .kv-compass-hero {
+            position: relative;
+            order: 1;
+            right: auto; top: auto;
+            transform: none;
+            width: clamp(160px, 46vw, 230px);
+            height: clamp(160px, 46vw, 230px);
+            margin: clamp(72px, 12vh, 92px) auto 20px;
+            animation: kv-fade 0.9s ease-out 0.1s both;
+          }
+          .kv-text {
+            order: 2;
+            width: 100%;
+            padding: 0 clamp(24px, 6vw, 36px) clamp(44px, 7vh, 60px);
           }
         }
 
       `}</style>
 
-      {/* ── Logo — haut gauche ── */}
+      {/* Logo — haut gauche */}
       <div className="kv-logo">
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: '#F7F2EB', letterSpacing: '0.03em' }}>
+        <span style={{
+          fontFamily: 'Georgia, serif',
+          fontSize: '20px',
+          color: '#2C4A3E',
+          letterSpacing: '0.03em',
+        }}>
           Kavio
         </span>
       </div>
 
-      {/* ── Boussole héros — grande, droite, débordante ── */}
-      <div className="kv-compass-wrap" aria-hidden>
-        <svg viewBox="-50 -50 100 100" width="100%" height="100%">
-
-          {/* Cercle extérieur — fidèle au logo */}
-          <circle r="47" fill="none" stroke="rgba(232,213,183,0.55)" strokeWidth="2.6"/>
-
-          {/* Repères cardinaux */}
-          <line x1="0"   y1="-47" x2="0"   y2="-43" stroke="rgba(232,213,183,0.75)" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="47"  y1="0"   x2="43"  y2="0"   stroke="rgba(232,213,183,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-          <line x1="0"   y1="47"  x2="0"   y2="43"  stroke="rgba(232,213,183,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-          <line x1="-47" y1="0"   x2="-43" y2="0"   stroke="rgba(232,213,183,0.38)" strokeWidth="1.2" strokeLinecap="round"/>
-
-          {/* Anneaux intérieurs légers */}
-          <circle r="12" fill="none" stroke="rgba(232,213,183,0.1)"  strokeWidth="0.7"/>
-          <circle r="28" fill="none" stroke="rgba(232,213,183,0.07)" strokeWidth="0.5"/>
-
-          {/* Aiguille bicolore — animée */}
-          <g className="kv-needle" transform="rotate(32)">
-            {/* Pointe nord — terracotta */}
-            <path d="M0,0 L-6.5,-11 L0,-41 L6.5,-11Z" fill="#C4673A"/>
-            {/* Pointe sud — sable discret */}
-            <path d="M0,0 L6.5,11 L0,41 L-6.5,11Z"   fill="rgba(232,213,183,0.48)"/>
-          </g>
-
-          {/* Moyeu central */}
-          <circle r="6.5" fill="#2C4A3E" stroke="rgba(232,213,183,0.45)" strokeWidth="1.2"/>
-          <circle r="3.5" fill="#F7F2EB" opacity="0.92"/>
-          <circle r="1.2" fill="#2C4A3E"/>
-
-        </svg>
+      {/* Boussole héros — vraies couleurs, droite, légèrement débordante */}
+      <div className="kv-compass-hero">
+        <BoussoleKavio size="100%" needleClassName="kv-needle" />
       </div>
 
-      {/* ── Texte — bas gauche ── */}
-      <div className="kv-content">
+      {/* Texte — gauche, centré verticalement par flexbox */}
+      <div className="kv-text">
         <p style={{
           fontFamily: 'Georgia, serif',
-          fontSize: 'clamp(11px, 0.85vw, 13px)',
-          color: 'rgba(232,213,183,0.6)',
+          fontSize: 'clamp(11px, 0.9vw, 13px)',
+          color: '#C4673A',
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          marginBottom: '20px', marginTop: 0,
+          marginBottom: '18px', marginTop: 0,
         }}>
           Trouvez votre cap.
         </p>
         <h1 style={{
           fontFamily: 'Georgia, serif',
-          fontSize: 'clamp(32px, 3.8vw, 54px)',
-          color: '#F7F2EB',
+          fontSize: 'clamp(32px, 3.8vw, 52px)',
+          color: '#1A1A1A',
           fontWeight: 'normal',
           lineHeight: '1.1',
           letterSpacing: '-0.01em',
-          marginBottom: '22px', marginTop: 0,
+          marginBottom: '24px', marginTop: 0,
         }}>
           Bienvenue sur Kavio.
         </h1>
         <p style={{
           fontSize: 'clamp(14px, 1.1vw, 16px)',
-          color: 'rgba(247,242,235,0.72)',
+          color: '#6B6B6B',
           lineHeight: '1.78',
-          marginBottom: '12px', marginTop: 0,
+          marginBottom: '14px', marginTop: 0,
+          maxWidth: '420px',
         }}>
           Ici, pas de CV. Les recruteurs vous découvrent à travers un profil vivant : vos compétences,
           bien sûr, mais aussi votre personnalité, vos valeurs et ce que vous recherchez.
@@ -344,9 +323,10 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         </p>
         <p style={{
           fontSize: 'clamp(14px, 1.1vw, 16px)',
-          color: 'rgba(247,242,235,0.72)',
+          color: '#6B6B6B',
           lineHeight: '1.78',
-          marginBottom: '36px', marginTop: 0,
+          marginBottom: '38px', marginTop: 0,
+          maxWidth: '420px',
         }}>
           Comptez une dizaine de minutes. Rien n'est figé : vous pourrez enrichir votre profil
           quand vous le souhaitez.
@@ -357,7 +337,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           style={{
             backgroundColor: '#C4673A', color: '#FFFFFF',
             border: 'none', borderRadius: '12px',
-            padding: '14px 38px', fontSize: '15px', fontWeight: '500',
+            padding: '14px 40px', fontSize: '15px', fontWeight: '500',
             cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
           }}
         >
