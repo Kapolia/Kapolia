@@ -189,14 +189,10 @@ export default function InscriptionPage() {
           fontSize: 'clamp(22px, 4vw, 28px)',
           color: C.dark,
           fontWeight: '400',
-          margin: '0 0 6px',
+          margin: '0 0 28px',
         }}>
           Créez votre profil
         </h1>
-        <p style={{ margin: '0 0 28px', fontSize: '14px', color: C.grey }}>
-          Gratuit&nbsp;·&nbsp;5 minutes&nbsp;·&nbsp;Sans CV
-        </p>
-
         <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
 
           {/* Account type */}
