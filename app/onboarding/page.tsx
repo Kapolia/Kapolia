@@ -172,46 +172,238 @@ const C = {
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ padding: '22px clamp(20px, 5%, 48px)' }}>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kavio</span>
-      </header>
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '32px clamp(20px, 5%, 48px)',
-      }}>
-        <div style={{ width: '100%', maxWidth: '560px' }}>
+    <div className="kv-welcome">
+      <style suppressHydrationWarning>{`
+        .kv-welcome {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: row;
+          font-family: inherit;
+        }
+        .kv-left {
+          flex: 0 0 56%;
+          background: #F7F2EB;
+          display: flex;
+          flex-direction: column;
+          padding: 44px clamp(36px, 6vw, 84px);
+          animation: kv-rise 0.7s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        .kv-right {
+          flex: 1;
+          background: #2C4A3E;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          animation: kv-fade 0.9s ease-out both;
+        }
+        .kv-compass {
+          position: relative;
+          z-index: 1;
+          animation: kv-settle 1.3s cubic-bezier(0.22,1,0.36,1) 0.2s both;
+        }
+        .kv-tagline {
+          position: relative;
+          z-index: 1;
+          animation: kv-rise 0.8s cubic-bezier(0.22,1,0.36,1) 0.42s both;
+        }
+        .kv-btn {
+          transition: background-color 0.2s, transform 0.15s;
+        }
+        .kv-btn:hover {
+          background-color: #b05832 !important;
+          transform: translateY(-1px);
+        }
+        @keyframes kv-rise {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0);    }
+        }
+        @keyframes kv-fade {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes kv-settle {
+          from { opacity: 0; transform: rotate(-7deg) scale(0.93); }
+          to   { opacity: 1; transform: rotate(0deg)  scale(1);    }
+        }
+        @media (max-width: 768px) {
+          .kv-welcome    { flex-direction: column; min-height: 100svh; }
+          .kv-left       { flex: none; padding: 36px 26px; order: 2; }
+          .kv-right      { flex: none; min-height: 260px; order: 1; }
+          .kv-compass svg { width: 190px !important; height: 190px !important; }
+          .kv-tagline    { font-size: 16px !important; margin-top: 14px !important; }
+        }
+      `}</style>
+
+      {/* ── Panneau gauche — crème ── */}
+      <div className="kv-left">
+        <header style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Mini-compas logo */}
+          <svg width="20" height="20" viewBox="-11 -11 22 22" fill="none" aria-hidden>
+            <circle r="10" stroke={C.vert} strokeWidth="1.2" opacity="0.35"/>
+            <path d="M0,-9 L-2.5,-2.5 L0,-0.8 L2.5,-2.5Z" fill={C.terracotta}/>
+            <path d="M0,9 L2.5,2.5 L0,0.8 L-2.5,2.5Z" fill={C.vert} opacity="0.4"/>
+            <line x1="-9" y1="0" x2="9" y2="0" stroke={C.vert} strokeWidth="0.7" opacity="0.25"/>
+            <circle r="1.6" fill={C.vert}/>
+          </svg>
+          <span style={{ fontFamily: 'Georgia, serif', fontSize: '19px', color: C.dark, letterSpacing: '0.02em' }}>
+            Kavio
+          </span>
+        </header>
+
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', paddingTop: '48px', paddingBottom: '48px',
+          maxWidth: '460px',
+        }}>
           <h1 style={{
             fontFamily: 'Georgia, serif',
-            fontSize: 'clamp(30px, 5vw, 46px)',
+            fontSize: 'clamp(30px, 3.2vw, 50px)',
             color: C.dark, fontWeight: 'normal',
-            marginBottom: '32px', lineHeight: '1.2',
+            lineHeight: '1.15', marginBottom: '28px', marginTop: 0,
+            letterSpacing: '-0.01em',
           }}>
             Bienvenue sur Kavio.
           </h1>
-          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '18px' }}>
+          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '18px', marginTop: 0 }}>
             Ici, pas de CV. Les recruteurs vous découvrent à travers un profil vivant : vos compétences,
             bien sûr, mais aussi votre personnalité, vos valeurs et ce que vous recherchez.
             C'est ce qui donne envie de vous rencontrer.
           </p>
-          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '44px' }}>
+          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '48px', marginTop: 0 }}>
             Comptez une dizaine de minutes. Rien n'est figé : vous pourrez enrichir votre profil
             quand vous le souhaitez.
           </p>
           <button
             onClick={onStart}
+            className="kv-btn"
             style={{
+              alignSelf: 'flex-start',
               backgroundColor: C.terracotta, color: C.white,
               border: 'none', borderRadius: '14px',
-              padding: '14px 36px', fontSize: '16px', fontWeight: '500',
-              cursor: 'pointer', fontFamily: 'inherit',
+              padding: '15px 42px', fontSize: '16px', fontWeight: '500',
+              cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
             }}
           >
             Commencer
           </button>
         </div>
       </div>
-    </main>
+
+      {/* ── Panneau droit — vert profond ── */}
+      <div className="kv-right">
+
+        {/* Filigrane maritime — fond SVG plein panneau */}
+        <svg
+          viewBox="0 0 460 700" width="100%" height="100%"
+          style={{ position: 'absolute', inset: 0 }}
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden
+        >
+          {/* Grille latitude / longitude */}
+          {[-4,-3,-2,-1,0,1,2,3,4].map(i => (
+            <line key={`h${i}`} x1={0} y1={350 + i * 78} x2={460} y2={350 + i * 78}
+              stroke="rgba(232,213,183,0.055)" strokeWidth="0.7" strokeDasharray="5,13"/>
+          ))}
+          {[-3,-2,-1,0,1,2,3].map(i => (
+            <line key={`v${i}`} x1={230 + i * 82} y1={0} x2={230 + i * 82} y2={700}
+              stroke="rgba(232,213,183,0.055)" strokeWidth="0.7" strokeDasharray="5,13"/>
+          ))}
+          {/* Cercles concentriques (arcs de portée) */}
+          {[58, 108, 162, 220, 284, 354].map(r => (
+            <circle key={`ring${r}`} cx={230} cy={350} r={r}
+              fill="none" stroke="rgba(232,213,183,0.05)" strokeWidth="0.9"/>
+          ))}
+          {/* Lignes de cap */}
+          <line x1={230} y1={0} x2={230} y2={700} stroke="rgba(232,213,183,0.045)" strokeWidth="0.6"/>
+          <line x1={0} y1={350} x2={460} y2={350} stroke="rgba(232,213,183,0.045)" strokeWidth="0.6"/>
+          <line x1={0} y1={0} x2={460} y2={700} stroke="rgba(232,213,183,0.03)" strokeWidth="0.5" strokeDasharray="3,15"/>
+          <line x1={460} y1={0} x2={0} y2={700} stroke="rgba(232,213,183,0.03)" strokeWidth="0.5" strokeDasharray="3,15"/>
+          {/* Points de croisement */}
+          {([-1,0,1] as const).flatMap(dy => ([-1,0,1] as const).map(dx => (
+            <circle key={`d${dx}${dy}`} cx={230 + dx * 82} cy={350 + dy * 78} r={1.3}
+              fill="rgba(232,213,183,0.13)"/>
+          )))}
+        </svg>
+
+        {/* Rose des vents */}
+        <div className="kv-compass">
+          <svg viewBox="-200 -200 400 400" width="300" height="300" role="img" aria-label="Rose des vents Kavio">
+
+            {/* Anneaux extérieurs */}
+            <circle r="188" fill="none" stroke="rgba(232,213,183,0.07)" strokeWidth="1"/>
+            <circle r="180" fill="none" stroke="rgba(232,213,183,0.18)" strokeWidth="1.2"/>
+
+            {/* Graduations tous les 10° */}
+            {Array.from({ length: 36 }, (_, i) => {
+              const a     = (i * 10 * Math.PI) / 180
+              const card  = i % 9 === 0
+              const mid   = i % 3 === 0
+              const r0    = card ? 164 : mid ? 169 : 172
+              return (
+                <line key={i}
+                  x1={Math.sin(a) * r0}    y1={-Math.cos(a) * r0}
+                  x2={Math.sin(a) * 179.5} y2={-Math.cos(a) * 179.5}
+                  stroke={`rgba(232,213,183,${card ? 0.4 : 0.18})`}
+                  strokeWidth={card ? 1.3 : 0.65}
+                />
+              )
+            })}
+
+            {/* Disque de fond intérieur */}
+            <circle r="157" fill="rgba(22,36,30,0.5)"/>
+
+            {/* Demi-cercle NE/SW pour séparation bicolore */}
+            <path d="M0,-157 A157,157 0 0,1 157,0 L0,0Z" fill="rgba(232,213,183,0.025)"/>
+
+            {/* Points intercardinalx (NE SE SW NO) — plus courts, plus fins */}
+            {[45, 135, 225, 315].map(deg => (
+              <path key={deg} d="M0,-90 L-8,-36 L0,-15 L8,-36Z"
+                transform={`rotate(${deg})`} fill="rgba(232,213,183,0.33)"/>
+            ))}
+
+            {/* Points cardinaux — N en terracotta, S/E/O en sable */}
+            <path d="M0,-152 L-12,-54 L0,-20 L12,-54Z" fill={C.terracotta}/>
+            {[90, 180, 270].map(deg => (
+              <path key={deg} d="M0,-152 L-12,-54 L0,-20 L12,-54Z"
+                transform={`rotate(${deg})`} fill="rgba(232,213,183,0.65)"/>
+            ))}
+
+            {/* Moyeu central */}
+            <circle r="23" fill={C.vert} stroke="rgba(196,103,58,0.5)" strokeWidth="1.5"/>
+            <circle r="12" fill={C.terracotta} opacity="0.88"/>
+            <circle r="5"  fill="rgba(247,242,235,0.9)"/>
+            <circle r="1.8" fill={C.vert}/>
+
+            {/* Lettres cardinales */}
+            <text x="0" y="-159" textAnchor="middle" dominantBaseline="middle"
+              fill="rgba(247,242,235,0.95)" fontSize="15" fontFamily="Georgia,serif" fontStyle="italic">N</text>
+            <text x="0"    y="167" textAnchor="middle" dominantBaseline="middle"
+              fill="rgba(232,213,183,0.4)" fontSize="11" fontFamily="Georgia,serif">S</text>
+            <text x="167"  y="0"   textAnchor="middle" dominantBaseline="middle"
+              fill="rgba(232,213,183,0.4)" fontSize="11" fontFamily="Georgia,serif">E</text>
+            <text x="-167" y="0"   textAnchor="middle" dominantBaseline="middle"
+              fill="rgba(232,213,183,0.4)" fontSize="11" fontFamily="Georgia,serif">O</text>
+          </svg>
+        </div>
+
+        {/* Tagline */}
+        <p className="kv-tagline" style={{
+          fontFamily: 'Georgia, serif',
+          fontSize: 'clamp(17px, 1.6vw, 21px)',
+          color: 'rgba(232,213,183,0.88)',
+          margin: '28px 0 0',
+          letterSpacing: '0.06em',
+          fontStyle: 'italic',
+          textAlign: 'center',
+        }}>
+          Trouvez votre cap.
+        </p>
+
+      </div>
+    </div>
   )
 }
 
