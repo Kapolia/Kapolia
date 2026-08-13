@@ -36,7 +36,7 @@ type FormData = {
   sideProject: string
   disponibilite: string
   dispo_date: string
-  typePoste: string
+  typePoste: string[]
   lieu: string
   ville: string
   priorite: string[]
@@ -51,44 +51,41 @@ type FormData = {
 const TOTAL = 17
 
 const BLOCKS = [
-  { label: 'Identité & Parcours',      steps: [1, 2, 3, 4] },
+  { label: 'Identité & Parcours',       steps: [1, 2, 3, 4] },
   { label: 'Personnalité & Soft skills', steps: [5, 6, 7] },
-  { label: 'Projets & Hobbies',         steps: [8, 9, 10] },
-  { label: 'Cap & Préférences',          steps: [11, 12, 13, 14] },
-  { label: 'Parcours professionnel',     steps: [15, 16, 17] },
+  { label: 'Projets & Hobbies',          steps: [8, 9, 10] },
+  { label: 'Cap & Préférences',           steps: [11, 12, 13, 14] },
+  { label: 'Parcours professionnel',      steps: [15, 16, 17] },
 ]
 
-// Étapes optionnelles — le bouton "Passer" y apparaît
 const OPTIONAL_STEPS = new Set([4, 7, 8, 9, 10, 13, 15, 16, 17])
 const LONG_OPTIONAL  = new Set([15, 16, 17])
 
-// Texte de transition affiché en tête de la 1ère étape de chaque nouveau bloc
 const TRANSITIONS: Record<number, string> = {
-  5:  'Bien. Voyons ce qui vous définit au-delà de votre parcours.',
-  8:  'Parlons à présent de ce que vous avez construit.',
+  5:  'Voyons à présent ce qui vous définit, au-delà de votre parcours.',
+  8:  'Parlons de ce que vous avez construit.',
   11: 'Votre profil prend forme. Précisons ce que vous recherchez.',
-  15: "Presque terminé. Il ne reste plus qu'à détailler votre parcours professionnel.",
+  15: "Presque terminé. Il ne reste qu'à détailler votre parcours professionnel.",
 }
 
-// Micro-texte explicatif sous chaque titre de question
 const MICRO_TEXTS: Record<number, string> = {
   1:  'Votre prénom et votre nom apparaissent sur votre profil tel que les recruteurs le verront.',
-  2:  "Votre domaine nous permet de vous mettre en contact avec les recruteurs dont les besoins vous correspondent — et d'écarter ceux qui n'y correspondent pas.",
-  3:  'Votre niveau permet à Kavio de vous présenter des opportunités adaptées — ni trop juniors, ni hors d\'atteinte.',
-  4:  "C'est la première section que lisent les recruteurs. Pas de format imposé : formations, reconversions, expériences marquantes — écrivez comme vous parlez.",
-  5:  "Les compétences s'apprennent. La personnalité, non. Ces trois mots complètent votre portrait et aident les recruteurs à cerner qui vous êtes avant même de vous rencontrer.",
-  6:  "L'adéquation culturelle est aussi importante que les compétences elles-mêmes. Votre réponse nous aide à vous orienter vers les entreprises dont le fonctionnement vous correspondra.",
-  7:  "Votre façon d'aborder les problèmes est souvent ce que les recruteurs cherchent à comprendre en entretien. Cette réponse leur donne une longueur d'avance — dans votre sens.",
-  8:  "Une réalisation concrète marque davantage qu'une liste de compétences. Professionnelle, personnelle, associative — ce qui compte, c'est ce que ce projet dit de vous.",
-  9:  "Les recruteurs Kavio s'intéressent à qui vous êtes au-delà du bureau. Vos centres d'intérêt peuvent aussi être de véritables points de connexion.",
-  10: "Un projet personnel, un blog, une association, une application — ces initiatives témoignent d'une curiosité et d'un engagement qui vont au-delà de la fiche de poste.",
+  2:  'Votre domaine oriente les offres que nous vous proposons, et aide les recruteurs de votre secteur à vous repérer.',
+  3:  "Votre niveau d'expérience affine les offres que nous vous présentons, pour rester au plus près de là où vous en êtes.",
+  4:  "C'est souvent la première section que lisent les recruteurs. Formations, reconversions, expériences marquantes : racontez votre parcours avec vos mots, sans format imposé.",
+  5:  "Les compétences s'apprennent. La personnalité, non. Ces trois mots complètent votre profil et aident les recruteurs à cerner qui vous êtes avant même de vous rencontrer.",
+  6:  "L'environnement où vous vous épanouissez compte autant que le poste lui-même. Votre réponse nous aide à vous présenter des entreprises dont le fonctionnement vous conviendra.",
+  7:  "Votre façon de travailler est souvent ce que les recruteurs cherchent à comprendre en entretien. En la partageant dès maintenant, vous prenez les devants, à votre avantage.",
+  8:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
+  9:  'Sur Kavio, les recruteurs s\'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d\'intérêt créent parfois de vrais points communs.',
+  10: 'Blog, association, application, projet perso : ce que vous menez à côté en dit long sur votre curiosité et votre énergie.',
   11: 'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
-  12: 'Votre zone géographique et vos préférences de mode de travail sont des critères décisifs — pour vous comme pour les recruteurs.',
-  13: "Les entreprises où l'on s'épanouit sont celles dont les valeurs rejoignent les nôtres. Vos priorités guident Kavio vers les environnements qui vous ressemblent.",
-  14: 'Les recruteurs ont besoin de connaître votre situation pour s\'assurer que leur calendrier de recrutement est compatible avec le vôtre.',
-  15: 'Ajoutez vos postes les plus significatifs, du plus récent au plus ancien. Vous débutez ou changez de voie ? Passez cette étape — vos autres réponses parlent déjà pour vous.',
-  16: 'Du plus récent au plus ancien. Les reconversions, bootcamps et formations continues sont tout aussi valorisés que les diplômes traditionnels.',
-  17: 'Vos compétences et vos langues permettent aux recruteurs de vous trouver dans leurs recherches. Plus votre liste est précise, plus votre profil remonte.',
+  12: 'Où vous souhaitez travailler, et comment (sur site, hybride, à distance) : ces critères comptent autant pour vous que pour les recruteurs.',
+  13: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités nous aident à vous proposer des environnements qui vous ressemblent.",
+  14: 'Indiquez où vous en êtes dans votre recherche. Les recruteurs sauront ainsi à quel moment vous pourriez les rejoindre.',
+  15: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
+  16: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
+  17: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
 }
 
 const DOMAINES = [
@@ -105,10 +102,10 @@ const EXPERIENCES = [
 ]
 
 const ENVIRONNEMENTS = [
-  { key: 'startup',   label: 'Startup agile',   desc: 'Rythme rapide, polyvalence' },
-  { key: 'scaleup',   label: 'Scale-up',          desc: 'Croissance forte, structuration en cours' },
-  { key: 'corporate', label: 'Grand groupe',       desc: 'Structure, expertise, ressources' },
-  { key: 'indep',     label: 'Indépendant(e)',     desc: 'Autonomie totale, projets variés' },
+  { key: 'startup',   label: 'Startup agile',  desc: 'Rythme rapide, polyvalence' },
+  { key: 'scaleup',   label: 'Scale-up',        desc: 'Croissance forte, structuration en cours' },
+  { key: 'corporate', label: 'Grand groupe',    desc: 'Structure, expertise, ressources' },
+  { key: 'indep',     label: 'Indépendant(e)',  desc: 'Autonomie totale, projets variés' },
 ]
 
 const DEFIS = [
@@ -186,35 +183,31 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         <div style={{ width: '100%', maxWidth: '560px' }}>
           <h1 style={{
             fontFamily: 'Georgia, serif',
-            fontSize: 'clamp(32px, 5vw, 48px)',
+            fontSize: 'clamp(30px, 5vw, 46px)',
             color: C.dark, fontWeight: 'normal',
             marginBottom: '32px', lineHeight: '1.2',
           }}>
-            Bienvenue.
+            Bienvenue sur Kavio.
           </h1>
-          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '16px' }}>
-            Sur Kavio, les recruteurs ne reçoivent pas de CV.
-          </p>
-          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '16px' }}>
-            Ils découvrent des candidats à travers un portrait complet — vos compétences, mais aussi
-            votre personnalité, vos valeurs et ce que vous recherchez. De quoi leur donner envie de
-            vous rencontrer.
+          <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '18px' }}>
+            Ici, pas de CV. Les recruteurs vous découvrent à travers un profil vivant : vos compétences,
+            bien sûr, mais aussi votre personnalité, vos valeurs et ce que vous recherchez.
+            C'est ce qui donne envie de vous rencontrer.
           </p>
           <p style={{ fontSize: '17px', color: C.dark, lineHeight: '1.8', marginBottom: '44px' }}>
-            Ce parcours vous prend une dizaine de minutes. Vous pourrez le compléter ou l'ajuster
-            à tout moment depuis votre espace personnel.
+            Comptez une dizaine de minutes. Rien n'est figé : vous pourrez enrichir votre profil
+            quand vous le souhaitez.
           </p>
           <button
             onClick={onStart}
             style={{
               backgroundColor: C.terracotta, color: C.white,
               border: 'none', borderRadius: '14px',
-              padding: '14px 32px', fontSize: '16px', fontWeight: '500',
+              padding: '14px 36px', fontSize: '16px', fontWeight: '500',
               cursor: 'pointer', fontFamily: 'inherit',
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
             }}
           >
-            Commencer →
+            Commencer
           </button>
         </div>
       </div>
@@ -252,30 +245,26 @@ function FinalScreen({ onGoToProfile }: { onGoToProfile: () => void }) {
 
           <h1 style={{
             fontFamily: 'Georgia, serif',
-            fontSize: 'clamp(26px, 4vw, 38px)',
+            fontSize: 'clamp(24px, 4vw, 36px)',
             color: C.dark, fontWeight: 'normal',
             marginBottom: '20px', lineHeight: '1.3',
           }}>
-            Votre profil est prêt.
+            Vous avez trouvé votre cap.
           </h1>
-          <p style={{ fontSize: '16px', color: C.grey, lineHeight: '1.8', marginBottom: '14px' }}>
-            Les recruteurs vont vous découvrir autrement qu'à travers un CV.
-          </p>
           <p style={{ fontSize: '16px', color: C.grey, lineHeight: '1.8', marginBottom: '44px' }}>
-            Vous pouvez l'enrichir à tout moment depuis votre espace personnel — chaque détail
-            ajouté augmente vos chances d'être contacté.
+            Votre profil est prêt : les recruteurs vont vous découvrir autrement qu'à travers un CV.
+            Enrichissez-le quand vous le souhaitez, il n'en sera que plus vivant.
           </p>
           <button
             onClick={onGoToProfile}
             style={{
               backgroundColor: C.terracotta, color: C.white,
               border: 'none', borderRadius: '14px',
-              padding: '14px 32px', fontSize: '16px', fontWeight: '500',
+              padding: '14px 36px', fontSize: '16px', fontWeight: '500',
               cursor: 'pointer', fontFamily: 'inherit',
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
             }}
           >
-            Accéder à mon profil →
+            Accéder à mon espace
           </button>
         </div>
       </div>
@@ -289,16 +278,16 @@ function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: st
   return (
     <>
       <p style={{
-        fontSize: '12px', color: C.terracotta, fontWeight: '600',
-        marginBottom: '12px', letterSpacing: '0.08em', textTransform: 'uppercase',
+        fontSize: '11px', color: C.terracotta, fontWeight: '700',
+        marginBottom: '10px', letterSpacing: '0.1em', textTransform: 'uppercase',
       }}>
-        Question {num}
+        Étape {num} sur {TOTAL}
       </p>
       <h2 style={{
         fontFamily: 'Georgia, serif',
-        fontSize: 'clamp(22px, 3.5vw, 34px)',
-        color: C.dark, lineHeight: '1.3',
-        marginBottom: sub ? '12px' : '28px',
+        fontSize: 'clamp(22px, 3.5vw, 32px)',
+        color: C.dark, lineHeight: '1.35',
+        marginBottom: sub ? '10px' : '28px',
         fontWeight: 'normal',
       }}>
         {text}
@@ -319,7 +308,7 @@ function ChoiceCard({ label, desc, selected, onClick }: {
     <button
       onClick={onClick}
       style={{
-        width: '100%', textAlign: 'left', padding: '15px 18px',
+        width: '100%', textAlign: 'left', padding: '14px 18px',
         borderRadius: '14px', border: `2px solid ${selected ? C.terracotta : C.sable}`,
         backgroundColor: selected ? 'rgba(196,103,58,0.07)' : C.white,
         cursor: 'pointer', transition: 'all 0.15s',
@@ -429,15 +418,11 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
 
     recog.onerror = (e: any) => {
       if (e.error === 'not-allowed') setPermError(true)
-      setListening(false)
-      setInterim('')
-      recogRef.current = null
+      setListening(false); setInterim(''); recogRef.current = null
     }
 
     recog.onend = () => {
-      setListening(false)
-      setInterim('')
-      recogRef.current = null
+      setListening(false); setInterim(''); recogRef.current = null
     }
 
     recogRef.current = recog
@@ -446,10 +431,8 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
   }
 
   function stop() {
-    recogRef.current?.stop()
-    recogRef.current = null
-    setListening(false)
-    setInterim('')
+    recogRef.current?.stop(); recogRef.current = null
+    setListening(false); setInterim('')
   }
 
   const active = value.length > 0 || listening
@@ -471,8 +454,6 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
           fontFamily: 'inherit', transition: 'border-color 0.2s',
         }}
       />
-
-      {/* Texte intermédiaire pendant la dictée */}
       {interim && (
         <p style={{
           fontSize: '13px', color: C.terracotta, fontStyle: 'italic',
@@ -484,8 +465,6 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
           {interim}…
         </p>
       )}
-
-      {/* Bouton micro */}
       {supported && (
         <button
           type="button"
@@ -511,11 +490,9 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
           </svg>
         </button>
       )}
-
-      {/* Erreur de permission */}
       {permError && (
         <p style={{ fontSize: '12px', color: '#C0392B', marginTop: '6px' }}>
-          Accès au microphone refusé — vérifiez les permissions dans votre navigateur.
+          Accès au microphone refusé. Vérifiez les permissions dans votre navigateur.
         </p>
       )}
     </div>
@@ -532,16 +509,14 @@ function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, coun
     e.preventDefault()
     const trimmed = val.trim()
     if (trimmed && !tags.includes(trimmed) && tags.length < maxTags) {
-      onAddTag(trimmed)
-      setVal('')
+      onAddTag(trimmed); setVal('')
     }
   }
   return (
     <div>
       {tags.length < maxTags && (
         <input
-          type="text"
-          value={val}
+          type="text" value={val}
           onChange={e => setVal(e.target.value)}
           onKeyDown={handleKey}
           placeholder={placeholder ?? 'Tapez et appuyez sur Entrée'}
@@ -563,12 +538,10 @@ function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, coun
               border: `1px solid ${C.vert}25`, fontSize: '13px', fontWeight: '500',
             }}>
               {tag}
-              <button
-                onClick={() => onRemoveTag(tag)}
-                style={{ background: 'none', border: 'none', color: C.grey, cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1, display: 'flex' }}
-              >
-                ×
-              </button>
+              <button onClick={() => onRemoveTag(tag)} style={{
+                background: 'none', border: 'none', color: C.grey,
+                cursor: 'pointer', padding: 0, fontSize: '14px', lineHeight: 1, display: 'flex',
+              }}>×</button>
             </span>
           ))}
         </div>
@@ -592,7 +565,7 @@ export default function OnboardingPage() {
     mots: ['', '', ''],
     environnement: '', defi: '', projet: '', passions: [],
     sideProject: '', disponibilite: '', dispo_date: '',
-    typePoste: '', lieu: '', ville: '', priorite: [],
+    typePoste: [], lieu: '', ville: '', priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
   const [saving,    setSaving]    = useState(false)
@@ -609,29 +582,26 @@ export default function OnboardingPage() {
       case 1:  return data.prenom.trim().length > 0 && data.nom.trim().length > 0
       case 2:  return data.domaine.length > 0
       case 3:  return data.experience.length > 0
-      case 4:  return true   // optionnel
+      case 4:  return true
       case 5:  return data.mots.every(m => m.trim().length > 0)
       case 6:  return data.environnement.length > 0
-      case 7:  return true   // optionnel
-      case 8:  return true   // optionnel
-      case 9:  return true   // optionnel
-      case 10: return true   // optionnel
+      case 7:  return true
+      case 8:  return true
+      case 9:  return true
+      case 10: return true
       case 11: return data.typePoste.length > 0
       case 12: return data.lieu.length > 0
-      case 13: return true   // optionnel
+      case 13: return true
       case 14: return data.disponibilite.length > 0
-      case 15: return true   // optionnel
-      case 16: return true   // optionnel
-      case 17: return true   // optionnel
+      case 15: return true
+      case 16: return true
+      case 17: return true
       default: return false
     }
   }
 
   async function handleNext() {
-    if (step < TOTAL) {
-      setStep(s => s + 1)
-      return
-    }
+    if (step < TOTAL) { setStep(s => s + 1); return }
     setSaving(true)
     setSaveError(null)
     try {
@@ -651,7 +621,7 @@ export default function OnboardingPage() {
         projet_phare: data.projet,
         passions: data.passions,
         side_project: data.sideProject || null,
-        type_poste: data.typePoste ? [data.typePoste] : [],
+        type_poste: data.typePoste,
         structure: data.lieu,
         ville: data.ville || null,
         priorites: data.priorite,
@@ -700,12 +670,12 @@ export default function OnboardingPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               {DOMAINES.map(d => (
                 <button key={d} onClick={() => set('domaine', d)} style={{
-                  padding: '10px 18px', borderRadius: '24px',
+                  padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
                   border: `2px solid ${data.domaine === d ? C.terracotta : C.sable}`,
                   backgroundColor: data.domaine === d ? 'rgba(196,103,58,0.08)' : C.white,
                   color: data.domaine === d ? C.terracotta : C.dark,
                   fontSize: '14px', fontWeight: data.domaine === d ? '600' : '400',
-                  cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                  cursor: 'pointer', transition: 'all 0.15s',
                 }}>
                   {d}
                 </button>
@@ -806,7 +776,7 @@ export default function OnboardingPage() {
             <VoiceTextArea
               value={data.projet}
               onChange={v => set('projet', v)}
-              placeholder="Un projet perso, pro, associatif… Qu'est-ce qui l'a rendu spécial ?"
+              placeholder="Un projet perso, pro, associatif… Ce qui l'a rendu marquant."
             />
           </>
         )
@@ -833,22 +803,48 @@ export default function OnboardingPage() {
             <VoiceTextArea
               value={data.sideProject}
               onChange={v => set('sideProject', v)}
-              placeholder="Side-project, blog, association, app, œuvre… ou simplement « pas pour l'instant »."
+              placeholder="Side-project, blog, association, application… ou simplement pas pour l'instant."
               rows={4}
             />
           </>
         )
 
-      case 11:
+      case 11: {
         return (
           <>
             <QuestionLabel num={step} text="Quel type de contrat recherchez-vous ?" sub={MICRO_TEXTS[step]} />
-            {TYPES_POSTE.map(t => (
-              <ChoiceCard key={t.key} label={t.label}
-                selected={data.typePoste === t.key} onClick={() => set('typePoste', t.key)} />
-            ))}
+            <p style={{ fontSize: '13px', color: C.grey, marginBottom: '16px', marginTop: '-14px' }}>
+              Vous pouvez en sélectionner plusieurs.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {TYPES_POSTE.map(t => {
+                const selected = data.typePoste.includes(t.key)
+                return (
+                  <button key={t.key} onClick={() => {
+                    if (selected) set('typePoste', data.typePoste.filter(k => k !== t.key))
+                    else set('typePoste', [...data.typePoste, t.key])
+                  }} style={{
+                    padding: '11px 22px', borderRadius: '24px', fontFamily: 'inherit',
+                    border: `2px solid ${selected ? C.terracotta : C.sable}`,
+                    backgroundColor: selected ? 'rgba(196,103,58,0.08)' : C.white,
+                    color: selected ? C.terracotta : C.dark,
+                    fontSize: '14px', fontWeight: selected ? '600' : '400',
+                    cursor: 'pointer', transition: 'all 0.15s',
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                  }}>
+                    {selected && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    {t.label}
+                  </button>
+                )
+              })}
+            </div>
           </>
         )
+      }
 
       case 12:
         return (
@@ -858,11 +854,13 @@ export default function OnboardingPage() {
               <ChoiceCard key={l.key} label={l.label} desc={l.desc}
                 selected={data.lieu === l.key} onClick={() => set('lieu', l.key)} />
             ))}
-            <StyledInput
-              value={data.ville}
-              onChange={v => set('ville', v)}
-              placeholder="Votre ville / région / zone géographique"
-            />
+            <div style={{ marginTop: '4px' }}>
+              <StyledInput
+                value={data.ville}
+                onChange={v => set('ville', v)}
+                placeholder="Votre ville, région ou zone géographique"
+              />
+            </div>
           </>
         )
 
@@ -871,7 +869,7 @@ export default function OnboardingPage() {
         return (
           <>
             <QuestionLabel num={step} text="Qu'est-ce qui compte le plus dans votre prochain poste ?" sub={MICRO_TEXTS[step]} />
-            <p style={{ fontSize: '14px', color: C.grey, marginBottom: '20px', marginTop: '-14px' }}>
+            <p style={{ fontSize: '13px', color: C.grey, marginBottom: '16px', marginTop: '-14px' }}>
               Choisissez jusqu'à 3 priorités.{' '}
               {maxReached && <span style={{ color: C.terracotta, fontWeight: '500' }}>Maximum atteint.</span>}
             </p>
@@ -884,14 +882,13 @@ export default function OnboardingPage() {
                     if (selected) set('priorite', data.priorite.filter(x => x !== p))
                     else if (!maxReached) set('priorite', [...data.priorite, p])
                   }} style={{
-                    padding: '10px 18px', borderRadius: '24px',
+                    padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
                     border: `2px solid ${selected ? C.terracotta : C.sable}`,
                     backgroundColor: selected ? 'rgba(196,103,58,0.09)' : C.white,
                     color: selected ? C.terracotta : C.dark,
                     fontSize: '14px', fontWeight: selected ? '600' : '400',
                     cursor: disabled ? 'default' : 'pointer',
                     opacity: disabled ? 0.4 : 1, transition: 'all 0.15s',
-                    fontFamily: 'inherit',
                   }}>
                     {selected ? '✓ ' : ''}{p}
                   </button>
@@ -978,7 +975,7 @@ export default function OnboardingPage() {
                   color: '#C0392B', fontSize: '13px', cursor: 'pointer',
                   padding: 0, fontFamily: 'inherit',
                 }}>
-                  ✕ Supprimer cette expérience
+                  Supprimer cette expérience
                 </button>
               </div>
             ))}
@@ -1016,7 +1013,7 @@ export default function OnboardingPage() {
                     placeholder="Intitulé du diplôme (ex : Master Marketing)" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                  <StyledInput value={d.ecole} onChange={v => updateDiplome(i, { ecole: v })} placeholder="École / Établissement" />
+                  <StyledInput value={d.ecole} onChange={v => updateDiplome(i, { ecole: v })} placeholder="École ou établissement" />
                   <StyledInput value={d.annee} onChange={v => updateDiplome(i, { annee: v })} placeholder="Année (ex : 2020)" />
                 </div>
                 <StyledInput value={d.mention} onChange={v => updateDiplome(i, { mention: v })}
@@ -1026,7 +1023,7 @@ export default function OnboardingPage() {
                   color: '#C0392B', fontSize: '13px', cursor: 'pointer',
                   padding: 0, fontFamily: 'inherit',
                 }}>
-                  ✕ Supprimer ce diplôme
+                  Supprimer ce diplôme
                 </button>
               </div>
             ))}
@@ -1048,7 +1045,7 @@ export default function OnboardingPage() {
             <QuestionLabel num={step} text="Compétences et langues" sub={MICRO_TEXTS[step]} />
 
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              Compétences techniques &amp; outils
+              Compétences techniques et outils
             </p>
             <TagInput
               tags={data.competences_acquises}
@@ -1083,7 +1080,6 @@ export default function OnboardingPage() {
                 )
               })}
             </div>
-
             {data.langues.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {data.langues.map(entry => {
@@ -1125,12 +1121,11 @@ export default function OnboardingPage() {
     }
   }
 
-  // Écrans hors parcours
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
   if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} />
 
-  const isOpt    = OPTIONAL_STEPS.has(step)
-  const skipLabel = LONG_OPTIONAL.has(step) ? 'Passer, je compléterai plus tard' : 'Passer'
+  const isOpt      = OPTIONAL_STEPS.has(step)
+  const skipLabel  = LONG_OPTIONAL.has(step) ? 'Passer, je compléterai plus tard' : 'Passer'
   const transition = TRANSITIONS[step]
 
   return (
@@ -1145,28 +1140,29 @@ export default function OnboardingPage() {
 
       {/* Header */}
       <header style={{
-        padding: '22px clamp(20px, 5%, 48px)',
+        padding: '20px clamp(20px, 5%, 48px)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderBottom: `1px solid ${C.sable}`,
       }}>
         <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kavio</span>
-        <span style={{ fontSize: '13px', color: C.grey, fontWeight: '500' }}>
+        <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
           {step} / {TOTAL}
         </span>
       </header>
 
-      {/* Progression */}
-      <div style={{ padding: '0 clamp(20px, 5%, 48px) 28px' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', flexWrap: 'wrap' }}>
+      {/* Progression — blocs + barre */}
+      <div style={{ padding: '16px clamp(20px, 5%, 48px) 20px' }}>
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
           {BLOCKS.map((b, i) => {
             const isCurrent = i === blockIndex
             const isPast    = i < blockIndex
             return (
               <span key={b.label} style={{
-                fontSize: '12px', padding: '4px 12px', borderRadius: '20px',
-                backgroundColor: isCurrent ? C.terracotta : isPast ? 'rgba(196,103,58,0.12)' : 'transparent',
+                fontSize: '11px', padding: '3px 10px', borderRadius: '20px',
+                backgroundColor: isCurrent ? C.terracotta : isPast ? 'rgba(196,103,58,0.1)' : 'transparent',
                 border: `1px solid ${isCurrent || isPast ? C.terracotta : C.sable}`,
                 color: isCurrent ? 'white' : isPast ? C.terracotta : C.grey,
-                fontWeight: isCurrent ? '500' : '400',
+                fontWeight: isCurrent ? '600' : '400',
                 transition: 'all 0.3s',
               }}>
                 {b.label}
@@ -1182,13 +1178,12 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Question */}
+      {/* Contenu de la question */}
       <div style={{
         flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '12px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
+        padding: '16px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
       }}>
         <div style={{ width: '100%', maxWidth: '560px' }}>
-          {/* Texte de transition — 1ère étape de chaque nouveau bloc */}
           {transition && (
             <p style={{
               fontSize: '14px', color: C.grey, fontStyle: 'italic',
@@ -1202,9 +1197,9 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer navigation */}
       <footer style={{
-        padding: '18px clamp(20px, 5%, 48px)',
+        padding: '16px clamp(20px, 5%, 48px)',
         borderTop: `1px solid ${C.sable}`,
         backgroundColor: C.creme,
       }}>
@@ -1214,7 +1209,6 @@ export default function OnboardingPage() {
           </p>
         )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {/* Retour */}
           <button onClick={handleBack} disabled={step === 1 || saving} style={{
             background: 'none', border: 'none', padding: '10px 0', fontSize: '14px',
             color: step === 1 || saving ? 'transparent' : C.grey,
@@ -1223,7 +1217,6 @@ export default function OnboardingPage() {
             ← Retour
           </button>
 
-          {/* Passer + Suivant/Terminer */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             {isOpt && !saving && (
               <button onClick={handleSkip} style={{
@@ -1237,7 +1230,7 @@ export default function OnboardingPage() {
             <button onClick={handleNext} disabled={!isValid() || saving} style={{
               backgroundColor: isValid() && !saving ? C.terracotta : C.sable,
               color: isValid() && !saving ? 'white' : C.grey,
-              border: 'none', borderRadius: '14px',
+              border: 'none', borderRadius: '12px',
               padding: '12px 28px', fontSize: '15px', fontWeight: '500',
               cursor: isValid() && !saving ? 'pointer' : 'default',
               transition: 'all 0.2s',
@@ -1253,7 +1246,7 @@ export default function OnboardingPage() {
                   }} />
                   Enregistrement…
                 </>
-              ) : step === TOTAL ? 'Terminer →' : 'Suivant →'}
+              ) : step === TOTAL ? 'Terminer' : 'Suivant'}
             </button>
           </div>
         </div>
