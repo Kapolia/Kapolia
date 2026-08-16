@@ -15,7 +15,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setStatus('redirect')
-        router.replace('/inscription')
+        router.replace('/connexion')
         return
       }
 

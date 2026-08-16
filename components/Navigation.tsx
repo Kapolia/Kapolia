@@ -113,7 +113,13 @@ export default function Navigation() {
   const pathname = usePathname()
   const [nav, setNav] = useState<NavState>({ status: 'loading' })
 
+  // Recalculé avant l'effet pour être utilisé comme dépendance
+  const FULLSCREEN_PATHS = ['/onboarding', '/connexion', '/inscription']
+  const isFullscreen = FULLSCREEN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+
   useEffect(() => {
+    // Re-fetch quand on sort d'une page plein écran (ex : fin onboarding → /profil)
+    // pour que onboarding_completed=true soit bien pris en compte.
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
 
@@ -124,7 +130,7 @@ export default function Navigation() {
 
       const { data: profil } = await supabase
         .from('profils')
-        .select('prenom, nom, type_compte, avatar_url, avatar_type')
+        .select('prenom, nom, type_compte, avatar_url, avatar_type, onboarding_completed')
         .eq('user_id', user.id)
         .single()
 
@@ -134,6 +140,9 @@ export default function Navigation() {
 
       if (tc === 'recruteur') {
         setNav({ status: 'recruteur', prenom, nom })
+      } else if (!profil?.onboarding_completed) {
+        // Candidat non-onboardé — pas de sidebar, nav guest
+        setNav({ status: 'guest' })
       } else {
         setNav({ status: 'candidat', prenom, nom, avatarUrl: profil?.avatar_url ?? undefined, avatarType: profil?.avatar_type ?? undefined })
       }
@@ -143,7 +152,8 @@ export default function Navigation() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => load())
     return () => subscription.unsubscribe()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullscreen])
 
   const handleSignOut = useCallback(async () => {
     await supabase.auth.signOut()
@@ -151,8 +161,7 @@ export default function Navigation() {
   }, [router])
 
   // Pages plein écran — aucune navigation (ni sidebar ni navbar)
-  const FULLSCREEN = ['/onboarding', '/connexion', '/inscription']
-  if (FULLSCREEN.some(p => pathname === p || pathname.startsWith(p + '/'))) return null
+  if (isFullscreen) return null
 
   // Recruteur sidebar is handled by app/recruteur/layout.tsx
   if (pathname.startsWith('/recruteur')) return null

@@ -4,52 +4,14 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import BoussoleKavio from '@/components/BoussoleKavio'
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Experience = {
-  poste: string
-  entreprise: string
-  date_debut: string
-  date_fin: string
-  en_poste: boolean
-  missions: string
-}
-
-type Diplome = {
-  intitule: string
-  ecole: string
-  annee: string
-  mention: string
-}
-
-type FormData = {
-  prenom: string
-  nom: string
-  domaine: string
-  experience: string
-  parcours: string
-  mots: [string, string, string]
-  environnement: string
-  defi: string
-  projet: string
-  passions: string[]
-  sideProject: string
-  disponibilite: string
-  dispo_date: string
-  typePoste: string[]
-  lieu: string
-  ville: string
-  priorite: string[]
-  experiences: Experience[]
-  diplomes: Diplome[]
-  competences_acquises: string[]
-  langues: string[]
-}
+import {
+  ONBOARDING_TOTAL as TOTAL,
+  firstIncompleteStep,
+  buildStepPayload,
+} from '@/lib/onboarding-utils'
+import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const TOTAL = 17
 
 const BLOCKS = [
   { label: 'Identité & Parcours',       steps: [1, 2, 3, 4] },
@@ -700,8 +662,65 @@ export default function OnboardingPage() {
     typePoste: [], lieu: '', ville: '', priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
-  const [saving,    setSaving]    = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving,        setSaving]        = useState(false)
+  const [saveError,     setSaveError]     = useState<string | null>(null)
+  const [loadingResume, setLoadingResume] = useState(true)
+  // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière
+  const maxStepRef = useRef(1)
+
+  useEffect(() => {
+    async function resumeIfNeeded() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoadingResume(false); return }
+
+      const { data: profil } = await supabase
+        .from('profils')
+        .select('prenom, nom, domaine, experience, signature, qualites, mode_travail, valeur, projet_phare, passions, side_project, type_poste, structure, ville, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
+        .eq('user_id', user.id)
+        .single()
+
+      if (profil?.prenom) {
+        const p = profil as Record<string, unknown>
+        const filled: FormData = {
+          prenom:               (p.prenom as string)      || '',
+          nom:                  (p.nom as string)          || '',
+          domaine:              (p.domaine as string)      || '',
+          experience:           (p.experience as string)   || '',
+          parcours:             (p.signature as string)    || '',
+          mots:                 Array.isArray(p.qualites) && (p.qualites as string[]).length === 3
+                                  ? p.qualites as [string, string, string]
+                                  : ['', '', ''],
+          environnement:        Array.isArray(p.mode_travail) && (p.mode_travail as string[]).length > 0
+                                  ? (p.mode_travail as string[])[0]
+                                  : '',
+          defi:                 (p.valeur as string)       || '',
+          projet:               (p.projet_phare as string) || '',
+          passions:             Array.isArray(p.passions) ? p.passions as string[] : [],
+          sideProject:          (p.side_project as string) || '',
+          typePoste:            Array.isArray(p.type_poste) ? p.type_poste as string[] : [],
+          lieu:                 (p.structure as string)    || '',
+          ville:                (p.ville as string)        || '',
+          priorite:             Array.isArray(p.priorites) ? p.priorites as string[] : [],
+          disponibilite:        (p.disponibilite as string) || '',
+          dispo_date:           (p.dispo_date as string)   || '',
+          experiences:          Array.isArray(p.experiences) ? p.experiences as Experience[] : [],
+          diplomes:             Array.isArray(p.diplomes) ? p.diplomes as Diplome[] : [],
+          competences_acquises: Array.isArray(p.competences_acquises) ? p.competences_acquises as string[] : [],
+          langues:              Array.isArray(p.langues) ? p.langues as string[] : [],
+        }
+        // Reprend exactement au step enregistré, avec firstIncompleteStep en fallback
+        const savedStep = typeof p.onboarding_step === 'number' ? p.onboarding_step : 0
+        const resumeAt  = savedStep > 1 ? savedStep : firstIncompleteStep(filled)
+        maxStepRef.current = Math.max(resumeAt, 1)
+        setData(filled)
+        setStep(resumeAt)
+        setShowWelcome(false)
+      }
+
+      setLoadingResume(false)
+    }
+    resumeIfNeeded()
+  }, [])
 
   const blockIndex = BLOCKS.findIndex(b => b.steps.includes(step))
 
@@ -732,8 +751,29 @@ export default function OnboardingPage() {
     }
   }
 
+  // Sauvegarde progressive : fire-and-forget pour les étapes 1–16.
+  // Les erreurs sont silencieuses — la sauvegarde finale (étape 17) reste le filet complet.
+  async function saveStep(currentStep: number) {
+    const payload = buildStepPayload(currentStep, data, maxStepRef.current)
+    if (!payload) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('profils').upsert(
+      { user_id: user.id, ...payload },
+      { onConflict: 'user_id' }
+    )
+  }
+
   async function handleNext() {
-    if (step < TOTAL) { setStep(s => s + 1); return }
+    if (step < TOTAL) {
+      // maxStepRef ne régresse jamais : si l'utilisateur est revenu en arrière,
+      // on enregistre quand même le step le plus avancé jamais atteint.
+      maxStepRef.current = Math.max(maxStepRef.current, step + 1)
+      saveStep(step)   // fire-and-forget
+      setStep(s => s + 1)
+      return
+    }
+    // Étape finale : upsert complet + onboarding_completed = true
     setSaving(true)
     setSaveError(null)
     try {
@@ -764,6 +804,7 @@ export default function OnboardingPage() {
         competences_acquises: data.competences_acquises,
         langues: data.langues,
         onboarding_completed: true,
+        onboarding_step: TOTAL,
       }, { onConflict: 'user_id' })
       if (error) throw error
       setShowFinal(true)
@@ -775,11 +816,18 @@ export default function OnboardingPage() {
 
   function handleBack() {
     if (step > 1) setStep(s => s - 1)
+    // Pas de save : le retour arrière ne modifie pas la progression en base
   }
 
   function handleSkip() {
-    if (step < TOTAL) setStep(s => s + 1)
-    else handleNext()
+    if (step < TOTAL) {
+      // "Passer" avance sans sauvegarder l'étape courante (champ intentionnellement vide)
+      // mais on met à jour le maxStep pour que la reprise ne revienne pas en arrière
+      maxStepRef.current = Math.max(maxStepRef.current, step + 1)
+      setStep(s => s + 1)
+    } else {
+      handleNext()
+    }
   }
 
   function renderStep() {
@@ -1252,6 +1300,13 @@ export default function OnboardingPage() {
         return null
     }
   }
+
+  if (loadingResume) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+      <style suppressHydrationWarning>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  )
 
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
   if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} />

@@ -1656,8 +1656,7 @@ export default function ProfilView({
                 style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100 }}
               />
             ) : (
-              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}`, position: 'relative' }}>
-                <span style={{ position: 'absolute', top: -12, left: 20, fontSize: 22, lineHeight: 1 }}>🏆</span>
+              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}` }}>
                 <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.plus_grande_reussite}</p>
               </div>
             )}
@@ -1677,8 +1676,7 @@ export default function ProfilView({
                 style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 84 }}
               />
             ) : (
-              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}`, position: 'relative' }}>
-                <span style={{ position: 'absolute', top: -12, left: 20, fontSize: 22, lineHeight: 1 }}>🌱</span>
+              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}` }}>
                 <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.ce_que_je_veux_apprendre}</p>
               </div>
             )}

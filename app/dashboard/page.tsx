@@ -500,6 +500,11 @@ export default function DashboardPage() {
           .limit(3),
       ])
 
+      if (!(profilData as { onboarding_completed?: boolean } | null)?.onboarding_completed) {
+        router.replace('/onboarding')
+        return
+      }
+
       const p: Profil = (profilData as Profil) ?? {}
       setProfil(p)
       setCandidatures((candidaturesData as Candidature[]) ?? [])

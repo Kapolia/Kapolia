@@ -20,17 +20,6 @@ const C = {
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function CompassIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="12.5" stroke={C.sable} strokeWidth="1.5" />
-      <polygon points="14,4 16,14 14,12 12,14" fill={C.terracotta} />
-      <polygon points="14,24 16,14 14,16 12,14" fill={C.lightGrey} />
-      <circle cx="14" cy="14" r="1.8" fill={C.dark} />
-    </svg>
-  )
-}
-
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,78 +32,6 @@ function EyeIcon({ open }: { open: boolean }) {
       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
       <line x1="1" y1="1" x2="23" y2="23" />
     </svg>
-  )
-}
-
-function PersonIcon({ color }: { color: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  )
-}
-
-function BuildingIcon({ color }: { color: string }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M3 9h18" />
-      <path d="M9 21V9" />
-    </svg>
-  )
-}
-
-// ─── Type selector cards ───────────────────────────────────────────────────────
-
-type TypeCompte = 'candidat' | 'recruteur' | null
-
-function TypeCard({
-  type, selected, onClick,
-}: {
-  type: 'candidat' | 'recruteur'
-  selected: boolean
-  onClick: () => void
-}) {
-  const isCandidат = type === 'candidat'
-  const accentColor = isCandidат ? C.terracotta : C.vert
-  const label  = isCandidат ? 'Je suis candidat(e)' : 'Je recrute'
-  const iconColor = selected ? C.white : accentColor
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        flex: 1,
-        padding: '14px 12px',
-        borderRadius: '14px',
-        border: `2px solid ${selected ? accentColor : C.sable}`,
-        backgroundColor: selected ? accentColor : C.white,
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '8px',
-        transition: 'all 0.18s ease',
-        outline: 'none',
-      }}
-    >
-      {isCandidат
-        ? <PersonIcon color={iconColor} />
-        : <BuildingIcon color={iconColor} />
-      }
-      <span style={{
-        fontSize: '13px',
-        fontWeight: '600',
-        color: selected ? C.white : C.dark,
-        transition: 'color 0.18s',
-        lineHeight: 1.2,
-        textAlign: 'center',
-      }}>
-        {label}
-      </span>
-    </button>
   )
 }
 
@@ -171,50 +88,18 @@ function Field({
   )
 }
 
-// ─── Mismatch notice ──────────────────────────────────────────────────────────
-
-function MismatchNotice({ realType }: { realType: 'candidat' | 'recruteur' }) {
-  const label = realType === 'candidat' ? 'candidat' : 'recruteur'
-  return (
-    <div style={{
-      padding: '12px 14px',
-      borderRadius: '10px',
-      backgroundColor: `${C.sable}50`,
-      border: `1px solid ${C.sable}`,
-      color: C.grey,
-      fontSize: '13px',
-      lineHeight: 1.5,
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '8px',
-    }}>
-      <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>ℹ️</span>
-      <span>
-        Ce compte est un compte <strong style={{ color: C.dark }}>{label}</strong>.
-        Vous allez être redirigé(e) vers la bonne page.
-      </span>
-    </div>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ConnexionPage() {
   const router = useRouter()
 
-  const [typeChoisi, setTypeChoisi] = useState<TypeCompte>(null)
-  const [email, setEmail]           = useState('')
-  const [password, setPassword]     = useState('')
+  const [email,        setEmail]        = useState('')
+  const [password,     setPassword]     = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [serverError, setServerError] = useState('')
-  const [mismatch, setMismatch]     = useState<'candidat' | 'recruteur' | null>(null)
+  const [submitting,   setSubmitting]   = useState(false)
+  const [serverError,  setServerError]  = useState('')
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !submitting
-
-  function toggleType(t: 'candidat' | 'recruteur') {
-    setTypeChoisi(prev => prev === t ? null : t)
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -222,7 +107,6 @@ export default function ConnexionPage() {
 
     setSubmitting(true)
     setServerError('')
-    setMismatch(null)
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -241,24 +125,18 @@ export default function ConnexionPage() {
 
     const { data: profil } = await supabase
       .from('profils')
-      .select('type_compte')
+      .select('type_compte, onboarding_completed')
       .eq('user_id', user.id)
       .single()
 
-    const realType: 'candidat' | 'recruteur' =
-      profil?.type_compte === 'recruteur' ? 'recruteur' : 'candidat'
+    const isRecruteur = profil?.type_compte === 'recruteur'
 
-    const destination = realType === 'recruteur' ? '/recruteur' : '/dashboard'
-
-    // Type sélectionné ne correspond pas → afficher le message puis rediriger
-    if (typeChoisi !== null && typeChoisi !== realType) {
-      setMismatch(realType)
-      setSubmitting(false)
-      setTimeout(() => router.replace(destination), 2400)
+    if (isRecruteur) {
+      router.replace('/recruteur')
       return
     }
 
-    router.replace(destination)
+    router.replace(profil?.onboarding_completed ? '/dashboard' : '/onboarding')
   }
 
   return (
@@ -299,7 +177,6 @@ export default function ConnexionPage() {
         boxShadow: '0 2px 24px rgba(26,26,26,0.07)',
       }}>
 
-        {/* Titre */}
         <h1 style={{
           fontFamily: 'Georgia, serif',
           fontSize: 'clamp(24px, 4vw, 32px)',
@@ -314,37 +191,8 @@ export default function ConnexionPage() {
           Votre cap vous attend.
         </p>
 
-        {/* ── Type de compte ────────────────────────────────────────────── */}
-        <div style={{ marginBottom: '28px' }}>
-          <p style={{
-            fontSize: '12px', fontWeight: '600', color: C.grey,
-            letterSpacing: '0.04em', textTransform: 'uppercase',
-            margin: '0 0 10px',
-          }}>
-            Vous êtes — <span style={{ fontWeight: '400' }}>facultatif</span>
-          </p>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <TypeCard
-              type="candidat"
-              selected={typeChoisi === 'candidat'}
-              onClick={() => toggleType('candidat')}
-            />
-            <TypeCard
-              type="recruteur"
-              selected={typeChoisi === 'recruteur'}
-              onClick={() => toggleType('recruteur')}
-            />
-          </div>
-        </div>
-
-        {/* Séparateur */}
-        <div style={{
-          height: '1px', backgroundColor: C.sable, margin: '0 0 28px',
-        }} />
-
         <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-          {/* Email */}
           <Field
             label="Adresse e-mail"
             value={email}
@@ -353,7 +201,6 @@ export default function ConnexionPage() {
             placeholder="vous@exemple.fr"
           />
 
-          {/* Mot de passe */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <Field
               label="Mot de passe"
@@ -383,10 +230,6 @@ export default function ConnexionPage() {
             </div>
           </div>
 
-          {/* Mismatch notice */}
-          {mismatch && <MismatchNotice realType={mismatch} />}
-
-          {/* Erreur serveur */}
           {serverError && (
             <div style={{
               padding: '11px 14px',
@@ -401,7 +244,6 @@ export default function ConnexionPage() {
             </div>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={!canSubmit}
@@ -423,7 +265,7 @@ export default function ConnexionPage() {
               gap: '8px',
             }}
           >
-            {submitting && !mismatch && (
+            {submitting && (
               <span style={{
                 display: 'inline-block',
                 width: '16px',
@@ -435,12 +277,11 @@ export default function ConnexionPage() {
                 flexShrink: 0,
               }} />
             )}
-            {submitting && !mismatch ? 'Connexion…' : 'Se connecter'}
+            {submitting ? 'Connexion…' : 'Se connecter'}
           </button>
 
         </form>
 
-        {/* Séparateur */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -452,7 +293,6 @@ export default function ConnexionPage() {
           <div style={{ flex: 1, height: '1px', backgroundColor: C.sable }} />
         </div>
 
-        {/* Créer un compte */}
         <a
           href="/inscription"
           style={{
@@ -476,7 +316,6 @@ export default function ConnexionPage() {
 
       </div>
 
-      {/* Baseline */}
       <p style={{
         marginTop: '32px',
         fontSize: '12px',
