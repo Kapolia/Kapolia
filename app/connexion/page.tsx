@@ -221,8 +221,7 @@ export default function ConnexionPage() {
             />
             <div style={{ textAlign: 'right' }}>
               <a
-                href="#"
-                onClick={e => e.preventDefault()}
+                href="/mot-de-passe-oublie"
                 style={{ fontSize: '12px', color: C.grey, textDecoration: 'none' }}
               >
                 Mot de passe oublié ?
