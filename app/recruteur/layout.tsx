@@ -32,7 +32,7 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
       // ── 2. Fetch profil ────────────────────────────────────────────────────
       const { data: profil, error: profilError } = await supabase
         .from('profils')
-        .select('type_compte, prenom, nom')
+        .select('type_compte, prenom, nom, entreprise_nom')
         .eq('user_id', user.id)
         .single()
 
@@ -59,9 +59,9 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
       }
 
       // ── 4. OK — show layout ────────────────────────────────────────────────
-      const nom = [profil.prenom, profil.nom].filter(Boolean).join(' ') || 'Mon entreprise'
-      setNom(nom)
-      setInitiale(nom?.[0]?.toUpperCase() ?? '?')
+      const companyName = profil.entreprise_nom || [profil.prenom, profil.nom].filter(Boolean).join(' ') || 'Mon entreprise'
+      setNom(companyName)
+      setInitiale(companyName?.[0]?.toUpperCase() ?? '?')
       setPrenom(profil.prenom ?? '')
       setStatus('ok')
     }

@@ -964,12 +964,26 @@ export default function OffresPage() {
       )
       setApplied(appliedMap)
 
-      const scored: Offre[] = (offresRes.data ?? []).map((o: Omit<Offre, 'score'>) => ({
-        ...o,
-        latitude:  o.latitude  != null ? parseFloat(o.latitude  as unknown as string) : undefined,
-        longitude: o.longitude != null ? parseFloat(o.longitude as unknown as string) : undefined,
-        score: p ? calculerScore(p as ProfilMatch, o as Parameters<typeof calculerScore>[1]) : 0,
-      }))
+      // ── Two-step : enrichir avec le profil entreprise du recruteur ──────────
+      type RawOffre = Omit<Offre, 'score'> & { recruteur_id?: string }
+      const offresRaw = (offresRes.data ?? []) as RawOffre[]
+      const recruteurIds = [...new Set(offresRaw.map(o => o.recruteur_id).filter(Boolean))] as string[]
+      const { data: profilsData } = recruteurIds.length > 0
+        ? await supabase.from('profils').select('user_id, entreprise_nom, entreprise_logo_url').in('user_id', recruteurIds)
+        : { data: [] as { user_id: string; entreprise_nom: string | null; entreprise_logo_url: string | null }[] }
+      const profilMap = Object.fromEntries((profilsData ?? []).map(p => [p.user_id, p]))
+
+      const scored: Offre[] = offresRaw.map((o) => {
+        const ep = o.recruteur_id ? profilMap[o.recruteur_id] : undefined
+        return {
+          ...o,
+          entreprise_nom:      ep?.entreprise_nom      ?? o.entreprise_nom      ?? undefined,
+          entreprise_logo_url: ep?.entreprise_logo_url ?? undefined,
+          latitude:  o.latitude  != null ? parseFloat(o.latitude  as unknown as string) : undefined,
+          longitude: o.longitude != null ? parseFloat(o.longitude as unknown as string) : undefined,
+          score: p ? calculerScore(p as ProfilMatch, o as Parameters<typeof calculerScore>[1]) : 0,
+        }
+      })
 
       setOffres(scored)
       setLoading(false)

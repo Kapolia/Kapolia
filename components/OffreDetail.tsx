@@ -17,6 +17,7 @@ const C = {
 export type OffreData = {
   id: string
   titre: string
+  recruteur_id?: string
   entreprise_nom?: string
   entreprise_logo_url?: string
   type_contrat?: string
@@ -384,6 +385,14 @@ export function OffreDetail({
               <div style={{ fontSize: 12, color: C.grey, marginTop: 3 }}>
                 {[offre.ville, modeTravailLabel].filter(Boolean).join(' · ')}
               </div>
+              {offre.recruteur_id && (
+                <Link
+                  href={`/entreprise/${offre.recruteur_id}`}
+                  style={{ fontSize: 11, color: C.terracotta, textDecoration: 'none', marginTop: 3, display: 'inline-block', fontWeight: 500 }}
+                >
+                  Voir l'entreprise →
+                </Link>
+              )}
             </div>
           </div>
 
@@ -798,6 +807,14 @@ export function OffreDetail({
                       Publié {daysSince(offre.created_at)}
                     </span>
                   </div>
+                  {offre.recruteur_id && (
+                    <Link
+                      href={`/entreprise/${offre.recruteur_id}`}
+                      style={{ fontSize: 12, color: C.terracotta, textDecoration: 'none', marginTop: 4, display: 'inline-block', fontWeight: 500 }}
+                    >
+                      Voir l'entreprise →
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

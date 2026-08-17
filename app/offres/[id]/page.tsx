@@ -80,6 +80,19 @@ export default function OffreDetailPage() {
         return
       }
 
+      // ── Two-step : enrichir avec le profil entreprise du recruteur ──────────
+      if (o.recruteur_id) {
+        const { data: ep } = await supabase
+          .from('profils')
+          .select('entreprise_nom, entreprise_logo_url')
+          .eq('user_id', o.recruteur_id)
+          .single()
+        if (ep) {
+          if (ep.entreprise_nom)      o.entreprise_nom      = ep.entreprise_nom
+          if (ep.entreprise_logo_url) o.entreprise_logo_url = ep.entreprise_logo_url
+        }
+      }
+
       setOffre(o)
       setApplied(!!candRes.data)
       setAppliedDate((candRes.data as { created_at?: string } | null)?.created_at ?? null)
