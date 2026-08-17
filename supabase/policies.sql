@@ -126,6 +126,28 @@ CREATE POLICY "Accès conversations"
 
 
 -- ===== TABLE : public.messages ================================
+--
+-- SCHÉMA — colonnes : id, conversation_id, expediteur_id, contenu,
+--   lu, created_at, piece_jointe_url, piece_jointe_nom,
+--   piece_jointe_type, reply_to_id
+--
+-- SPRINT SÉCURITÉ (2026-08-17) — 3 opérations :
+--
+-- 1. DROP "destinataire peut marquer lu" (qual=null, with_check=null)
+--    Policy fantôme PERMISSIVE FOR ALL sans aucune condition =
+--    accès complet à tous les messages pour tout utilisateur authentifié.
+--    Faille grave supprimée.
+--
+-- 2. DROP + RECREATE "membres peuvent marquer lu" (UPDATE)
+--    Avant : WITH CHECK(true) → n'importe quelle colonne modifiable.
+--    Après : WITH CHECK(lu = true) → seul le passage à lu=true est permis.
+--    Le WITH CHECK n'ayant pas accès à OLD, le trigger ci-dessous
+--    complète la protection colonne par colonne.
+--
+-- 3. CREATE TRIGGER enforce_message_lu_only (BEFORE UPDATE)
+--    Bloque toute modification sur messages sauf la colonne lu.
+--    Accède à OLD et NEW, raise exception si une autre colonne change.
+--    Couvre toutes les colonnes de la table sauf lu.
 
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 
@@ -141,6 +163,50 @@ CREATE POLICY "Accès messages"
         OR conversations.recruteur_id = auth.uid())
   ))
   WITH CHECK (auth.uid() = expediteur_id);
+
+-- Membres d'une conversation : marquer un message comme lu
+-- USING : le message doit appartenir à une conversation dont l'utilisateur est membre
+-- WITH CHECK : seul lu=true est autorisé — le trigger enforce_message_lu_only
+--   empêche toute modification des autres colonnes (contenu, expediteur_id, etc.)
+CREATE POLICY "membres peuvent marquer lu"
+  ON public.messages AS PERMISSIVE FOR UPDATE
+  TO public
+  USING (EXISTS (
+    SELECT 1 FROM conversations
+    WHERE conversations.id          = messages.conversation_id
+      AND (conversations.candidat_id  = auth.uid()
+        OR conversations.recruteur_id = auth.uid())
+  ))
+  WITH CHECK (lu = true);
+
+-- Trigger BEFORE UPDATE : seule la colonne lu peut être modifiée.
+-- Le WITH CHECK n'ayant pas accès à OLD, ce trigger est la seule façon
+-- de garantir qu'aucune autre colonne n'est altérée lors d'un UPDATE.
+-- Colonnes protégées : toutes sauf lu.
+--
+-- CREATE OR REPLACE FUNCTION public.enforce_message_lu_only()
+-- RETURNS trigger LANGUAGE plpgsql SET search_path = 'public' AS $$
+-- BEGIN
+--   IF NEW.id                IS DISTINCT FROM OLD.id                OR
+--      NEW.conversation_id   IS DISTINCT FROM OLD.conversation_id   OR
+--      NEW.expediteur_id     IS DISTINCT FROM OLD.expediteur_id     OR
+--      NEW.contenu           IS DISTINCT FROM OLD.contenu           OR
+--      NEW.created_at        IS DISTINCT FROM OLD.created_at        OR
+--      NEW.piece_jointe_url  IS DISTINCT FROM OLD.piece_jointe_url  OR
+--      NEW.piece_jointe_nom  IS DISTINCT FROM OLD.piece_jointe_nom  OR
+--      NEW.piece_jointe_type IS DISTINCT FROM OLD.piece_jointe_type OR
+--      NEW.reply_to_id       IS DISTINCT FROM OLD.reply_to_id
+--   THEN
+--     RAISE EXCEPTION 'seule la colonne lu peut être modifiée sur messages';
+--   END IF;
+--   RETURN NEW;
+-- END;
+-- $$;
+--
+-- CREATE TRIGGER enforce_message_lu_only
+--   BEFORE UPDATE ON public.messages
+--   FOR EACH ROW
+--   EXECUTE FUNCTION public.enforce_message_lu_only();
 
 
 -- ===== TABLE : public.offres ==================================
