@@ -132,6 +132,7 @@ export default function EntrepriseVitrinePage() {
   const [offres, setOffres]                 = useState<Offre[]>([])
   const [loading, setLoading]               = useState(true)
   const [notFound, setNotFound]             = useState(false)
+  const [fetchError, setFetchError]         = useState(false)
   const [isConnected, setIsConnected]       = useState(false)
   const [candidatProfil, setCandidatProfil] = useState<ProfilMatch | null>(null)
   const [suivre, setSuivre]                 = useState(false)
@@ -141,11 +142,24 @@ export default function EntrepriseVitrinePage() {
       const { data: { user } } = await supabase.auth.getUser()
       setIsConnected(!!user)
 
-      const { data: profilData } = await supabase
+      const { data: rawData, error: profilError } = await supabase
         .from('profils').select(PROFIL_SELECT).eq('user_id', id).single()
 
-      if (!profilData || !profilData.entreprise_nom) { setNotFound(true); setLoading(false); return }
-      setEp(profilData as EntrepriseProfil)
+      if (profilError) {
+        if (profilError.code === 'PGRST116') {
+          // Aucune ligne trouvée — l'entreprise n'existe pas ou n'a pas configuré son profil
+          setNotFound(true)
+        } else {
+          console.error('[vitrine] Erreur chargement profil:', profilError)
+          setFetchError(true)
+        }
+        setLoading(false)
+        return
+      }
+
+      const profilData = rawData as unknown as EntrepriseProfil | null
+      if (!profilData?.entreprise_nom) { setNotFound(true); setLoading(false); return }
+      setEp(profilData)
 
       const { data: offresData } = await supabase
         .from('offres')
@@ -174,6 +188,15 @@ export default function EntrepriseVitrinePage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
+    </div>
+  )
+
+  if (fetchError) return (
+    <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 64 : 0 }}>
+      <div style={{ textAlign: 'center', padding: '60px 24px' }}>
+        <p style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
+        <p style={{ fontSize: 14, color: C.grey, margin: 0 }}>Impossible de charger cette page. Veuillez réessayer dans quelques instants.</p>
+      </div>
     </div>
   )
 

@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 const DESC = "Kapolia repense le recrutement : les candidats se présentent tels qu'ils sont, les recruteurs repèrent les profils qui leur correspondent vraiment."
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://kapolia.com'),
   title: "Kapolia — Trouvez votre cap",
   description: DESC,
   openGraph: {

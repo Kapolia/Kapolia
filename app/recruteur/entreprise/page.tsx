@@ -239,8 +239,9 @@ export default function RecruteurEntreprisePage() {
           .eq('recruteur_id', user.id).eq('statut_publication', 'publiée').eq('active', true)
           .order('created_at', { ascending: false }),
       ])
-      if (pr.data) setProfil(pr.data as EntrepriseProfil)
-      setOffres((or.data ?? []) as OffreActive[])
+      if (pr.error && pr.error.code !== 'PGRST116') console.error('[entreprise] Erreur profil:', pr.error)
+      if (pr.data) setProfil(pr.data as unknown as EntrepriseProfil)
+      setOffres((or.data as unknown as OffreActive[] | null) ?? [])
       setLoading(false)
     }
     load()
