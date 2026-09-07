@@ -18,10 +18,10 @@ const DESC = "Kapolia repense le recrutement : les candidats se présentent tels
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://kapolia.com'),
-  title: "Kapolia — Trouvez votre cap",
+  title: "Kapolia",
   description: DESC,
   openGraph: {
-    title: "Kapolia — Trouvez votre cap",
+    title: "Kapolia",
     description: DESC,
     siteName: "Kapolia",
     locale: "fr_FR",
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kapolia — Trouvez votre cap",
+    title: "Kapolia",
     description: DESC,
   },
   icons: {
