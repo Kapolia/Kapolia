@@ -115,7 +115,7 @@ export default function Navigation() {
   const [nav, setNav] = useState<NavState>({ status: 'loading' })
 
   // Recalculé avant l'effet pour être utilisé comme dépendance
-  const FULLSCREEN_PATHS = ['/', '/onboarding', '/connexion', '/inscription', '/mot-de-passe-oublie', '/auth']
+  const FULLSCREEN_PATHS = ['/', '/onboarding', '/connexion', '/inscription', '/mot-de-passe-oublie', '/auth', '/mentions-legales', '/confidentialite']
   const isFullscreen = FULLSCREEN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   useEffect(() => {
