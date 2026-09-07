@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import LogoKapolia from '@/components/LogoKapolia'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -149,7 +150,7 @@ export default function ConnexionPage() {
       padding: 'clamp(40px, 6%, 72px) clamp(20px, 5%, 40px)',
     }}>
       <style suppressHydrationWarning>
-        {`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}
+        {`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}
       </style>
 
       {/* ── Logo ──────────────────────────────────────────────────────────── */}
@@ -164,7 +165,7 @@ export default function ConnexionPage() {
           marginBottom: '40px',
         }}
       >
-        <img src="/logo-kavio.png" alt="Kavio" style={{ height: '64px', objectFit: 'contain' }} />
+        <LogoKapolia variante="sombre" taille={40} />
       </a>
 
       {/* ── Card ──────────────────────────────────────────────────────────── */}
@@ -272,7 +273,7 @@ export default function ConnexionPage() {
                 borderRadius: '50%',
                 border: '2px solid rgba(255,255,255,0.35)',
                 borderTopColor: '#fff',
-                animation: 'kavio-spin 0.7s linear infinite',
+                animation: 'kapolia-spin 0.7s linear infinite',
                 flexShrink: 0,
               }} />
             )}

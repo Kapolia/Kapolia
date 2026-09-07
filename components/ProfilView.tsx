@@ -472,8 +472,12 @@ export default function ProfilView({
   const [projetCardHover, setProjetCardHover] = useState(false)
 
   const [toastMsg, setToastMsg]         = useState('')
-  const [toastVisible, setToastVisible] = useState(false)
-  const [writingMsg, setWritingMsg]     = useState(false)
+  const [toastVisible, setToastVisible]         = useState(false)
+  const [writingMsg, setWritingMsg]             = useState(false)
+  const [downloadingPortrait, setDownloading]    = useState(false)
+  const [portraitModal, setPortraitModal]        = useState(false)
+  const [portraitTitle, setPortraitTitle]        = useState('')
+  const [portraitWithPhoto, setPortraitWithPhoto] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving]       = useState(false)
@@ -508,8 +512,6 @@ export default function ProfilView({
   const [editTypePoste, setEditTypePoste]           = useState<string[]>([])
   const [editLinkedinUrl, setEditLinkedinUrl]       = useState('')
   const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
-  const [editReussite, setEditReussite]             = useState('')
-  const [editApprendre, setEditApprendre]           = useState('')
   const [editValeur, setEditValeur]                 = useState('')
   const [editModeTravail, setEditModeTravail]       = useState<string[]>([])
   const [editLangues, setEditLangues]               = useState<string[]>([])
@@ -597,8 +599,6 @@ export default function ProfilView({
         setEditTypePoste([...(profil.type_poste ?? [])])
         setEditLinkedinUrl(profil.linkedin_url ?? '')
         setEditPortfolioUrl(profil.portfolio_url ?? '')
-        setEditReussite(profil.plus_grande_reussite ?? '')
-        setEditApprendre(profil.ce_que_je_veux_apprendre ?? '')
         setEditValeur(profil.valeur ?? '')
         setEditModeTravail([...(profil.mode_travail ?? [])])
         setEditLangues([...(profil.langues ?? [])])
@@ -664,8 +664,8 @@ export default function ProfilView({
 
   if (loading) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </main>
   )
 
@@ -725,8 +725,6 @@ export default function ProfilView({
     setEditTypePoste([...(p.type_poste ?? [])])
     setEditLinkedinUrl(p.linkedin_url ?? '')
     setEditPortfolioUrl(p.portfolio_url ?? '')
-    setEditReussite(p.plus_grande_reussite ?? '')
-    setEditApprendre(p.ce_que_je_veux_apprendre ?? '')
     setEditValeur(p.valeur ?? '')
     setEditModeTravail([...(p.mode_travail ?? [])])
     setEditLangues([...(p.langues ?? [])])
@@ -798,8 +796,6 @@ export default function ProfilView({
       disponibilite:            editDispo || null,
       dispo_date:               editDispo === 'a_partir_de' ? (editDispoDate || null) : null,
       type_poste:               editTypePoste,
-      plus_grande_reussite:     editReussite,
-      ce_que_je_veux_apprendre: editApprendre,
       valeur:                   editValeur || undefined,
       mode_travail:             editModeTravail,
       langues:                  editLangues,
@@ -1093,9 +1089,10 @@ export default function ProfilView({
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: isEditing ? 72 : 0 }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-spin { to { transform: rotate(360deg); } }
-        @keyframes kavio-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+        @keyframes kapolia-spin { to { transform: rotate(360deg); } }
+        @keyframes kapolia-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
         * { box-sizing: border-box; }
+        .btn-portrait:hover:not(:disabled) { background-color: rgba(255,255,255,0.15) !important; }
       `}</style>
 
       {/* Toast */}
@@ -1240,6 +1237,7 @@ export default function ProfilView({
             {!isEditing && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                 {isOwner ? (
+                  <>
                   <button onClick={startEdit} style={{
                     padding: '8px 20px', borderRadius: 10, border: 'none',
                     backgroundColor: C.terracotta, color: C.white,
@@ -1247,6 +1245,29 @@ export default function ProfilView({
                   }}>
                     ✏️ Modifier mon profil
                   </button>
+                  <button
+                    className="btn-portrait"
+                    onClick={() => {
+                      const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
+                      setPortraitTitle(saved ?? profil?.domaine ?? '')
+                      setPortraitWithPhoto(false)
+                      setPortraitModal(true)
+                    }}
+                    style={{
+                      padding: '8px 20px', borderRadius: 10,
+                      border: '1.5px solid rgba(255,255,255,0.25)',
+                      backgroundColor: 'rgba(255,255,255,0.08)',
+                      color: C.white,
+                      fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      transition: 'background-color 0.2s',
+                    }}
+                  >
+                    ↓ Mon portrait en PDF
+                  </button>
+                  </>
                 ) : (
                   <>
                     <button
@@ -1565,7 +1586,7 @@ export default function ProfilView({
                       }}
                     >
                       {uploadingVedette
-                        ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} /> Envoi en cours…</>
+                        ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Envoi en cours…</>
                         : <>📁 Importer un fichier</>
                       }
                     </button>
@@ -1584,104 +1605,6 @@ export default function ProfilView({
 
       {/* ━━━ CONTENU PRINCIPAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px clamp(24px, 5vw, 60px) 0' }}>
-
-        {/* ── MON PROJET PHARE ───────────────────────────────────────────────── */}
-        {(isEditing || p.projet_phare) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Mon projet phare</SLabel>
-            {isEditing ? (
-              <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <input style={editInputStyle} value={editProjetTitre} onChange={e => setEditProjetTitre(e.target.value)} placeholder="Titre du projet" />
-                  <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => setEditProjetDesc(e.target.value)} placeholder="Description du projet…" rows={4} />
-                  <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
-                  <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
-                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(e.dataTransfer.files) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
-                      {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
-                    </div>
-                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
-                      📷 Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
-                    </button>
-                    {editProjetImages.length > 0 && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginTop: 8 }}>
-                        {editProjetImages.map((url, i) => (
-                          <div key={i} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', backgroundColor: C.sable }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            <button type="button" onClick={() => setEditProjetImages(editProjetImages.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: C.white, border: 'none', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
-                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
-                      {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>🎬 {editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
-                    </button>
-                    {editProjetVideo && (
-                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
-                        <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
-                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.creme, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.white, fontWeight: 400 }}>{p.projet_titre || 'Projet phare'}</div>
-                  {projetImpact && <span style={{ padding: '3px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}40`, color: C.terracotta, fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase' as const }}>{projetImpact}</span>}
-                </div>
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>🖼 Voir les détails du projet →</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── MA PLUS GRANDE RÉUSSITE ────────────────────────────────────────── */}
-        {(isEditing || p.plus_grande_reussite) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Ma plus grande réussite</SLabel>
-            {isEditing ? (
-              <textarea
-                value={editReussite}
-                onChange={e => setEditReussite(e.target.value)}
-                placeholder="Décrivez un accomplissement dont vous êtes particulièrement fier(e)…"
-                rows={4}
-                style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 100 }}
-              />
-            ) : (
-              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}` }}>
-                <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.plus_grande_reussite}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── CE QUE JE VEUX APPRENDRE ───────────────────────────────────────── */}
-        {(isEditing || p.ce_que_je_veux_apprendre) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Ce que je veux apprendre</SLabel>
-            {isEditing ? (
-              <textarea
-                value={editApprendre}
-                onChange={e => setEditApprendre(e.target.value)}
-                placeholder="Quelles compétences, domaines ou pratiques voulez-vous explorer ensuite ?…"
-                rows={3}
-                style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 84 }}
-              />
-            ) : (
-              <div style={{ backgroundColor: C.white, borderRadius: 16, padding: '24px 24px 20px', border: `1px solid ${C.sable}` }}>
-                <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.ce_que_je_veux_apprendre}</p>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── EXPÉRIENCES ────────────────────────────────────────────────────── */}
         {(isEditing || experiences.length > 0) && (
@@ -1781,6 +1704,61 @@ export default function ProfilView({
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── MON PROJET PHARE ───────────────────────────────────────────────── */}
+        {(isEditing || p.projet_phare) && (
+          <div style={{ marginBottom: 32 }}>
+            <SLabel>Mon projet phare</SLabel>
+            {isEditing ? (
+              <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <input style={editInputStyle} value={editProjetTitre} onChange={e => setEditProjetTitre(e.target.value)} placeholder="Titre du projet" />
+                  <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => setEditProjetDesc(e.target.value)} placeholder="Description du projet…" rows={4} />
+                  <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
+                  <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
+                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(e.dataTransfer.files) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
+                      {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
+                    </div>
+                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
+                      Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
+                    </button>
+                    {editProjetImages.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginTop: 8 }}>
+                        {editProjetImages.map((url, i) => (
+                          <div key={i} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', backgroundColor: C.sable }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            <button type="button" onClick={() => setEditProjetImages(editProjetImages.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: C.white, border: 'none', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
+                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
+                      {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>{editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
+                    </button>
+                    {editProjetVideo && (
+                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
+                        <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
+                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.creme, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.white, fontWeight: 400, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Voir les détails du projet →</div>
               </div>
             )}
           </div>
@@ -2101,7 +2079,7 @@ export default function ProfilView({
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={cancelEdit} style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annuler</button>
             <button onClick={saveEdit} disabled={saving} style={{ padding: '8px 22px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.65 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {saving && <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kavio-spin 0.7s linear infinite' }} />}
+              {saving && <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
               {saving ? 'Sauvegarde…' : 'Sauvegarder'}
             </button>
           </div>
@@ -2206,7 +2184,7 @@ export default function ProfilView({
             <div style={{ marginTop: 28, display: 'flex', gap: 10 }}>
               <button onClick={() => setAvatarModal(false)} style={{ flex: 1, padding: '11px', borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.dark, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
               <button onClick={saveAvatar} disabled={uploadingAvatar || (avatarTab === 'photo' && !avatarFile) || (avatarTab === 'avatar' && !selectedEmoji)} style={{ flex: 2, padding: '11px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: uploadingAvatar ? 'default' : 'pointer', opacity: (uploadingAvatar || (avatarTab === 'photo' && !avatarFile) || (avatarTab === 'avatar' && !selectedEmoji)) ? 0.55 : 1, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {uploadingAvatar && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kavio-spin 0.7s linear infinite' }} />}
+                {uploadingAvatar && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
                 {uploadingAvatar ? 'Sauvegarde…' : 'Sauvegarder'}
               </button>
             </div>
@@ -2290,7 +2268,7 @@ export default function ProfilView({
 
                   {/* Red dot */}
                   {recordPhase === 'recording' && (
-                    <div style={{ position: 'absolute', top: 16, left: 14, width: 9, height: 9, borderRadius: '50%', backgroundColor: '#E74C3C', boxShadow: '0 0 0 3px rgba(231,76,60,0.3)', animation: 'kavio-pulse 1.2s ease-in-out infinite' }} />
+                    <div style={{ position: 'absolute', top: 16, left: 14, width: 9, height: 9, borderRadius: '50%', backgroundColor: '#E74C3C', boxShadow: '0 0 0 3px rgba(231,76,60,0.3)', animation: 'kapolia-pulse 1.2s ease-in-out infinite' }} />
                   )}
                 </>
               )}
@@ -2333,7 +2311,7 @@ export default function ProfilView({
                     disabled={uploadingVedette}
                     style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: uploadingVedette ? C.grey : C.vert, color: C.white, fontSize: 14, fontWeight: 700, cursor: uploadingVedette ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                   >
-                    {uploadingVedette && <span style={{ display: 'inline-block', width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} />}
+                    {uploadingVedette && <span style={{ display: 'inline-block', width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite' }} />}
                     {uploadingVedette ? 'Envoi en cours…' : '✓ Utiliser cette vidéo'}
                   </button>
                   <button
@@ -2347,6 +2325,128 @@ export default function ProfilView({
               )}
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal export portrait PDF ──────────────────────────────────────── */}
+      {portraitModal && (
+        <div
+          onClick={() => !downloadingPortrait && setPortraitModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              padding: 32,
+              maxWidth: 480,
+              width: '90%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            }}
+          >
+            <p style={{ margin: 0, marginBottom: 20, fontSize: 18, fontWeight: 700, color: C.vert, fontFamily: 'inherit' }}>
+              Générer mon portrait PDF
+            </p>
+
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600, color: C.dark }}>
+              Intitulé de poste
+            </label>
+            <input
+              type="text"
+              value={portraitTitle}
+              onChange={e => {
+                const v = e.target.value.slice(0, 70)
+                setPortraitTitle(v)
+                if (typeof window !== 'undefined') localStorage.setItem(`kapolia_portrait_title_${userId}`, v)
+              }}
+              maxLength={70}
+              placeholder={profil?.domaine ?? 'Ex : Responsable marketing'}
+              style={{
+                width: '100%', boxSizing: 'border-box',
+                padding: '10px 14px', borderRadius: 8,
+                border: '1.5px solid #E0D8CF', fontSize: 14,
+                marginBottom: 16, fontFamily: 'inherit', outline: 'none',
+              }}
+            />
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, fontSize: 13, cursor: profil?.avatar_type === 'photo' ? 'pointer' : 'default' }}>
+              <input
+                type="checkbox"
+                checked={portraitWithPhoto}
+                onChange={e => setPortraitWithPhoto(e.target.checked)}
+                disabled={profil?.avatar_type !== 'photo'}
+                style={{ width: 16, height: 16, accentColor: C.vert, flexShrink: 0 }}
+              />
+              <span style={{ color: profil?.avatar_type !== 'photo' ? C.grey : C.dark }}>
+                Afficher ma photo
+                {profil?.avatar_type !== 'photo' && (
+                  <span style={{ fontStyle: 'italic', marginLeft: 8, fontSize: 12, color: C.grey }}>
+                    (aucune photo de profil ajoutée)
+                  </span>
+                )}
+              </span>
+            </label>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setPortraitModal(false)}
+                disabled={downloadingPortrait}
+                style={{
+                  padding: '9px 20px', borderRadius: 10,
+                  border: '1.5px solid #E0D8CF', background: 'white',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                disabled={downloadingPortrait}
+                onClick={async () => {
+                  setDownloading(true)
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession()
+                    if (!session) throw new Error('session manquante')
+                    const params = new URLSearchParams()
+                    if (portraitTitle) params.set('title', portraitTitle)
+                    if (portraitWithPhoto) params.set('withPhoto', 'true')
+                    const res = await fetch(`/api/portrait?${params}`, {
+                      headers: { Authorization: `Bearer ${session.access_token}` },
+                    })
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                    const blob = await res.blob()
+                    const url  = URL.createObjectURL(blob)
+                    const a    = document.createElement('a')
+                    a.href     = url
+                    a.download = `${profil?.prenom ?? 'portrait'}_${profil?.nom ?? ''}_portrait.pdf`
+                    a.click()
+                    URL.revokeObjectURL(url)
+                    setPortraitModal(false)
+                  } catch (e) {
+                    console.error('[portrait] téléchargement échoué', e)
+                  } finally {
+                    setDownloading(false)
+                  }
+                }}
+                style={{
+                  padding: '9px 20px', borderRadius: 10,
+                  border: 'none', backgroundColor: C.terracotta,
+                  color: 'white', fontSize: 13, fontWeight: 600,
+                  cursor: downloadingPortrait ? 'default' : 'pointer',
+                  fontFamily: 'inherit', opacity: downloadingPortrait ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                {downloadingPortrait
+                  ? <><span style={{ display: 'inline-block', width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: 'white', animation: 'kapolia-spin 0.7s linear infinite' }} />Génération...</>
+                  : '↓ Télécharger le PDF'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -11,8 +11,33 @@
 -- ⚠️  RÈGLE : mettre à jour ce fichier à chaque changement de
 --   politique dans le dashboard Supabase, puis committer.
 --
--- 25 politiques au total : 18 sur schéma public, 7 sur storage.
+-- 27 politiques au total : 20 sur schéma public, 7 sur storage.
 -- ============================================================
+
+
+-- ===== TABLE : public.liste_attente ===========================
+--
+-- À créer dans le dashboard Supabase avant le déploiement vitrine :
+--
+--   CREATE TABLE public.liste_attente (
+--     id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+--     email      text NOT NULL UNIQUE,
+--     type       text NOT NULL CHECK (type IN ('candidat', 'recruteur')),
+--     created_at timestamptz NOT NULL DEFAULT now()
+--   );
+--
+-- La table doit être créée AVANT d'activer RLS ci-dessous.
+
+ALTER TABLE public.liste_attente ENABLE ROW LEVEL SECURITY;
+
+-- Insertion publique sans authentification (rôle anon)
+CREATE POLICY "Inscription liste attente"
+  ON public.liste_attente AS PERMISSIVE FOR INSERT
+  TO public
+  WITH CHECK (true);
+
+-- Lecture réservée aux admins (service_role uniquement via dashboard)
+-- Aucune politique SELECT = la table n'est pas lisible via le client anon
 
 
 -- ===== TABLE : public.candidatures ============================

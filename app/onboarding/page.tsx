@@ -3,9 +3,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import BoussoleKavio from '@/components/BoussoleKavio'
+import BoussoleKapolia from '@/components/BoussoleKapolia'
 import {
   ONBOARDING_TOTAL as TOTAL,
+  DOMAINES,
+  EXPERIENCES,
+  TYPES_POSTE,
   firstIncompleteStep,
   buildStepPayload,
 } from '@/lib/onboarding-utils'
@@ -40,7 +43,7 @@ const MICRO_TEXTS: Record<number, string> = {
   6:  "L'environnement où vous vous épanouissez compte autant que le poste lui-même. Votre réponse nous aide à vous présenter des entreprises dont le fonctionnement vous conviendra.",
   7:  "Votre façon de travailler est souvent ce que les recruteurs cherchent à comprendre en entretien. En la partageant dès maintenant, vous prenez les devants, à votre avantage.",
   8:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
-  9:  'Sur Kavio, les recruteurs s\'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d\'intérêt créent parfois de vrais points communs.',
+  9:  'Sur Kapolia, les recruteurs s\'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d\'intérêt créent parfois de vrais points communs.',
   10: 'Blog, association, application, projet perso : ce que vous menez à côté en dit long sur votre curiosité et votre énergie.',
   11: 'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
   12: 'Où vous souhaitez travailler, et comment (sur site, hybride, à distance) : ces critères comptent autant pour vous que pour les recruteurs.',
@@ -51,18 +54,6 @@ const MICRO_TEXTS: Record<number, string> = {
   17: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
 }
 
-const DOMAINES = [
-  'Tech & Ingénierie', 'Design & Créativité', 'Marketing & Com',
-  'Finance & Compta', 'RH & Recrutement', 'Commerce & Vente',
-  'Opérations & Logistique', 'Conseil & Stratégie', 'Autre',
-]
-
-const EXPERIENCES = [
-  { key: '< 2 ans',  desc: 'Débuts prometteurs' },
-  { key: '2–5 ans',  desc: 'Vous avez vos marques' },
-  { key: '5–10 ans', desc: "Confirmé(e), vous avancez avec confiance" },
-  { key: '10+ ans',  desc: 'Expert(e) reconnu(e)' },
-]
 
 const ENVIRONNEMENTS = [
   { key: 'startup',   label: 'Startup agile',  desc: 'Rythme rapide, polyvalence' },
@@ -76,14 +67,6 @@ const DEFIS = [
   { key: 'action',  label: "Je teste et j'ajuste",   desc: 'Apprendre en faisant' },
   { key: 'collab',  label: "Je consulte l'équipe",   desc: 'La force du collectif' },
   { key: 'creativ', label: "L'angle inattendu",      desc: "L'originalité comme levier" },
-]
-
-const TYPES_POSTE = [
-  { key: 'cdi',        label: 'CDI' },
-  { key: 'cdd',        label: 'CDD' },
-  { key: 'freelance',  label: 'Freelance / Mission' },
-  { key: 'alternance', label: 'Alternance / Stage' },
-  { key: 'ouvert',     label: 'Ouvert(e) à tout' },
 ]
 
 const LIEUX = [
@@ -238,13 +221,13 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           color: '#2C4A3E',
           letterSpacing: '0.03em',
         }}>
-          Kavio
+          Kapolia
         </span>
       </div>
 
       {/* Boussole héros — fond transparent, très grande, débordante bas-droite */}
       <div className="kv-compass-hero">
-        <BoussoleKavio size="100%" ringFill="transparent" needleClassName="kv-needle" />
+        <BoussoleKapolia size="100%" ringFill="transparent" needleClassName="kv-needle" />
       </div>
 
       {/* Texte — gauche, centré verticalement par flexbox */}
@@ -268,7 +251,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           letterSpacing: '-0.01em',
           marginBottom: '24px', marginTop: 0,
         }}>
-          Bienvenue sur Kavio
+          Bienvenue sur Kapolia
         </h1>
         <p style={{
           fontSize: 'clamp(14px, 1.1vw, 16px)',
@@ -311,11 +294,27 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
 
 // ─── Écran final ──────────────────────────────────────────────────────────────
 
-function FinalScreen({ onGoToProfile }: { onGoToProfile: () => void }) {
+function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; userId: string }) {
+  const [chosen, setChosen] = useState<boolean | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  async function handleChoice(value: boolean) {
+    setSaving(true)
+    try {
+      await supabase.from('profils').update({
+        visible_candidatheque: value,
+        visible_candidatheque_maj_le: new Date().toISOString(),
+      }).eq('user_id', userId)
+    } finally {
+      setSaving(false)
+      setChosen(value)
+    }
+  }
+
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header style={{ padding: '22px clamp(20px, 5%, 48px)' }}>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kavio</span>
+        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kapolia</span>
       </header>
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -341,25 +340,75 @@ function FinalScreen({ onGoToProfile }: { onGoToProfile: () => void }) {
             fontFamily: 'Georgia, serif',
             fontSize: 'clamp(24px, 4vw, 36px)',
             color: C.dark, fontWeight: 'normal',
-            marginBottom: '20px', lineHeight: '1.3',
+            marginBottom: '16px', lineHeight: '1.3',
           }}>
             Vous avez trouvé votre cap.
           </h1>
-          <p style={{ fontSize: '16px', color: C.grey, lineHeight: '1.8', marginBottom: '44px' }}>
+          <p style={{ fontSize: '16px', color: C.grey, lineHeight: '1.8', marginBottom: '32px' }}>
             Votre profil est prêt : les recruteurs vont vous découvrir autrement qu'à travers un CV.
             Enrichissez-le quand vous le souhaitez, il n'en sera que plus vivant.
           </p>
-          <button
-            onClick={onGoToProfile}
-            style={{
-              backgroundColor: C.terracotta, color: C.white,
-              border: 'none', borderRadius: '14px',
-              padding: '14px 36px', fontSize: '16px', fontWeight: '500',
-              cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            Accéder à mon espace
-          </button>
+
+          {chosen === null ? (
+            <div style={{
+              textAlign: 'left', backgroundColor: C.white,
+              border: `1px solid ${C.sable}`, borderRadius: '16px', padding: '24px',
+            }}>
+              <p style={{
+                fontFamily: 'Georgia, serif', fontSize: '18px', color: C.dark,
+                margin: '0 0 12px', lineHeight: '1.4',
+              }}>
+                Souhaitez-vous être visible par les recruteurs ?
+              </p>
+              <p style={{ fontSize: '14px', color: C.grey, lineHeight: '1.7', margin: '0 0 24px' }}>
+                Les recruteurs inscrits sur Kapolia pourront consulter votre profil et vous contacter,
+                même si vous n'avez postulé à aucune de leurs offres.
+                Vous pourrez changer d'avis à tout moment depuis vos paramètres.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' as const }}>
+                <button
+                  onClick={() => handleChoice(true)}
+                  disabled={saving}
+                  style={{
+                    flex: 1, minWidth: '180px',
+                    backgroundColor: C.terracotta, color: C.white,
+                    border: 'none', borderRadius: '12px',
+                    padding: '12px 20px', fontSize: '14px', fontWeight: '600',
+                    cursor: saving ? 'default' : 'pointer',
+                    opacity: saving ? 0.7 : 1, fontFamily: 'inherit',
+                  }}
+                >
+                  Oui, je veux être visible
+                </button>
+                <button
+                  onClick={() => handleChoice(false)}
+                  disabled={saving}
+                  style={{
+                    flex: 1, minWidth: '180px',
+                    backgroundColor: C.white, color: C.dark,
+                    border: `1.5px solid ${C.sable}`, borderRadius: '12px',
+                    padding: '12px 20px', fontSize: '14px', fontWeight: '500',
+                    cursor: saving ? 'default' : 'pointer',
+                    opacity: saving ? 0.7 : 1, fontFamily: 'inherit',
+                  }}
+                >
+                  Non, pas pour le moment
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={onGoToProfile}
+              style={{
+                backgroundColor: C.terracotta, color: C.white,
+                border: 'none', borderRadius: '14px',
+                padding: '14px 36px', fontSize: '16px', fontWeight: '500',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Accéder à mon espace
+            </button>
+          )}
         </div>
       </div>
     </main>
@@ -573,7 +622,7 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
             cursor: 'pointer', padding: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.2s',
-            animation: listening ? 'kavio-pulse 1.4s ease-in-out infinite' : 'none',
+            animation: listening ? 'kapolia-pulse 1.4s ease-in-out infinite' : 'none',
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -665,6 +714,7 @@ export default function OnboardingPage() {
   const [saving,        setSaving]        = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [loadingResume, setLoadingResume] = useState(true)
+  const [userId,        setUserId]        = useState('')
   // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière
   const maxStepRef = useRef(1)
 
@@ -672,6 +722,7 @@ export default function OnboardingPage() {
     async function resumeIfNeeded() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoadingResume(false); return }
+      setUserId(user.id)
 
       const { data: profil } = await supabase
         .from('profils')
@@ -1309,7 +1360,7 @@ export default function OnboardingPage() {
   )
 
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
-  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} />
+  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} userId={userId} />
 
   const isOpt      = OPTIONAL_STEPS.has(step)
   const skipLabel  = LONG_OPTIONAL.has(step) ? 'Passer, je compléterai plus tard' : 'Passer'
@@ -1319,7 +1370,7 @@ export default function OnboardingPage() {
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style suppressHydrationWarning>{`
         @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes kavio-pulse {
+        @keyframes kapolia-pulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(196,103,58,0.45); }
           50%       { box-shadow: 0 0 0 7px rgba(196,103,58,0); }
         }
@@ -1331,7 +1382,7 @@ export default function OnboardingPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${C.sable}`,
       }}>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kavio</span>
+        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kapolia</span>
         <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
           {step} / {TOTAL}
         </span>

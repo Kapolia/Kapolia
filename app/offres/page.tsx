@@ -39,6 +39,7 @@ type Profil = {
 type Offre = {
   id: string
   titre: string
+  recruteur_id?: string
   entreprise_nom?: string
   entreprise_logo_url?: string
   type_contrat?: string
@@ -139,7 +140,7 @@ function SkeletonCard() {
         <div key={i} style={{
           height: h, width: w, borderRadius: 6, backgroundColor: C.sable,
           marginBottom: i === 1 ? 14 : 8,
-          animation: `kavio-pulse 1.6s ease-in-out ${i * 0.14}s infinite`,
+          animation: `kapolia-pulse 1.6s ease-in-out ${i * 0.14}s infinite`,
         }} />
       ))}
     </div>
@@ -215,7 +216,7 @@ function PillDropdown({
             minWidth: dropPos.minWidth,
             backgroundColor: C.white, border: `1px solid ${C.sable}`,
             borderRadius: 12, padding: '6px 4px', zIndex: 400,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kapolia-fadein 0.12s ease',
             maxHeight: '60vh', overflowY: 'auto',
           }}
         >
@@ -331,7 +332,7 @@ function MultiPillDropdown({
             minWidth: dropPos.minWidth,
             backgroundColor: C.white, border: `1px solid ${C.sable}`,
             borderRadius: 12, padding: '6px 4px', zIndex: 400,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kapolia-fadein 0.12s ease',
             maxHeight: '60vh', overflowY: 'auto',
           }}
         >
@@ -479,7 +480,7 @@ function SalairePillDropdown({
             minWidth: dropPos.minWidth,
             backgroundColor: C.white, border: `1px solid ${C.sable}`,
             borderRadius: 12, padding: '6px 4px 8px', zIndex: 400,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kapolia-fadein 0.12s ease',
           }}
         >
           {/* Effacer */}
@@ -647,7 +648,7 @@ function LangPillDropdown({
             position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.minWidth,
             backgroundColor: C.white, border: `1px solid ${C.sable}`,
             borderRadius: 12, zIndex: 400,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kavio-fadein 0.12s ease',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kapolia-fadein 0.12s ease',
             display: 'flex', flexDirection: 'column',
           }}
         >
@@ -965,7 +966,7 @@ export default function OffresPage() {
       setApplied(appliedMap)
 
       // ── Two-step : enrichir avec le profil entreprise du recruteur ──────────
-      type RawOffre = Omit<Offre, 'score'> & { recruteur_id?: string }
+      type RawOffre = Omit<Offre, 'score'>
       const offresRaw = (offresRes.data ?? []) as RawOffre[]
       const recruteurIds = [...new Set(offresRaw.map(o => o.recruteur_id).filter(Boolean))] as string[]
       const { data: profilsData } = recruteurIds.length > 0
@@ -1135,9 +1136,9 @@ export default function OffresPage() {
   // ── Restore scroll position after returning from /offres/[id] ───────────────
   useEffect(() => {
     if (loading) return
-    const offreId = sessionStorage.getItem('kavio-offre-return')
+    const offreId = sessionStorage.getItem('kapolia-offre-return')
     if (!offreId) return
-    sessionStorage.removeItem('kavio-offre-return')
+    sessionStorage.removeItem('kapolia-offre-return')
     requestAnimationFrame(() => {
       document.getElementById(`offre-card-${offreId}`)?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
     })
@@ -1199,7 +1200,7 @@ export default function OffresPage() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 13, color: C.grey }}>
               Trier par
               <select
-                className="kavio-tri"
+                className="kapolia-tri"
                 value={filters.tri}
                 onChange={e => update({ tri: e.target.value as SortKey })}
                 style={{
@@ -1261,13 +1262,13 @@ export default function OffresPage() {
         : { minHeight: '100vh' }),
     }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-spin   { to { transform: rotate(360deg); } }
-        @keyframes kavio-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes kavio-pulse  { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
-        @keyframes kavio-slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes kapolia-spin   { to { transform: rotate(360deg); } }
+        @keyframes kapolia-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes kapolia-pulse  { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
+        @keyframes kapolia-slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
         * { box-sizing: border-box; }
         select { appearance: none; -webkit-appearance: none; }
-        select.kavio-tri { appearance: auto; -webkit-appearance: auto; }
+        select.kapolia-tri { appearance: auto; -webkit-appearance: auto; }
         ::-webkit-scrollbar { display: none; }
       `}</style>
 
@@ -1520,7 +1521,7 @@ export default function OffresPage() {
             width: 'min(420px, 100vw)', backgroundColor: C.white,
             zIndex: 300, display: 'flex', flexDirection: 'column',
             boxShadow: '-6px 0 32px rgba(0,0,0,0.13)',
-            animation: 'kavio-slidein 0.22s ease',
+            animation: 'kapolia-slidein 0.22s ease',
           }}>
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -233,7 +233,7 @@ function PageApplyButton({ applied, appliedDate, applying, onApply, isConnected 
     >
       {applying ? (
         <>
-          <div style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} />
+          <div style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite' }} />
           Envoi…
         </>
       ) : isConnected ? 'Postuler' : 'Se connecter pour postuler'}
@@ -292,7 +292,7 @@ function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected
     >
       {applying ? (
         <>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} />
+          <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite' }} />
           Envoi…
         </>
       ) : isConnected ? 'Postuler en 1 clic' : 'Se connecter pour postuler'}
@@ -379,20 +379,21 @@ export function OffreDetail({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={44} />
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
-                {entreprise}
-              </div>
+              {offre.recruteur_id ? (
+                <Link
+                  href={`/entreprise/${offre.recruteur_id}`}
+                  style={{ fontSize: 15, fontWeight: 700, color: C.terracotta, lineHeight: 1.2, textDecoration: 'none', display: 'block' }}
+                >
+                  {entreprise}
+                </Link>
+              ) : (
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
+                  {entreprise}
+                </div>
+              )}
               <div style={{ fontSize: 12, color: C.grey, marginTop: 3 }}>
                 {[offre.ville, modeTravailLabel].filter(Boolean).join(' · ')}
               </div>
-              {offre.recruteur_id && (
-                <Link
-                  href={`/entreprise/${offre.recruteur_id}`}
-                  style={{ fontSize: 11, color: C.terracotta, textDecoration: 'none', marginTop: 3, display: 'inline-block', fontWeight: 500 }}
-                >
-                  Voir l'entreprise →
-                </Link>
-              )}
             </div>
           </div>
 
@@ -468,9 +469,28 @@ export function OffreDetail({
               )}
             </button>
 
+            {offre.recruteur_id && (
+              <Link
+                href={`/entreprise/${offre.recruteur_id}`}
+                style={{
+                  height: 36, padding: '0 12px',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  borderRadius: 10,
+                  border: `1px solid ${C.terracotta}50`,
+                  backgroundColor: `${C.terracotta}07`,
+                  color: C.terracotta,
+                  fontSize: 12, fontWeight: 600,
+                  textDecoration: 'none', fontFamily: 'inherit',
+                  whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
+                }}
+              >
+                Découvrir l'entreprise
+              </Link>
+            )}
+
             <Link
               href={`/offres/${offre.id}`}
-              onClick={() => sessionStorage.setItem('kavio-offre-return', offre.id)}
+              onClick={() => sessionStorage.setItem('kapolia-offre-return', offre.id)}
               style={{
                 height: 36, padding: '0 12px',
                 display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -761,7 +781,7 @@ export function OffreDetail({
           <div style={{ fontSize: 13, color: C.grey }}>
             {isConnected
               ? 'Postulez en un clic — votre profil sera transmis au recruteur.'
-              : 'Connectez-vous pour postuler rapidement avec votre profil Kavio.'}
+              : 'Connectez-vous pour postuler rapidement avec votre profil Kapolia.'}
           </div>
         </div>
         <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
@@ -798,28 +818,47 @@ export function OffreDetail({
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={42} />
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
-                    {entreprise}
-                  </div>
+                  {offre.recruteur_id ? (
+                    <Link
+                      href={`/entreprise/${offre.recruteur_id}`}
+                      style={{ fontSize: 16, fontWeight: 700, color: C.terracotta, lineHeight: 1.2, textDecoration: 'none', display: 'block' }}
+                    >
+                      {entreprise}
+                    </Link>
+                  ) : (
+                    <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
+                      {entreprise}
+                    </div>
+                  )}
                   <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
                     {[offre.ville, pageModeLabel].filter(Boolean).join(' · ')}
                     <span style={{ marginLeft: 12, fontSize: 12, color: C.lightGrey }}>
                       Publié {daysSince(offre.created_at)}
                     </span>
                   </div>
-                  {offre.recruteur_id && (
-                    <Link
-                      href={`/entreprise/${offre.recruteur_id}`}
-                      style={{ fontSize: 12, color: C.terracotta, textDecoration: 'none', marginTop: 4, display: 'inline-block', fontWeight: 500 }}
-                    >
-                      Voir l'entreprise →
-                    </Link>
-                  )}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {offre.recruteur_id && (
+                <Link
+                  href={`/entreprise/${offre.recruteur_id}`}
+                  style={{
+                    height: 44, padding: '0 16px',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    borderRadius: 12,
+                    border: `1px solid ${C.terracotta}50`,
+                    backgroundColor: `${C.terracotta}07`,
+                    color: C.terracotta,
+                    fontSize: 13, fontWeight: 600,
+                    textDecoration: 'none', fontFamily: 'inherit',
+                    whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
+                  }}
+                >
+                  Découvrir l'entreprise
+                </Link>
+              )}
               <button
                 onClick={onToggleSave}
                 title={saved ? 'Retirer des favoris' : 'Sauvegarder'}

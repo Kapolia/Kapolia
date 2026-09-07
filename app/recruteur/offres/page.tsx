@@ -98,7 +98,7 @@ function exportCSV(offres: OffreRow[]) {
   const csv = [hdr, ...rows].map(r => r.join(',')).join('\n')
   const a = document.createElement('a')
   a.href = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`
-  a.download = `kavio-offres-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `kapolia-offres-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
 }
 
@@ -107,7 +107,7 @@ function exportCSV(offres: OffreRow[]) {
 function Spinner({ size = 36 }: { size?: number }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '64px 0' }}>
-      <div style={{ width: size, height: size, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+      <div style={{ width: size, height: size, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </div>
   )
 }
@@ -129,7 +129,7 @@ function Toast({ msg }: { msg: string }) {
 function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onConfirm: () => void; onCancel: () => void }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 400, backgroundColor: 'rgba(26,26,26,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
-      <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '28px 32px', maxWidth: 380, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.16)', animation: 'kavio-modal 0.18s ease' }} onClick={e => e.stopPropagation()}>
+      <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '28px 32px', maxWidth: 380, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.16)', animation: 'kapolia-modal 0.18s ease' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark, marginBottom: 10 }}>Confirmer la suppression</div>
         <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.65, margin: '0 0 22px' }}>{message}</p>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -161,7 +161,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
       style={{ position: 'fixed', inset: 0, zIndex: 300, backgroundColor: 'rgba(26,26,26,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '28px 16px 60px' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 800, boxShadow: '0 8px 48px rgba(0,0,0,0.20)', overflow: 'hidden', animation: 'kavio-modal 0.2s ease' }}>
+      <div style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 800, boxShadow: '0 8px 48px rgba(0,0,0,0.20)', overflow: 'hidden', animation: 'kapolia-modal 0.2s ease' }}>
 
         {/* Top bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.creme, gap: 12 }}>
@@ -412,7 +412,7 @@ function BulkBar({ count, offres, onArchiveAll, onDeleteAll, onClear }: {
   count: number; offres: OffreRow[]; onArchiveAll: () => void; onDeleteAll: () => void; onClear: () => void
 }) {
   return (
-    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, backgroundColor: C.dark, color: C.white, borderRadius: 16, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 6px 30px rgba(0,0,0,0.22)', animation: 'kavio-slidein-up 0.2s ease', whiteSpace: 'nowrap' }}>
+    <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, backgroundColor: C.dark, color: C.white, borderRadius: 16, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 6px 30px rgba(0,0,0,0.22)', animation: 'kapolia-slidein-up 0.2s ease', whiteSpace: 'nowrap' }}>
       <span style={{ fontSize: 14, fontWeight: 600 }}>{count} sélectionnée{count !== 1 ? 's' : ''}</span>
       <div style={{ width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.2)' }} />
       <button onClick={onArchiveAll} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', backgroundColor: 'transparent', color: C.white, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Archiver tout</button>
@@ -572,9 +572,9 @@ export default function MesOffresPage() {
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-spin       { to { transform: rotate(360deg); } }
-        @keyframes kavio-modal      { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes kavio-slidein-up { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes kapolia-spin       { to { transform: rotate(360deg); } }
+        @keyframes kapolia-modal      { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes kapolia-slidein-up { from { opacity: 0; transform: translateX(-50%) translateY(12px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
       `}</style>
 
       <Toast msg={toastMsg} />

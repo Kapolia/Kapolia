@@ -1,4 +1,4 @@
-interface BoussoleKavioProps {
+interface BoussoleKapoliaProps {
   size?: number | string
   ringColor?: string
   ringFill?: string
@@ -11,7 +11,7 @@ interface BoussoleKavioProps {
   style?: React.CSSProperties
 }
 
-export default function BoussoleKavio({
+export default function BoussoleKapolia({
   size = 48,
   ringColor = '#2C4A3E',
   ringFill = 'white',
@@ -22,7 +22,7 @@ export default function BoussoleKavio({
   needleClassName,
   className,
   style,
-}: BoussoleKavioProps) {
+}: BoussoleKapoliaProps) {
   return (
     <svg
       viewBox="-50 -50 100 100"

@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { calculerScore } from '@/lib/matching'
+import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import Avatar from '@/components/Avatar'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ type Profil = {
 type Offre = {
   id: string
   titre: string
+  recruteur_id?: string
   entreprise_nom?: string
   ville?: string
   type_contrat?: string
@@ -79,6 +82,7 @@ type Candidature = {
   created_at: string
   offres?: {
     titre?: string
+    recruteur_id?: string
     entreprise_nom?: string
     ville?: string
     type_contrat?: string
@@ -113,7 +117,7 @@ type VueProfil = {
 }
 
 type VueRecente = { created_at: string }
-type FavOffre = { id: string; titre: string; entreprise_nom?: string; ville?: string }
+type FavOffre = { id: string; titre: string; recruteur_id?: string; entreprise_nom?: string; ville?: string }
 
 type MessageActivite = {
   created_at: string
@@ -161,13 +165,11 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
   {
     label: 'Mon histoire', weight: 0.25,
     fields: [
-      { key: 'signature',                label: 'Phrase signature',      suggestion: 'Rédigez votre phrase signature' },
-      { key: 'valeur',                   label: "Ce qui m'anime",        suggestion: 'Précisez ce qui vous anime' },
-      { key: 'plus_grande_reussite',     label: 'Plus grande réussite',  suggestion: 'Partagez votre plus grande réussite' },
-      { key: 'ce_que_je_veux_apprendre', label: 'Ce que je veux apprendre', suggestion: 'Décrivez ce que vous voulez apprendre' },
-      { key: 'projet_titre',             label: 'Titre du projet',       suggestion: 'Donnez un titre à votre projet phare' },
-      { key: 'projet_phare',             label: 'Description du projet', suggestion: 'Décrivez votre projet phare en détail' },
-      { key: 'projet_impact',            label: 'Impact du projet',      suggestion: "Précisez l'impact de votre projet" },
+      { key: 'signature',    label: 'Phrase signature',      suggestion: 'Rédigez votre phrase signature' },
+      { key: 'valeur',       label: "Ce qui m'anime",        suggestion: 'Précisez ce qui vous anime' },
+      { key: 'projet_titre', label: 'Titre du projet',       suggestion: 'Donnez un titre à votre projet phare' },
+      { key: 'projet_phare', label: 'Description du projet', suggestion: 'Décrivez votre projet phare en détail' },
+      { key: 'projet_impact', label: 'Impact du projet',     suggestion: "Précisez l'impact de votre projet" },
     ],
   },
   {
@@ -191,8 +193,7 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
 // Ordre de priorité d'affichage des suggestions (indépendant de l'ordre des sections)
 const SUGGESTION_PRIORITY: (keyof Profil)[] = [
   'video_presentation_url',
-  'signature', 'valeur', 'plus_grande_reussite', 'ce_que_je_veux_apprendre',
-  'projet_titre', 'projet_phare', 'projet_impact',
+  'signature', 'valeur', 'projet_titre', 'projet_phare', 'projet_impact',
   'type_poste', 'disponibilite', 'langues', 'mode_travail', 'structure',
   'experiences', 'qualites', 'competences_acquises', 'passions', 'diplomes',
   'ville', 'avatar_url',
@@ -254,11 +255,11 @@ function Spinner() {
       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
       minHeight: '100vh', backgroundColor: C.creme,
     }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
         width: 40, height: 40, borderRadius: '50%',
         border: `3px solid ${C.sable}`, borderTopColor: C.terracotta,
-        animation: 'kavio-spin 0.8s linear infinite',
+        animation: 'kapolia-spin 0.8s linear infinite',
       }} />
     </div>
   )
@@ -347,8 +348,20 @@ function OffreCard({ offre, onPostuler }: { offre: Offre; onPostuler: (id: strin
         <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 4 }}>
           {offre.titre}
         </div>
-        <div style={{ fontSize: 13, color: C.grey }}>
-          {[offre.entreprise_nom, offre.ville].filter(Boolean).join(' · ')}
+        <div style={{ fontSize: 13, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+          {offre.recruteur_id ? (
+            <Link
+              href={`/entreprise/${offre.recruteur_id}`}
+              onClick={e => e.stopPropagation()}
+              style={{ color: C.terracotta, fontWeight: 600, textDecoration: 'none' }}
+            >
+              {offre.entreprise_nom}
+            </Link>
+          ) : offre.entreprise_nom ? (
+            <span>{offre.entreprise_nom}</span>
+          ) : null}
+          {offre.entreprise_nom && offre.ville && <span>·</span>}
+          {offre.ville && <span>{offre.ville}</span>}
         </div>
       </div>
 
@@ -475,7 +488,7 @@ export default function DashboardPage() {
       ] = await Promise.all([
         supabase.from('profils').select('*').eq('user_id', user.id).single(),
         supabase.from('candidatures')
-          .select('*, offres(titre, entreprise_nom, ville, type_contrat)')
+          .select('*, offres(titre, entreprise_nom, ville, type_contrat, recruteur_id)')
           .eq('candidat_id', user.id)
           .order('created_at', { ascending: false })
           .limit(3),
@@ -494,7 +507,7 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(30),
         supabase.from('offres_favorites')
-          .select('created_at, offres(id, titre, entreprise_nom, ville)')
+          .select('created_at, offres(id, titre, entreprise_nom, ville, recruteur_id)')
           .eq('candidat_id', user.id)
           .order('created_at', { ascending: false })
           .limit(3),
@@ -507,11 +520,31 @@ export default function DashboardPage() {
 
       const p: Profil = (profilData as Profil) ?? {}
       setProfil(p)
-      setCandidatures((candidaturesData as Candidature[]) ?? [])
+
+      // Two-step enrichissement entreprise (offres, candidatures, favoris)
+      const allOffreRids = [
+        ...((offresData as Offre[] | null) ?? []).map(o => o.recruteur_id),
+        ...((candidaturesData as Candidature[] | null) ?? []).map(c => c.offres?.recruteur_id),
+        ...((favData as unknown as { offres: { recruteur_id?: string | null } | null }[] | null) ?? [])
+          .map(f => f?.offres?.recruteur_id),
+      ].filter((id): id is string => Boolean(id))
+      const { map: epMap, error: epErr } = await fetchProfilsEntreprise([...new Set(allOffreRids)])
+      if (epErr) console.error('[dashboard profils entreprise]', epErr)
+
+      const enrichedCands = ((candidaturesData as Candidature[]) ?? []).map(c => {
+        const rid = c.offres?.recruteur_id
+        const ep  = rid ? epMap[rid] : undefined
+        if (!ep || !c.offres) return c
+        return { ...c, offres: { ...c.offres, entreprise_nom: ep.entreprise_nom ?? c.offres.entreprise_nom } }
+      })
+      setCandidatures(enrichedCands)
 
       if (offresData) {
         const MATCH_THRESHOLD = 50
-        const scored = (offresData as Offre[]).map(o => ({ ...o, score: calculerScore(p, o) }))
+        const scored = (offresData as Offre[]).map(o => {
+          const ep = o.recruteur_id ? epMap[o.recruteur_id] : undefined
+          return { ...o, entreprise_nom: ep?.entreprise_nom ?? o.entreprise_nom, score: calculerScore(p, o) }
+        })
         const matching = scored
           .filter(o => (o.score ?? 0) >= MATCH_THRESHOLD)
           .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
@@ -620,16 +653,21 @@ export default function DashboardPage() {
       // Favoris récents
       type FavRaw = {
         created_at: string
-        offres: { id: string; titre: string; entreprise_nom: string | null; ville: string | null } | null
+        offres: { id: string; titre: string; entreprise_nom: string | null; ville: string | null; recruteur_id?: string | null } | null
       }
       const favList: FavOffre[] = ((favData ?? []) as unknown as FavRaw[])
         .filter(f => f.offres != null)
-        .map(f => ({
-          id:            f.offres!.id,
-          titre:         f.offres!.titre,
-          entreprise_nom: f.offres!.entreprise_nom ?? undefined,
-          ville:         f.offres!.ville ?? undefined,
-        }))
+        .map(f => {
+          const rid = f.offres?.recruteur_id
+          const ep  = rid ? epMap[rid] : undefined
+          return {
+            id:            f.offres!.id,
+            titre:         f.offres!.titre,
+            recruteur_id:  rid ?? undefined,
+            entreprise_nom: ep?.entreprise_nom ?? f.offres!.entreprise_nom ?? undefined,
+            ville:         f.offres!.ville ?? undefined,
+          }
+        })
       setFavOffres(favList)
 
       setLoading(false)
@@ -655,12 +693,21 @@ export default function DashboardPage() {
       statut:      'envoyée',
     })
     if (!error) {
-      const { data } = await supabase.from('candidatures')
-        .select('*, offres(titre, entreprise_nom, ville, type_contrat)')
+      const { data, error: refetchErr } = await supabase.from('candidatures')
+        .select('*, offres(titre, entreprise_nom, ville, type_contrat, recruteur_id)')
         .eq('candidat_id', user.id)
         .order('created_at', { ascending: false })
         .limit(3)
-      setCandidatures((data as Candidature[]) ?? [])
+      if (refetchErr) console.error('[dashboard handlePostuler refetch]', refetchErr)
+      const rids = ((data as Candidature[]) ?? []).map(c => c.offres?.recruteur_id).filter((id): id is string => Boolean(id))
+      const { map: pm, error: pmErr } = await fetchProfilsEntreprise([...new Set(rids)])
+      if (pmErr) console.error('[dashboard handlePostuler profils]', pmErr)
+      const enriched = ((data as Candidature[]) ?? []).map(c => {
+        const ep = c.offres?.recruteur_id ? pm[c.offres.recruteur_id] : undefined
+        if (!ep || !c.offres) return c
+        return { ...c, offres: { ...c.offres, entreprise_nom: ep.entreprise_nom ?? c.offres.entreprise_nom } }
+      })
+      setCandidatures(enriched)
     }
   }
 
@@ -826,8 +873,20 @@ export default function DashboardPage() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
                         {c.offres?.titre ?? '—'}
                       </div>
-                      <div style={{ fontSize: 12, color: C.grey }}>
-                        {[c.offres?.entreprise_nom, daysSince(c.created_at)].filter(Boolean).join(' · ')}
+                      <div style={{ fontSize: 12, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {c.offres?.recruteur_id ? (
+                          <Link
+                            href={`/entreprise/${c.offres.recruteur_id}`}
+                            onClick={e => e.stopPropagation()}
+                            style={{ color: C.terracotta, fontWeight: 600, textDecoration: 'none' }}
+                          >
+                            {c.offres.entreprise_nom}
+                          </Link>
+                        ) : c.offres?.entreprise_nom ? (
+                          <span>{c.offres.entreprise_nom}</span>
+                        ) : null}
+                        {c.offres?.entreprise_nom && <span>·</span>}
+                        <span>{daysSince(c.created_at)}</span>
                       </div>
                     </div>
                     <StatusBadge statut={c.statut} />

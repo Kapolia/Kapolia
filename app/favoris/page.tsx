@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
+import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -49,7 +50,7 @@ function SkeletonCard() {
         <div key={i} style={{
           height: h, width: w, borderRadius: 6, backgroundColor: C.sable,
           marginBottom: i === 1 ? 14 : 8,
-          animation: `kavio-pulse 1.6s ease-in-out ${i * 0.14}s infinite`,
+          animation: `kapolia-pulse 1.6s ease-in-out ${i * 0.14}s infinite`,
         }} />
       ))}
     </div>
@@ -128,7 +129,7 @@ export default function FavorisPage() {
             offres (
               id, titre, entreprise_nom, type_contrat, ville,
               mode_travail, salaire_min, salaire_max, periode_salaire,
-              active, statut_publication, created_at
+              active, statut_publication, created_at, recruteur_id
             )
           `)
           .eq('candidat_id', user.id)
@@ -139,7 +140,7 @@ export default function FavorisPage() {
           .eq('candidat_id', user.id),
       ])
 
-      if (favsRes.error) { console.error(favsRes.error.message); setLoading(false); return }
+      if (favsRes.error) { console.error('[favoris]', favsRes.error); setLoading(false); return }
 
       type RawRow = {
         created_at: string
@@ -149,6 +150,7 @@ export default function FavorisPage() {
           mode_travail: string | null; salaire_min: string | null
           salaire_max: string | null; periode_salaire: string | null
           active: boolean; statut_publication: string; created_at: string
+          recruteur_id: string | null
         } | null
       }
 
@@ -159,6 +161,7 @@ export default function FavorisPage() {
           return {
             id:              o.id,
             titre:           o.titre,
+            recruteur_id:    o.recruteur_id    ?? undefined,
             entreprise_nom:  o.entreprise_nom  ?? undefined,
             type_contrat:    o.type_contrat    ?? undefined,
             ville:           o.ville           ?? undefined,
@@ -171,7 +174,20 @@ export default function FavorisPage() {
           }
         })
 
-      setOffres(list)
+      // Two-step : nom actuel depuis profils recruteur
+      const recruteurIds = [...new Set(list.map(o => o.recruteur_id).filter(Boolean))] as string[]
+      const { map, error: profErr } = await fetchProfilsEntreprise(recruteurIds)
+      if (profErr) console.error('[favoris profils]', profErr)
+
+      const enriched = list.map(o => {
+        const ep = o.recruteur_id ? map[o.recruteur_id] : undefined
+        return {
+          ...o,
+          entreprise_nom: ep?.entreprise_nom ?? o.entreprise_nom,
+        }
+      })
+
+      setOffres(enriched)
       setApplied(new Set(
         ((candidaturesRes.data ?? []) as { offre_id: string }[]).map(c => c.offre_id)
       ))
@@ -226,8 +242,8 @@ export default function FavorisPage() {
   return (
     <div style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
-        @keyframes kavio-spin  { to { transform: rotate(360deg); } }
+        @keyframes kapolia-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
+        @keyframes kapolia-spin  { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
       `}</style>
 

@@ -172,13 +172,13 @@ export default function EntrepriseVitrinePage() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </div>
   )
 
   if (notFound || !ep) return (
-    <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 64 : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
@@ -195,21 +195,32 @@ export default function EntrepriseVitrinePage() {
   const chiffres  = CHIFFRES.filter(c => ep[c.key])
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style>
+    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: isConnected ? 64 : 0 }}>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style>
 
-      {/* NAVBAR */}
-      <nav style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '0 40px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-        <div onClick={() => router.push('/')} style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, cursor: 'pointer', letterSpacing: '-0.02em' }}>Kavio</div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={() => router.push('/offres')} style={{ padding: '7px 16px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>← Toutes les offres</button>
-          <button onClick={() => router.push(isConnected ? '/dashboard' : '/connexion')} style={{ padding: '7px 16px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>{isConnected ? 'Mon espace' : 'Se connecter'}</button>
-        </div>
-      </nav>
+      {/* NAVBAR — visiteur non connecté uniquement */}
+      {!isConnected && (
+        <nav style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '0 40px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+          <div onClick={() => router.push('/')} style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, cursor: 'pointer', letterSpacing: '-0.02em' }}>Kapolia</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => router.push('/offres')} style={{ padding: '7px 16px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>← Toutes les offres</button>
+            <button onClick={() => router.push('/connexion')} style={{ padding: '7px 16px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Se connecter</button>
+          </div>
+        </nav>
+      )}
 
       {/* HEADER */}
       <header style={{ backgroundColor: C.vert, padding: '52px 40px 48px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          {/* Lien de retour — candidat connecté uniquement (remplace le bouton navbar) */}
+          {isConnected && (
+            <button
+              onClick={() => router.push('/offres')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: `${C.sable}AA`, fontSize: 13, padding: '0 0 20px', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              ← Toutes les offres
+            </button>
+          )}
           {offres.length > 0 && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 20, marginBottom: 28 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.white, display: 'inline-block' }} />Recrute activement
@@ -302,7 +313,7 @@ export default function EntrepriseVitrinePage() {
         <section id="offres" style={{ marginBottom: 56 }}>
           <STitle>Nos offres actuelles</STitle>
           <p style={{ fontSize: 14, color: C.grey, margin: '-10px 0 22px' }}>
-            {candidatProfil ? 'Score de compatibilité calculé selon votre profil Kavio.' : 'Connectez-vous pour voir votre score de compatibilité.'}
+            {candidatProfil ? 'Score de compatibilité calculé selon votre profil Kapolia.' : 'Connectez-vous pour voir votre score de compatibilité.'}
           </p>
           {offres.length === 0 ? (
             <div style={{ backgroundColor: C.white, borderRadius: 16, border: `1px solid ${C.sable}`, padding: '48px 24px', textAlign: 'center' }}>
@@ -342,7 +353,7 @@ export default function EntrepriseVitrinePage() {
             <div style={{ marginTop: 20, padding: '18px 22px', backgroundColor: `${C.terracotta}0D`, border: `1px solid ${C.terracotta}30`, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 3 }}>Votre score de compatibilité</div>
-                <div style={{ fontSize: 13, color: C.grey }}>Créez votre profil Kavio pour voir si ces offres vous correspondent.</div>
+                <div style={{ fontSize: 13, color: C.grey }}>Créez votre profil Kapolia pour voir si ces offres vous correspondent.</div>
               </div>
               <button onClick={() => router.push('/inscription')} style={{ backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                 Créer mon profil →
@@ -399,7 +410,7 @@ export default function EntrepriseVitrinePage() {
       <footer style={{ backgroundColor: C.dark, padding: '32px 40px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.white }}>{nom}</div>
-          <div style={{ fontSize: 12, color: C.sable, opacity: 0.5 }}>{offres.length} offre{offres.length !== 1 ? 's' : ''} sur Kavio</div>
+          <div style={{ fontSize: 12, color: C.sable, opacity: 0.5 }}>{offres.length} offre{offres.length !== 1 ? 's' : ''} sur Kapolia</div>
         </div>
       </footer>
     </main>

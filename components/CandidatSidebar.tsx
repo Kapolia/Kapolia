@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Avatar from '@/components/Avatar'
 import { useFavoris } from '@/lib/favoris-context'
+import LogoKapolia from '@/components/LogoKapolia'
 
 const C = {
   terracotta: '#C4673A',
@@ -172,10 +173,10 @@ function AvatarMenu({ initials, prenom, nom, avatarUrl, avatarType }: { initials
           minWidth: 200,
           boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
           zIndex: 200,
-          animation: 'kavio-up 0.13s ease',
+          animation: 'kapolia-up 0.13s ease',
         }}>
           <style suppressHydrationWarning>{`
-            @keyframes kavio-up {
+            @keyframes kapolia-up {
               from { opacity: 0; transform: translateY(6px); }
               to   { opacity: 1; transform: translateY(0); }
             }
@@ -306,7 +307,7 @@ export default function CandidatSidebar({
         height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderBottom: `1px solid ${C.sable}`, width: '100%', flexShrink: 0,
       }}>
-        <img src="/icone-kavio.png" alt="Kavio" style={{ width: '36px', height: '36px', objectFit: 'contain', display: 'block', margin: '12px auto' }} />
+        <LogoKapolia variante="sombre" avecTexte={false} taille={36} />
       </div>
 
       {/* Nav items */}

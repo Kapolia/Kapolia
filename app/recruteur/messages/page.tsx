@@ -182,7 +182,7 @@ function TypingIndicator({ nom }: { nom: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px' }}>
       <div style={{ display: 'flex', gap: 3 }}>
-        {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.grey, animation: `kavio-bounce 1.2s ${i*0.2}s infinite` }} />)}
+        {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.grey, animation: `kapolia-bounce 1.2s ${i*0.2}s infinite` }} />)}
       </div>
       <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>{nom} est en train d'écrire…</span>
     </div>
@@ -225,7 +225,7 @@ function ReactionPicker({ pos, onPick, onClose }: { pos: { top: number; left: nu
     return () => document.removeEventListener('mousedown', h)
   }, [onClose])
   return (
-    <div ref={ref} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 350, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 14, padding: '6px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', display: 'flex', gap: 2, animation: 'kavio-dd 0.1s ease' }}>
+    <div ref={ref} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 350, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 14, padding: '6px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', display: 'flex', gap: 2, animation: 'kapolia-dd 0.1s ease' }}>
       {QUICK_EMOJIS.map(e => {
         const [h, setH] = useState(false)
         return (
@@ -273,7 +273,7 @@ function ContextMenu({ pos, pinned, otherGroups, onPin, onMove, onDelete, onClos
     return () => document.removeEventListener('mousedown', h)
   }, [onClose])
   return (
-    <div ref={ref} style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 300, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, padding: 5, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', minWidth: 170, animation: 'kavio-dd 0.12s ease' }}>
+    <div ref={ref} style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 300, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, padding: 5, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', minWidth: 170, animation: 'kapolia-dd 0.12s ease' }}>
       {view === 'main' ? (
         <><CMI label={pinned ? '📌 Désépingler' : '📌 Épingler'} onClick={() => { onPin(); onClose() }} /><CMI label="→ Déplacer vers…" onClick={() => setView('move')} /><div style={{ height: 1, backgroundColor: C.sable, margin: '4px 0' }} /><CMI label="Supprimer" danger onClick={() => { onDelete(); onClose() }} /></>
       ) : (
@@ -919,10 +919,10 @@ function MessagesPageInner() {
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.creme }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
-        @keyframes kavio-si     { from{opacity:0;transform:translateX(16px)}  to{opacity:1;transform:translateX(0)} }
-        @keyframes kavio-sp     { to{transform:rotate(360deg)} }
-        @keyframes kavio-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+        @keyframes kapolia-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
+        @keyframes kapolia-si     { from{opacity:0;transform:translateX(16px)}  to{opacity:1;transform:translateX(0)} }
+        @keyframes kapolia-sp     { to{transform:rotate(360deg)} }
+        @keyframes kapolia-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
         .conv-row:hover .cmb   { opacity:1 !important; }
       `}</style>
 
@@ -1078,7 +1078,7 @@ function MessagesPageInner() {
           {/* Input */}
           <div style={{ padding: '10px 18px', backgroundColor: C.white, borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
             <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre" style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.creme, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
-              {uploading ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-sp 0.7s linear infinite' }} /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>}
+              {uploading ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>}
             </button>
             <textarea ref={textaRef} value={input} onChange={e => { setInput(e.target.value); adjustTA(); sendTyping() }} onKeyDown={handleKey} placeholder={`Écrire à ${displayConv.nom.split(' ')[0]}…`} rows={1}
               style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }} />
@@ -1100,7 +1100,7 @@ function MessagesPageInner() {
 
       {/* ── RIGHT PANEL ──────────────────────────────────────────────────── */}
       <div style={{ width: profilOpen ? 300 : 0, flexShrink: 0, overflow: 'hidden', transition: 'width 0.25s ease', borderLeft: profilOpen ? `1px solid ${C.sable}` : 'none', backgroundColor: C.white }}>
-        {profilOpen && activeProfil && <div style={{ width: 300, height: '100%', animation: 'kavio-si 0.2s ease' }}><ProfilePanel profil={activeProfil} onClose={() => setProfilOpen(false)} /></div>}
+        {profilOpen && activeProfil && <div style={{ width: 300, height: '100%', animation: 'kapolia-si 0.2s ease' }}><ProfilePanel profil={activeProfil} onClose={() => setProfilOpen(false)} /></div>}
       </div>
     </div>
   )

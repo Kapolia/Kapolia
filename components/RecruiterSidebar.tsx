@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import LogoKapolia from '@/components/LogoKapolia'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -18,11 +19,13 @@ const C = {
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV = [
-  { id: 'messages', label: 'Messages',           href: '/recruteur/messages' },
-  { id: 'offres',   label: 'Mes offres',          href: '/recruteur/offres',        activeExact: true },
-  { id: 'publier',  label: 'Publier une offre',   href: '/recruteur/offres/publier' },
-  { id: 'stats',    label: 'Statistiques',        href: '/recruteur/statistiques' },
-  { id: 'marque',   label: 'Marque employeur',    href: '/recruteur/entreprise' },
+  { id: 'dashboard',     label: 'Tableau de bord',    href: '/recruteur',                        activeExact: true },
+  { id: 'candidatheque', label: 'Candidathèque',      href: '/recruteur/candidatheque',          activeExact: true },
+  { id: 'messages',      label: 'Messages',           href: '/recruteur/messages' },
+  { id: 'offres',        label: 'Mes offres',         href: '/recruteur/offres',                 activeExact: true },
+  { id: 'publier',       label: 'Publier une offre',  href: '/recruteur/offres/publier' },
+  { id: 'stats',         label: 'Statistiques',       href: '/recruteur/statistiques' },
+  { id: 'marque',        label: 'Marque employeur',   href: '/recruteur/entreprise' },
 ]
 
 // ─── Icon ─────────────────────────────────────────────────────────────────────
@@ -35,12 +38,14 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
     strokeWidth: '1.8', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   }
   switch (id) {
-    case 'messages': return <svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-    case 'offres':   return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14,2 14,8 20,8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
-    case 'publier':  return <svg {...p}><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
-    case 'stats':    return <svg {...p}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
-    case 'marque':   return <svg {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-    default:         return null
+    case 'dashboard':     return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+    case 'candidatheque': return <svg {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+    case 'messages':      return <svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+    case 'offres':        return <svg {...p}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14,2 14,8 20,8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+    case 'publier':       return <svg {...p}><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
+    case 'stats':         return <svg {...p}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
+    case 'marque':        return <svg {...p}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+    default:              return null
   }
 }
 
@@ -96,10 +101,10 @@ function UserAvatarMenu({ prenom }: { prenom: string }) {
           minWidth: 190,
           boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
           zIndex: 100,
-          animation: 'kavio-up 0.13s ease',
+          animation: 'kapolia-up 0.13s ease',
         }}>
           <style suppressHydrationWarning>{`
-            @keyframes kavio-up {
+            @keyframes kapolia-up {
               from { opacity: 0; transform: translateY(6px); }
               to   { opacity: 1; transform: translateY(0); }
             }
@@ -214,7 +219,7 @@ export default function RecruiterSidebar({
           flexShrink: 0,
         }}
       >
-        <img src="/logo-kavio.png" alt="Kavio" style={{ height: '48px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+        <LogoKapolia variante="contour" taille={28} />
         <span style={{
           display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.35)',
           marginTop: '2px', letterSpacing: '0.1em', textTransform: 'uppercase',

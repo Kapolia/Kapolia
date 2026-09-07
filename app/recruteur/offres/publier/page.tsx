@@ -211,7 +211,7 @@ function Stepper({ step }: { step: number }) {
 function Toast({ msg }: { msg: string }) {
   if (!msg) return null
   return (
-    <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 500, backgroundColor: C.dark, color: C.white, padding: '12px 22px', borderRadius: 12, fontSize: 13, fontWeight: 500, boxShadow: '0 4px 20px rgba(0,0,0,0.18)', whiteSpace: 'nowrap', animation: 'kavio-fadein 0.2s ease' }}>
+    <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 500, backgroundColor: C.dark, color: C.white, padding: '12px 22px', borderRadius: 12, fontSize: 13, fontWeight: 500, boxShadow: '0 4px 20px rgba(0,0,0,0.18)', whiteSpace: 'nowrap', animation: 'kapolia-fadein 0.2s ease' }}>
       {msg}
     </div>
   )
@@ -229,7 +229,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 200, backgroundColor: 'rgba(26,26,26,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '32px 16px 60px' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 780, boxShadow: '0 8px 48px rgba(0,0,0,0.20)', overflow: 'hidden', animation: 'kavio-modal 0.2s ease' }}>
+      <div style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 780, boxShadow: '0 8px 48px rgba(0,0,0,0.20)', overflow: 'hidden', animation: 'kapolia-modal 0.2s ease' }}>
 
         {/* Modal top bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.creme }}>
@@ -381,7 +381,7 @@ function SuccessScreen({ titre, isDraft, isEdit, router, onReset }: { titre: str
             ? <>Votre offre <strong style={{ color: C.dark }}>{titre || 'sans titre'}</strong> a été sauvegardée. Vous pourrez la publier depuis vos offres.</>
             : isEdit
               ? <>Les modifications de <strong style={{ color: C.dark }}>{titre}</strong> sont enregistrées et visibles par les candidats.</>
-              : <><strong style={{ color: C.dark }}>{titre}</strong> est maintenant visible par les candidats Kavio.</>
+              : <><strong style={{ color: C.dark }}>{titre}</strong> est maintenant visible par les candidats Kapolia.</>
           }
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 28 }}>
@@ -671,9 +671,9 @@ function PublierOffrePageInner() {
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-spin    { to { transform: rotate(360deg); } }
-        @keyframes kavio-fadein  { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
-        @keyframes kavio-modal   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes kapolia-spin    { to { transform: rotate(360deg); } }
+        @keyframes kapolia-fadein  { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes kapolia-modal   { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         input[type=range] { accent-color: ${C.terracotta}; }
       `}</style>
 
@@ -682,12 +682,12 @@ function PublierOffrePageInner() {
 
       {/* ── TOP BAR ───────────────────────────────────────────────────────── */}
       <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, letterSpacing: '-0.01em' }}>Kavio</div>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, letterSpacing: '-0.01em' }}>Kapolia</div>
         <div style={{ display: 'flex', gap: 10 }}>
           {hasData && (
             <button onClick={() => save('brouillon', { silent: true })} disabled={savingDraft}
               style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid ${C.vert}`, backgroundColor: 'transparent', color: C.vert, fontSize: 12, fontWeight: 600, cursor: savingDraft ? 'default' : 'pointer', fontFamily: 'inherit', opacity: savingDraft ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {savingDraft ? <><div style={{ width: 11, height: 11, borderRadius: '50%', border: `1.5px solid ${C.vert}50`, borderTopColor: C.vert, animation: 'kavio-spin 0.7s linear infinite' }} /> Sauvegarde…</> : '💾 Brouillon'}
+              {savingDraft ? <><div style={{ width: 11, height: 11, borderRadius: '50%', border: `1.5px solid ${C.vert}50`, borderTopColor: C.vert, animation: 'kapolia-spin 0.7s linear infinite' }} /> Sauvegarde…</> : '💾 Brouillon'}
             </button>
           )}
           <button onClick={() => router.push('/recruteur/offres')}
@@ -735,7 +735,7 @@ function PublierOffrePageInner() {
             </div>
             <Divider />
             <div>
-              <SLabel sub="Entre en compte dans le score de compatibilité Kavio.">Niveau d'expérience requis</SLabel>
+              <SLabel sub="Entre en compte dans le score de compatibilité Kapolia.">Niveau d'expérience requis</SLabel>
               <Pills options={NIVEAUX} value={niveau} onChange={v => setNiveau(v as string)} />
             </div>
             <Divider />
@@ -841,7 +841,7 @@ function PublierOffrePageInner() {
             <Divider />
             {/* F3 — Compétences avec suggestions */}
             <div>
-              <SLabel sub="Alimentent le moteur de matching Kavio. Max. 10.">Compétences requises *</SLabel>
+              <SLabel sub="Alimentent le moteur de matching Kapolia. Max. 10.">Compétences requises *</SLabel>
               <TagInput tags={competences} onAdd={addComp} onRemove={t => setCompetences(p => p.filter(x => x !== t))} placeholder="ex. React, Figma, SQL… (Entrée pour valider)" max={10} inputVal={compInput} onInputChange={setCompInput} />
               <FieldErr msg={errors.competences} />
               {/* F3 — Suggestions par domaine */}
@@ -918,11 +918,11 @@ function PublierOffrePageInner() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <button type="button" onClick={() => save('publiée')} disabled={submitting}
                 style={{ width: '100%', padding: 16, borderRadius: 14, border: 'none', backgroundColor: submitting ? C.sable : C.terracotta, color: C.white, fontSize: 15, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s', fontFamily: 'inherit' }}>
-                {submitting ? <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kavio-spin 0.7s linear infinite' }} /> {editId ? 'Mise à jour…' : 'Publication…'}</> : <>{editId ? 'Mettre à jour l\'offre →' : 'Publier l\'offre →'}</>}
+                {submitting ? <><div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite' }} /> {editId ? 'Mise à jour…' : 'Publication…'}</> : <>{editId ? 'Mettre à jour l\'offre →' : 'Publier l\'offre →'}</>}
               </button>
               <button type="button" onClick={() => save('brouillon', { silent: true })} disabled={savingDraft}
                 style={{ width: '100%', padding: 14, borderRadius: 14, border: `2px solid ${C.vert}`, backgroundColor: 'transparent', color: C.vert, fontSize: 14, fontWeight: 600, cursor: savingDraft ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {savingDraft ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${C.vert}30`, borderTopColor: C.vert, animation: 'kavio-spin 0.7s linear infinite' }} /> Sauvegarde…</> : 'Sauvegarder en brouillon'}
+                {savingDraft ? <><div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${C.vert}30`, borderTopColor: C.vert, animation: 'kapolia-spin 0.7s linear infinite' }} /> Sauvegarde…</> : 'Sauvegarder en brouillon'}
               </button>
             </div>
           </div>
@@ -953,7 +953,7 @@ function PublierOffrePageInner() {
 
 export default function PublierOffrePage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#F7F2EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}`}</style><div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E8D5B7', borderTopColor: '#C4673A', animation: 'kavio-spin 0.8s linear infinite' }} /></div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#F7F2EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style><div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E8D5B7', borderTopColor: '#C4673A', animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}>
       <PublierOffrePageInner />
     </Suspense>
   )

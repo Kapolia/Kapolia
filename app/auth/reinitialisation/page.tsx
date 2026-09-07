@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import LogoKapolia from '@/components/LogoKapolia'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -58,10 +59,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       padding: 'clamp(40px, 6%, 72px) clamp(20px, 5%, 40px)',
     }}>
       <style suppressHydrationWarning>
-        {`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}
+        {`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}
       </style>
       <a href="/" style={{ marginBottom: '40px', textDecoration: 'none' }}>
-        <img src="/logo-kavio.png" alt="Kavio" style={{ height: '64px', objectFit: 'contain' }} />
+        <LogoKapolia variante="sombre" taille={40} />
       </a>
       <div style={{
         width: '100%',
@@ -176,7 +177,7 @@ export default function ReinitialisationPage() {
           <div style={{
             width: 36, height: 36, borderRadius: '50%',
             border: `3px solid ${C.sable}`, borderTopColor: C.terracotta,
-            animation: 'kavio-spin 0.8s linear infinite',
+            animation: 'kapolia-spin 0.8s linear infinite',
           }} />
         </div>
       </Shell>
@@ -454,7 +455,7 @@ export default function ReinitialisationPage() {
               borderRadius: '50%',
               border: '2px solid rgba(255,255,255,0.35)',
               borderTopColor: '#fff',
-              animation: 'kavio-spin 0.7s linear infinite',
+              animation: 'kapolia-spin 0.7s linear infinite',
               flexShrink: 0,
             }} />
           )}

@@ -189,7 +189,7 @@ function TypingIndicator({ nom }: { nom: string }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0 8px' }}>
       <div style={{ display: 'flex', gap: 3 }}>
         {[0,1,2].map(i => (
-          <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.grey, animation: `kavio-bounce 1.2s ${i * 0.2}s infinite` }} />
+          <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.grey, animation: `kapolia-bounce 1.2s ${i * 0.2}s infinite` }} />
         ))}
       </div>
       <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>{nom} est en train d'écrire…</span>
@@ -238,7 +238,7 @@ function ReactionPicker({ pos, onPick, onClose }: { pos: { top: number; left: nu
     return () => document.removeEventListener('mousedown', h)
   }, [onClose])
   return (
-    <div ref={ref} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 350, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 14, padding: '6px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', display: 'flex', gap: 2, animation: 'kavio-dd 0.1s ease' }}>
+    <div ref={ref} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 350, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 14, padding: '6px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', display: 'flex', gap: 2, animation: 'kapolia-dd 0.1s ease' }}>
       {QUICK_EMOJIS.map(emoji => {
         const [h, setH] = useState(false)
         return (
@@ -283,7 +283,7 @@ function ContextMenu({ pos, pinned, onPin, onDelete, onClose }: {
     return () => document.removeEventListener('mousedown', h)
   }, [onClose])
   return (
-    <div ref={ref} style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 300, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, padding: 5, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', minWidth: 160, animation: 'kavio-dd 0.12s ease' }}>
+    <div ref={ref} style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 300, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, padding: 5, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', minWidth: 160, animation: 'kapolia-dd 0.12s ease' }}>
       <CMI label={pinned ? '📌 Désépingler' : '📌 Épingler'} onClick={() => { onPin(); onClose() }} />
       <div style={{ height: 1, backgroundColor: C.sable, margin: '4px 0' }} />
       <CMI label="Supprimer" danger onClick={() => { onDelete(); onClose() }} />
@@ -381,21 +381,22 @@ function CandidatMessagesPageInner() {
         .eq('masquee_candidat', false)
         .order('derniere_activite', { ascending: false })
 
-      if (error) { console.error('conversations:', error.message, error.code); setLoadingConvs(false); return }
+      if (error) { console.error('[messages init conversations]', error); setLoadingConvs(false); return }
       if (!convsRaw?.length) { setLoadingConvs(false); return }
 
       const recruteurIds = [...new Set(convsRaw.map(r => r.recruteur_id).filter(Boolean))]
-      const { data: rData } = recruteurIds.length
-        ? await supabase.from('profils').select('user_id, prenom, nom').in('user_id', recruteurIds)
-        : { data: [] as { user_id: string; prenom?: string; nom?: string }[] }
+      const { data: rData, error: rErr } = recruteurIds.length
+        ? await supabase.from('profils').select('user_id, prenom, nom, entreprise_nom').in('user_id', recruteurIds)
+        : { data: [] as { user_id: string; prenom?: string; nom?: string; entreprise_nom?: string | null }[], error: null }
+      if (rErr) console.error('[messages init profils]', rErr)
 
-      const profilMap: Record<string, { prenom?: string; nom?: string }> = {}
+      const profilMap: Record<string, { prenom?: string; nom?: string; entreprise_nom?: string | null }> = {}
       for (const r of (rData ?? [])) profilMap[r.user_id] = r
 
       const loaded: LocalConv[] = convsRaw.map(row => {
         const p          = profilMap[row.recruteur_id]
         const offre      = row.offres as { titre?: string; entreprise_nom?: string } | null
-        const entreprise = offre?.entreprise_nom ?? ''
+        const entreprise = p?.entreprise_nom ?? offre?.entreprise_nom ?? ''
         const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
         const displayKey = entreprise || nom
         return {
@@ -448,15 +449,17 @@ function CandidatMessagesPageInner() {
               })
             })
             if (!convInList && c.masquee_candidat === false && c.recruteur_id) {
-              const [{ data: offre }, { data: profil }] = await Promise.all([
+              const [{ data: offre, error: rtOffreErr }, { data: profil, error: rtProfilErr }] = await Promise.all([
                 c.offre_id
                   ? supabase.from('offres').select('titre, entreprise_nom').eq('id', c.offre_id).single()
-                  : Promise.resolve({ data: null }),
-                supabase.from('profils').select('prenom, nom').eq('user_id', c.recruteur_id).single(),
+                  : Promise.resolve({ data: null, error: null }),
+                supabase.from('profils').select('prenom, nom, entreprise_nom').eq('user_id', c.recruteur_id).single(),
               ])
-              const p          = profil as { prenom?: string; nom?: string } | null
+              if (rtOffreErr)  console.error('[messages realtime UPDATE offre]', rtOffreErr)
+              if (rtProfilErr) console.error('[messages realtime UPDATE profil]', rtProfilErr)
+              const p          = profil as { prenom?: string; nom?: string; entreprise_nom?: string | null } | null
               const o          = offre as { titre?: string; entreprise_nom?: string } | null
-              const entreprise = o?.entreprise_nom ?? ''
+              const entreprise = p?.entreprise_nom ?? o?.entreprise_nom ?? ''
               const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
               const displayKey = entreprise || nom
               const restored: LocalConv = {
@@ -479,15 +482,17 @@ function CandidatMessagesPageInner() {
           { event: 'INSERT', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${user.id}` },
           async payload => {
             const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_candidat?: number; epinglee?: boolean }
-            const [{ data: offre }, { data: profil }] = await Promise.all([
+            const [{ data: offre, error: insOffreErr }, { data: profil, error: insProfilErr }] = await Promise.all([
               row.offre_id
                 ? supabase.from('offres').select('titre, entreprise_nom').eq('id', row.offre_id).single()
-                : Promise.resolve({ data: null }),
-              supabase.from('profils').select('prenom, nom').eq('user_id', row.recruteur_id).single(),
+                : Promise.resolve({ data: null, error: null }),
+              supabase.from('profils').select('prenom, nom, entreprise_nom').eq('user_id', row.recruteur_id).single(),
             ])
-            const p          = profil as { prenom?: string; nom?: string } | null
+            if (insOffreErr)  console.error('[messages realtime INSERT offre]', insOffreErr)
+            if (insProfilErr) console.error('[messages realtime INSERT profil]', insProfilErr)
+            const p          = profil as { prenom?: string; nom?: string; entreprise_nom?: string | null } | null
             const o          = offre as { titre?: string; entreprise_nom?: string } | null
-            const entreprise = o?.entreprise_nom ?? ''
+            const entreprise = p?.entreprise_nom ?? o?.entreprise_nom ?? ''
             const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
             const displayKey = entreprise || nom
             const newConv: LocalConv = {
@@ -895,9 +900,9 @@ function CandidatMessagesPageInner() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: C.creme }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
-        @keyframes kavio-sp     { to{transform:rotate(360deg)} }
-        @keyframes kavio-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+        @keyframes kapolia-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
+        @keyframes kapolia-sp     { to{transform:rotate(360deg)} }
+        @keyframes kapolia-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
         .dk-conv-row:hover .dk-cmb { opacity:1 !important; }
       `}</style>
 
@@ -1143,7 +1148,7 @@ function CandidatMessagesPageInner() {
             <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre un fichier"
               style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.creme, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
               {uploading
-                ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-sp 0.7s linear infinite' }} />
+                ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} />
                 : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
               }
             </button>

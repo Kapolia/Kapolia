@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { haversineKm } from '@/lib/geo'
 
@@ -19,6 +20,7 @@ const C = {
 export type OffreCardData = {
   id: string
   titre: string
+  recruteur_id?: string
   entreprise_nom?: string
   type_contrat?: string
   ville?: string
@@ -131,7 +133,17 @@ export function OffreCard({
         </div>
 
         <div style={{ fontSize: 13, color: C.grey, marginBottom: 10 }}>
-          <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
+          {offre.recruteur_id ? (
+            <Link
+              href={`/entreprise/${offre.recruteur_id}`}
+              onClick={e => e.stopPropagation()}
+              style={{ fontWeight: 600, color: C.terracotta, textDecoration: 'none' }}
+            >
+              {entreprise}
+            </Link>
+          ) : (
+            <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
+          )}
           {offre.ville && <span style={{ color: C.lightGrey }}> · {offre.ville}</span>}
         </div>
 
@@ -200,7 +212,17 @@ export function OffreCard({
             {offre.titre}
           </h3>
           <div style={{ fontSize: 13, color: C.grey, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
-            <span style={{ fontWeight: 600, color: C.dark }}>{entreprise}</span>
+            {offre.recruteur_id ? (
+              <Link
+                href={`/entreprise/${offre.recruteur_id}`}
+                onClick={e => e.stopPropagation()}
+                style={{ fontWeight: 600, color: C.terracotta, textDecoration: 'none' }}
+              >
+                {entreprise}
+              </Link>
+            ) : (
+              <span style={{ fontWeight: 600, color: C.dark }}>{entreprise}</span>
+            )}
             {offre.ville && <><span style={{ color: C.lightGrey }}>·</span><span>{offre.ville}</span></>}
             {pubLabel && <><span style={{ color: C.lightGrey }}>·</span><span style={{ fontSize: 11, color: C.lightGrey }}>{pubLabel}</span></>}
           </div>
@@ -280,7 +302,7 @@ export function OffreCard({
           >
             {applying ? (
               <>
-                <div style={{ width: 11, height: 11, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.7s linear infinite' }} />
+                <div style={{ width: 11, height: 11, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />
                 Envoi…
               </>
             ) : 'Postuler en 1 clic'}

@@ -127,7 +127,7 @@ function computeScore(cand: Candidature, offre: OffreRow | null): number {
 function Spinner() {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </div>
   )
 }
@@ -566,7 +566,7 @@ export default function CandidaturesPage() {
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.creme }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-spin { to { transform: rotate(360deg); } }
+        @keyframes kapolia-spin { to { transform: rotate(360deg); } }
       `}</style>
 
       <Toast msg={toastMsg} />

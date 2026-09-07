@@ -2,6 +2,27 @@
 
 export const ONBOARDING_TOTAL = 17
 
+export const DOMAINES = [
+  'Tech & Ingénierie', 'Design & Créativité', 'Marketing & Com',
+  'Finance & Compta', 'RH & Recrutement', 'Commerce & Vente',
+  'Opérations & Logistique', 'Conseil & Stratégie', 'Autre',
+]
+
+export const EXPERIENCES: { key: string; desc: string }[] = [
+  { key: '< 2 ans',  desc: 'Débuts prometteurs' },
+  { key: '2–5 ans',  desc: 'Vous avez vos marques' },
+  { key: '5–10 ans', desc: 'Confirmé(e), vous avancez avec confiance' },
+  { key: '10+ ans',  desc: 'Expert(e) reconnu(e)' },
+]
+
+export const TYPES_POSTE: { key: string; label: string }[] = [
+  { key: 'cdi',        label: 'CDI' },
+  { key: 'cdd',        label: 'CDD' },
+  { key: 'freelance',  label: 'Freelance / Mission' },
+  { key: 'alternance', label: 'Alternance / Stage' },
+  { key: 'ouvert',     label: 'Ouvert(e) à tout' },
+]
+
 export type Experience = {
   poste: string
   entreprise: string

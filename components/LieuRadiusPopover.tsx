@@ -124,7 +124,7 @@ export function LieuRadiusPopover({
       }}
     >
       <style>{`
-        .kavio-radius-slider {
+        .kapolia-radius-slider {
           -webkit-appearance: none;
           appearance: none;
           width: 100%;
@@ -135,7 +135,7 @@ export function LieuRadiusPopover({
           padding: 0;
           margin: 0;
         }
-        .kavio-radius-slider::-webkit-slider-runnable-track {
+        .kapolia-radius-slider::-webkit-slider-runnable-track {
           height: 5px;
           border-radius: 99px;
           background: linear-gradient(
@@ -144,17 +144,17 @@ export function LieuRadiusPopover({
             ${C.sable} var(--pct) 100%
           );
         }
-        .kavio-radius-slider::-moz-range-track {
+        .kapolia-radius-slider::-moz-range-track {
           height: 5px;
           border-radius: 99px;
           background: ${C.sable};
         }
-        .kavio-radius-slider::-moz-range-progress {
+        .kapolia-radius-slider::-moz-range-progress {
           height: 5px;
           border-radius: 99px;
           background: ${C.vert};
         }
-        .kavio-radius-slider::-webkit-slider-thumb {
+        .kapolia-radius-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
           width: 18px;
@@ -166,10 +166,10 @@ export function LieuRadiusPopover({
           cursor: pointer;
           transition: transform 0.12s;
         }
-        .kavio-radius-slider::-webkit-slider-thumb:hover {
+        .kapolia-radius-slider::-webkit-slider-thumb:hover {
           transform: scale(1.18);
         }
-        .kavio-radius-slider::-moz-range-thumb {
+        .kapolia-radius-slider::-moz-range-thumb {
           width: 18px;
           height: 18px;
           border-radius: 50%;
@@ -220,7 +220,7 @@ export function LieuRadiusPopover({
             step={1}
             value={sliderIdx}
             onChange={handleSlider}
-            className="kavio-radius-slider"
+            className="kapolia-radius-slider"
             style={{ '--pct': pct } as React.CSSProperties}
           />
           <div style={{

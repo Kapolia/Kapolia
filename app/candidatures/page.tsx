@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { OffreDetail, type OffreData } from '@/components/OffreDetail'
 import { useFavoris } from '@/lib/favoris-context'
 import { getStatut } from '@/lib/statuts'
+import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,7 @@ type OffreResume = {
   ville: string | null
   entreprise_nom: string | null
   created_at: string | null
+  recruteur_id: string | null
 }
 
 type Candidature = {
@@ -85,11 +88,11 @@ function Spinner({ fullPage = false }: { fullPage?: boolean }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       ...(fullPage ? { minHeight: '100vh', backgroundColor: C.creme } : { flex: 1 }),
     }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
         width: 36, height: 36, borderRadius: '50%',
         border: `3px solid ${C.sable}`, borderTopColor: C.terracotta,
-        animation: 'kavio-spin 0.8s linear infinite',
+        animation: 'kapolia-spin 0.8s linear infinite',
       }} />
     </div>
   )
@@ -260,7 +263,18 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
             {offre?.titre ?? 'Offre supprimée'}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            {nom && <span style={{ fontSize: 13, color: C.grey }}>{nom}</span>}
+            {nom && (
+              offre?.recruteur_id ? (
+                <Link
+                  href={`/entreprise/${offre.recruteur_id}`}
+                  style={{ fontSize: 13, color: C.terracotta, textDecoration: 'none', fontWeight: 500 }}
+                >
+                  {nom}
+                </Link>
+              ) : (
+                <span style={{ fontSize: 13, color: C.grey }}>{nom}</span>
+              )
+            )}
             {offre?.ville && (
               <>
                 <span style={{ fontSize: 12, color: C.lightGrey }}>·</span>
@@ -405,14 +419,38 @@ export default function CandidaturesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
 
-      const { data } = await supabase
+      const { data, error: candErr } = await supabase
         .from('candidatures')
-        .select('*, offres(id, titre, type_contrat, ville, entreprise_nom, created_at)')
+        .select('*, offres(id, titre, type_contrat, ville, entreprise_nom, created_at, recruteur_id)')
         .eq('candidat_id', user.id)
         .eq('masquee_candidat', false)
         .order('created_at', { ascending: false })
 
-      setCandidatures((data as Candidature[]) ?? [])
+      if (candErr) { console.error('[candidatures]', candErr); setLoading(false); return }
+
+      const candidaturesRaw = (data as Candidature[]) ?? []
+
+      // Two-step : nom actuel depuis profils recruteur
+      const recruteurIds = [...new Set(
+        candidaturesRaw.map(c => c.offres?.recruteur_id).filter(Boolean)
+      )] as string[]
+      const { map, error: profErr } = await fetchProfilsEntreprise(recruteurIds)
+      if (profErr) console.error('[candidatures profils]', profErr)
+
+      const enriched = candidaturesRaw.map(cand => {
+        const rid = cand.offres?.recruteur_id
+        const ep  = rid ? map[rid] : undefined
+        if (!ep || !cand.offres) return cand
+        return {
+          ...cand,
+          offres: {
+            ...cand.offres,
+            entreprise_nom: ep.entreprise_nom ?? cand.offres.entreprise_nom,
+          },
+        }
+      })
+
+      setCandidatures(enriched)
       setLoading(false)
     }
     load()
@@ -465,8 +503,26 @@ export default function CandidaturesPage() {
     setSelectedCandId(cand.id)
     setSelectedOffre(null)
     setOffreLoading(true)
-    const { data } = await supabase.from('offres').select('*').eq('id', cand.offre_id).single()
-    setSelectedOffre((data as OffreData) ?? null)
+
+    const { data: offreData, error: offreErr } = await supabase
+      .from('offres').select('*').eq('id', cand.offre_id).single()
+    if (offreErr) { console.error('[candidatures handleViewOffre offre]', offreErr); setOffreLoading(false); return }
+
+    let offre = offreData ? { ...(offreData as OffreData) } : null
+    if (offre?.recruteur_id) {
+      const { data: ep, error: epErr } = await supabase
+        .from('profils')
+        .select('entreprise_nom, entreprise_logo_url')
+        .eq('user_id', offre.recruteur_id)
+        .single()
+      if (epErr) console.error('[candidatures handleViewOffre profils]', epErr)
+      if (ep) {
+        if (ep.entreprise_nom)      offre = { ...offre, entreprise_nom:      ep.entreprise_nom }
+        if (ep.entreprise_logo_url) offre = { ...offre, entreprise_logo_url: ep.entreprise_logo_url }
+      }
+    }
+
+    setSelectedOffre(offre)
     setOffreLoading(false)
   }, [isMobile, selectedCandId, router])
 
@@ -514,7 +570,7 @@ export default function CandidaturesPage() {
         backgroundColor: C.creme, marginLeft: 64,
         height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
-        <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+        <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
         {renderModal()}
 
@@ -601,7 +657,7 @@ export default function CandidaturesPage() {
 
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
       {renderModal()}
 
@@ -646,7 +702,7 @@ export default function CandidaturesPage() {
               Vous n&apos;avez pas encore postulé.
             </h2>
             <p style={{ fontSize: 14, color: C.grey, margin: '0 0 28px', lineHeight: 1.6 }}>
-              Explorez les offres disponibles et postulez en un clic grâce à votre profil Kavio.
+              Explorez les offres disponibles et postulez en un clic grâce à votre profil Kapolia.
             </p>
             <button
               onClick={() => router.push('/offres')}

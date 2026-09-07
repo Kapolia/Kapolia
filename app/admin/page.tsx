@@ -107,11 +107,11 @@ function Spinner() {
       minHeight: '100vh', backgroundColor: C.bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
         width: '36px', height: '36px', borderRadius: '50%',
         border: `3px solid ${C.sable}`, borderTopColor: C.terracotta,
-        animation: 'kavio-spin 0.8s linear infinite',
+        animation: 'kapolia-spin 0.8s linear infinite',
       }} />
     </div>
   )
@@ -312,7 +312,7 @@ export default function AdminPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: C.bg }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } } * { box-sizing: border-box; }`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } } * { box-sizing: border-box; }`}</style>
 
       {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
       <aside style={{
@@ -332,7 +332,7 @@ export default function AdminPage() {
             fontFamily: 'Georgia, serif', fontSize: '18px',
             color: C.white, marginBottom: '4px',
           }}>
-            Kavio
+            Kapolia
           </div>
           <div style={{
             fontSize: '10px', fontWeight: '700', letterSpacing: '0.1em',

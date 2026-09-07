@@ -18,7 +18,9 @@ const SECTEUR_OPTIONS = [
   'Juridique & LegalTech', 'Médias & communication', 'Autre',
 ]
 
-type PresseItem = { titre: string; source: string; url: string; annee: string }
+type PresseItem     = { titre: string; source: string; url: string; annee: string }
+type EtapeHistoire  = { annee: string; titre: string; description: string }
+type Temoignage     = { nom: string; role: string; citation: string }
 
 type EntrepriseProfil = {
   entreprise_nom:            string | null
@@ -39,6 +41,9 @@ type EntrepriseProfil = {
   entreprise_linkedin:       string | null
   entreprise_instagram:      string | null
   entreprise_presse:         PresseItem[] | null
+  entreprise_video_url:      string | null
+  entreprise_histoire:       EtapeHistoire[] | null
+  entreprise_temoignages:    Temoignage[] | null
 }
 
 type OffreActive = {
@@ -52,6 +57,7 @@ const PROFIL_SELECT = [
   'entreprise_mission', 'entreprise_annee_creation', 'entreprise_effectif', 'entreprise_ca',
   'entreprise_levees', 'entreprise_pays', 'entreprise_avantages',
   'entreprise_linkedin', 'entreprise_instagram', 'entreprise_presse',
+  'entreprise_video_url', 'entreprise_histoire', 'entreprise_temoignages',
 ].join(', ')
 
 const CHIFFRES: { key: keyof EntrepriseProfil; label: string }[] = [
@@ -61,6 +67,14 @@ const CHIFFRES: { key: keyof EntrepriseProfil; label: string }[] = [
   { key: 'entreprise_ca',             label: "Chiffre d'affaires" },
   { key: 'entreprise_pays',           label: 'Pays / bureaux' },
 ]
+
+function videoEmbedUrl(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  if (yt) return `https://www.youtube-nocookie.com/embed/${yt[1]}`
+  const vi = url.match(/vimeo\.com\/(\d+)/)
+  if (vi) return `https://player.vimeo.com/video/${vi[1]}`
+  return null
+}
 
 function dateLabel(iso: string) {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -162,6 +176,7 @@ const EMPTY_PROFIL: EntrepriseProfil = {
   entreprise_annee_creation: null, entreprise_effectif: null, entreprise_ca: null,
   entreprise_levees: null, entreprise_pays: null, entreprise_avantages: null,
   entreprise_linkedin: null, entreprise_instagram: null, entreprise_presse: null,
+  entreprise_video_url: null, entreprise_histoire: null, entreprise_temoignages: null,
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -193,10 +208,17 @@ export default function RecruteurEntreprisePage() {
   const [valeurInput, setValeurInput]       = useState('')
   const [editAvantages, setEditAvantages]   = useState<string[]>([])
   const [avantageInput, setAvantageInput]   = useState('')
-  const [editPresse, setEditPresse]         = useState<PresseItem[]>([])
-  const [addingPresse, setAddingPresse]     = useState(false)
-  const [presseForm, setPresseForm]         = useState<PresseItem>({ titre: '', source: '', url: '', annee: '' })
-  const [editLogoUrl, setEditLogoUrl]       = useState<string | null>(null)
+  const [editPresse, setEditPresse]           = useState<PresseItem[]>([])
+  const [addingPresse, setAddingPresse]       = useState(false)
+  const [presseForm, setPresseForm]           = useState<PresseItem>({ titre: '', source: '', url: '', annee: '' })
+  const [editVideo, setEditVideo]             = useState('')
+  const [editHistoire, setEditHistoire]       = useState<EtapeHistoire[]>([])
+  const [addingHistoire, setAddingHistoire]   = useState(false)
+  const [histoireForm, setHistoireForm]       = useState<EtapeHistoire>({ annee: '', titre: '', description: '' })
+  const [editTemoignages, setEditTemoignages] = useState<Temoignage[]>([])
+  const [addingTemo, setAddingTemo]           = useState(false)
+  const [temoForm, setTemoForm]               = useState<Temoignage>({ nom: '', role: '', citation: '' })
+  const [editLogoUrl, setEditLogoUrl]         = useState<string | null>(null)
   const [logoPreview, setLogoPreview]       = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo]   = useState(false)
   const [saving, setSaving]                 = useState(false)
@@ -241,6 +263,13 @@ export default function RecruteurEntreprisePage() {
     setEditValeurs([...(p.entreprise_valeurs ?? [])]); setValeurInput('')
     setEditAvantages([...(p.entreprise_avantages ?? [])]); setAvantageInput('')
     setEditPresse([...(p.entreprise_presse ?? [])])
+    setEditVideo(p.entreprise_video_url ?? '')
+    setEditHistoire([...(p.entreprise_histoire ?? [])])
+    setHistoireForm({ annee: '', titre: '', description: '' })
+    setAddingHistoire(false)
+    setEditTemoignages([...(p.entreprise_temoignages ?? [])])
+    setTemoForm({ nom: '', role: '', citation: '' })
+    setAddingTemo(false)
     setEditLogoUrl(p.entreprise_logo_url); setLogoPreview(p.entreprise_logo_url)
     setSaveError(null); setAddingPresse(false)
     setPresseForm({ titre: '', source: '', url: '', annee: '' })
@@ -269,6 +298,21 @@ export default function RecruteurEntreprisePage() {
     setAddingPresse(false)
   }
 
+  function addHistoireEtape() {
+    if (!histoireForm.annee.trim() || !histoireForm.titre.trim()) return
+    const sorted = [...editHistoire, { ...histoireForm }].sort((a, b) => a.annee.localeCompare(b.annee))
+    setEditHistoire(sorted)
+    setHistoireForm({ annee: '', titre: '', description: '' })
+    setAddingHistoire(false)
+  }
+
+  function addTemoignage() {
+    if (!temoForm.nom.trim() || !temoForm.citation.trim()) return
+    setEditTemoignages([...editTemoignages, { ...temoForm }])
+    setTemoForm({ nom: '', role: '', citation: '' })
+    setAddingTemo(false)
+  }
+
   async function handleSave() {
     if (!userId) return
     if (!editNom.trim()) { setSaveError("Le nom de l'entreprise est requis."); return }
@@ -292,6 +336,9 @@ export default function RecruteurEntreprisePage() {
       entreprise_avantages:      editAvantages.length > 0 ? editAvantages : null,
       entreprise_logo_url:       editLogoUrl || null,
       entreprise_presse:         editPresse.length > 0 ? editPresse : null,
+      entreprise_video_url:      editVideo.trim() || null,
+      entreprise_histoire:       editHistoire.length > 0 ? editHistoire : null,
+      entreprise_temoignages:    editTemoignages.length > 0 ? editTemoignages : null,
     }
     const { error } = await supabase.from('profils').update(payload).eq('user_id', userId)
     if (error) { setSaveError('Erreur : ' + error.message); setSaving(false); return }
@@ -304,8 +351,8 @@ export default function RecruteurEntreprisePage() {
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width: 32, height: 32, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </div>
   )
 
@@ -313,7 +360,7 @@ export default function RecruteurEntreprisePage() {
 
   if (isEditing) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', padding: '36px 40px 100px' }}>
-      <style suppressHydrationWarning>{`input:focus,textarea:focus,select:focus{border-color:${C.terracotta}!important;box-shadow:0 0 0 3px ${C.terracotta}15}*{box-sizing:border-box}@keyframes kavio-spin{to{transform:rotate(360deg)}}`}</style>
+      <style suppressHydrationWarning>{`input:focus,textarea:focus,select:focus{border-color:${C.terracotta}!important;box-shadow:0 0 0 3px ${C.terracotta}15}*{box-sizing:border-box}@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
@@ -330,7 +377,7 @@ export default function RecruteurEntreprisePage() {
             <div onClick={() => fileRef.current?.click()} style={{ width: 82, height: 82, borderRadius: 14, border: `2px dashed ${C.sable}`, backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
               {logoPreview ? <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }} />
                 : <div style={{ textAlign: 'center' }}><div style={{ fontSize: 22 }}>🏢</div><div style={{ fontSize: 10, color: C.grey }}>Ajouter</div></div>}
-              {uploadingLogo && <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(247,242,235,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} /></div>}
+              {uploadingLogo && <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(247,242,235,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}
             </div>
             <div>
               <button onClick={() => fileRef.current?.click()} disabled={uploadingLogo} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 10, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: C.dark, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6, display: 'block' }}>
@@ -396,6 +443,84 @@ export default function RecruteurEntreprisePage() {
           <TagInput tags={editAvantages} onAdd={() => { const v = avantageInput.trim(); if (v && !editAvantages.includes(v)) { setEditAvantages([...editAvantages, v]); setAvantageInput('') } }} onRemove={v => setEditAvantages(editAvantages.filter(x => x !== v))} input={avantageInput} onInput={setAvantageInput} placeholder="Ajouter un avantage" max={8} />
         </SCard>
 
+        {/* ── Vidéo ── */}
+        <SCard title="Vidéo de présentation">
+          <p style={{ fontSize: 13, color: C.grey, margin: '0 0 12px' }}>Lien YouTube ou Vimeo. Laissez vide pour ne pas afficher.</p>
+          <input value={editVideo} onChange={e => setEditVideo(e.target.value)} placeholder="https://youtube.com/watch?v=… ou https://vimeo.com/…" style={iStyle} />
+          {editVideo.trim() && !videoEmbedUrl(editVideo.trim()) && (
+            <div style={{ fontSize: 12, color: C.amber, marginTop: 6 }}>URL non reconnue — seuls YouTube et Vimeo sont supportés pour l'intégration.</div>
+          )}
+        </SCard>
+
+        {/* ── Histoire ── */}
+        <SCard title="Notre histoire">
+          <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px' }}>Les grandes étapes de votre aventure — triées par année automatiquement.</p>
+          {editHistoire.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              {editHistoire.map((etape, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: C.terracotta, flexShrink: 0, minWidth: 40 }}>{etape.annee}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{etape.titre}</div>
+                    {etape.description && <div style={{ fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{etape.description}</div>}
+                  </div>
+                  <button onClick={() => setEditHistoire(editHistoire.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: '0 4px', flexShrink: 0 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {!addingHistoire ? (
+            <button onClick={() => setAddingHistoire(true)} style={{ backgroundColor: 'transparent', border: `1.5px dashed ${C.sable}`, borderRadius: 10, padding: '10px 20px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>+ Ajouter une étape</button>
+          ) : (
+            <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, marginBottom: 12 }}>
+                <div><FLabel>Année *</FLabel><input value={histoireForm.annee} onChange={e => setHistoireForm(f => ({ ...f, annee: e.target.value }))} placeholder="2019" style={iStyle} /></div>
+                <div><FLabel>Titre *</FLabel><input value={histoireForm.titre} onChange={e => setHistoireForm(f => ({ ...f, titre: e.target.value }))} placeholder="Fondation de l'entreprise" style={iStyle} /></div>
+              </div>
+              <div style={{ marginBottom: 12 }}><FLabel>Description</FLabel><input value={histoireForm.description} onChange={e => setHistoireForm(f => ({ ...f, description: e.target.value }))} placeholder="Quelques mots sur ce moment clé (optionnel)" style={iStyle} /></div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => { setAddingHistoire(false); setHistoireForm({ annee: '', titre: '', description: '' }) }} style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 9, padding: '8px 16px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
+                <button onClick={addHistoireEtape} disabled={!histoireForm.annee.trim() || !histoireForm.titre.trim()} style={{ backgroundColor: C.vert, color: C.white, border: 'none', borderRadius: 9, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: (histoireForm.annee.trim() && histoireForm.titre.trim()) ? 1 : 0.4 }}>Ajouter</button>
+              </div>
+            </div>
+          )}
+        </SCard>
+
+        {/* ── Témoignages ── */}
+        <SCard title="Ils en parlent — témoignages">
+          <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px' }}>La parole à vos collaborateurs. Maximum 6.</p>
+          {editTemoignages.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+              {editTemoignages.map((t, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontStyle: 'italic', color: C.dark, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>« {t.citation} »</div>
+                    <div style={{ fontSize: 12, color: C.grey }}>{t.nom}{t.role ? ` · ${t.role}` : ''}</div>
+                  </div>
+                  <button onClick={() => setEditTemoignages(editTemoignages.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: '0 4px', flexShrink: 0 }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {editTemoignages.length >= 6 ? (
+            <div style={{ fontSize: 12, color: C.amber, fontWeight: 500 }}>Limite atteinte (6 maximum)</div>
+          ) : !addingTemo ? (
+            <button onClick={() => setAddingTemo(true)} style={{ backgroundColor: 'transparent', border: `1.5px dashed ${C.sable}`, borderRadius: 10, padding: '10px 20px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>+ Ajouter un témoignage</button>
+          ) : (
+            <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div><FLabel>Prénom Nom *</FLabel><input value={temoForm.nom} onChange={e => setTemoForm(f => ({ ...f, nom: e.target.value }))} placeholder="Marie D." style={iStyle} /></div>
+                <div><FLabel>Rôle & ancienneté</FLabel><input value={temoForm.role} onChange={e => setTemoForm(f => ({ ...f, role: e.target.value }))} placeholder="Dev senior · 3 ans" style={iStyle} /></div>
+              </div>
+              <div style={{ marginBottom: 12 }}><FLabel>Citation *</FLabel><textarea value={temoForm.citation} onChange={e => setTemoForm(f => ({ ...f, citation: e.target.value }))} placeholder="Ce que j'aime chez nous, c'est…" rows={3} style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} /></div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => { setAddingTemo(false); setTemoForm({ nom: '', role: '', citation: '' }) }} style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 9, padding: '8px 16px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
+                <button onClick={addTemoignage} disabled={!temoForm.nom.trim() || !temoForm.citation.trim()} style={{ backgroundColor: C.vert, color: C.white, border: 'none', borderRadius: 9, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: (temoForm.nom.trim() && temoForm.citation.trim()) ? 1 : 0.4 }}>Ajouter</button>
+              </div>
+            </div>
+          )}
+        </SCard>
+
         {/* ── Presse ── */}
         <SCard title="Dans la presse">
           {editPresse.length > 0 && (
@@ -442,11 +567,13 @@ export default function RecruteurEntreprisePage() {
 
   // ── VITRINE MODE ───────────────────────────────────────────────────────────
 
-  const nom       = profil.entreprise_nom
-  const valeurs   = profil.entreprise_valeurs ?? []
-  const avantages = profil.entreprise_avantages ?? []
-  const presse    = profil.entreprise_presse ?? []
-  const chiffres  = CHIFFRES.filter(c => profil[c.key])
+  const nom         = profil.entreprise_nom
+  const valeurs     = profil.entreprise_valeurs ?? []
+  const avantages   = profil.entreprise_avantages ?? []
+  const presse      = profil.entreprise_presse ?? []
+  const histoire    = profil.entreprise_histoire ?? []
+  const temoignages = profil.entreprise_temoignages ?? []
+  const chiffres    = CHIFFRES.filter(c => profil[c.key])
 
   if (!nom) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
@@ -461,7 +588,7 @@ export default function RecruteurEntreprisePage() {
 
   return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', paddingBottom: 80 }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style>
 
       <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: `translateX(-50%) translateY(${toastVisible ? '0' : '12px'})`, opacity: toastVisible ? 1 : 0, transition: 'opacity 0.2s, transform 0.2s', pointerEvents: 'none', zIndex: 300, backgroundColor: C.vert, color: C.white, padding: '11px 22px', borderRadius: 28, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.16)', whiteSpace: 'nowrap' }}>
         {toastMsg}
@@ -512,6 +639,25 @@ export default function RecruteurEntreprisePage() {
           </section>
         )}
 
+        {/* Vidéo */}
+        {profil.entreprise_video_url && (() => {
+          const embed = videoEmbedUrl(profil.entreprise_video_url!)
+          return (
+            <section style={{ marginBottom: 52 }}>
+              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
+              {embed ? (
+                <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 16, overflow: 'hidden', backgroundColor: C.dark }}>
+                  <iframe src={embed} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                </div>
+              ) : (
+                <a href={profil.entreprise_video_url!.startsWith('http') ? profil.entreprise_video_url! : `https://${profil.entreprise_video_url}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, fontSize: 14, color: C.dark, textDecoration: 'none', fontWeight: 500 }}>
+                  ▶ Voir la vidéo ↗
+                </a>
+              )}
+            </section>
+          )
+        })()}
+
         {/* Chiffres clés */}
         {chiffres.length > 0 && (
           <section style={{ marginBottom: 52 }}>
@@ -521,6 +667,24 @@ export default function RecruteurEntreprisePage() {
                 <div key={c.key} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
                   <div style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 700, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
                   <div style={{ fontSize: 11, color: C.grey, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Histoire */}
+        {histoire.length > 0 && (
+          <section style={{ marginBottom: 52 }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
+            <div style={{ position: 'relative', paddingLeft: 28 }}>
+              <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
+              {histoire.map((etape, i) => (
+                <div key={i} style={{ position: 'relative', marginBottom: i < histoire.length - 1 ? 32 : 0 }}>
+                  <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.creme}`, boxSizing: 'border-box' }} />
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.terracotta, letterSpacing: '0.07em', marginBottom: 4 }}>{etape.annee}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
+                  {etape.description && <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>{etape.description}</div>}
                 </div>
               ))}
             </div>
@@ -543,6 +707,30 @@ export default function RecruteurEntreprisePage() {
             <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
               {avantages.map(a => <div key={a} style={{ backgroundColor: C.vert, borderRadius: 14, padding: '18px 20px', color: C.sable, fontSize: 14, fontWeight: 500, lineHeight: 1.4 }}>{a}</div>)}
+            </div>
+          </section>
+        )}
+
+        {/* Témoignages */}
+        {temoignages.length > 0 && (
+          <section style={{ marginBottom: 52 }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {temoignages.map((t, i) => (
+                <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: 'Georgia, serif' }}>"</div>
+                  <p style={{ fontSize: 14, color: '#3A3A3A', lineHeight: 1.7, fontStyle: 'italic', margin: 0, flex: 1 }}>{t.citation}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: `${C.vert}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: C.vert }}>{t.nom.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{t.nom}</div>
+                      {t.role && <div style={{ fontSize: 12, color: C.grey }}>{t.role}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -626,18 +814,5 @@ export default function RecruteurEntreprisePage() {
         )}
       </div>
     </main>
-  )
-}
-
-function PresseRow({ item }: { item: PresseItem }) {
-  return (
-    <>
-      <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: `${C.terracotta}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>📰</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.titre}</div>
-        <div style={{ fontSize: 12, color: C.grey }}>{item.source}{item.annee ? ` · ${item.annee}` : ''}</div>
-      </div>
-      {item.url && <span style={{ fontSize: 18, color: '#D0D0D0', flexShrink: 0 }}>→</span>}
-    </>
   )
 }

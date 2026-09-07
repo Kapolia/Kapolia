@@ -22,18 +22,11 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'compte' | 'confidentialite' | 'notifications'
+type Tab = 'compte' | 'confidentialite'
 
 type Privacy = {
-  visible_recruteurs:  boolean
-  visible_recherches:  boolean
-  messages_recruteurs: boolean
-}
-
-type Notifs = {
-  notif_visite:  boolean
-  notif_message: boolean
-  notif_offre:   boolean
+  messages_recruteurs:   boolean
+  visible_candidatheque: boolean
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,8 +40,8 @@ function initiales(prenom: string, nom: string) {
 function Spinner() {
   return (
     <main style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kavio-spin 0.8s linear infinite' }} />
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </main>
   )
 }
@@ -120,7 +113,7 @@ function SaveBtn({ loading, onClick, label = 'Sauvegarder les modifications' }: 
       cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1,
       transition: 'opacity 0.15s', display: 'flex', alignItems: 'center', gap: 8,
     }}>
-      {loading && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kavio-spin 0.7s linear infinite' }} />}
+      {loading && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
       {loading ? 'Sauvegarde…' : label}
     </button>
   )
@@ -173,7 +166,6 @@ export default function ParametresPage() {
   const [toastVisible, setToastVisible] = useState(false)
   const [savingPwd, setSavingPwd]       = useState(false)
   const [savingPrivacy, setSavingPrivacy] = useState(false)
-  const [savingNotifs, setSavingNotifs] = useState(false)
   const [deleting, setDeleting]         = useState(false)
 
   const [pwdOld, setPwdOld]         = useState('')
@@ -182,23 +174,27 @@ export default function ParametresPage() {
   const [pwdError, setPwdError]     = useState('')
 
   const [privacy, setPrivacy] = useState<Privacy>({
-    visible_recruteurs: true, visible_recherches: true, messages_recruteurs: true,
+    messages_recruteurs: false, visible_candidatheque: false,
   })
-  const [notifs, setNotifs] = useState<Notifs>({
-    notif_visite: true, notif_message: true, notif_offre: false,
-  })
+  const [origVisibleCandidatheque, setOrigVisibleCandidatheque] = useState(false)
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
       setEmail(user.email ?? '')
-      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type').eq('user_id', user.id).single()
+      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque').eq('user_id', user.id).single()
       if (data) {
         setPrenom(data.prenom ?? '')
         setNom(data.nom ?? '')
         setAvatarUrl(data.avatar_url ?? '')
         setAvatarType(data.avatar_type ?? '')
+        const vc = data.visible_candidatheque ?? false
+        setOrigVisibleCandidatheque(vc)
+        setPrivacy({
+          messages_recruteurs: data.messages_recruteurs ?? false,
+          visible_candidatheque: vc,
+        })
       }
       setLoading(false)
     }
@@ -233,17 +229,22 @@ export default function ParametresPage() {
   async function savePrivacy() {
     setSavingPrivacy(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) await supabase.from('profils').update(privacy).eq('user_id', user.id)
+    if (user) {
+      const payload: Record<string, unknown> = { ...privacy }
+      if (privacy.visible_candidatheque !== origVisibleCandidatheque) {
+        payload.visible_candidatheque_maj_le = new Date().toISOString()
+        setOrigVisibleCandidatheque(privacy.visible_candidatheque)
+      }
+      const { error, count } = await supabase.from('profils').update(payload, { count: 'exact' }).eq('user_id', user.id)
+      if (error || count === 0) {
+        console.error('[savePrivacy] update failed', error, { count })
+        setSavingPrivacy(false)
+        showToast('Erreur : impossible de sauvegarder.')
+        return
+      }
+    }
     setSavingPrivacy(false)
     showToast('Préférences sauvegardées !')
-  }
-
-  async function saveNotifs() {
-    setSavingNotifs(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) await supabase.from('profils').update(notifs).eq('user_id', user.id)
-    setSavingNotifs(false)
-    showToast('Notifications sauvegardées !')
   }
 
   if (loading) return <Spinner />
@@ -251,12 +252,11 @@ export default function ParametresPage() {
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: 'compte',          label: 'Compte',          icon: '⬡' },
     { id: 'confidentialite', label: 'Confidentialité', icon: '◷' },
-    { id: 'notifications',   label: 'Notifications',   icon: '✦' },
   ]
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: C.creme, marginLeft: 64 }}>
-      <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <Toast msg={toastMsg} visible={toastVisible} />
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────────── */}
@@ -267,7 +267,7 @@ export default function ParametresPage() {
         position: 'sticky', top: 0, zIndex: 20,
       }}>
         <div onClick={() => router.push('/')} style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, cursor: 'pointer' }}>
-          Kavio
+          Kapolia
         </div>
         <button onClick={() => router.push('/profil')} style={{
           backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 10,
@@ -332,7 +332,7 @@ export default function ParametresPage() {
                   <FieldLabel>Adresse e-mail</FieldLabel>
                   <TextInput value={email} readOnly />
                   <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>
-                    Pour changer votre email, contactez le support Kavio.
+                    Pour changer votre email, contactez le support Kapolia.
                   </div>
                 </div>
 
@@ -390,56 +390,19 @@ export default function ParametresPage() {
                   <SectionSub>Contrôlez qui peut voir votre profil et vous contacter.</SectionSub>
                 </div>
                 <Toggle
-                  checked={privacy.visible_recruteurs}
-                  onChange={v => setPrivacy(p => ({ ...p, visible_recruteurs: v }))}
-                  label="Profil visible par les recruteurs"
-                  desc="Votre carte profil apparaît dans les résultats de recherche recruteurs."
-                />
-                <Toggle
-                  checked={privacy.visible_recherches}
-                  onChange={v => setPrivacy(p => ({ ...p, visible_recherches: v }))}
-                  label="Apparaître dans les recherches"
-                  desc="Votre profil peut être trouvé via la recherche de candidats."
-                />
-                <Toggle
                   checked={privacy.messages_recruteurs}
                   onChange={v => setPrivacy(p => ({ ...p, messages_recruteurs: v }))}
                   label="Recevoir des messages de recruteurs"
                   desc="Les recruteurs peuvent vous envoyer des messages directs."
                 />
+                <Toggle
+                  checked={privacy.visible_candidatheque}
+                  onChange={v => setPrivacy(p => ({ ...p, visible_candidatheque: v }))}
+                  label="Souhaitez-vous être visible par les recruteurs ?"
+                  desc="Les recruteurs inscrits sur Kapolia pourront consulter votre profil et vous contacter, même si vous n'avez postulé à aucune de leurs offres."
+                />
                 <div style={{ marginTop: 8 }}>
                   <SaveBtn loading={savingPrivacy} onClick={savePrivacy} />
-                </div>
-              </div>
-            )}
-
-            {/* ─── NOTIFICATIONS ──────────────────────────────────────────── */}
-            {tab === 'notifications' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ marginBottom: 8 }}>
-                  <SectionTitle>Notifications</SectionTitle>
-                  <SectionSub>Choisissez les emails que vous souhaitez recevoir.</SectionSub>
-                </div>
-                <Toggle
-                  checked={notifs.notif_visite}
-                  onChange={v => setNotifs(n => ({ ...n, notif_visite: v }))}
-                  label="Visite de profil"
-                  desc="Recevez un email quand un recruteur consulte votre profil."
-                />
-                <Toggle
-                  checked={notifs.notif_message}
-                  onChange={v => setNotifs(n => ({ ...n, notif_message: v }))}
-                  label="Nouveau message"
-                  desc="Recevez un email quand vous recevez un message."
-                />
-                <Toggle
-                  checked={notifs.notif_offre}
-                  onChange={v => setNotifs(n => ({ ...n, notif_offre: v }))}
-                  label="Offre correspondante"
-                  desc="Recevez un email quand une nouvelle offre correspond à votre profil."
-                />
-                <div style={{ marginTop: 8 }}>
-                  <SaveBtn loading={savingNotifs} onClick={saveNotifs} />
                 </div>
               </div>
             )}

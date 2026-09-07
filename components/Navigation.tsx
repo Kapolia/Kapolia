@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import CandidatSidebar from '@/components/CandidatSidebar'
+import LogoKapolia from '@/components/LogoKapolia'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ export default function Navigation() {
   const [nav, setNav] = useState<NavState>({ status: 'loading' })
 
   // Recalculé avant l'effet pour être utilisé comme dépendance
-  const FULLSCREEN_PATHS = ['/onboarding', '/connexion', '/inscription', '/mot-de-passe-oublie', '/auth']
+  const FULLSCREEN_PATHS = ['/', '/onboarding', '/connexion', '/inscription', '/mot-de-passe-oublie', '/auth']
   const isFullscreen = FULLSCREEN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
 
   useEffect(() => {
@@ -202,7 +203,7 @@ export default function Navigation() {
           onClick={() => router.push('/')}
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
         >
-          <img src="/logo-kavio.png" alt="Kavio" style={{ height: '48px', objectFit: 'contain' }} />
+          <LogoKapolia variante="sombre" taille={32} />
         </button>
 
         <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flex: 1 }}>

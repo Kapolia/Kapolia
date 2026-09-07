@@ -33,7 +33,7 @@ function Spinner() {
       <div style={{
         width: 36, height: 36, borderRadius: '50%',
         border: `3px solid ${C.sable}`, borderTopColor: C.terracotta,
-        animation: 'kavio-spin 0.8s linear infinite',
+        animation: 'kapolia-spin 0.8s linear infinite',
       }} />
     </div>
   )
@@ -192,7 +192,7 @@ export default function OffreDetailPage() {
   if (loading) {
     return (
       <div style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
-        <style suppressHydrationWarning>{`@keyframes kavio-spin { to { transform: rotate(360deg); } }`}</style>
+        <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
         <Spinner />
       </div>
     )
@@ -234,7 +234,7 @@ export default function OffreDetailPage() {
   return (
     <div style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
       <style suppressHydrationWarning>{`
-        @keyframes kavio-spin { to { transform: rotate(360deg); } }
+        @keyframes kapolia-spin { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
       `}</style>
       <OffreDetail
