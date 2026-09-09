@@ -164,7 +164,10 @@ export default function ParametresPage() {
   const [avatarType, setAvatarType] = useState('')
   const [toastMsg, setToastMsg] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
+  const [telephone, setTelephone]       = useState('')
   const [savingPwd, setSavingPwd]       = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
+  const [contactError, setContactError] = useState('')
   const [savingPrivacy, setSavingPrivacy] = useState(false)
   const [deleting, setDeleting]         = useState(false)
 
@@ -183,12 +186,13 @@ export default function ParametresPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
       setEmail(user.email ?? '')
-      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque').eq('user_id', user.id).single()
+      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone').eq('user_id', user.id).single()
       if (data) {
         setPrenom(data.prenom ?? '')
         setNom(data.nom ?? '')
         setAvatarUrl(data.avatar_url ?? '')
         setAvatarType(data.avatar_type ?? '')
+        setTelephone(data.telephone ?? '')
         const vc = data.visible_candidatheque ?? false
         setOrigVisibleCandidatheque(vc)
         setPrivacy({
@@ -217,6 +221,31 @@ export default function ParametresPage() {
       setPwdOld(''); setPwdNew(''); setPwdConfirm('')
       showToast('Mot de passe mis à jour !')
     }
+  }
+
+  async function saveContact() {
+    setContactError('')
+    setSavingContact(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { error } = await supabase
+        .from('profils')
+        .update({ telephone: telephone.trim() || null })
+        .eq('user_id', user.id)
+      if (error) {
+        console.error('[saveContact] échec enregistrement téléphone', {
+          message: error.message,
+          code:    error.code,
+          details: error.details,
+          hint:    error.hint,
+        })
+        setSavingContact(false)
+        setContactError('Votre numéro n\'a pas pu être enregistré. Veuillez réessayer.')
+        return
+      }
+    }
+    setSavingContact(false)
+    showToast('Numéro de téléphone mis à jour !')
   }
 
   async function deleteAccount() {
@@ -333,6 +362,26 @@ export default function ParametresPage() {
                   <TextInput value={email} readOnly />
                   <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>
                     Pour changer votre email, contactez le support Kapolia.
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>Numéro de téléphone</FieldLabel>
+                  <TextInput
+                    value={telephone}
+                    onChange={setTelephone}
+                    placeholder="Facultatif"
+                  />
+                  <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>
+                    Facultatif. Visible uniquement sur votre Portrait Kapolia, jamais dans la candidathèque.
+                  </div>
+                  {contactError && (
+                    <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.red}30`, color: C.red, fontSize: 13, marginTop: 10 }}>
+                      {contactError}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 12 }}>
+                    <SaveBtn loading={savingContact} onClick={saveContact} label="Enregistrer le numéro" />
                   </div>
                 </div>
 

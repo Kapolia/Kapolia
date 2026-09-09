@@ -9,7 +9,7 @@ import type { ProfilPDF, ScaleCfg } from '@/components/PortraitKapolia'
 const PROFIL_COLUMNS = [
   'prenom', 'nom', 'domaine', 'experience', 'ville', 'signature',
   'experiences', 'diplomes', 'competences_acquises', 'langues',
-  'projet_phare', 'valeur', 'qualites', 'passions',
+  'projet_phare', 'projet_titre', 'valeur', 'qualites', 'passions',
   'type_poste', 'disponibilite', 'telephone',
   'avatar_url', 'avatar_type',
 ].join(', ')
@@ -68,9 +68,11 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Options de génération ────────────────────────────────────────────────────
-  const url       = new URL(req.url)
-  const title     = url.searchParams.get('title') ?? undefined
-  const withPhoto = url.searchParams.get('withPhoto') === 'true'
+  const url        = new URL(req.url)
+  const title      = url.searchParams.get('title') ?? undefined
+  const withPhoto  = url.searchParams.get('withPhoto') === 'true'
+  const showEmail  = url.searchParams.get('showEmail')  !== 'false'
+  const showPhone  = url.searchParams.get('showPhone')  !== 'false'
 
   // ── Lecture du profil ────────────────────────────────────────────────────────
   const { data: profil, error: profilError } = await supabase
@@ -120,98 +122,71 @@ export async function GET(req: NextRequest) {
   }
 
   // ── Génération PDF ────────────────────────────────────────────────────────────
-  // Phase 1 : cascade de 4 crans (espacement réduit progressivement).
-  // Phase 2 : réduction du contenu (missions, présentation) si la cascade échoue.
-  // Phase 3 : forceTruncate en dernier recours.
-  const SCALE_FACTOR = 0.8
-  const SCALES: ScaleCfg[] = [
-    BASE_SCALE,
-    scaleDown(BASE_SCALE, SCALE_FACTOR),
-    scaleDown(BASE_SCALE, SCALE_FACTOR ** 2),
-    scaleDown(BASE_SCALE, SCALE_FACTOR ** 3),
+  // Cascade en 4 étapes, arrêt dès qu'une page unique est obtenue.
+  // La fusion Centres d'intérêt + Langues (mode A) est active dès l'étape 1.
+  const REDUCTION_SCALES: ScaleCfg[] = [
+    scaleDown(BASE_SCALE, 0.80),
+    scaleDown(BASE_SCALE, 0.64),
+    scaleDown(BASE_SCALE, 0.512),
+    scaleDown(BASE_SCALE, 0.4096),
   ]
+  const TIGHTEST = REDUCTION_SCALES[3]
 
   let finalBuffer!: Buffer
   try {
-    let finalScale:     ScaleCfg            = BASE_SCALE
-    let finalMergeMode: 'none' | 'A'       = 'none'
-    let activeP:        ProfilPDF           = p
+    let finalScale:         ScaleCfg = BASE_SCALE
+    let activeP:            ProfilPDF = p
+    let finalForceTruncate: boolean   = false
     let found = false
 
-    // ── Phase 1 : cascade base → cran 3 ──────────────────────────────────────
-    for (let i = 0; i < SCALES.length; i++) {
-      const buf   = await renderToBuffer(makeDocument({ profil: activeP, email, title, withPhoto, avatarData, scale: SCALES[i] }))
+    // ── Étape 1 : fusion CI + Langues, espacement de base ─────────────────────
+    {
+      const buf   = await renderToBuffer(makeDocument({ profil: p, email, title, withPhoto, avatarData, scale: BASE_SCALE, mergeMode: 'A', showEmail, showPhone }))
       const pages = countPages(buf)
-      console.info(`[portrait] phase 1 · cran ${i} · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id })
-      if (pages === 1) {
-        finalBuffer = buf
-        finalScale  = SCALES[i]
-        found       = true
-        break
-      }
+      console.info(`[portrait] étape 1 · fusion A · base · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id, octets: buf.length })
+      if (pages === 1) { finalBuffer = buf; found = true }
     }
 
-    // ── Phase 1.5 : fusion Centres d'intérêt + Langues (étape A) ────────────
-    // Retente les 4 crans pour conserver l'espacement optimal.
+    // ── Étape 2 : 4 crans de réduction d'espacement, fusion conservée ─────────
     if (!found) {
-      for (let i = 0; i < SCALES.length; i++) {
-        const buf   = await renderToBuffer(
-          makeDocument({ profil: activeP, email, title, withPhoto, avatarData, scale: SCALES[i], mergeMode: 'A' })
-        )
+      for (let i = 0; i < REDUCTION_SCALES.length; i++) {
+        const buf   = await renderToBuffer(makeDocument({ profil: p, email, title, withPhoto, avatarData, scale: REDUCTION_SCALES[i], mergeMode: 'A', showEmail, showPhone }))
         const pages = countPages(buf)
-        console.info(`[portrait] phase 1.5 · fusion A · cran ${i} · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id })
+        console.info(`[portrait] étape 2 · fusion A · cran ${i + 1} · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id, octets: buf.length })
         if (pages === 1) {
-          finalBuffer    = buf
-          finalScale     = SCALES[i]
-          finalMergeMode = 'A'
-          found          = true
+          finalBuffer = buf
+          finalScale  = REDUCTION_SCALES[i]
+          found       = true
           break
         }
       }
     }
 
-    // ── Phase 2 : réduction missions + fusion A (cumul des deux gains) ────────
-    // mergeMode 'A' conservé : réduire les missions tout en gardant la fusion
-    // centres d'intérêt + langues cumule les deux économies de place.
+    // ── Étape 3 : réduction missions (5→4→3→2), fusion + cran le plus serré ──
     if (!found) {
-      const STEPS = [
-        { maxMissions: 5 },
-        { maxMissions: 4 },
-        { maxMissions: 3 },
-        { maxMissions: 3, maxSignature: 400 },
-        { maxMissions: 2 },
-      ] as const
-
-      for (let step = 0; step < STEPS.length; step++) {
-        const { maxMissions, maxSignature } = STEPS[step] as { maxMissions: number; maxSignature?: number }
-        const reduced   = limitProfil(p, maxMissions, maxSignature)
-        const stepLabel = maxSignature !== undefined ? `${maxMissions}missions+sig` : `${maxMissions}missions`
-        const buf       = await renderToBuffer(
-          makeDocument({ profil: reduced, email, title, withPhoto, avatarData, scale: SCALES[3], mergeMode: 'A' })
-        )
-        const pages = countPages(buf)
-        console.info(`[portrait] phase 2 · ${stepLabel} · fusion A · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id })
+      for (const maxMissions of [5, 4, 3, 2]) {
+        const reduced = limitProfil(p, maxMissions)
+        const buf     = await renderToBuffer(makeDocument({ profil: reduced, email, title, withPhoto, avatarData, scale: TIGHTEST, mergeMode: 'A', showEmail, showPhone }))
+        const pages   = countPages(buf)
+        console.info(`[portrait] étape 3 · fusion A · cran 4 · ${maxMissions} missions · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id, octets: buf.length })
         if (pages === 1) {
-          finalBuffer    = buf
-          finalScale     = SCALES[3]
-          finalMergeMode = 'A'
-          activeP        = reduced
-          found          = true
+          finalBuffer = buf
+          finalScale  = TIGHTEST
+          activeP     = reduced
+          found       = true
           break
         }
       }
     }
 
-    // ── Phase 3 : dernier recours — forceTruncate + fusion A ─────────────────
+    // ── Étape 4 : troncature en dernier recours ───────────────────────────────
     if (!found) {
-      const buf   = await renderToBuffer(
-        makeDocument({ profil: p, email, title, withPhoto, avatarData, scale: SCALES[3], forceTruncate: true, mergeMode: 'A' })
-      )
+      const buf   = await renderToBuffer(makeDocument({ profil: p, email, title, withPhoto, avatarData, scale: TIGHTEST, forceTruncate: true, mergeMode: 'A', showEmail, showPhone }))
       const pages = countPages(buf)
-      console.warn(`[portrait] phase 3 · forceTruncate · fusion A · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id })
-      finalBuffer    = buf
-      finalScale     = SCALES[3]
-      finalMergeMode = 'A'
+      console.warn(`[portrait] étape 4 · forceTruncate · fusion A · cran 4 · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id, octets: buf.length })
+      finalBuffer        = buf
+      finalScale         = TIGHTEST
+      finalForceTruncate = true
     }
 
     // ── Remplissage : augmente cardGap jusqu'au seuil de débordement ─────────
@@ -223,7 +198,7 @@ export async function GET(req: NextRequest) {
 
       if (bestGap < MAX_GAP) {
         const maxBuf = await renderToBuffer(
-          makeDocument({ profil: activeP, email, title, withPhoto, avatarData, scale: { ...finalScale, cardGap: MAX_GAP }, mergeMode: finalMergeMode })
+          makeDocument({ profil: activeP, email, title, withPhoto, avatarData, scale: { ...finalScale, cardGap: MAX_GAP }, mergeMode: 'A', forceTruncate: finalForceTruncate, showEmail, showPhone })
         )
         if (countPages(maxBuf) === 1) {
           bestBuffer = maxBuf
@@ -234,7 +209,7 @@ export async function GET(req: NextRequest) {
           while (hi - lo > 1.5) {
             const mid    = (lo + hi) / 2
             const midBuf = await renderToBuffer(
-              makeDocument({ profil: activeP, email, title, withPhoto, avatarData, scale: { ...finalScale, cardGap: mid }, mergeMode: finalMergeMode })
+              makeDocument({ profil: activeP, email, title, withPhoto, avatarData, scale: { ...finalScale, cardGap: mid }, mergeMode: 'A', forceTruncate: finalForceTruncate, showEmail, showPhone })
             )
             if (countPages(midBuf) === 1) {
               lo         = mid

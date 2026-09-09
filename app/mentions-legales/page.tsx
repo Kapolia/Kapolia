@@ -106,8 +106,8 @@ export default function MentionsLegales() {
             Le site kapolia.com est édité par Charley Foucher, personne physique,
             demeurant 7 Allée des Licornes, 72100 Le Mans, France.
           </P>
-          <P>Contact : contact@kapolia.com</P>
-          <P>Directeur de la publication : Charley Foucher</P>
+          <P>Contact&nbsp;: contact@kapolia.com</P>
+          <P>Directeur de la publication&nbsp;: Charley Foucher</P>
         </Section>
 
         <Section titre="Statut">
@@ -121,7 +121,7 @@ export default function MentionsLegales() {
         <Section titre="Hébergement">
           <P>
             Le site est hébergé par Vercel Inc., 340 S Lemon Ave #4133, Walnut,
-            CA 91789, États-Unis. Site : vercel.com
+            CA 91789, États-Unis. Site&nbsp;: vercel.com
           </P>
         </Section>
 

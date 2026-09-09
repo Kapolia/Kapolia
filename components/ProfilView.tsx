@@ -44,6 +44,7 @@ type Profil = {
   projet_titre?: string; projet_impact?: string; projet_lien?: string
   projet_images?: string[]; projet_video_url?: string
   avatar_url?: string; avatar_type?: string
+  telephone?: string | null
   linkedin_url?: string; portfolio_url?: string
   plus_grande_reussite?: string
   ce_que_je_veux_apprendre?: string
@@ -478,6 +479,8 @@ export default function ProfilView({
   const [portraitModal, setPortraitModal]        = useState(false)
   const [portraitTitle, setPortraitTitle]        = useState('')
   const [portraitWithPhoto, setPortraitWithPhoto] = useState(false)
+  const [portraitShowEmail, setPortraitShowEmail] = useState(true)
+  const [portraitShowPhone, setPortraitShowPhone] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving]       = useState(false)
@@ -1251,6 +1254,14 @@ export default function ProfilView({
                       const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
                       setPortraitTitle(saved ?? profil?.domaine ?? '')
                       setPortraitWithPhoto(false)
+
+                      const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
+                      setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
+
+                      const hasPhone = !!(profil?.telephone)
+                      const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
+                      setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
+
                       setPortraitModal(true)
                     }}
                     style={{
@@ -2375,6 +2386,40 @@ export default function ProfilView({
               }}
             />
 
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={portraitShowEmail}
+                onChange={e => {
+                  setPortraitShowEmail(e.target.checked)
+                  if (typeof window !== 'undefined') localStorage.setItem(`kapolia_portrait_email_${userId}`, String(e.target.checked))
+                }}
+                style={{ width: 16, height: 16, accentColor: C.vert, flexShrink: 0 }}
+              />
+              <span style={{ color: C.dark }}>Afficher mon adresse e-mail</span>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, fontSize: 13, cursor: profil?.telephone ? 'pointer' : 'default' }}>
+              <input
+                type="checkbox"
+                checked={portraitShowPhone}
+                onChange={e => {
+                  setPortraitShowPhone(e.target.checked)
+                  if (typeof window !== 'undefined') localStorage.setItem(`kapolia_portrait_phone_${userId}`, String(e.target.checked))
+                }}
+                disabled={!profil?.telephone}
+                style={{ width: 16, height: 16, accentColor: C.vert, flexShrink: 0 }}
+              />
+              <span style={{ color: profil?.telephone ? C.dark : C.grey }}>
+                Afficher mon téléphone
+                {!profil?.telephone && (
+                  <span style={{ fontStyle: 'italic', marginLeft: 8, fontSize: 12, color: C.grey }}>
+                    (aucun numéro renseigné dans vos paramètres)
+                  </span>
+                )}
+              </span>
+            </label>
+
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, fontSize: 13, cursor: profil?.avatar_type === 'photo' ? 'pointer' : 'default' }}>
               <input
                 type="checkbox"
@@ -2415,6 +2460,8 @@ export default function ProfilView({
                     const params = new URLSearchParams()
                     if (portraitTitle) params.set('title', portraitTitle)
                     if (portraitWithPhoto) params.set('withPhoto', 'true')
+                    if (!portraitShowEmail) params.set('showEmail', 'false')
+                    if (!portraitShowPhone) params.set('showPhone', 'false')
                     const res = await fetch(`/api/portrait?${params}`, {
                       headers: { Authorization: `Bearer ${session.access_token}` },
                     })

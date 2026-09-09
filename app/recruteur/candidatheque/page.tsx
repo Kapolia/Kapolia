@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Avatar from '@/components/Avatar'
 import { DOMAINES, EXPERIENCES, TYPES_POSTE } from '@/lib/onboarding-utils'
+import { trouverConversation } from '@/lib/conversations'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +23,9 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type ProfilExp = { poste: string; entreprise: string; date_debut: string; date_fin: string; en_poste: boolean }
+type ProfilDip = { intitule: string; ecole: string; annee: string }
+
 type Profil = {
   user_id:              string
   prenom:               string | null
@@ -36,6 +41,11 @@ type Profil = {
   disponibilite:        string | null
   avatar_url:           string | null
   avatar_type:          string | null
+  mode_travail:         string[] | null
+  experiences:          ProfilExp[] | null
+  diplomes:             ProfilDip[] | null
+  projet_phare:         string | null
+  projet_titre:         string | null
 }
 
 type Filters = {
@@ -122,20 +132,24 @@ function FLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── Panel subtitle ───────────────────────────────────────────────────────────
+// ─── Panel — style de titre de section ────────────────────────────────────────
 
-const panelSub: React.CSSProperties = {
-  fontSize: '11px', fontWeight: '600', color: C.grey,
-  textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px',
+const panelSectionLabel: React.CSSProperties = {
+  fontSize: 11, fontWeight: 700, color: C.grey,
+  textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7,
+}
+
+const LIEU_MAP: Record<string, string> = {
+  remote: '100 % Remote', hybride: 'Hybride', presentiel: 'Présentiel', flexible: 'Flexible',
 }
 
 // ─── Candidate row ────────────────────────────────────────────────────────────
 
 function CandidateRow({
-  profil, index, selectedId, onSelect, saved, onSave,
+  profil, index, selectedId, onSelect, saved, onSave, onMessage,
 }: {
   profil: Profil; index: number; selectedId: string | null
-  onSelect: (id: string) => void; saved: boolean; onSave: () => void
+  onSelect: (id: string) => void; saved: boolean; onSave: () => void; onMessage: () => void
 }) {
   const [hover, setHover] = useState(false)
   const isSelected = selectedId === profil.user_id
@@ -231,7 +245,7 @@ function CandidateRow({
           {saved ? '★' : '☆'}
         </button>
         <button
-          onClick={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onMessage() }}
           title="Envoyer un message"
           style={{
             width: '32px', height: '32px', borderRadius: '50%', border: 'none',
@@ -250,82 +264,75 @@ function CandidateRow({
 // ─── Right panel ──────────────────────────────────────────────────────────────
 
 function RightPanel({
-  profil, onClose, saved, onSave,
+  profil, onClose, saved, onSave, onMessage, onViewProfile,
 }: {
-  profil: Profil; onClose: () => void; saved: boolean; onSave: () => void
+  profil: Profil; onClose: () => void; saved: boolean
+  onSave: () => void; onMessage: () => void; onViewProfile: () => void
 }) {
-  const dp = dispoInfo(profil.disponibilite)
-  const nom = nomComplet(profil)
+  const [sigExpanded, setSigExpanded] = useState(false)
+
+  const dp    = dispoInfo(profil.disponibilite)
+  const nom   = nomComplet(profil)
   const poste = labelTypePoste(profil.type_poste)
-  const comps = profil.competences_acquises ?? []
-  const quals = profil.qualites ?? []
-  const dispoParts = [dp.label, profil.ville].filter(Boolean).join(' · ')
+
+  const headerMeta = [dp.label, profil.ville, poste].filter(Boolean).join('  ·  ')
+
+  const qualites = profil.qualites ?? []
+  const comps    = profil.competences_acquises ?? []
+
+  const mobilite = (profil.mode_travail ?? []).map(k => LIEU_MAP[k] ?? k).join(', ')
+  const recherche = [poste, dp.label, profil.ville, mobilite, profil.valeur].filter(Boolean).join('  ·  ')
+
+  const latestExp = (profil.experiences ?? [])[0] ?? null
+  const latestDip = (profil.diplomes ?? [])[0] ?? null
+
+  const sig = profil.signature ?? ''
+  const sigLong = sig.length > 200
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Header */}
-      <div style={{ backgroundColor: C.vert, padding: '18px 22px 22px', flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+      {/* En-tête compact */}
+      <div style={{ backgroundColor: C.vert, padding: '12px 18px 16px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
           <button onClick={onClose} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.5)', fontSize: '18px', padding: '2px 4px', lineHeight: 1,
-          }}>✕</button>
+            color: 'rgba(255,255,255,0.5)', fontSize: 18, padding: '2px 4px', lineHeight: 1,
+          }}>
+            ✕
+          </button>
         </div>
-        <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Avatar profil={profil} size="md" />
-          <div>
-            <h3 style={{ fontFamily: 'Georgia, serif', fontSize: '19px', color: C.white, fontWeight: '400', margin: '0 0 4px' }}>
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.white, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
               {nom}
             </h3>
-            {dispoParts && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: dp.dot, display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)' }}>{dispoParts}</span>
+            {headerMeta && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: dp.dot, flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {headerMeta}
+                </span>
               </div>
-            )}
-            {poste && (
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>{poste}</div>
             )}
           </div>
         </div>
-        {profil.signature && (
-          <p style={{
-            fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: '13px',
-            color: 'rgba(255,255,255,0.78)', lineHeight: '1.7', margin: 0,
-            borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '14px',
-          }}>
-            « {profil.signature} »
-          </p>
-        )}
       </div>
 
-      {/* Body */}
-      <div style={{ padding: '20px 22px', flex: 1 }}>
+      {/* Corps scrollable */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-        {/* Domaine + expérience */}
-        {(profil.domaine || profil.experience) && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '22px' }}>
-            {profil.domaine && (
-              <span style={{ padding: '4px 10px', borderRadius: '16px', backgroundColor: C.vert, color: C.white, fontSize: '11px' }}>
-                {profil.domaine}
-              </span>
-            )}
-            {profil.experience && (
-              <span style={{ padding: '4px 10px', borderRadius: '16px', border: `1.5px solid ${C.sable}`, color: C.dark, fontSize: '11px' }}>
-                {profil.experience}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Qualités */}
-        {quals.length > 0 && (
-          <div style={{ marginBottom: '18px' }}>
-            <div style={panelSub}>Qualités naturelles</div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {quals.map(q => (
-                <span key={q} style={{ padding: '4px 11px', borderRadius: '16px', backgroundColor: 'rgba(44,74,62,0.09)', color: C.vert, fontSize: '12px', fontWeight: '500' }}>
+        {qualites.length > 0 && (
+          <div>
+            <div style={panelSectionLabel}>Qualités naturelles</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {qualites.map(q => (
+                <span key={q} style={{
+                  padding: '4px 11px', borderRadius: 16,
+                  backgroundColor: 'rgba(196,103,58,0.1)', color: C.terracotta,
+                  fontSize: 12, fontWeight: 600, border: '1px solid rgba(196,103,58,0.25)',
+                }}>
                   {q}
                 </span>
               ))}
@@ -333,17 +340,16 @@ function RightPanel({
           </div>
         )}
 
-        {/* Compétences */}
         {comps.length > 0 && (
-          <div style={{ marginBottom: '18px' }}>
-            <div style={panelSub}>Compétences</div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div>
+            <div style={panelSectionLabel}>Compétences</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {comps.map((s, i) => (
                 <span key={s} style={{
-                  padding: '4px 11px', borderRadius: '16px', fontSize: '12px',
-                  backgroundColor: i === 0 ? C.terracotta : C.creme,
+                  padding: '4px 11px', borderRadius: 16, fontSize: 12,
+                  backgroundColor: i === 0 ? C.vert : C.creme,
                   color: i === 0 ? C.white : C.dark,
-                  fontWeight: i === 0 ? '600' : '400',
+                  fontWeight: i === 0 ? 600 : 400,
                   border: i === 0 ? 'none' : `1.5px solid ${C.sable}`,
                 }}>
                   {s}
@@ -353,31 +359,109 @@ function RightPanel({
           </div>
         )}
 
-        {/* Valeur non négociable */}
-        {profil.valeur && (
-          <div style={{ padding: '13px 15px', borderRadius: '12px', backgroundColor: C.creme, border: `1px solid ${C.sable}`, marginBottom: '22px' }}>
-            <div style={panelSub}>Valeur non négociable</div>
-            <div style={{ fontSize: '13.5px', color: C.dark, fontWeight: '500' }}>🤝 {profil.valeur}</div>
+        {recherche && (
+          <div>
+            <div style={panelSectionLabel}>Recherche</div>
+            <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.6 }}>{recherche}</div>
           </div>
         )}
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button style={{
-            width: '100%', padding: '12px', borderRadius: '11px', border: 'none',
-            backgroundColor: C.vert, color: C.white, fontSize: '14px', fontWeight: '500', cursor: 'pointer',
-          }}>
-            ✉ Écrire à {profil.prenom ?? nom.split(' ')[0]}
-          </button>
-          <button onClick={onSave} style={{
-            width: '100%', padding: '10px', borderRadius: '11px',
-            border: `1.5px solid ${saved ? C.terracotta : C.sable}`,
-            backgroundColor: saved ? 'rgba(196,103,58,0.08)' : C.white,
-            color: saved ? C.terracotta : C.dark, fontSize: '13px', cursor: 'pointer', transition: 'all 0.15s',
-          }}>
-            {saved ? '★ Sauvegardé' : '☆ Sauvegarder'}
-          </button>
-        </div>
+        {(profil.projet_titre || profil.projet_phare) && (
+          <div>
+            <div style={panelSectionLabel}>Projet phare</div>
+            {profil.projet_titre && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
+                {profil.projet_titre}
+              </div>
+            )}
+            {profil.projet_phare && (
+              <div style={{ fontSize: 13, color: C.grey, lineHeight: 1.5 }}>
+                {profil.projet_phare}
+              </div>
+            )}
+          </div>
+        )}
+
+        {latestExp && (
+          <div>
+            <div style={panelSectionLabel}>Expérience</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{latestExp.poste}</div>
+            {latestExp.entreprise && (
+              <div style={{ fontSize: 12, color: C.terracotta, marginTop: 2 }}>{latestExp.entreprise}</div>
+            )}
+            <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>
+              {latestExp.en_poste
+                ? `depuis ${latestExp.date_debut}`
+                : [latestExp.date_debut, latestExp.date_fin].filter(Boolean).join(' - ')}
+            </div>
+          </div>
+        )}
+
+        {latestDip && (
+          <div>
+            <div style={panelSectionLabel}>Formation</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{latestDip.intitule}</div>
+            {latestDip.ecole && (
+              <div style={{ fontSize: 12, color: C.terracotta, marginTop: 2 }}>{latestDip.ecole}</div>
+            )}
+            {latestDip.annee && (
+              <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>{latestDip.annee}</div>
+            )}
+          </div>
+        )}
+
+        {sig && (
+          <div>
+            <div style={panelSectionLabel}>En quelques mots</div>
+            <div style={{
+              fontStyle: 'italic', fontSize: 13, color: C.grey, lineHeight: 1.6,
+              display: sigExpanded ? 'block' : '-webkit-box',
+              WebkitLineClamp: sigExpanded ? undefined : 3,
+              WebkitBoxOrient: sigExpanded ? undefined : 'vertical',
+              overflow: sigExpanded ? 'visible' : 'hidden',
+            } as React.CSSProperties}>
+              {sig}
+            </div>
+            {sigLong && (
+              <button onClick={() => setSigExpanded(v => !v)} style={{
+                background: 'none', border: 'none', padding: 0, marginTop: 4,
+                fontSize: 12, color: C.vert, cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+                {sigExpanded ? 'Voir moins' : 'Voir plus'}
+              </button>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* Boutons ancrés en bas */}
+      <div style={{
+        flexShrink: 0, padding: '12px 18px 16px',
+        borderTop: `1px solid ${C.sable}`,
+        display: 'flex', flexDirection: 'column', gap: 8,
+      }}>
+        <button onClick={onViewProfile} style={{
+          width: '100%', padding: '11px', borderRadius: 11, border: 'none',
+          backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}>
+          Voir le profil complet
+        </button>
+        <button onClick={onMessage} style={{
+          width: '100%', padding: '10px', borderRadius: 11,
+          border: `1.5px solid ${C.sable}`,
+          backgroundColor: C.white, color: C.dark, fontSize: 13, cursor: 'pointer',
+        }}>
+          Écrire à {profil.prenom ?? nom.split(' ')[0]}
+        </button>
+        <button onClick={onSave} style={{
+          width: '100%', padding: '10px', borderRadius: 11,
+          border: `1.5px solid ${saved ? C.terracotta : C.sable}`,
+          backgroundColor: saved ? 'rgba(196,103,58,0.08)' : C.white,
+          color: saved ? C.terracotta : C.dark, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
+        }}>
+          {saved ? 'Retirer des favoris' : 'Sauvegarder'}
+        </button>
       </div>
     </div>
   )
@@ -405,33 +489,50 @@ function PagBtn({ label, active = false, onClick }: { label: string; active?: bo
 const PAGE_SIZE = 10
 
 export default function RecruteurPage() {
-  const [profils, setProfils]     = useState<Profil[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [search, setSearch]       = useState('')
-  const [filters, setFilters]     = useState<Filters>({
+  const router = useRouter()
+
+  const [profils, setProfils]       = useState<Profil[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [loadError, setLoadError]   = useState(false)
+  const [search, setSearch]         = useState('')
+  const [filters, setFilters]       = useState<Filters>({
     domaine: '', experience: '', localisation: '', typePoste: '', valeur: '',
   })
   const [savedIds, setSavedIds]     = useState<Set<string>>(new Set())
+  const [recruteurId, setRecruteurId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [page, setPage]             = useState(1)
 
   useEffect(() => {
-    async function fetchProfils() {
-      const { data, error } = await supabase
-        .from('profils')
-        .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, competences_acquises, type_poste, valeur, disponibilite, avatar_url, avatar_type')
-        .eq('visible_candidatheque', true)
-        .eq('type_compte', 'candidat')
-      if (error) {
-        console.error('[candidatheque] fetch error', error)
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) setRecruteurId(user.id)
+
+      const [profilsRes, favorisRes] = await Promise.all([
+        supabase
+          .from('profils')
+          .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, competences_acquises, type_poste, valeur, disponibilite, avatar_url, avatar_type, mode_travail, experiences, diplomes, projet_phare, projet_titre')
+          .eq('visible_candidatheque', true)
+          .eq('type_compte', 'candidat'),
+        user
+          ? supabase.from('candidats_favoris').select('candidat_id').eq('recruteur_id', user.id)
+          : Promise.resolve({ data: [] as { candidat_id: string }[], error: null }),
+      ])
+
+      if (profilsRes.error) {
+        console.error('[candidatheque] fetch error', profilsRes.error)
         setLoadError(true)
       } else {
-        setProfils(data ?? [])
+        setProfils(profilsRes.data ?? [])
       }
+
+      if (favorisRes.data) {
+        setSavedIds(new Set(favorisRes.data.map(r => r.candidat_id)))
+      }
+
       setLoading(false)
     }
-    fetchProfils()
+    init()
   }, [])
 
   // Réinitialise la page quand les filtres ou la recherche changent
@@ -483,8 +584,37 @@ export default function RecruteurPage() {
     setSearch('')
   }
 
-  function toggleSave(id: string) {
-    setSavedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  async function toggleSave(id: string) {
+    if (!recruteurId) return
+    const wasSaved = savedIds.has(id)
+
+    setSavedIds(prev => { const n = new Set(prev); wasSaved ? n.delete(id) : n.add(id); return n })
+
+    if (wasSaved) {
+      const { error } = await supabase
+        .from('candidats_favoris')
+        .delete()
+        .eq('recruteur_id', recruteurId)
+        .eq('candidat_id', id)
+      if (error) {
+        console.error('[candidatheque] erreur retrait favori', error)
+        setSavedIds(prev => { const n = new Set(prev); n.add(id); return n })
+      }
+    } else {
+      const { error } = await supabase
+        .from('candidats_favoris')
+        .insert({ recruteur_id: recruteurId, candidat_id: id })
+      if (error) {
+        console.error('[candidatheque] erreur ajout favori', error)
+        setSavedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+      }
+    }
+  }
+
+  async function handleMessage(candidatId: string) {
+    const existing = await trouverConversation(candidatId)
+    if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
+    router.push(`/recruteur/messages?new=${candidatId}`)
   }
 
   const selected = selectedId !== null ? (profils.find(p => p.user_id === selectedId) ?? null) : null
@@ -544,7 +674,7 @@ export default function RecruteurPage() {
               <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
             </svg>
           </div>
-          <button style={{
+          <button onClick={() => router.push('/recruteur/offres/publier')} style={{
             padding: '8px 16px', borderRadius: '9px', border: 'none',
             backgroundColor: C.terracotta, color: C.white, fontSize: '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0,
           }}>
@@ -677,6 +807,7 @@ export default function RecruteurPage() {
                   onSelect={setSelectedId}
                   saved={savedIds.has(p.user_id)}
                   onSave={() => toggleSave(p.user_id)}
+                  onMessage={() => handleMessage(p.user_id)}
                 />
               ))
             )}
@@ -713,7 +844,7 @@ export default function RecruteurPage() {
         boxShadow: selectedId !== null ? '-6px 0 40px rgba(26,26,26,0.1)' : 'none',
         transform: selectedId !== null ? 'translateX(0)' : 'translateX(100%)',
         transition: 'transform 0.3s cubic-bezier(0.22,1,0.36,1)',
-        zIndex: 100, overflowY: 'auto',
+        zIndex: 100, overflow: 'hidden',
       }}>
         {selected && (
           <RightPanel
@@ -722,6 +853,8 @@ export default function RecruteurPage() {
             onClose={() => setSelectedId(null)}
             saved={savedIds.has(selected.user_id)}
             onSave={() => toggleSave(selected.user_id)}
+            onMessage={() => handleMessage(selected.user_id)}
+            onViewProfile={() => router.push(`/recruteur/candidats/${selected.user_id}`)}
           />
         )}
       </div>

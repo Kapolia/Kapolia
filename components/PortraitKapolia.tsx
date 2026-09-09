@@ -51,6 +51,7 @@ export type ProfilPDF = {
   competences_acquises?: string[]
   langues?:             string[]
   projet_phare?:        string
+  projet_titre?:        string
   valeur?:              string
   qualites?:            string[]
   passions?:            string[]
@@ -202,9 +203,11 @@ type Props = {
   scale?:         ScaleCfg
   forceTruncate?: boolean
   mergeMode?:     'none' | 'A'
+  showEmail?:     boolean
+  showPhone?:     boolean
 }
 
-export default function PortraitKapolia({ profil, email, title, withPhoto, avatarData, scale, forceTruncate = false, mergeMode = 'none' }: Props) {
+export default function PortraitKapolia({ profil, email, title, withPhoto, avatarData, scale, forceTruncate = false, mergeMode = 'none', showEmail = true, showPhone = true }: Props) {
   const s = scale ?? BASE_SCALE
 
   const exps     = profil.experiences ?? []
@@ -232,6 +235,19 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
 
   const showPhoto = !!(withPhoto && avatarData)
 
+  // TEMPORAIRE — liste des sections rendues. Pour en réactiver une, ajoutez son nom ici.
+  const SECTIONS_ACTIVES = [
+    'Présentation',
+    'Expérience',
+    'Formation',
+    'Projet phare',
+    'Compétences',
+    'Qualités naturelles',
+    // "Centres d'intérêt",
+    // 'Langues',
+    "Centres d'intérêt et langues",
+  ]
+
   return (
     <Document>
       <Page
@@ -239,8 +255,8 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
         style={{ fontFamily: 'Inter', color: '#22312B', backgroundColor: '#F7F2EB', display: 'flex', flexDirection: 'column' }}
       >
         {/* ── Bandeau ─────────────────────────────────────────────────────── */}
-        <View style={{ backgroundColor: '#2C4A3E', paddingHorizontal: 29, paddingVertical: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View style={{ backgroundColor: '#2C4A3E', paddingHorizontal: 29, paddingVertical: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', minHeight: 64 }}>
             <View style={{ flex: 1, paddingRight: showPhoto ? 14 : 0 }}>
 
               {/* Nom : Lora 600, 23pt, #FFFFFF, lineHeight 1.05 */}
@@ -256,14 +272,13 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               ) : null}
 
               {/* Contacts : marginTop 9pt, deux flex:1, ecart 22pt via paddingRight gauche */}
-              <View style={{ flexDirection: 'row', marginTop: 9 }}>
-                {/* Gauche : email + téléphone — Inter 400, 8pt, blanc */}
+              <View style={{ flexDirection: 'row', marginTop: (showEmail && email) || (showPhone && profil.telephone) ? 9 : 0 }}>
+                {/* Gauche : email · téléphone sur une ligne — Inter 700, 8.5pt, blanc */}
                 <View style={{ flex: 1, paddingRight: 22 }}>
-                  {email ? (
-                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 8.5, color: 'white', marginBottom: 2.5 }}>{email}</Text>
-                  ) : null}
-                  {profil.telephone ? (
-                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 8.5, color: 'white' }}>{profil.telephone}</Text>
+                  {((showEmail && email) || (showPhone && profil.telephone)) ? (
+                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 8.5, color: 'white' }}>
+                      {[showEmail && email ? email : null, showPhone && profil.telephone ? profil.telephone : null].filter(Boolean).join(' · ')}
+                    </Text>
                   ) : null}
                 </View>
                 {/* Droite : ville + expérience/dispo — Inter 500, 8.5pt, blanc */}
@@ -299,19 +314,19 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
         </View>
 
         {/* ── Cartes ──────────────────────────────────────────────────────── */}
-        <View style={{ flex: 1, paddingHorizontal: MARGIN_H, paddingTop: 2 }}>
+        <View style={{ paddingHorizontal: MARGIN_H, paddingTop: 2 }}>
 
           {/* Présentation */}
-          {signatureTxt ? (
+          {SECTIONS_ACTIVES.includes('Présentation') && signatureTxt ? (
             <Card s={s}>
-              <Text style={{ fontWeight: 500, fontSize: 8.5, lineHeight: s.lineH, color: '#22312B' }}>
+              <Text style={{ fontSize: FS.body, color: '#3A4A43', lineHeight: 1.5 }}>
                 {signatureTxt}
               </Text>
             </Card>
           ) : null}
 
           {/* Expérience professionnelle */}
-          {exps.length > 0 && (
+          {SECTIONS_ACTIVES.includes('Expérience') && exps.length > 0 && (
             <Card s={s}>
               <CardTitle label="Expérience professionnelle" s={s} />
               {exps.map((exp, i) => {
@@ -351,14 +366,19 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* Formation */}
-          {dips.length > 0 && (
+          {SECTIONS_ACTIVES.includes('Formation') && dips.length > 0 && (
             <Card s={s}>
               <CardTitle label="Formation" s={s} />
               {dips.map((d, i) => (
-                <View key={i} style={{ marginBottom: i < dips.length - 1 ? ENTRY_GAP : 0 }} wrap={false}>
+                <View key={i} style={{ marginBottom: i < dips.length - 1 ? (dips.length > 1 ? 5 : ENTRY_GAP) : 0 }} wrap={false}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: dipTitleSize, color: '#2C4A3E', flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#2C4A3E', flex: 1, paddingRight: 8 }}>
                       {d.intitule || ''}
+                      {d.ecole ? (
+                        <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C4673A' }}>
+                          {' · '}{d.ecole}
+                        </Text>
+                      ) : null}
                     </Text>
                     {d.annee ? (
                       <Text style={{ fontSize: FS.dates, color: '#6B7A73', flexShrink: 0, marginTop: 2 }}>
@@ -366,13 +386,8 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                       </Text>
                     ) : null}
                   </View>
-                  {d.ecole ? (
-                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C4673A', marginTop: 1 }}>
-                      {d.ecole}
-                    </Text>
-                  ) : null}
                   {d.mention ? (
-                    <Text style={{ fontSize: FS.italic, color: '#6B7A73', marginTop: 4, lineHeight: 1.45 }}>
+                    <Text style={{ fontSize: FS.body, color: '#3A4A43', lineHeight: 1.5, marginTop: 4 }}>
                       {d.mention}
                     </Text>
                   ) : null}
@@ -382,11 +397,11 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* Projet phare — projet_phare en Lora 600 14pt, sans doublon */}
-          {projetTxt ? (
+          {SECTIONS_ACTIVES.includes('Projet phare') && profil.projet_titre ? (
             <Card s={s}>
               <CardTitle label="Projet phare" s={s} />
-              <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: FS.itemTitle, color: '#2C4A3E', lineHeight: s.lineH }}>
-                {projetTxt}
+              <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#2C4A3E', lineHeight: s.lineH }}>
+                {profil.projet_titre}
               </Text>
               <Text style={{ fontFamily: 'Inter', fontStyle: 'italic', fontSize: FS.italic, color: '#6B7A73', marginTop: 4, lineHeight: 1.45 }}>
                 Le détail de ce projet et le profil complet sont consultables sur Kapolia.
@@ -395,7 +410,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           ) : null}
 
           {/* Compétences — toujours dans sa propre carte, avant les qualités */}
-          {comps.length > 0 && (
+          {SECTIONS_ACTIVES.includes('Compétences') && comps.length > 0 && (
             <Card s={s}>
               <CardTitle label="Compétences" s={s} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -409,7 +424,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* Qualités naturelles — toujours séparée */}
-          {qualites.length > 0 && (
+          {SECTIONS_ACTIVES.includes('Qualités naturelles') && qualites.length > 0 && (
             <Card s={s}>
               <CardTitle label="Qualités naturelles" s={s} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -423,7 +438,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* Centres d'intérêt — carte séparée en mode none uniquement */}
-          {passions.length > 0 && mergeMode === 'none' && (
+          {SECTIONS_ACTIVES.includes("Centres d'intérêt") && passions.length > 0 && mergeMode === 'none' && (
             <Card s={s}>
               <CardTitle label="Centres d'intérêt" s={s} />
               <Text style={{ fontSize: FS.body, lineHeight: s.lineH, color: '#3A4A43' }}>
@@ -433,7 +448,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* Langues — carte séparée en mode none uniquement */}
-          {langs.length > 0 && mergeMode === 'none' && (
+          {SECTIONS_ACTIVES.includes('Langues') && langs.length > 0 && mergeMode === 'none' && (
             <Card s={s}>
               <CardTitle label="Langues" s={s} />
               <LangInlineText langs={langs} lineH={s.lineH} />
@@ -441,19 +456,20 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* ── Carte fusionnée (mode A) : Centres d'intérêt + Langues ──────────── */}
-          {mergeMode === 'A' && (
+          {SECTIONS_ACTIVES.includes("Centres d'intérêt et langues") && mergeMode === 'A' && (
             <Card s={s}>
               <CardTitle label="Centres d'intérêt et langues" s={s} />
-              {/* Deux colonnes égales, écart 12pt via paddingRight */}
-              <View style={{ flexDirection: 'row' }}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
+              <View>
+                {passions.length > 0 && (
                   <Text style={{ fontSize: FS.body, lineHeight: s.lineH, color: '#3A4A43' }}>
                     {passions.join('  ·  ')}
                   </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <LangInlineText langs={langs} lineH={s.lineH} />
-                </View>
+                )}
+                {langs.length > 0 && (
+                  <View style={{ marginTop: passions.length > 0 ? 3 : 0 }}>
+                    <LangInlineText langs={langs} lineH={s.lineH} />
+                  </View>
+                )}
               </View>
             </Card>
           )}
@@ -485,6 +501,8 @@ type MakeDocumentProps = {
   scale?:         ScaleCfg
   forceTruncate?: boolean
   mergeMode?:     'none' | 'A'
+  showEmail?:     boolean
+  showPhone?:     boolean
 }
 
 export function makeDocument(props: MakeDocumentProps): React.ReactElement<any> {

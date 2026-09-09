@@ -55,10 +55,10 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
     return (
       <div role="status" aria-live="polite" style={{ padding: '8px 0', textAlign: 'center' }}>
         <p style={{ fontFamily: LORA, fontSize: '20px', fontWeight: 600, color: sombre ? C.blanc : C.vert, margin: '0 0 8px' }}>
-          Votre inscription est confirmee.
+          Votre inscription est confirmée.
         </p>
         <p style={{ fontFamily: INTER, fontSize: '14px', color: sombre ? C.sable : C.gris, margin: 0, lineHeight: 1.6 }}>
-          Nous vous ecrirons a l'ouverture de Kapolia. Une seule fois.
+          Nous vous écrirons à l'ouverture de Kapolia. Une seule fois.
         </p>
       </div>
     )
@@ -93,7 +93,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
       />
 
       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-        <legend className="kap-sr-only">Vous etes</legend>
+        <legend className="kap-sr-only">Vous êtes</legend>
         <div className="kap-types" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
           {([
             ['candidat',  'Je cherche un poste'],
@@ -135,7 +135,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
         />
         <span style={{ fontFamily: INTER, fontSize: '12px', color: C.gris, lineHeight: 1.6 }}>
           J'accepte de recevoir un message lors de l'ouverture de Kapolia. Mon adresse ne sera
-          utilisee que pour cela et je peux me desinscrire a tout moment.
+          utilisée que pour cela et je peux me désinscrire à tout moment.
         </span>
       </label>
 
@@ -172,12 +172,12 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
             flexShrink:     0,
           }} />
         )}
-        {statut === 'chargement' ? 'Envoi en cours...' : 'Me prevenir'}
+        {statut === 'chargement' ? 'Envoi en cours...' : 'Me prévenir'}
       </button>
 
       {statut === 'erreur' && (
         <p role="alert" style={{ margin: 0, fontSize: '13px', color: C.erreur, fontFamily: INTER }}>
-          Une erreur est survenue. Merci de reessayer dans quelques instants.
+          Une erreur est survenue. Merci de réessayer dans quelques instants.
         </p>
       )}
     </form>
@@ -254,7 +254,7 @@ export default function Home() {
         <div className="kap-wrap" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0' }}>
           <LogoKapolia variante="contour" taille={28} />
           <span style={{ fontFamily: INTER, fontSize: '13px', color: C.sable, letterSpacing: '0.02em' }}>
-            Bientot disponible
+            Bientôt disponible
           </span>
         </div>
       </div>
@@ -275,12 +275,12 @@ export default function Home() {
                 lineHeight:   1.2,
                 margin:       '0 0 28px',
               }}>
-                Et si votre prochain poste ne dependait plus de votre CV ?
+                Et si votre prochain poste ne dépendait plus de votre CV&nbsp;?
               </h1>
               <p style={{ fontFamily: INTER, fontSize: '18px', color: C.sable, lineHeight: 1.75, margin: 0 }}>
-                Kapolia propose aux candidats de se presenter tels qu'ils sont : leurs valeurs, leur facon
-                de travailler, leurs aspirations. Les recruteurs reperent les profils qui correspondent
-                vraiment a leur equipe. L'application ouvre prochainement en France.
+                Kapolia propose aux candidats de se présenter tels qu'ils sont&nbsp;: leurs valeurs, leur façon
+                de travailler, leurs aspirations. Les recruteurs repèrent les profils qui correspondent
+                vraiment à leur équipe. L'application ouvre prochainement en France.
               </p>
             </div>
 
@@ -292,10 +292,10 @@ export default function Home() {
               boxShadow:       '0 8px 40px rgba(0,0,0,0.2)',
             }}>
               <h2 style={{ fontFamily: LORA, fontSize: '20px', fontWeight: 600, color: C.texte, margin: '0 0 6px' }}>
-                Etre prevenu en premier
+                Être prévenu en premier
               </h2>
               <p style={{ fontFamily: INTER, fontSize: '13px', color: C.gris, margin: '0 0 24px', lineHeight: 1.5 }}>
-                Un seul message, a l'ouverture.
+                Un seul message, à l'ouverture.
               </p>
               <WaitlistForm />
             </div>
@@ -317,26 +317,26 @@ export default function Home() {
             lineHeight:   1.3,
             margin:       '0 0 48px',
           }}>
-            Le CV trie sur ce qui est facile a mesurer, pas sur ce qui fait reussir.
+            Le CV trie sur ce qui est facile à mesurer, pas sur ce qui fait réussir.
           </h2>
 
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
             <ChiffreCle
               valeur="43,8 %"
-              texte="des projets de recrutement juges difficiles en 2026"
+              texte="des projets de recrutement jugés difficiles en 2026"
             />
             <ChiffreCle
               valeur="84 %"
-              texte="des entreprises citent le profil inadequat des candidats comme principale difficulte"
+              texte="des entreprises citent le profil inadéquat des candidats comme principale difficulté"
             />
             <ChiffreCle
               valeur="61 %"
-              texte="evoquent un manque de motivation, chose qu'aucun CV ne montre"
+              texte="évoquent un manque de motivation, chose qu'aucun CV ne montre"
             />
           </div>
 
           <p style={{ fontFamily: INTER, fontSize: '12px', color: C.gris, marginTop: '28px', lineHeight: 1.5 }}>
-            Source : enquete Besoins en main-d'oeuvre 2026, France Travail.
+            Source&nbsp;: enquête Besoins en main-d'œuvre 2026, France Travail.
           </p>
         </div>
       </section>
@@ -352,9 +352,9 @@ export default function Home() {
             Un profil vivant, pas une liste de dates.
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <Puce texte="Vos valeurs et votre facon de travailler comptent autant que votre parcours." />
-            <Puce texte="Mettez en avant un projet dont vous etes fier, et detaillez ce qui ne tient jamais dans un CV." />
-            <Puce texte="Un parcours guide, plutot qu'une page blanche a remplir." />
+            <Puce texte="Vos valeurs et votre façon de travailler comptent autant que votre parcours." />
+            <Puce texte="Mettez en avant un projet dont vous êtes fier, et détaillez ce qui ne tient jamais dans un CV." />
+            <Puce texte="Un parcours guidé, plutôt qu'une page blanche à remplir." />
             <Puce texte="Candidature en un clic." />
           </div>
         </div>
@@ -368,18 +368,18 @@ export default function Home() {
             Pour les recruteurs
           </p>
           <h2 style={{ fontFamily: LORA, fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 24px' }}>
-            Reperez les bons profils, pas les bons CV.
+            Repérez les bons profils, pas les bons CV.
           </h2>
           <p style={{ fontFamily: INTER, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: '0 0 40px' }}>
-            Les candidats Kapolia se presentent au-dela de leur parcours : leurs valeurs,
-            leur facon de travailler, ce qui les motive. Vous identifiez ceux qui
-            correspondent a votre equipe sur des criteres concrets, avant meme un entretien.
+            Les candidats Kapolia se présentent au-delà de leur parcours&nbsp;: leurs valeurs,
+            leur façon de travailler, ce qui les motive. Vous identifiez ceux qui
+            correspondent à votre équipe sur des critères concrets, avant même un entretien.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <Puce texte="Des candidatures classees par correspondance avec votre offre, sur des criteres que vous choisissez." />
-            <Puce texte="Une candidatheque de profils volontaires, a explorer meme sans offre en cours." />
-            <Puce texte="Une page de marque employeur rattachee a vos offres." />
-            <Puce texte="De la publication de l'offre au premier contact, tout se passe au meme endroit." />
+            <Puce texte="Des candidatures classées par correspondance avec votre offre, sur des critères que vous choisissez." />
+            <Puce texte="Une candidathèque de profils volontaires, à explorer même sans offre en cours." />
+            <Puce texte="Une page de marque employeur rattachée à vos offres." />
+            <Puce texte="De la publication de l'offre au premier contact, tout se passe au même endroit." />
           </div>
         </div>
       </section>
@@ -395,9 +395,9 @@ export default function Home() {
             Votre profil, en une page, quand un document reste attendu.
           </h2>
           <p style={{ fontFamily: INTER, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: 0 }}>
-            En entretien ou pour postuler ailleurs, on vous demandera toujours un support ecrit.
-            Kapolia le genere a partir de votre profil, en quelques secondes. Une page soignee,
-            qui contient vos qualites et ce qui compte pour vous, et pas seulement la liste de
+            En entretien ou pour postuler ailleurs, on vous demandera toujours un support écrit.
+            Kapolia le génère à partir de votre profil, en quelques secondes. Une page soignée,
+            qui contient vos qualités et ce qui compte pour vous, et pas seulement la liste de
             vos postes.
           </p>
         </div>
@@ -412,7 +412,7 @@ export default function Home() {
             Rejoindre la liste d'attente
           </h2>
           <p style={{ fontFamily: INTER, fontSize: '16px', color: C.sable, lineHeight: 1.7, margin: '0 0 40px' }}>
-            Un seul message, a l'ouverture. Pas de relance, pas de newsletter.
+            Un seul message, à l'ouverture. Pas de relance, pas de newsletter.
           </p>
           <div style={{
             backgroundColor: C.blanc,
@@ -435,8 +435,8 @@ export default function Home() {
           </span>
           <div style={{ display: 'flex', gap: '28px' }}>
             {[
-              ['Mentions legales',  '/mentions-legales'],
-              ['Confidentialite',   '/confidentialite'],
+              ['Mentions légales',  '/mentions-legales'],
+              ['Confidentialité',   '/confidentialite'],
               ['Contact',           'mailto:contact@kapolia.com'],
             ].map(([label, href]) => (
               <a
