@@ -3,12 +3,13 @@ const LORA = 'Lora, Georgia, serif'
 export type Variante = 'sombre' | 'clair' | 'contour' | 'terracotta' | 'monochrome'
 
 interface Props {
-  variante?:  Variante
-  avecTexte?: boolean
-  taille?:    number
-  couleur?:   string
-  className?: string
-  style?:     React.CSSProperties
+  variante?:        Variante
+  avecTexte?:       boolean
+  taille?:          number | string
+  couleur?:         string
+  className?:       string
+  style?:           React.CSSProperties
+  needleClassName?: string
 }
 
 type Cfg = {
@@ -41,8 +42,14 @@ export default function LogoKapolia({
   couleur   = '#2C4A3E',
   className,
   style,
+  needleClassName,
 }: Props) {
   const c = getConfig(variante, couleur)
+
+  // Below 20 px the fine strokes collapse : thicker paths + r=21 (flush to viewBox edge)
+  const isSmall = typeof taille === 'number' && taille <= 20
+
+  const px = typeof taille === 'number' ? `${taille}px` : taille
 
   const symbol = (
     <svg
@@ -51,28 +58,30 @@ export default function LogoKapolia({
       height={taille}
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
-      style={{ display: 'block', flexShrink: 0 }}
+      style={{ display: 'inline-block', flexShrink: 0, verticalAlign: 'middle', width: px, height: px }}
     >
       {c.disque !== null
-        ? <circle cx="21" cy="21" r="18" fill={c.disque} />
-        : <circle cx="21" cy="21" r="18" fill="none" stroke={c.bordure!} strokeWidth="1.6" />
+        ? <circle cx="21" cy="21" r={isSmall ? 20 : 18} fill={c.disque} />
+        : <circle cx="21" cy="21" r={isSmall ? 20 : 18} fill="none" stroke={c.bordure!} strokeWidth={isSmall ? '2.4' : '1.6'} />
       }
-      <path
-        d="M14 29 L21 12 L28 29"
-        fill="none"
-        stroke={c.pointe}
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M14 29 L21 25 L28 29"
-        fill="none"
-        stroke={c.base}
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <g className={needleClassName}>
+        <path
+          d="M14 29 L21 12 L28 29"
+          fill="none"
+          stroke={c.pointe}
+          strokeWidth={isSmall ? '4.4' : '2.6'}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M14 29 L21 25 L28 29"
+          fill="none"
+          stroke={c.base}
+          strokeWidth={isSmall ? '4.4' : '2.6'}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   )
 
@@ -97,7 +106,7 @@ export default function LogoKapolia({
         style={{
           fontFamily: LORA,
           fontWeight: 600,
-          fontSize:   `${Math.round(taille * 0.56)}px`,
+          fontSize:   typeof taille === 'number' ? `${Math.round(taille * 0.56)}px` : undefined,
           color:      c.texte,
           lineHeight: 1,
           whiteSpace: 'nowrap',

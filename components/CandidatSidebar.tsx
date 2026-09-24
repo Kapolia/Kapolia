@@ -24,8 +24,9 @@ const NAV = [
   { id: 'offres',       label: 'Offres',         href: '/offres',             exact: false },
   { id: 'favoris',      label: 'Favoris',        href: '/favoris',            exact: true  },
   { id: 'candidatures', label: 'Candidatures',   href: '/candidatures',       exact: false },
-  { id: 'messages',     label: 'Messages',       href: '/dashboard/messages', exact: true  },
-  { id: 'profil',       label: 'Profil',         href: '/profil',             exact: false },
+  { id: 'messages',      label: 'Messages',       href: '/dashboard/messages',    exact: true  },
+  { id: 'rendez-vous',  label: 'Rendez-vous',    href: '/dashboard/rendez-vous', exact: false },
+  { id: 'profil',       label: 'Profil',         href: '/profil',                exact: false },
   { id: 'parametres',   label: 'Paramètres',     href: '/parametres',         exact: false },
 ]
 
@@ -49,6 +50,8 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       return <svg {...p}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
     case 'favoris':
       return <svg {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+    case 'rendez-vous':
+      return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
     case 'parametres':
       return <svg {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
     default: return null
@@ -108,7 +111,7 @@ function SidebarNavItem({ item, active, badge }: { item: typeof NAV[number]; act
   )
 }
 
-function AvatarMenu({ initials, prenom, nom, avatarUrl, avatarType }: { initials: string; prenom: string; nom?: string; avatarUrl?: string; avatarType?: string }) {
+function AvatarMenu({ initials, prenom, nom, avatarUrl, avatarType, hasNotif, onNotifRead }: { initials: string; prenom: string; nom?: string; avatarUrl?: string; avatarType?: string; hasNotif: boolean; onNotifRead: () => void }) {
   const router  = useRouter()
   const [open, setOpen] = useState(false)
   const [hov, setHov]   = useState(false)
@@ -185,6 +188,9 @@ function AvatarMenu({ initials, prenom, nom, avatarUrl, avatarType }: { initials
             <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>{prenom || 'Mon compte'}</div>
             <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>Candidat</div>
           </div>
+          {hasNotif && (
+            <MenuBtn label="Qualités reçues" onClick={() => { onNotifRead(); setOpen(false); router.push('/profil?edit=true') }} notif />
+          )}
           <MenuBtn label="Mon profil"      onClick={() => { setOpen(false); router.push('/profil') }} />
           <MenuBtn label="Paramètres"      onClick={() => { setOpen(false); router.push('/parametres') }} />
           <div style={{ height: 1, backgroundColor: C.sable, margin: '4px 0' }} />
@@ -195,7 +201,7 @@ function AvatarMenu({ initials, prenom, nom, avatarUrl, avatarType }: { initials
   )
 }
 
-function MenuBtn({ label, onClick, danger = false }: { label: string; onClick: () => void; danger?: boolean }) {
+function MenuBtn({ label, onClick, danger = false, notif = false }: { label: string; onClick: () => void; danger?: boolean; notif?: boolean }) {
   const [hov, setHov] = useState(false)
   return (
     <button
@@ -203,14 +209,18 @@ function MenuBtn({ label, onClick, danger = false }: { label: string; onClick: (
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        display: 'block', width: '100%', textAlign: 'left',
+        display: 'flex', alignItems: 'center', gap: 8,
+        width: '100%', textAlign: 'left',
         padding: '9px 12px', border: 'none', borderRadius: 8,
         backgroundColor: hov ? (danger ? '#FDECEA' : C.creme) : 'transparent',
         color: danger ? '#C0392B' : C.dark,
-        fontSize: 13, fontWeight: 500, cursor: 'pointer',
+        fontSize: 13, fontWeight: notif ? 600 : 500, cursor: 'pointer',
         transition: 'background-color 0.12s', fontFamily: 'inherit',
       }}
     >
+      {notif && (
+        <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.terracotta, flexShrink: 0 }} />
+      )}
       {label}
     </button>
   )
@@ -239,6 +249,7 @@ export default function CandidatSidebar({
   const favCount = favsLoaded ? favIds.size : undefined
 
   const [msgCount, setMsgCount] = useState<number | undefined>(undefined)
+  const [hasNotif, setHasNotif] = useState(false)
 
   useEffect(() => {
     let ch: ReturnType<typeof supabase.channel> | null = null
@@ -265,6 +276,28 @@ export default function CandidatSidebar({
     })
 
     return () => { if (ch) supabase.removeChannel(ch) }
+  }, [])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('type', 'reponse_proche')
+        .is('read_at', null)
+        .then(({ count, error }) => {
+          if (error) { console.error('[notif] count error:', error); return }
+          setHasNotif((count ?? 0) > 0)
+        })
+    })
+  }, [])
+
+  useEffect(() => {
+    function onNotifRead() { setHasNotif(false) }
+    window.addEventListener('kapolia:notif-read', onNotifRead)
+    return () => window.removeEventListener('kapolia:notif-read', onNotifRead)
   }, [])
 
   useEffect(() => {
@@ -317,7 +350,7 @@ export default function CandidatSidebar({
             key={item.id}
             item={item}
             active={isActive(item)}
-            badge={item.id === 'favoris' ? favCount : item.id === 'messages' ? msgCount : undefined}
+            badge={item.id === 'favoris' ? favCount : item.id === 'messages' ? msgCount : item.id === 'profil' ? (hasNotif ? 1 : undefined) : undefined}
           />
         ))}
       </nav>
@@ -330,6 +363,8 @@ export default function CandidatSidebar({
           nom={liveAvatar.nom ?? nom}
           avatarUrl={liveAvatar.avatar_url ?? avatarUrl}
           avatarType={liveAvatar.avatar_type ?? avatarType}
+          hasNotif={hasNotif}
+          onNotifRead={() => setHasNotif(false)}
         />
       </div>
     </aside>

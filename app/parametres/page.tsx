@@ -170,6 +170,10 @@ export default function ParametresPage() {
   const [contactError, setContactError] = useState('')
   const [savingPrivacy, setSavingPrivacy] = useState(false)
   const [deleting, setDeleting]         = useState(false)
+  const [deletePhrase, setDeletePhrase] = useState('')
+  const [deleteError, setDeleteError]   = useState('')
+
+  const DELETE_PHRASE = 'supprimer mon compte'
 
   const [pwdOld, setPwdOld]         = useState('')
   const [pwdNew, setPwdNew]         = useState('')
@@ -249,8 +253,32 @@ export default function ParametresPage() {
   }
 
   async function deleteAccount() {
-    if (!confirm('Supprimer définitivement votre compte ? Cette action est irréversible.')) return
+    setDeleteError('')
     setDeleting(true)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) {
+      setDeleteError('Session expirée. Reconnectez-vous et réessayez.')
+      setDeleting(false)
+      return
+    }
+
+    const res = await fetch('/api/account/delete', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      console.error('[parametres] suppression compte', body)
+      setDeleteError(
+        body.error ?? 'Une erreur est survenue. Veuillez réessayer.'
+      )
+      setDeleting(false)
+      return
+    }
+
     await supabase.auth.signOut()
     router.replace('/')
   }
@@ -418,13 +446,46 @@ export default function ParametresPage() {
                 <div style={{ padding: '20px 22px', borderRadius: 14, backgroundColor: C.redBg, border: `1px solid ${C.red}25` }}>
                   <div style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.red, marginBottom: 6 }}>Zone de danger</div>
                   <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px', lineHeight: 1.5 }}>
-                    La suppression de votre compte est permanente. Toutes vos données, candidatures et profil seront effacés.
+                    La suppression est permanente et irréversible. Vos messages, fichiers, candidatures et profil seront effacés.
+                    Pour confirmer, tapez&nbsp;<strong style={{ color: C.dark }}>{DELETE_PHRASE}</strong> ci-dessous.
                   </p>
-                  <button onClick={deleteAccount} disabled={deleting} style={{
-                    backgroundColor: C.red, color: C.white, border: 'none', borderRadius: 10,
-                    padding: '10px 20px', fontSize: 13, fontWeight: 600,
-                    cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.6 : 1,
-                  }}>
+                  <input
+                    type="text"
+                    value={deletePhrase}
+                    onChange={e => { setDeletePhrase(e.target.value); setDeleteError('') }}
+                    placeholder={DELETE_PHRASE}
+                    disabled={deleting}
+                    style={{
+                      width: '100%', padding: '10px 14px', fontSize: 13, borderRadius: 10,
+                      border: `1.5px solid ${deletePhrase === DELETE_PHRASE ? C.red : C.sable}`,
+                      backgroundColor: C.white, color: C.dark,
+                      outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit',
+                      marginBottom: 12, transition: 'border-color 0.15s',
+                      opacity: deleting ? 0.6 : 1,
+                    }}
+                  />
+                  {deleteError && (
+                    <div style={{
+                      padding: '10px 14px', borderRadius: 10,
+                      backgroundColor: C.redBg, border: `1px solid ${C.red}30`,
+                      color: C.red, fontSize: 13, marginBottom: 12,
+                    }}>
+                      {deleteError}
+                    </div>
+                  )}
+                  <button
+                    onClick={deleteAccount}
+                    disabled={deleting || deletePhrase !== DELETE_PHRASE}
+                    style={{
+                      backgroundColor: C.red, color: C.white, border: 'none', borderRadius: 10,
+                      padding: '10px 20px', fontSize: 13, fontWeight: 600,
+                      cursor: (deleting || deletePhrase !== DELETE_PHRASE) ? 'default' : 'pointer',
+                      opacity: (deleting || deletePhrase !== DELETE_PHRASE) ? 0.45 : 1,
+                      transition: 'opacity 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}
+                  >
+                    {deleting && <span style={{ display: 'inline-block', width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
                     {deleting ? 'Suppression…' : 'Supprimer mon compte'}
                   </button>
                 </div>

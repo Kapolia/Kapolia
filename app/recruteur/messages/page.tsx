@@ -31,6 +31,7 @@ import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ouvrirConversation, trouverConversation } from '@/lib/conversations'
+import RdvBubble from '@/components/RdvBubble'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -63,11 +64,19 @@ function formatBytes(b: number) {
 
 type ReactionData = { emoji: string; count: number; mine: boolean }
 type ReplyRef     = { id: string; contenu: string; fromMe: boolean }
+type RdvCreneau   = { date: string; heure: string }
+type RdvFormData  = {
+  type:         'telephonique' | 'entretien'
+  dureeMinutes: number
+  contactInfo:  string
+  creneaux:     RdvCreneau[]
+}
 
 type LocalConv = {
   id: string; candidatId?: string; nom: string; initiales: string; avatarBg: string
   offreId: string; offreTitre: string; dernierMsg: string; derniereHeure: string
   nonLu: number; epinglee: boolean; positionOrdre: number
+  candidatSupprime: boolean
 }
 
 type LocalMsg = {
@@ -75,6 +84,7 @@ type LocalMsg = {
   pjUrl?: string; pjNom?: string; pjType?: string
   replyToId?: string; replyToContenu?: string
   reactions: ReactionData[]
+  rendezVousId?: string
 }
 
 type OffreGroup  = { id: string; titre: string; convs: LocalConv[] }
@@ -89,13 +99,13 @@ type CandidatProfil = {
 
 const FICT_GROUPS: OffreGroup[] = [
   { id: 'fo1', titre: 'Lead UX Designer', convs: [
-    { id: 'fc1', nom: 'Sophie Marchand', initiales: 'SM', avatarBg: C.terracotta, offreId: 'fo1', offreTitre: 'Lead UX Designer', dernierMsg: "Jeudi 10h me convient parfaitement !", derniereHeure: '10:42', nonLu: 0, epinglee: false, positionOrdre: 0 },
-    { id: 'fc2', nom: 'Thomas Petit',    initiales: 'TP', avatarBg: '#2E6E5A',    offreId: 'fo1', offreTitre: 'Lead UX Designer', dernierMsg: "Merci, je reviens demain.",               derniereHeure: 'Hier',  nonLu: 2, epinglee: false, positionOrdre: 1 },
-    { id: 'fc3', nom: 'Alexandre Dubois',initiales: 'AD', avatarBg: '#4A7C6E',    offreId: 'fo1', offreTitre: 'Lead UX Designer', dernierMsg: "Mardi 14h c'est parfait !",               derniereHeure: 'Jeu.',  nonLu: 0, epinglee: true,  positionOrdre: 2 },
+    { id: 'fc1', nom: 'Sophie Marchand', initiales: 'SM', avatarBg: C.terracotta, offreId: 'fo1', offreTitre: 'Lead UX Designer', dernierMsg: "Jeudi 10h me convient parfaitement !", derniereHeure: '10:42', nonLu: 0, epinglee: false, positionOrdre: 0, candidatSupprime: false },
+    { id: 'fc2', nom: 'Thomas Petit',    initiales: 'TP', avatarBg: '#2E6E5A',    offreId: 'fo1', offreTitre: 'Lead UX Designer', dernierMsg: "Merci, je reviens demain.",               derniereHeure: 'Hier',  nonLu: 2, epinglee: false, positionOrdre: 1, candidatSupprime: false },
+    { id: 'fc3', nom: 'Alexandre Dubois',initiales: 'AD', avatarBg: '#4A7C6E',    offreId: 'fo1', offreTitre: 'Lead UX Designer', dernierMsg: "Mardi 14h c'est parfait !",               derniereHeure: 'Jeu.',  nonLu: 0, epinglee: true,  positionOrdre: 2, candidatSupprime: false },
   ]},
   { id: 'fo2', titre: 'Data Scientist Senior', convs: [
-    { id: 'fc4', nom: 'Marie Chen',  initiales: 'MC', avatarBg: '#7B6E8E', offreId: 'fo2', offreTitre: 'Data Scientist Senior', dernierMsg: "Je peux envoyer des exemples.",         derniereHeure: 'Mer.', nonLu: 3, epinglee: false, positionOrdre: 0 },
-    { id: 'fc5', nom: 'Lucas Martin',initiales: 'LM', avatarBg: '#5A6E7B', offreId: 'fo2', offreTitre: 'Data Scientist Senior', dernierMsg: "Très intéressé, quand échanger ?",     derniereHeure: 'Lun.', nonLu: 1, epinglee: false, positionOrdre: 1 },
+    { id: 'fc4', nom: 'Marie Chen',  initiales: 'MC', avatarBg: '#7B6E8E', offreId: 'fo2', offreTitre: 'Data Scientist Senior', dernierMsg: "Je peux envoyer des exemples.",         derniereHeure: 'Mer.', nonLu: 3, epinglee: false, positionOrdre: 0, candidatSupprime: false },
+    { id: 'fc5', nom: 'Lucas Martin',initiales: 'LM', avatarBg: '#5A6E7B', offreId: 'fo2', offreTitre: 'Data Scientist Senior', dernierMsg: "Très intéressé, quand échanger ?",     derniereHeure: 'Lun.', nonLu: 1, epinglee: false, positionOrdre: 1, candidatSupprime: false },
   ]},
 ]
 
@@ -211,6 +221,124 @@ function ReplyBar({ reply, nom, onCancel }: { reply: ReplyRef; nom: string; onCa
         <div style={{ fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reply.contenu || '📎 Pièce jointe'}</div>
       </div>
       <button onClick={onCancel} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 2 }}>✕</button>
+    </div>
+  )
+}
+
+// ─── Rdv panel ────────────────────────────────────────────────────────────────
+
+const RDV_DUREES = [15, 30, 45, 60] as const
+
+function RdvPanel({ nomCandidat, onCancel, onSubmit }: {
+  nomCandidat: string
+  onCancel:   () => void
+  onSubmit:   (form: RdvFormData) => Promise<void>
+}) {
+  const [type,       setType]       = useState<'telephonique' | 'entretien'>('telephonique')
+  const [duree,      setDuree]      = useState(30)
+  const [contact,    setContact]    = useState('')
+  const [creneaux,   setCreneaux]   = useState<RdvCreneau[]>([{ date: '', heure: '' }])
+  const [submitting, setSubmitting] = useState(false)
+
+  function addCreneau() {
+    if (creneaux.length >= 4) return
+    setCreneaux(prev => [...prev, { date: '', heure: '' }])
+  }
+  function removeCreneau(i: number) {
+    setCreneaux(prev => prev.filter((_, j) => j !== i))
+  }
+  function updateCreneau(i: number, field: keyof RdvCreneau, value: string) {
+    setCreneaux(prev => prev.map((c, j) => j === i ? { ...c, [field]: value } : c))
+  }
+
+  const canSubmit = creneaux.length > 0 && creneaux.every(c => c.date && c.heure) && !submitting
+
+  async function handleSubmit() {
+    if (!canSubmit) return
+    setSubmitting(true)
+    await onSubmit({ type, dureeMinutes: duree, contactInfo: contact, creneaux })
+    setSubmitting(false)
+  }
+
+  return (
+    <div style={{ borderTop: `1px solid ${C.sable}`, backgroundColor: C.white, padding: '14px 18px', flexShrink: 0, animation: 'kapolia-dd 0.15s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Proposer un rendez-vous</span>
+        <button onClick={onCancel} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 2 }}>✕</button>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Type</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['telephonique', 'entretien'] as const).map(t => {
+            const sel = type === t
+            return (
+              <button key={t} onClick={() => setType(t)}
+                style={{ padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${sel ? C.terracotta : C.sable}`, backgroundColor: sel ? `${C.terracotta}10` : 'transparent', color: sel ? C.terracotta : C.grey, fontSize: 13, fontWeight: sel ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                {t === 'telephonique' ? 'Téléphonique' : 'Entretien'}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Durée</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {RDV_DUREES.map(d => {
+            const sel = duree === d
+            return (
+              <button key={d} onClick={() => setDuree(d)}
+                style={{ padding: '6px 12px', borderRadius: 8, border: `1.5px solid ${sel ? C.terracotta : C.sable}`, backgroundColor: sel ? `${C.terracotta}10` : 'transparent', color: sel ? C.terracotta : C.grey, fontSize: 13, fontWeight: sel ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                {d} min
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+          {type === 'telephonique' ? 'Numéro de téléphone' : 'Lieu ou lien visio'}
+        </div>
+        <input type="text" value={contact} onChange={e => setContact(e.target.value)}
+          placeholder={type === 'telephonique' ? '+33 6 00 00 00 00' : 'Adresse, salle ou lien visio'}
+          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+      </div>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Créneaux proposés</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {creneaux.map((c, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="date" value={c.date} onChange={e => updateCreneau(i, 'date', e.target.value)}
+                style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
+              <input type="time" value={c.heure} onChange={e => updateCreneau(i, 'heure', e.target.value)}
+                style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
+              {creneaux.length > 1 && (
+                <button onClick={() => removeCreneau(i)} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 16, padding: 2, lineHeight: 1, flexShrink: 0 }}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        {creneaux.length < 4 && (
+          <button onClick={addCreneau}
+            style={{ marginTop: 6, fontSize: 12, color: C.terracotta, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit', fontWeight: 600 }}>
+            + Ajouter un créneau
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button onClick={onCancel}
+          style={{ padding: '8px 16px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+          Annuler
+        </button>
+        <button onClick={handleSubmit} disabled={!canSubmit}
+          style={{ padding: '8px 18px', borderRadius: 10, border: 'none', backgroundColor: canSubmit ? C.terracotta : C.sable, color: canSubmit ? C.white : C.grey, fontSize: 13, fontWeight: 600, cursor: canSubmit ? 'pointer' : 'default', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+          {submitting ? 'Envoi en cours…' : `Proposer à ${nomCandidat}`}
+        </button>
+      </div>
     </div>
   )
 }
@@ -350,6 +478,7 @@ function MessagesPageInner() {
   const [reactPickPos, setReactPickPos] = useState<{ top: number; left: number } | null>(null)
   // Nouvelle conversation en attente (avant premier message)
   const [pendingNew, setPendingNew] = useState<{ candidatId: string; offreId?: string; nom: string; initiales: string; offreTitre: string } | null>(null)
+  const [rdvPanelOpen, setRdvPanelOpen] = useState(false)
 
   const endRef        = useRef<HTMLDivElement>(null)
   const textaRef      = useRef<HTMLTextAreaElement>(null)
@@ -384,13 +513,15 @@ function MessagesPageInner() {
 
         const map: Record<string, OffreGroup> = {}
         for (const row of data) {
-          const offreId = row.offre_id ?? 'sans-offre'
-          const titre   = (row.offres as { titre?: string } | null)?.titre ?? 'Sans offre'
-          const p       = profilMap[row.candidat_id]
-          const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
-          const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0,2)
+          const offreId          = row.offre_id ?? 'sans-offre'
+          const titre            = (row.offres as { titre?: string } | null)?.titre ?? 'Sans offre'
+          const candidatSupprime = !row.candidat_id
+          const p                = candidatSupprime ? null : profilMap[row.candidat_id]
+          const nom              = candidatSupprime ? 'Candidat supprimé' : ([p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat')
+          const init             = candidatSupprime ? '?' : nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0,2)
+          const avatarBg         = candidatSupprime ? C.lightGrey : '#4A7C6E'
           if (!map[offreId]) map[offreId] = { id: offreId, titre, convs: [] }
-          map[offreId].convs.push({ id: row.id, candidatId: row.candidat_id, nom, initiales: init, avatarBg: '#4A7C6E', offreId, offreTitre: titre, dernierMsg: row.dernier_message ?? '', derniereHeure: row.derniere_activite ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '', nonLu: row.non_lu_recruteur ?? 0, epinglee: row.epinglee ?? false, positionOrdre: row.position_ordre ?? 0 })
+          map[offreId].convs.push({ id: row.id, candidatId: row.candidat_id ?? undefined, nom, initiales: init, avatarBg, candidatSupprime, offreId, offreTitre: titre, dernierMsg: row.dernier_message ?? '', derniereHeure: row.derniere_activite ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '', nonLu: row.non_lu_recruteur ?? 0, epinglee: row.epinglee ?? false, positionOrdre: row.position_ordre ?? 0 })
         }
         builtGroups = Object.values(map)
         setGroups(builtGroups)
@@ -404,19 +535,21 @@ function MessagesPageInner() {
           .select('candidat_id, offre_id, dernier_message, derniere_activite, non_lu_recruteur, epinglee, position_ordre')
           .eq('id', convId).single()
         if (!row) return
-        const r = row as { candidat_id: string; offre_id?: string; dernier_message?: string; derniere_activite?: string; non_lu_recruteur?: number; epinglee?: boolean; position_ordre?: number }
+        const r = row as { candidat_id: string | null; offre_id?: string; dernier_message?: string; derniere_activite?: string; non_lu_recruteur?: number; epinglee?: boolean; position_ordre?: number }
+        const candidatSupprime = !r.candidat_id
         const [{ data: offre }, { data: profil }] = await Promise.all([
           r.offre_id ? supabase.from('offres').select('titre').eq('id', r.offre_id).single() : Promise.resolve({ data: null }),
-          supabase.from('profils').select('prenom, nom').eq('user_id', r.candidat_id).single(),
+          !candidatSupprime ? supabase.from('profils').select('prenom, nom').eq('user_id', r.candidat_id!).single() : Promise.resolve({ data: null }),
         ])
-        const offreId = r.offre_id ?? 'sans-offre'
-        const titre   = (offre as { titre?: string } | null)?.titre ?? 'Sans offre'
-        const p       = profil as { prenom?: string; nom?: string } | null
-        const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
-        const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2)
+        const offreId  = r.offre_id ?? 'sans-offre'
+        const titre    = (offre as { titre?: string } | null)?.titre ?? 'Sans offre'
+        const p        = profil as { prenom?: string; nom?: string } | null
+        const nom      = candidatSupprime ? 'Candidat supprimé' : ([p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat')
+        const init     = candidatSupprime ? '?' : nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2)
+        const avatarBg = candidatSupprime ? C.lightGrey : '#4A7C6E'
         const restored: LocalConv = {
-          id: convId, candidatId: r.candidat_id,
-          nom, initiales: init, avatarBg: '#4A7C6E',
+          id: convId, candidatId: r.candidat_id ?? undefined,
+          nom, initiales: init, avatarBg, candidatSupprime,
           offreId, offreTitre: titre,
           dernierMsg: r.dernier_message ?? '',
           derniereHeure: r.derniere_activite
@@ -452,7 +585,8 @@ function MessagesPageInner() {
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `recruteur_id=eq.${user.id}` },
           async payload => {
-            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu_recruteur?: number; masquee_recruteur?: boolean; candidat_id?: string; offre_id?: string }
+            const c = payload.new as { id: string; dernier_message?: string; derniere_activite?: string; non_lu_recruteur?: number; masquee_recruteur?: boolean; candidat_id?: string | null; offre_id?: string }
+            const candidatVientDEtreSuppr = 'candidat_id' in payload.new && (payload.new as Record<string, unknown>).candidat_id === null
             let convInGroups = false
             setGroups(prev => {
               if (!prev.some(g => g.convs.some(conv => conv.id === c.id))) return prev
@@ -461,6 +595,10 @@ function MessagesPageInner() {
                 ...g,
                 convs: g.convs.map(conv => conv.id !== c.id ? conv : {
                   ...conv,
+                  ...(candidatVientDEtreSuppr ? {
+                    nom: 'Candidat supprimé', initiales: '?',
+                    avatarBg: C.lightGrey, candidatSupprime: true, candidatId: undefined,
+                  } : {}),
                   dernierMsg:    c.dernier_message  ?? conv.dernierMsg,
                   derniereHeure: c.derniere_activite
                     ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -482,8 +620,8 @@ function MessagesPageInner() {
               const nom     = [p?.prenom, p?.nom].filter(Boolean).join(' ') || 'Candidat'
               const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2)
               const restored: LocalConv = {
-                id: c.id, candidatId: c.candidat_id,
-                nom, initiales: init, avatarBg: '#4A7C6E',
+                id: c.id, candidatId: c.candidat_id ?? undefined,
+                nom, initiales: init, avatarBg: '#4A7C6E', candidatSupprime: false,
                 offreId, offreTitre: titre,
                 dernierMsg: c.dernier_message ?? '',
                 derniereHeure: c.derniere_activite
@@ -518,7 +656,7 @@ function MessagesPageInner() {
             const init    = nom.split(' ').map((s: string) => s[0]).join('').toUpperCase().slice(0, 2)
             const newConv: LocalConv = {
               id: row.id, candidatId: row.candidat_id,
-              nom, initiales: init, avatarBg: '#4A7C6E',
+              nom, initiales: init, avatarBg: '#4A7C6E', candidatSupprime: false,
               offreId, offreTitre: titre,
               dernierMsg: row.dernier_message ?? '',
               derniereHeure: row.derniere_activite
@@ -560,6 +698,7 @@ function MessagesPageInner() {
               replyToId: m.reply_to_id,
               replyToContenu: (m.reply as { contenu?: string } | null)?.contenu,
               reactions: [],
+              rendezVousId: (m as { rendez_vous_id?: string }).rendez_vous_id ?? undefined,
             })),
           }))
           await supabase
@@ -639,10 +778,10 @@ function MessagesPageInner() {
 
       // ── Nouveaux messages ─────────────────────────────────────────────
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${convId}` }, payload => {
-        const m = payload.new as { id: string; expediteur_id: string; contenu: string; created_at: string; lu: boolean; piece_jointe_url?: string; piece_jointe_nom?: string; piece_jointe_type?: string; reply_to_id?: string }
+        const m = payload.new as { id: string; expediteur_id: string; contenu: string; created_at: string; lu: boolean; piece_jointe_url?: string; piece_jointe_nom?: string; piece_jointe_type?: string; reply_to_id?: string; rendez_vous_id?: string }
         if (m.expediteur_id === userIdRef.current) return
         const isActive = convId === activeIdRef.current
-        setMsgCache(prev => ({ ...prev, [convId]: [...(prev[convId] ?? []), { id: m.id, fromMe: false, lu: isActive, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [] }] }))
+        setMsgCache(prev => ({ ...prev, [convId]: [...(prev[convId] ?? []), { id: m.id, fromMe: false, lu: isActive, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [], rendezVousId: m.rendez_vous_id ?? undefined }] }))
         setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.map(c => c.id === convId ? { ...c, dernierMsg: m.contenu || (m.piece_jointe_nom ?? ''), ...(isActive ? {} : { nonLu: c.nonLu + 1 }) } : c) })))
         if (isActive && userIdRef.current) {
           supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
@@ -727,6 +866,7 @@ function MessagesPageInner() {
 
   async function selectConv(id: string) {
     setPendingNew(null)
+    setRdvPanelOpen(false)
     setActiveId(id); activeIdRef.current = id; setMenuId(null); setProfilOpen(false); setReplyingTo(null)
     setActiveProfil(FICT_PROFILS[id] ?? null)
     setGroups(prev => prev.map(g => ({ ...g, convs: g.convs.map(c => c.id === id ? { ...c, nonLu: 0 } : c) })))
@@ -746,7 +886,7 @@ function MessagesPageInner() {
           else reactMap[r.message_id].push({ emoji: r.emoji, count: 1, mine: r.user_id === userIdRef.current })
         }
       }
-      setMsgCache(prev => ({ ...prev, [id]: data.map(m => ({ id: m.id, fromMe: m.expediteur_id === userIdRef.current, lu: m.lu ?? false, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: (m.reply as { contenu?: string } | null)?.contenu, reactions: reactMap[m.id] ?? [] })) }))
+      setMsgCache(prev => ({ ...prev, [id]: data.map(m => ({ id: m.id, fromMe: m.expediteur_id === userIdRef.current, lu: m.lu ?? false, contenu: m.contenu, heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type, replyToId: m.reply_to_id, replyToContenu: (m.reply as { contenu?: string } | null)?.contenu, reactions: reactMap[m.id] ?? [], rendezVousId: (m as { rendez_vous_id?: string }).rendez_vous_id ?? undefined })) }))
     }
     if (userIdRef.current) {
       await supabase
@@ -819,6 +959,92 @@ function MessagesPageInner() {
       }
       setSending(false)
     }
+  }
+
+  async function envoyerRdv(form: RdvFormData) {
+    if (!activeId || !userIdRef.current || !activeConv?.candidatId) return
+
+    // Étape 1 : rendez_vous
+    const { data: rdv, error: rdvErr } = await supabase
+      .from('rendez_vous')
+      .insert({
+        conversation_id: activeId,
+        recruteur_id:    userIdRef.current,
+        candidat_id:     activeConv.candidatId,
+        type:            form.type,
+        duree_minutes:   form.dureeMinutes,
+        contact_info:    form.contactInfo || null,
+        statut:          'proposee',
+      })
+      .select('id')
+      .single()
+
+    if (rdvErr || !rdv) {
+      console.error('[rdv] étape 1 rendez_vous — ERREUR', {
+        message: rdvErr?.message,
+        code:    rdvErr?.code,
+        details: rdvErr?.details,
+        hint:    rdvErr?.hint,
+      })
+      return
+    }
+    console.info('[rdv] étape 1 rendez_vous — ok', { id: rdv.id })
+
+    // Étape 2 : creneaux_rdv
+    const { error: crErr } = await supabase
+      .from('creneaux_rdv')
+      .insert(
+        form.creneaux.map(c => ({
+          rendez_vous_id: rdv.id,
+          debut_utc:      new Date(`${c.date}T${c.heure}`).toISOString(),
+          selectionne:    false,
+        }))
+      )
+
+    if (crErr) {
+      console.error('[rdv] étape 2 creneaux_rdv — ERREUR', {
+        message: crErr.message,
+        code:    crErr.code,
+        details: crErr.details,
+        hint:    crErr.hint,
+      })
+      await supabase.from('rendez_vous').delete().eq('id', rdv.id)
+      return
+    }
+    console.info('[rdv] étape 2 creneaux_rdv — ok', { count: form.creneaux.length })
+
+    // Étape 3 : message lié à la proposition
+    const { data: msgInserted, error: msgErr } = await supabase
+      .from('messages')
+      .insert({
+        expediteur_id:   userIdRef.current,
+        conversation_id: activeId,
+        contenu:         '',
+        rendez_vous_id:  rdv.id,
+      })
+      .select('id')
+      .single()
+
+    if (msgErr || !msgInserted) {
+      console.error('[rdv] étape 3 message — ERREUR', {
+        message: msgErr?.message,
+        code:    msgErr?.code,
+        details: msgErr?.details,
+        hint:    msgErr?.hint,
+      })
+      return
+    }
+    console.info('[rdv] étape 3 message — ok', { id: msgInserted.id })
+
+    setMsgCache(prev => ({
+      ...prev,
+      [activeId]: [...(prev[activeId] ?? []), {
+        id: msgInserted.id, fromMe: true, lu: false,
+        contenu: '', heure: nowHeure(), reactions: [],
+        rendezVousId: rdv.id,
+      }],
+    }))
+    setRdvPanelOpen(false)
   }
 
   function handleKey(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -991,7 +1217,7 @@ function MessagesPageInner() {
               <div style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>{!pendingNew && displayConv.epinglee && '📌 '}{displayConv.nom}</div>
               <div style={{ fontSize: 12, color: C.grey, marginTop: 1 }}>{displayConv.offreTitre}</div>
             </div>
-            {!pendingNew && (
+            {!pendingNew && !activeConv?.candidatSupprime && (
               <button onClick={() => setProfilOpen(o => !o)}
                 style={{ padding: '7px 14px', borderRadius: 9, border: `1.5px solid ${profilOpen ? C.vert : C.sable}`, backgroundColor: profilOpen ? `${C.vert}10` : 'transparent', color: profilOpen ? C.vert : C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s' }}>
                 {profilOpen ? '← Fermer' : 'Voir le profil →'}
@@ -1010,6 +1236,13 @@ function MessagesPageInner() {
               </div>
             ) : (
               <>
+                {activeConv?.candidatSupprime && (
+                  <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: 8 }}>
+                    <div style={{ padding: '10px 18px', borderRadius: 12, backgroundColor: `${C.lightGrey}40`, border: `1px solid ${C.lightGrey}`, fontSize: 13, color: C.grey, fontStyle: 'italic' }}>
+                      Ce candidat a supprimé son compte.
+                    </div>
+                  </div>
+                )}
                 {activeMsgs.map((msg, i) => {
                   const prevSame = i > 0 && activeMsgs[i-1].fromMe === msg.fromMe
                   return (
@@ -1027,9 +1260,11 @@ function MessagesPageInner() {
 
                       {/* Bubble row with action buttons */}
                       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: msg.fromMe ? 'row-reverse' : 'row' }}>
-                        {msg.pjNom
-                          ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
-                          : <div style={{ maxWidth: '60%', padding: '10px 14px', borderRadius: msg.fromMe ? '18px 18px 5px 18px' : '18px 18px 18px 5px', backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{msg.contenu}</div>
+                        {msg.rendezVousId
+                          ? <RdvBubble rdvId={msg.rendezVousId} role="recruteur" />
+                          : msg.pjNom
+                            ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
+                            : <div style={{ maxWidth: '60%', padding: '10px 14px', borderRadius: msg.fromMe ? '18px 18px 5px 18px' : '18px 18px 18px 5px', backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{msg.contenu}</div>
                         }
                         {/* Hover actions */}
                         <div style={{ display: 'flex', gap: 3, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s', flexShrink: 0 }}>
@@ -1058,10 +1293,10 @@ function MessagesPageInner() {
           </div>
 
           {/* Reply bar */}
-          {!pendingNew && replyingTo && <ReplyBar reply={replyingTo} nom={displayConv.nom.split(' ')[0]} onCancel={() => setReplyingTo(null)} />}
+          {!pendingNew && !activeConv?.candidatSupprime && replyingTo && <ReplyBar reply={replyingTo} nom={displayConv.nom.split(' ')[0]} onCancel={() => setReplyingTo(null)} />}
 
           {/* Pending file preview */}
-          {pendingFile && (
+          {!activeConv?.candidatSupprime && pendingFile && (
             <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.sable}`, backgroundColor: `${C.terracotta}06`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
               {pendingFile.preview
                 ? <img src={pendingFile.preview} alt={pendingFile.nom} style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
@@ -1076,9 +1311,27 @@ function MessagesPageInner() {
           )}
 
           {/* Input */}
+          {!activeConv?.candidatSupprime && rdvPanelOpen && activeConv && !pendingNew && (
+            <RdvPanel
+              nomCandidat={displayConv!.nom.split(' ')[0]}
+              onCancel={() => setRdvPanelOpen(false)}
+              onSubmit={envoyerRdv}
+            />
+          )}
+
+          {!activeConv?.candidatSupprime && (
           <div style={{ padding: '10px 18px', backgroundColor: C.white, borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
             <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre" style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.creme, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
               {uploading ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>}
+            </button>
+            <button onClick={() => setRdvPanelOpen(o => !o)} title="Proposer un rendez-vous"
+              style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: rdvPanelOpen ? `${C.terracotta}15` : C.creme, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.15s' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={rdvPanelOpen ? C.terracotta : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
             </button>
             <textarea ref={textaRef} value={input} onChange={e => { setInput(e.target.value); adjustTA(); sendTyping() }} onKeyDown={handleKey} placeholder={`Écrire à ${displayConv.nom.split(' ')[0]}…`} rows={1}
               style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }} />
@@ -1087,6 +1340,7 @@ function MessagesPageInner() {
               {sending || uploading ? 'Envoi…' : <>Envoyer <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></>}
             </button>
           </div>
+          )}
         </div>
       ) : (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>

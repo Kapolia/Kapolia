@@ -74,6 +74,15 @@ type Props = {
   mode?: 'page' | 'panel'
   onBack?: () => void
   removeAction?: () => void
+  /**
+   * Quand fourni, remplace la zone d'actions candidat dans le header
+   * (Postuler, Favoris, Decouvrir l'entreprise) ET supprime le bloc CTA
+   * du bas de page ("Ce poste vous interesse ?").
+   * N'a d'effet qu'en mode page.
+   */
+  actionsRecruteur?: React.ReactNode
+  /** Préfixe ajouté aux liens /entreprise/[id] — passer '/recruteur' en vue recruteur. */
+  entrepriseLinkPrefix?: string
 }
 
 // ─── SimilaireCard ───────────────────────────────────────────────────────────
@@ -304,7 +313,8 @@ function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected
 
 export function OffreDetail({
   offre, applied, appliedDate, applying, saved, isConnected,
-  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, removeAction,
+  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, removeAction, actionsRecruteur,
+  entrepriseLinkPrefix = '',
 }: Props) {
   const [copied, setCopied] = useState(false)
 
@@ -381,7 +391,7 @@ export function OffreDetail({
             <div>
               {offre.recruteur_id ? (
                 <Link
-                  href={`/entreprise/${offre.recruteur_id}`}
+                  href={`${entrepriseLinkPrefix}/entreprise/${offre.recruteur_id}`}
                   style={{ fontSize: 15, fontWeight: 700, color: C.terracotta, lineHeight: 1.2, textDecoration: 'none', display: 'block' }}
                 >
                   {entreprise}
@@ -471,7 +481,7 @@ export function OffreDetail({
 
             {offre.recruteur_id && (
               <Link
-                href={`/entreprise/${offre.recruteur_id}`}
+                href={`${entrepriseLinkPrefix}/entreprise/${offre.recruteur_id}`}
                 style={{
                   height: 36, padding: '0 12px',
                   display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -768,24 +778,26 @@ export function OffreDetail({
           </div>
         </Section>
       )}
-      <div style={{
-        backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`,
-        padding: '28px 32px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 20, flexWrap: 'wrap',
-      }}>
-        <div>
-          <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 5 }}>
-            Ce poste vous intéresse ?
+      {!actionsRecruteur && (
+        <div style={{
+          backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`,
+          padding: '28px 32px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 20, flexWrap: 'wrap',
+        }}>
+          <div>
+            <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 5 }}>
+              Ce poste vous intéresse ?
+            </div>
+            <div style={{ fontSize: 13, color: C.grey }}>
+              {isConnected
+                ? 'Postulez en un clic — votre profil sera transmis au recruteur.'
+                : 'Connectez-vous pour postuler rapidement avec votre profil Kapolia.'}
+            </div>
           </div>
-          <div style={{ fontSize: 13, color: C.grey }}>
-            {isConnected
-              ? 'Postulez en un clic — votre profil sera transmis au recruteur.'
-              : 'Connectez-vous pour postuler rapidement avec votre profil Kapolia.'}
-          </div>
+          <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
         </div>
-        <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
-      </div>
+      )}
     </div>
   )
 
@@ -820,7 +832,7 @@ export function OffreDetail({
                 <div>
                   {offre.recruteur_id ? (
                     <Link
-                      href={`/entreprise/${offre.recruteur_id}`}
+                      href={`${entrepriseLinkPrefix}/entreprise/${offre.recruteur_id}`}
                       style={{ fontSize: 16, fontWeight: 700, color: C.terracotta, lineHeight: 1.2, textDecoration: 'none', display: 'block' }}
                     >
                       {entreprise}
@@ -840,41 +852,47 @@ export function OffreDetail({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {offre.recruteur_id && (
-                <Link
-                  href={`/entreprise/${offre.recruteur_id}`}
+            {actionsRecruteur != null ? (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {actionsRecruteur}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {offre.recruteur_id && (
+                  <Link
+                    href={`${entrepriseLinkPrefix}/entreprise/${offre.recruteur_id}`}
+                    style={{
+                      height: 44, padding: '0 16px',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      borderRadius: 12,
+                      border: `1px solid ${C.terracotta}50`,
+                      backgroundColor: `${C.terracotta}07`,
+                      color: C.terracotta,
+                      fontSize: 13, fontWeight: 600,
+                      textDecoration: 'none', fontFamily: 'inherit',
+                      whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
+                    }}
+                  >
+                    Découvrir l'entreprise
+                  </Link>
+                )}
+                <button
+                  onClick={onToggleSave}
+                  title={saved ? 'Retirer des favoris' : 'Sauvegarder'}
                   style={{
-                    height: 44, padding: '0 16px',
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    width: 44, height: 44,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     borderRadius: 12,
-                    border: `1px solid ${C.terracotta}50`,
-                    backgroundColor: `${C.terracotta}07`,
-                    color: C.terracotta,
-                    fontSize: 13, fontWeight: 600,
-                    textDecoration: 'none', fontFamily: 'inherit',
-                    whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
+                    border: `1px solid ${saved ? '#F59E0B50' : C.sable}`,
+                    backgroundColor: saved ? '#FEF3C720' : C.white,
+                    cursor: 'pointer', fontSize: 22, transition: 'all 0.15s',
                   }}
                 >
-                  Découvrir l'entreprise
-                </Link>
-              )}
-              <button
-                onClick={onToggleSave}
-                title={saved ? 'Retirer des favoris' : 'Sauvegarder'}
-                style={{
-                  width: 44, height: 44,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 12,
-                  border: `1px solid ${saved ? '#F59E0B50' : C.sable}`,
-                  backgroundColor: saved ? '#FEF3C720' : C.white,
-                  cursor: 'pointer', fontSize: 22, transition: 'all 0.15s',
-                }}
-              >
-                {saved ? '★' : '☆'}
-              </button>
-              <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
-            </div>
+                  {saved ? '★' : '☆'}
+                </button>
+                <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
+              </div>
+            )}
           </div>
 
           {badges(16)}

@@ -12,9 +12,8 @@ import type { OnboardingFormData } from '@/lib/onboarding-utils'
 const FULL: OnboardingFormData = {
   prenom: 'Alice', nom: 'Martin', domaine: 'Tech & Ingénierie',
   experience: '2–5 ans', parcours: 'Mon parcours',
-  mots: ['Curieux', 'Rigoureux', 'Empathique'],
-  environnement: 'startup', defi: 'analyse', projet: 'Mon projet phare',
-  passions: ['Musique'], sideProject: 'Un side project',
+  environnement: ['startup'], projet: 'Mon projet phare', projet_titre: 'Mon titre de projet',
+  passions: ['Musique'],
   disponibilite: 'maintenant', dispo_date: '',
   typePoste: ['cdi'], lieu: 'hybride', ville: 'Paris',
   priorite: ['Impact réel'],
@@ -46,38 +45,38 @@ describe('firstIncompleteStep', () => {
     expect(firstIncompleteStep({ ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech & Ingénierie' })).toBe(3)
   })
 
-  it('returns 5 when steps 1–3 complete but mots incomplete', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', mots: ['A', '', 'C'] as [string, string, string] }
+  it('returns 5 when steps 1–3 complete but step5Done is false (default)', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans' }
     expect(firstIncompleteStep(d)).toBe(5)
   })
 
-  it('returns 5 when all mots are whitespace-only', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', mots: [' ', ' ', ' '] as [string, string, string] }
-    expect(firstIncompleteStep(d)).toBe(5)
+  it('returns 5 when steps 1–3 complete and step5Done is explicitly false', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans' }
+    expect(firstIncompleteStep(d, false)).toBe(5)
   })
 
-  it('returns 6 when steps 1–5 complete but environnement missing', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', mots: ['A', 'B', 'C'] as [string, string, string] }
-    expect(firstIncompleteStep(d)).toBe(6)
+  it('returns 6 when steps 1–5 complete (step5Done=true) but environnement missing', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans' }
+    expect(firstIncompleteStep(d, true)).toBe(6)
   })
 
-  it('returns 11 when steps 1–6 complete but typePoste empty', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', mots: ['A', 'B', 'C'] as [string, string, string], environnement: 'startup' }
-    expect(firstIncompleteStep(d)).toBe(11)
+  it('returns 10 when steps 1–6 complete but typePoste empty', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', environnement: ['startup'] }
+    expect(firstIncompleteStep(d, true)).toBe(10)
   })
 
-  it('returns 12 when steps 1–11 complete but lieu missing', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', mots: ['A', 'B', 'C'] as [string, string, string], environnement: 'startup', typePoste: ['cdi'] }
-    expect(firstIncompleteStep(d)).toBe(12)
+  it('returns 11 when steps 1–10 complete but lieu missing', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', environnement: ['startup'], typePoste: ['cdi'] }
+    expect(firstIncompleteStep(d, true)).toBe(11)
   })
 
-  it('returns 14 when steps 1–12 complete but disponibilite missing', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', mots: ['A', 'B', 'C'] as [string, string, string], environnement: 'startup', typePoste: ['cdi'], lieu: 'hybride' }
-    expect(firstIncompleteStep(d)).toBe(14)
+  it('returns 13 when steps 1–11 complete but disponibilite missing', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', environnement: ['startup'], typePoste: ['cdi'], lieu: 'hybride' }
+    expect(firstIncompleteStep(d, true)).toBe(13)
   })
 
-  it('returns ONBOARDING_TOTAL (17) when all required fields filled', () => {
-    expect(firstIncompleteStep(FULL)).toBe(ONBOARDING_TOTAL)
+  it('returns ONBOARDING_TOTAL (15) when all required fields filled and step5Done=true', () => {
+    expect(firstIncompleteStep(FULL, true)).toBe(ONBOARDING_TOTAL)
   })
 })
 
@@ -122,84 +121,108 @@ describe('buildStepPayload', () => {
     expect(result).toMatchObject({ signature: 'Mon parcours', onboarding_step: MAX })
   })
 
-  it('returns null for step 5 when mots incomplete', () => {
-    expect(buildStepPayload(5, { ...EMPTY_FORM, mots: ['A', '', 'C'] }, MAX)).toBeNull()
-  })
-
-  it('returns payload for step 5 with qualites key', () => {
-    const result = buildStepPayload(5, { ...EMPTY_FORM, mots: ['A', 'B', 'C'] }, MAX)
-    expect(result).toMatchObject({ qualites: ['A', 'B', 'C'], onboarding_step: MAX })
+  it('returns null for step 5 (persistence handled by QualitesCarousel)', () => {
+    expect(buildStepPayload(5, EMPTY_FORM, MAX)).toBeNull()
+    expect(buildStepPayload(5, FULL, MAX)).toBeNull()
   })
 
   it('returns payload for step 6 with mode_travail as array', () => {
-    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: 'startup' }, MAX)
+    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['startup'] }, MAX)
     expect(result).toMatchObject({ mode_travail: ['startup'], onboarding_step: MAX })
   })
 
-  it('returns payload for step 7 with valeur key', () => {
-    const result = buildStepPayload(7, { ...EMPTY_FORM, defi: 'analyse' }, MAX)
-    expect(result).toMatchObject({ valeur: 'analyse', onboarding_step: MAX })
+  it('returns payload for step 6 with multiple values', () => {
+    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['startup', 'scaleup'] }, MAX)
+    expect(result).toMatchObject({ mode_travail: ['startup', 'scaleup'], onboarding_step: MAX })
   })
 
-  it('returns null for step 9 when passions is empty array', () => {
-    expect(buildStepPayload(9, EMPTY_FORM, MAX)).toBeNull()
+  it('returns payload for step 6 with sans_pref', () => {
+    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['sans_pref'] }, MAX)
+    expect(result).toMatchObject({ mode_travail: ['sans_pref'], onboarding_step: MAX })
   })
 
-  it('returns payload for step 9', () => {
-    const result = buildStepPayload(9, { ...EMPTY_FORM, passions: ['Musique'] }, MAX)
+  it('returns null for step 6 when environnement is empty', () => {
+    expect(buildStepPayload(6, EMPTY_FORM, MAX)).toBeNull()
+  })
+
+  it('returns null for step 7 when projet is empty', () => {
+    expect(buildStepPayload(7, EMPTY_FORM, MAX)).toBeNull()
+  })
+
+  it('returns payload for step 7 with projet_phare key', () => {
+    const result = buildStepPayload(7, { ...EMPTY_FORM, projet: 'Mon projet' }, MAX)
+    expect(result).toMatchObject({ projet_phare: 'Mon projet', onboarding_step: MAX })
+  })
+
+  it('returns payload for step 7 with both projet_phare and projet_titre', () => {
+    const result = buildStepPayload(7, { ...EMPTY_FORM, projet: 'Mon projet', projet_titre: 'Mon titre' }, MAX)
+    expect(result).toMatchObject({ projet_phare: 'Mon projet', projet_titre: 'Mon titre', onboarding_step: MAX })
+  })
+
+  it('returns null for projet_titre when projet_titre is empty string', () => {
+    const result = buildStepPayload(7, { ...EMPTY_FORM, projet: 'Mon projet', projet_titre: '' }, MAX)
+    expect(result).toMatchObject({ projet_phare: 'Mon projet', projet_titre: null, onboarding_step: MAX })
+  })
+
+  it('returns null for step 8 when passions is empty array', () => {
+    expect(buildStepPayload(8, EMPTY_FORM, MAX)).toBeNull()
+  })
+
+  it('returns payload for step 8', () => {
+    const result = buildStepPayload(8, { ...EMPTY_FORM, passions: ['Musique'] }, MAX)
     expect(result).toMatchObject({ passions: ['Musique'], onboarding_step: MAX })
   })
 
-  it('returns null for step 12 when lieu and ville are both empty', () => {
-    expect(buildStepPayload(12, EMPTY_FORM, MAX)).toBeNull()
+  it('returns null for step 10 when lieu and ville are both empty', () => {
+    expect(buildStepPayload(10, EMPTY_FORM, MAX)).toBeNull()
   })
 
-  it('returns payload for step 12 with only lieu', () => {
-    const result = buildStepPayload(12, { ...EMPTY_FORM, lieu: 'hybride' }, MAX)
+  it('returns payload for step 10 with only lieu', () => {
+    const result = buildStepPayload(10, { ...EMPTY_FORM, lieu: 'hybride' }, MAX)
     expect(result).toMatchObject({ structure: 'hybride', onboarding_step: MAX })
     expect(result).not.toHaveProperty('ville')
   })
 
-  it('returns payload for step 12 with both lieu and ville', () => {
-    const result = buildStepPayload(12, { ...EMPTY_FORM, lieu: 'hybride', ville: 'Paris' }, MAX)
+  it('returns payload for step 10 with both lieu and ville', () => {
+    const result = buildStepPayload(10, { ...EMPTY_FORM, lieu: 'hybride', ville: 'Paris' }, MAX)
     expect(result).toMatchObject({ structure: 'hybride', ville: 'Paris', onboarding_step: MAX })
   })
 
-  it('step 14 returns null when disponibilite is empty', () => {
-    expect(buildStepPayload(14, EMPTY_FORM, MAX)).toBeNull()
+  it('step 12 returns null when disponibilite is empty', () => {
+    expect(buildStepPayload(12, EMPTY_FORM, MAX)).toBeNull()
   })
 
-  it('step 14 sets dispo_date to null when disponibilite is not a_partir_de', () => {
-    const result = buildStepPayload(14, { ...EMPTY_FORM, disponibilite: 'maintenant', dispo_date: '2024-06-01' }, MAX)
+  it('step 12 sets dispo_date to null when disponibilite is not a_partir_de', () => {
+    const result = buildStepPayload(12, { ...EMPTY_FORM, disponibilite: 'maintenant', dispo_date: '2024-06-01' }, MAX)
     expect(result).toMatchObject({ disponibilite: 'maintenant', dispo_date: null, onboarding_step: MAX })
   })
 
-  it('step 14 sets dispo_date when disponibilite is a_partir_de', () => {
-    const result = buildStepPayload(14, { ...EMPTY_FORM, disponibilite: 'a_partir_de', dispo_date: '2024-06-01' }, MAX)
+  it('step 12 sets dispo_date when disponibilite is a_partir_de', () => {
+    const result = buildStepPayload(12, { ...EMPTY_FORM, disponibilite: 'a_partir_de', dispo_date: '2024-06-01' }, MAX)
     expect(result).toMatchObject({ disponibilite: 'a_partir_de', dispo_date: '2024-06-01', onboarding_step: MAX })
   })
 
-  it('step 14 sets dispo_date to null when a_partir_de but no date provided', () => {
-    const result = buildStepPayload(14, { ...EMPTY_FORM, disponibilite: 'a_partir_de', dispo_date: '' }, MAX)
+  it('step 12 sets dispo_date to null when a_partir_de but no date provided', () => {
+    const result = buildStepPayload(12, { ...EMPTY_FORM, disponibilite: 'a_partir_de', dispo_date: '' }, MAX)
     expect(result).toMatchObject({ disponibilite: 'a_partir_de', dispo_date: null, onboarding_step: MAX })
   })
 
-  it('returns null for step 15 when experiences is empty', () => {
-    expect(buildStepPayload(15, EMPTY_FORM, MAX)).toBeNull()
+  it('returns null for step 13 when experiences is empty', () => {
+    expect(buildStepPayload(13, EMPTY_FORM, MAX)).toBeNull()
   })
 
-  it('returns null for step 16 when diplomes is empty', () => {
-    expect(buildStepPayload(16, EMPTY_FORM, MAX)).toBeNull()
+  it('returns null for step 14 when diplomes is empty', () => {
+    expect(buildStepPayload(14, EMPTY_FORM, MAX)).toBeNull()
   })
 
-  it('returns null for unknown steps (0, 17, 99)', () => {
+  it('returns null for unknown steps (0, 15, 99)', () => {
     expect(buildStepPayload(0,  EMPTY_FORM, MAX)).toBeNull()
-    expect(buildStepPayload(17, EMPTY_FORM, MAX)).toBeNull()
+    expect(buildStepPayload(15, EMPTY_FORM, MAX)).toBeNull()
     expect(buildStepPayload(99, EMPTY_FORM, MAX)).toBeNull()
   })
 
   it('always includes onboarding_step in every non-null payload', () => {
-    const steps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    const steps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     for (const s of steps) {
       const result = buildStepPayload(s, FULL, MAX)
       if (result !== null) {
@@ -209,10 +232,12 @@ describe('buildStepPayload', () => {
   })
 
   it('never includes onboarding_completed in any payload', () => {
-    const steps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    const steps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     for (const s of steps) {
       const result = buildStepPayload(s, FULL, MAX)
-      expect(result).not.toHaveProperty('onboarding_completed')
+      if (result !== null) {
+        expect(result).not.toHaveProperty('onboarding_completed')
+      }
     }
   })
 

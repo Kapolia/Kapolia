@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
+import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES, findLangue } from '@/lib/langues'
+import MissionsTextArea from '@/components/MissionsTextArea'
+import SignatureCounter from '@/components/SignatureCounter'
+import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
+import InvitationModal, { type ActiveInvitation } from '@/components/InvitationModal'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -31,12 +36,31 @@ type ProfilDiplome = {
   intitule: string; ecole: string; annee: string; mention?: string
 }
 
+type ReponseGroupe = {
+  reponse_id:    string
+  prenom_proche: string
+  lien:          string
+  qualites:      string[]
+}
+
+const LIEN_LABELS: Record<string, string> = {
+  ami:             'ami(e)',
+  collegue:        'collègue',
+  ancien_manager:  'ancien manager',
+  famille:         'famille',
+  autre:           'autre',
+}
+
+function formatExpiry(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+}
+
 type Profil = {
   prenom: string; nom: string; domaine?: string; experience?: string
   signature?: string; qualites?: string[]; mode_travail?: string[]
   valeur?: string; projet_phare?: string; passions?: string[]
   type_poste?: string[]; structure?: string; disponibilite?: string | null
-  dispo_date?: string | null
+  dispo_date?: string | null; priorites?: string[]
   ville?: string; competences?: string[]; competences_bonus?: string[]
   portfolio?: string; user_id?: string
   experiences?: ProfilExperience[]; diplomes?: ProfilDiplome[]
@@ -57,14 +81,9 @@ type Profil = {
 
 const ENVIRONNEMENT_MAP: Record<string, string> = {
   startup: 'Startup agile', scaleup: 'Scale-up', corporate: 'Grand groupe', indep: 'Indépendant(e)',
+  sans_pref: 'Sans préférence',
 }
 
-const DEFI_MAP: Record<string, { label: string; desc: string; icon: string }> = {
-  analyse: { label: "J'analyse avant d'agir",  desc: 'Comprendre pour mieux décider', icon: '🔍' },
-  action:  { label: "Je teste et j'ajuste",    desc: 'Apprendre en faisant',          icon: '⚡' },
-  collab:  { label: "Je consulte l'équipe",    desc: 'La force du collectif',          icon: '🤝' },
-  creativ: { label: "L'angle inattendu",        desc: "L'originalité comme levier",   icon: '💡' },
-}
 
 const TYPE_POSTE_MAP: Record<string, string> = {
   cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance / Mission', alternance: 'Alternance / Stage', ouvert: 'Ouvert(e) à tout',
@@ -73,6 +92,12 @@ const TYPE_POSTE_MAP: Record<string, string> = {
 const LIEU_MAP: Record<string, string> = {
   remote: '100% Remote', hybride: 'Hybride', presentiel: 'Présentiel', flexible: 'Flexible',
 }
+
+const PRIORITES = [
+  'Impact réel', 'Équipe soudée', 'Salaire compétitif',
+  'Évolution rapide', 'Sens & mission', 'Flexibilité horaire',
+  'Apprentissage continu', 'Autonomie', 'Stabilité',
+]
 
 const DISPO_OPTIONS = [
   { key: 'maintenant',      label: 'Disponible maintenant', color: '#27AE60' },
@@ -443,6 +468,20 @@ const editInputStyle: React.CSSProperties = {
   outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
 }
 
+function moveUp<T>(arr: T[], i: number): T[] {
+  if (i === 0) return arr
+  const next = [...arr];
+  [next[i - 1], next[i]] = [next[i], next[i - 1]]
+  return next
+}
+
+function moveDown<T>(arr: T[], i: number): T[] {
+  if (i >= arr.length - 1) return arr
+  const next = [...arr];
+  [next[i], next[i + 1]] = [next[i + 1], next[i]]
+  return next
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type ProfilViewProps = {
@@ -489,6 +528,14 @@ export default function ProfilView({
   const [signatureExpanded, setSignatureExpanded]   = useState(false)
   const [editQualites, setEditQualites]             = useState<string[]>([])
   const [editCompetences, setEditCompetences]       = useState<string[]>([])
+  const [reponsesProches, setReponsesProches]         = useState<ReponseGroupe[]>([])
+  const [qualitesProchesSel, setQualitesProchesSel]   = useState<Array<{reponse_id: string; qualite: string}>>([])
+  const [editQualitesProches, setEditQualitesProches] = useState<Array<{reponse_id: string; qualite: string}>>([])
+  const [savingProches, setSavingProches]             = useState(false)
+  const [unreadNotifCount, setUnreadNotifCount]       = useState(0)
+  const [activeInvitations, setActiveInvitations]     = useState<ActiveInvitation[]>([])
+  const [invitModalOpen, setInvitModalOpen]           = useState(false)
+  const [supprimantInvId, setSupprimantInvId]         = useState<string | null>(null)
   const [editExperiences, setEditExperiences]       = useState<ProfilExperience[]>([])
   const [editDiplomes, setEditDiplomes]             = useState<ProfilDiplome[]>([])
   const [editProjetTitre, setEditProjetTitre]       = useState('')
@@ -515,8 +562,8 @@ export default function ProfilView({
   const [editTypePoste, setEditTypePoste]           = useState<string[]>([])
   const [editLinkedinUrl, setEditLinkedinUrl]       = useState('')
   const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
-  const [editValeur, setEditValeur]                 = useState('')
   const [editModeTravail, setEditModeTravail]       = useState<string[]>([])
+  const [editPriorite, setEditPriorite]             = useState<string[]>([])
   const [editLangues, setEditLangues]               = useState<string[]>([])
   const [selectingLangue, setSelectingLangue]       = useState('')
   const [editPassions, setEditPassions]             = useState<string[]>([])
@@ -566,6 +613,50 @@ export default function ProfilView({
 
       const profil = data as Profil
       setProfil(profil)
+
+      // Qualités proches sélectionnées : visible en lecture pour tous les visiteurs autorisés
+      const { data: selData } = await supabase
+        .from('qualites_proches_selectionnees')
+        .select('reponse_id, qualite')
+        .eq('user_id', userId)
+      const sel = (selData ?? []) as Array<{reponse_id: string; qualite: string}>
+      setQualitesProchesSel(sel)
+      setEditQualitesProches(sel)
+
+      // Invitations, réponses et notifications non lues : propriétaire uniquement
+      if (isOwner) {
+        const [invRes, repRes, notifRes] = await Promise.all([
+          supabase.from('invitations_proches').select('id, label_proche, lien, expire_at, used_at').eq('candidat_id', userId),
+          supabase.from('reponses_proches').select('id, invitation_id, prenom_proche, qualites'),
+          supabase.from('notifications').select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('type', 'reponse_proche')
+            .is('read_at', null),
+        ])
+        const now    = new Date().toISOString()
+        const allInv = invRes.data ?? []
+        const invMap = new Map(allInv.map(inv => [inv.id as string, inv.lien as string]))
+        setActiveInvitations(
+          allInv
+            .filter(inv => (inv.expire_at as string) > now && inv.used_at === null)
+            .map(inv => ({
+              id:           inv.id           as string,
+              label_proche: inv.label_proche as string,
+              lien:         inv.lien         as string,
+              expire_at:    inv.expire_at    as string,
+            }))
+        )
+        setReponsesProches(
+          (repRes.data ?? []).map(r => ({
+            reponse_id:    r.id as string,
+            prenom_proche: r.prenom_proche as string,
+            lien:          invMap.get(r.invitation_id as string) ?? 'autre',
+            qualites:      r.qualites as string[],
+          }))
+        )
+        setUnreadNotifCount(notifRes.count ?? 0)
+      }
+
       setLoading(false)
 
       if (!isOwner) {
@@ -600,9 +691,9 @@ export default function ProfilView({
         setEditDispo(profil.disponibilite ?? '')
         setEditDispoDate(profil.dispo_date ?? '')
         setEditTypePoste([...(profil.type_poste ?? [])])
+        setEditPriorite([...(profil.priorites ?? [])])
         setEditLinkedinUrl(profil.linkedin_url ?? '')
         setEditPortfolioUrl(profil.portfolio_url ?? '')
-        setEditValeur(profil.valeur ?? '')
         setEditModeTravail([...(profil.mode_travail ?? [])])
         setEditLangues([...(profil.langues ?? [])])
         setEditPassions([...(profil.passions ?? [])])
@@ -665,6 +756,23 @@ export default function ProfilView({
     previewVideoRef.current.play().catch(() => {})
   }, [recordPhase])
 
+  // Marquer les notifications reponse_proche comme lues au passage en modification
+  useEffect(() => {
+    if (!isEditing || !isOwner || unreadNotifCount === 0) return
+    setUnreadNotifCount(0)
+    window.dispatchEvent(new CustomEvent('kapolia:notif-read'))
+    supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('type', 'reponse_proche')
+      .is('read_at', null)
+      .then(({ error }) => {
+        if (error) console.error('[mark-read] update error:', error)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing, isOwner, unreadNotifCount, userId])
+
   if (loading) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
@@ -687,7 +795,7 @@ export default function ProfilView({
 
   const initials         = getInitials(p.prenom, p.nom)
   const dispo            = getDispoStatus(p.disponibilite, p.dispo_date)
-  const modeTravailItems  = (p.mode_travail ?? []).map(k => ENVIRONNEMENT_MAP[k] ?? k)
+  const modeTravailItems  = (p.mode_travail ?? []).filter(k => k !== 'sans_pref').map(k => ENVIRONNEMENT_MAP[k] ?? k)
   const typePosteLabel    = (p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' · ') || '—'
   const structureLabel    = LIEU_MAP[p.structure ?? ''] ?? p.structure ?? ''
   const qualites            = p.qualites ?? []
@@ -726,17 +834,61 @@ export default function ProfilView({
     setEditDispo(p.disponibilite ?? '')
     setEditDispoDate(p.dispo_date ?? '')
     setEditTypePoste([...(p.type_poste ?? [])])
+    setEditPriorite([...(p.priorites ?? [])])
     setEditLinkedinUrl(p.linkedin_url ?? '')
     setEditPortfolioUrl(p.portfolio_url ?? '')
-    setEditValeur(p.valeur ?? '')
     setEditModeTravail([...(p.mode_travail ?? [])])
     setEditLangues([...(p.langues ?? [])])
     setEditPassions([...(p.passions ?? [])])
     setNewQualite(''); setNewCompetence('')
+    setEditQualitesProches([...qualitesProchesSel])
     setIsEditing(true)
   }
 
-  function cancelEdit() { setIsEditing(false) }
+  function cancelEdit() {
+    setEditQualitesProches([...qualitesProchesSel])
+    setIsEditing(false)
+  }
+
+  async function publierQualitesProches() {
+    setSavingProches(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingProches(false); return }
+
+    const currentSet = new Set(qualitesProchesSel.map(s => s.qualite))
+    const newMap     = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
+
+    const toDelete = qualitesProchesSel.filter(s => !newMap.has(s.qualite))
+    const toInsert = editQualitesProches.filter(s => !currentSet.has(s.qualite))
+
+    if (toDelete.length > 0) {
+      await supabase
+        .from('qualites_proches_selectionnees')
+        .delete()
+        .eq('user_id', user.id)
+        .in('qualite', toDelete.map(s => s.qualite))
+    }
+    if (toInsert.length > 0) {
+      await supabase
+        .from('qualites_proches_selectionnees')
+        .insert(toInsert.map(s => ({ user_id: user.id, reponse_id: s.reponse_id, qualite: s.qualite })))
+    }
+    setQualitesProchesSel([...editQualitesProches])
+    setSavingProches(false)
+    showToast('Sélection publiée')
+  }
+
+  async function supprimerInvitation(invId: string) {
+    setSupprimantInvId(invId)
+    const { error } = await supabase
+      .from('invitations_proches')
+      .delete()
+      .eq('id', invId)
+      .eq('candidat_id', userId)
+    setSupprimantInvId(null)
+    if (error) { console.error('[invitation] delete error:', error); return }
+    setActiveInvitations(prev => prev.filter(inv => inv.id !== invId))
+  }
 
   function openAvatarModal() {
     const type = p.avatar_type ?? 'initiales'
@@ -799,7 +951,7 @@ export default function ProfilView({
       disponibilite:            editDispo || null,
       dispo_date:               editDispo === 'a_partir_de' ? (editDispoDate || null) : null,
       type_poste:               editTypePoste,
-      valeur:                   editValeur || undefined,
+      priorites:                editPriorite,
       mode_travail:             editModeTravail,
       langues:                  editLangues,
       passions:                 editPassions,
@@ -1184,7 +1336,12 @@ export default function ProfilView({
                 <textarea
                   ref={sigTextareaRef}
                   value={editSignature}
-                  onChange={e => setEditSignature(e.target.value.slice(0, 300))}
+                  onChange={e => {
+                    const next = e.target.value
+                    if (next.length <= MAX_SIGNATURE || next.length < editSignature.length) {
+                      setEditSignature(next)
+                    }
+                  }}
                   placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
                   style={{
                     width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1195,13 +1352,7 @@ export default function ProfilView({
                     overflow: 'hidden', minHeight: 42,
                   }}
                 />
-                <div style={{
-                  textAlign: 'right', fontSize: 11, marginTop: 4,
-                  color: editSignature.length >= 270 ? C.terracotta : 'rgba(255,255,255,0.45)',
-                  transition: 'color 0.2s',
-                }}>
-                  {editSignature.length}/300
-                </div>
+                <SignatureCounter count={editSignature.length} max={MAX_SIGNATURE} theme="dark" />
               </div>
             ) : (
               p.signature && (
@@ -1471,6 +1622,57 @@ export default function ProfilView({
             </div>
 
           </div>
+
+          {/* Priorités — ligne sous les 3 colonnes, visible si renseignées ou en édition */}
+          {((isEditing && isOwner) || (p.priorites && p.priorites.length > 0)) && (
+            <div style={{ borderTop: `1px solid ${C.sable}`, paddingTop: 12, paddingBottom: 14 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Priorités</div>
+              {isEditing && isOwner ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                  {PRIORITES.map(prio => {
+                    const sel       = editPriorite.includes(prio)
+                    const maxReached = editPriorite.length >= 3
+                    return (
+                      <button
+                        key={prio}
+                        type="button"
+                        onClick={() => setEditPriorite(prev =>
+                          prev.includes(prio) ? prev.filter(x => x !== prio) : maxReached ? prev : [...prev, prio]
+                        )}
+                        style={{
+                          padding: '4px 10px', borderRadius: 8,
+                          border: `1.5px solid ${sel ? C.terracotta : C.sable}`,
+                          backgroundColor: sel ? `${C.terracotta}14` : 'transparent',
+                          color: sel ? C.terracotta : C.grey,
+                          fontSize: 11, fontWeight: sel ? 700 : 500,
+                          cursor: (maxReached && !sel) ? 'default' : 'pointer',
+                          opacity: (maxReached && !sel) ? 0.4 : 1,
+                          fontFamily: 'inherit', transition: 'all 0.12s',
+                        }}
+                      >
+                        {sel ? '✓ ' : ''}{prio}
+                      </button>
+                    )
+                  })}
+                  {editPriorite.length >= 3 && (
+                    <span style={{ fontSize: 11, color: C.terracotta, fontWeight: 500, alignSelf: 'center' }}>Maximum atteint.</span>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                  {(p.priorites ?? []).map(item => (
+                    <span key={item} style={{
+                      display: 'inline-block',
+                      padding: '3px 10px', borderRadius: 20,
+                      backgroundColor: `${C.terracotta}14`,
+                      border: `1px solid ${C.terracotta}44`,
+                      fontSize: 11, fontWeight: 600, color: C.terracotta,
+                    }}>{item}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -1627,7 +1829,11 @@ export default function ProfilView({
                   <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Expérience {i + 1}</span>
-                      <button type="button" onClick={() => setEditExperiences(editExperiences.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.grey, padding: '0 4px', lineHeight: 1 }}>🗑</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <button type="button" aria-label="Monter" onClick={() => setEditExperiences(moveUp(editExperiences, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
+                        <button type="button" aria-label="Descendre" onClick={() => setEditExperiences(moveDown(editExperiences, i))} disabled={i === editExperiences.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editExperiences.length - 1 ? 'default' : 'pointer', color: i === editExperiences.length - 1 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
+                        <button type="button" onClick={() => setEditExperiences(editExperiences.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: C.grey, padding: '0 4px', lineHeight: 1, fontFamily: 'inherit' }}>Supprimer</button>
+                      </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                       <input style={editInputStyle} value={exp.poste} onChange={e => updateExp(i, { poste: e.target.value })} placeholder="Poste" />
@@ -1639,7 +1845,12 @@ export default function ProfilView({
                       <input type="checkbox" checked={exp.en_poste} onChange={e => updateExp(i, { en_poste: e.target.checked, date_fin: e.target.checked ? '' : exp.date_fin })} />
                       En poste actuellement
                     </label>
-                    <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 72 }} value={exp.missions} onChange={e => updateExp(i, { missions: e.target.value })} placeholder="Missions (une par ligne)…" rows={3} />
+                    <MissionsTextArea
+                      value={exp.missions}
+                      onChange={v => updateExp(i, { missions: v })}
+                      rows={3}
+                      textareaStyle={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 72 }}
+                    />
                   </div>
                 ))}
                 <button type="button" onClick={() => setEditExperiences([...editExperiences, { poste: '', entreprise: '', date_debut: '', date_fin: '', en_poste: false, missions: '' }])} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, cursor: 'pointer', border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.terracotta, fontSize: 13, fontWeight: 600 }}>
@@ -1664,7 +1875,7 @@ export default function ProfilView({
                         </div>
                         {exp.missions && (
                           <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
-                            {exp.missions.split('\n').filter(Boolean).slice(0, 3).map((m, j) => (
+                            {exp.missions.split('\n').filter(Boolean).slice(0, 4).map((m, j) => (
                               <li key={j} style={{ fontSize: 12, color: C.dark, lineHeight: 1.7 }}>{m.trim()}</li>
                             ))}
                           </ul>
@@ -1681,14 +1892,18 @@ export default function ProfilView({
         {/* ── DIPLÔMES ───────────────────────────────────────────────────────── */}
         {(isEditing || diplomes.length > 0) && (
           <div style={{ marginBottom: 32 }}>
-            <SLabel>Formation</SLabel>
+            <SLabel>Formations</SLabel>
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {editDiplomes.map((d, i) => (
                   <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Diplôme {i + 1}</span>
-                      <button type="button" onClick={() => setEditDiplomes(editDiplomes.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: C.grey, padding: '0 4px', lineHeight: 1 }}>🗑</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <button type="button" aria-label="Monter" onClick={() => setEditDiplomes(moveUp(editDiplomes, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
+                        <button type="button" aria-label="Descendre" onClick={() => setEditDiplomes(moveDown(editDiplomes, i))} disabled={i === editDiplomes.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editDiplomes.length - 1 ? 'default' : 'pointer', color: i === editDiplomes.length - 1 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
+                        <button type="button" onClick={() => setEditDiplomes(editDiplomes.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: C.grey, padding: '0 4px', lineHeight: 1, fontFamily: 'inherit' }}>Supprimer</button>
+                      </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <input style={editInputStyle} value={d.intitule} onChange={e => updateDip(i, { intitule: e.target.value })} placeholder="Intitulé du diplôme" />
@@ -1727,8 +1942,14 @@ export default function ProfilView({
             {isEditing ? (
               <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <input style={editInputStyle} value={editProjetTitre} onChange={e => setEditProjetTitre(e.target.value)} placeholder="Titre du projet" />
-                  <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => setEditProjetDesc(e.target.value)} placeholder="Description du projet…" rows={4} />
+                  <div>
+                    <input style={editInputStyle} value={editProjetTitre} onChange={e => { const v = e.target.value; if (v.length <= MAX_PROJET_TITRE || v.length < editProjetTitre.length) setEditProjetTitre(v) }} placeholder="Titre du projet" />
+                    <SignatureCounter count={editProjetTitre.length} max={MAX_PROJET_TITRE} theme="dark" />
+                  </div>
+                  <div>
+                    <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => { const v = e.target.value; if (v.length <= MAX_PROJET_DESC || v.length < editProjetDesc.length) setEditProjetDesc(v) }} placeholder="Description du projet…" rows={4} />
+                    <SignatureCounter count={editProjetDesc.length} max={MAX_PROJET_DESC} theme="dark" />
+                  </div>
                   <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
                   <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
                   <div>
@@ -1775,38 +1996,6 @@ export default function ProfilView({
           </div>
         )}
 
-        {/* ── MA VALEUR ──────────────────────────────────────────────────────── */}
-        {(isEditing || (p.valeur && DEFI_MAP[p.valeur])) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Face à un défi</SLabel>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-              {Object.entries(DEFI_MAP).map(([key, info]) => {
-                const isSelected = isEditing ? editValeur === key : p.valeur === key
-                return (
-                  <div
-                    key={key}
-                    onClick={isEditing && isOwner ? () => setEditValeur(key) : undefined}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 18px', borderRadius: 14,
-                      backgroundColor: isSelected ? C.vert : C.white,
-                      border: `1.5px solid ${isSelected ? C.vert : C.sable}`,
-                      opacity: isSelected ? 1 : (isEditing && isOwner ? 0.55 : 0.38),
-                      cursor: isEditing && isOwner ? 'pointer' : 'default',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <span style={{ fontSize: 20 }}>{info.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: isSelected ? C.white : C.dark }}>{info.label}</div>
-                      <div style={{ fontSize: 11, color: isSelected ? 'rgba(255,255,255,0.65)' : C.grey, marginTop: 2 }}>{info.desc}</div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ── ENVIRONNEMENT RECHERCHÉ ────────────────────────────────────────── */}
         {(isEditing || modeTravailItems.length > 0) && (
@@ -1820,7 +2009,19 @@ export default function ProfilView({
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setEditModeTravail(sel ? editModeTravail.filter(k => k !== key) : [...editModeTravail, key])}
+                      onClick={() => {
+                        if (key === 'sans_pref') {
+                          setEditModeTravail(sel ? [] : ['sans_pref'])
+                          return
+                        }
+                        if (sel) {
+                          setEditModeTravail(editModeTravail.filter(k => k !== key))
+                          return
+                        }
+                        const withoutSansPref = editModeTravail.filter(k => k !== 'sans_pref')
+                        if (withoutSansPref.length >= 3) return
+                        setEditModeTravail([...withoutSansPref, key])
+                      }}
                       style={{
                         padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: sel ? 600 : 400,
                         backgroundColor: sel ? `${C.vert}12` : C.white,
@@ -1850,7 +2051,7 @@ export default function ProfilView({
         )}
 
         {/* ── QUALITÉS ───────────────────────────────────────────────────────── */}
-        {(isEditing || qualites.length > 0) && (
+        {(isEditing || qualites.length > 0 || qualitesProchesSel.length > 0 || unreadNotifCount > 0) && (
           <div style={{ marginBottom: 32 }}>
             <SLabel>Qualités naturelles</SLabel>
             {isEditing ? (
@@ -1868,17 +2069,193 @@ export default function ProfilView({
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {qualites.map(q => <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>)}
-              </div>
+              <>
+                {isOwner && unreadNotifCount > 0 && (
+                  <p style={{
+                    margin: '0 0 14px',
+                    padding: '11px 16px',
+                    borderRadius: 10,
+                    backgroundColor: `${C.terracotta}0F`,
+                    border: `1px solid ${C.terracotta}35`,
+                    fontSize: 13,
+                    color: C.terracotta,
+                    lineHeight: 1.55,
+                  }}>
+                    {unreadNotifCount === 1
+                      ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
+                      : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
+                  </p>
+                )}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {qualites.map(q => (
+                    <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>
+                  ))}
+                  {qualitesProchesSel.map(s => (
+                    <span key={s.qualite} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
+                      <LogoKapolia variante="sombre" avecTexte={false} taille={14} />
+                      {s.qualite}
+                    </span>
+                  ))}
+                </div>
+                {qualitesProchesSel.length > 0 && (
+                  <p style={{ margin: '8px 0 0', fontSize: 11, fontStyle: 'italic', color: C.grey }}>
+                    Les qualités marquées viennent de proches.
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
 
+        {/* ── QUALITÉS REÇUES ──────────────────────────────────────────────────── */}
+        {isEditing && isOwner && (() => {
+          const limiteAtteinte = activeInvitations.length >= 4
+          const selMap   = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
+          const totalSel = editQualitesProches.length
+          const unchanged =
+            totalSel === qualitesProchesSel.length &&
+            editQualitesProches.every(s =>
+              qualitesProchesSel.some(c => c.qualite === s.qualite && c.reponse_id === s.reponse_id)
+            )
+          return (
+            <div style={{ marginBottom: 32 }}>
+              <SLabel>Qualités reçues</SLabel>
+
+              {/* Bouton d'invitation */}
+              <div style={{ marginBottom: 12 }}>
+                <button
+                  onClick={() => setInvitModalOpen(true)}
+                  disabled={limiteAtteinte}
+                  style={{
+                    padding: '7px 16px', borderRadius: 8,
+                    border: `1.5px solid ${limiteAtteinte ? C.sable : C.terracotta}`,
+                    backgroundColor: C.white,
+                    color: limiteAtteinte ? C.grey : C.terracotta,
+                    fontSize: 13, fontWeight: 500,
+                    cursor: limiteAtteinte ? 'default' : 'pointer',
+                    fontFamily: 'inherit', opacity: limiteAtteinte ? 0.7 : 1,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  Inviter un proche
+                </button>
+                {limiteAtteinte && (
+                  <p style={{ fontSize: 12, color: C.grey, margin: '6px 0 0', lineHeight: 1.5 }}>
+                    Vous avez déjà quatre invitations en attente. Supprimez-en une ou attendez qu'une expire.
+                  </p>
+                )}
+              </div>
+
+              {/* Invitations en attente */}
+              {activeInvitations.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
+                  {activeInvitations.map(inv => (
+                    <div key={inv.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                      padding: '9px 12px', borderRadius: 8,
+                      backgroundColor: C.creme, border: `1px solid ${C.sable}`,
+                    }}>
+                      <span style={{ fontSize: 13, color: C.dark, flex: 1, lineHeight: 1.4 }}>
+                        {inv.label_proche} · {LIEN_LABELS[inv.lien] ?? inv.lien} · expire le {formatExpiry(inv.expire_at)}
+                      </span>
+                      <button
+                        onClick={() => supprimerInvitation(inv.id)}
+                        disabled={supprimantInvId === inv.id}
+                        style={{
+                          fontSize: 12, color: C.grey, background: 'none', border: 'none',
+                          cursor: supprimantInvId === inv.id ? 'default' : 'pointer',
+                          padding: '2px 0', flexShrink: 0, fontFamily: 'inherit',
+                        }}
+                      >
+                        {supprimantInvId === inv.id ? '...' : 'Supprimer'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Réponses à valider */}
+              {reponsesProches.length > 0 && (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {reponsesProches.map(r => (
+                      <div key={r.reponse_id}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
+                          {r.prenom_proche} · {LIEN_LABELS[r.lien] ?? r.lien}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {r.qualites.map(q => {
+                            const isChecked        = selMap.get(q) === r.reponse_id
+                            const isTakenElsewhere = selMap.has(q) && selMap.get(q) !== r.reponse_id
+                            const isDisabled       = isTakenElsewhere || (totalSel >= 3 && !isChecked)
+                            return (
+                              <label
+                                key={q}
+                                style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                                  padding: '5px 12px', borderRadius: 20,
+                                  backgroundColor: isChecked ? `${C.vert}15` : C.white,
+                                  border: `1px solid ${isChecked ? C.vert : C.sable}`,
+                                  color: isChecked ? C.vert : C.dark,
+                                  fontSize: 12, fontWeight: 500,
+                                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                  opacity: isDisabled && !isChecked ? 0.4 : 1,
+                                  transition: 'all 0.15s',
+                                  userSelect: 'none' as const,
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  disabled={isDisabled}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      setEditQualitesProches(prev =>
+                                        prev.filter(s => !(s.qualite === q && s.reponse_id === r.reponse_id))
+                                      )
+                                    } else if (!isDisabled) {
+                                      setEditQualitesProches(prev => [...prev, { reponse_id: r.reponse_id, qualite: q }])
+                                    }
+                                  }}
+                                  style={{ display: 'none' }}
+                                />
+                                {q}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+                    <span style={{ fontSize: 11, color: C.grey }}>
+                      {totalSel}/3 qualité{totalSel !== 1 ? 's' : ''} sélectionnée{totalSel !== 1 ? 's' : ''}
+                    </span>
+                    <button
+                      onClick={publierQualitesProches}
+                      disabled={savingProches || unchanged}
+                      style={{
+                        padding: '8px 18px', borderRadius: 8, border: 'none',
+                        backgroundColor: savingProches || unchanged ? C.sable : C.vert,
+                        color: savingProches || unchanged ? C.grey : C.white,
+                        fontSize: 13, fontWeight: 600,
+                        cursor: savingProches || unchanged ? 'default' : 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {savingProches ? 'Publication...' : unchanged ? 'À jour' : 'Publier la sélection'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })()}
+
         {/* ── COMPÉTENCES ────────────────────────────────────────────────────── */}
         {(isEditing || competencesAcquises.length > 0) && (
           <div style={{ marginBottom: 32 }}>
-            <SLabel>Compétences acquises</SLabel>
+            <SLabel>Compétences</SLabel>
             {isEditing ? (
               <div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -2496,6 +2873,16 @@ export default function ProfilView({
             </div>
           </div>
         </div>
+      )}
+
+      {isOwner && (
+        <InvitationModal
+          open={invitModalOpen}
+          onClose={() => setInvitModalOpen(false)}
+          candidatId={userId}
+          activeCount={activeInvitations.length}
+          onCreated={inv => setActiveInvitations(prev => [...prev, inv])}
+        />
       )}
     </main>
   )

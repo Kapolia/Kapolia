@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
+import RdvBubble from '@/components/RdvBubble'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ type LocalMsg = {
   pjUrl?: string; pjNom?: string; pjType?: string
   replyToId?: string; replyToContenu?: string
   reactions: ReactionData[]
+  rendezVousId?: string
 }
 
 // ─── Fictitious data ──────────────────────────────────────────────────────────
@@ -556,7 +558,8 @@ function CandidatMessagesPageInner() {
         payload => {
           const m = payload.new as {
             id: string; expediteur_id: string; contenu: string; created_at: string; lu: boolean
-            piece_jointe_url?: string; piece_jointe_nom?: string; piece_jointe_type?: string; reply_to_id?: string
+            piece_jointe_url?: string; piece_jointe_nom?: string; piece_jointe_type?: string
+            reply_to_id?: string; rendez_vous_id?: string
           }
           if (m.expediteur_id === userIdRef.current) return
           const isActive = convId === activeIdRef.current
@@ -568,6 +571,7 @@ function CandidatMessagesPageInner() {
               date: msgDate(m.created_at),
               pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type,
               replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [],
+              rendezVousId: m.rendez_vous_id ?? undefined,
             }],
           }))
           setConvs(prev => prev.map(c =>
@@ -701,6 +705,7 @@ function CandidatMessagesPageInner() {
           replyToId: m.reply_to_id,
           replyToContenu: (m.reply as { contenu?: string } | null)?.contenu,
           reactions: reactMap[m.id] ?? [],
+          rendezVousId: (m as { rendez_vous_id?: string }).rendez_vous_id ?? undefined,
         })),
       }))
     }
@@ -1085,13 +1090,15 @@ function CandidatMessagesPageInner() {
 
                     {/* Bubble + hover actions */}
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: msg.fromMe ? 'row-reverse' : 'row' }}>
-                      {msg.pjNom
-                        ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
-                        : (
-                          <div style={{ maxWidth: '68%', padding: '10px 16px', borderRadius: 15, backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                            {msg.contenu}
-                          </div>
-                        )
+                      {msg.rendezVousId
+                        ? <RdvBubble rdvId={msg.rendezVousId} role="candidat" />
+                        : msg.pjNom
+                          ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
+                          : (
+                            <div style={{ maxWidth: '68%', padding: '10px 16px', borderRadius: 15, backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                              {msg.contenu}
+                            </div>
+                          )
                       }
                       <div style={{ display: 'flex', gap: 3, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s', flexShrink: 0 }}>
                         <ActionBtn title="Répondre" onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}>↩</ActionBtn>

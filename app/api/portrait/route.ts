@@ -9,7 +9,7 @@ import type { ProfilPDF, ScaleCfg } from '@/components/PortraitKapolia'
 const PROFIL_COLUMNS = [
   'prenom', 'nom', 'domaine', 'experience', 'ville', 'signature',
   'experiences', 'diplomes', 'competences_acquises', 'langues',
-  'projet_phare', 'projet_titre', 'valeur', 'qualites', 'passions',
+  'projet_phare', 'projet_titre', 'qualites', 'passions',
   'type_poste', 'disponibilite', 'telephone',
   'avatar_url', 'avatar_type',
 ].join(', ')
@@ -91,7 +91,14 @@ export async function GET(req: NextRequest) {
   }
 
   const email = user.email ?? ''
-  const p     = profil as unknown as ProfilPDF
+
+  const { data: prochesSel } = await supabase
+    .from('qualites_proches_selectionnees')
+    .select('qualite')
+    .eq('user_id', user.id)
+  const qualitesProches = (prochesSel ?? []).map(r => r.qualite as string)
+
+  const p: ProfilPDF = { ...(profil as unknown as ProfilPDF), qualitesProches }
 
   // ── Photo avatar (optionnelle, timeout 3 s) ───────────────────────────────────
   let avatarData: string | undefined

@@ -280,7 +280,7 @@ function RightPanel({
   const qualites = profil.qualites ?? []
   const comps    = profil.competences_acquises ?? []
 
-  const mobilite = (profil.mode_travail ?? []).map(k => LIEU_MAP[k] ?? k).join(', ')
+  const mobilite = (profil.mode_travail ?? []).filter(k => k !== 'sans_pref').map(k => LIEU_MAP[k] ?? k).join(', ')
   const recherche = [poste, dp.label, profil.ville, mobilite, profil.valeur].filter(Boolean).join('  ·  ')
 
   const latestExp = (profil.experiences ?? [])[0] ?? null
@@ -384,7 +384,7 @@ function RightPanel({
 
         {latestExp && (
           <div>
-            <div style={panelSectionLabel}>Expérience</div>
+            <div style={panelSectionLabel}>Expériences professionnelles</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{latestExp.poste}</div>
             {latestExp.entreprise && (
               <div style={{ fontSize: 12, color: C.terracotta, marginTop: 2 }}>{latestExp.entreprise}</div>
@@ -399,7 +399,7 @@ function RightPanel({
 
         {latestDip && (
           <div>
-            <div style={panelSectionLabel}>Formation</div>
+            <div style={panelSectionLabel}>Formations</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{latestDip.intitule}</div>
             {latestDip.ecole && (
               <div style={{ fontSize: 12, color: C.terracotta, marginTop: 2 }}>{latestDip.ecole}</div>

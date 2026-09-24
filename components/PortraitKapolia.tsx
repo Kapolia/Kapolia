@@ -1,5 +1,5 @@
 import React from 'react'
-import { Document, Page, View, Text, Font, Svg, Path, Image } from '@react-pdf/renderer'
+import { Document, Page, View, Text, Font, Svg, Circle, Path, Image } from '@react-pdf/renderer'
 import { join } from 'path'
 
 // ─── Polices embarquées ────────────────────────────────────────────────────────
@@ -52,8 +52,8 @@ export type ProfilPDF = {
   langues?:             string[]
   projet_phare?:        string
   projet_titre?:        string
-  valeur?:              string
   qualites?:            string[]
+  qualitesProches?:     string[]
   passions?:            string[]
   type_poste?:          string[]
   disponibilite?:       string
@@ -214,8 +214,9 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
   const dips     = profil.diplomes ?? []
   const comps    = profil.competences_acquises ?? []
   const langs    = profil.langues ?? []
-  const qualites = profil.qualites ?? []
-  const passions = profil.passions ?? []
+  const qualites        = profil.qualites        ?? []
+  const qualitesProches = profil.qualitesProches ?? []
+  const passions        = profil.passions        ?? []
 
   // Tailles adaptatives des intitulés — réduites quand il y a beaucoup d'entrées
   const expTitleSize = exps.length <= 2 ? 14 : exps.length === 3 ? 12.5 : 11.5
@@ -231,7 +232,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
 
   // Troncature uniquement si débordement réel (second pass)
   const signatureTxt = trunc(profil.signature,   forceTruncate ? 400 : undefined)
-  const projetTxt    = trunc(profil.projet_phare, forceTruncate ? 300 : undefined)
+  const projetTxt    = trunc(profil.projet_phare, forceTruncate ? 400 : undefined)
 
   const showPhoto = !!(withPhoto && avatarData)
 
@@ -328,7 +329,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           {/* Expérience professionnelle */}
           {SECTIONS_ACTIVES.includes('Expérience') && exps.length > 0 && (
             <Card s={s}>
-              <CardTitle label="Expérience professionnelle" s={s} />
+              <CardTitle label="Expériences professionnelles" s={s} />
               {exps.map((exp, i) => {
                 const datesStr = exp.en_poste
                   ? `depuis ${exp.date_debut}`.trim()
@@ -368,7 +369,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           {/* Formation */}
           {SECTIONS_ACTIVES.includes('Formation') && dips.length > 0 && (
             <Card s={s}>
-              <CardTitle label="Formation" s={s} />
+              <CardTitle label="Formations" s={s} />
               {dips.map((d, i) => (
                 <View key={i} style={{ marginBottom: i < dips.length - 1 ? (dips.length > 1 ? 5 : ENTRY_GAP) : 0 }} wrap={false}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -396,12 +397,12 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
             </Card>
           )}
 
-          {/* Projet phare — projet_phare en Lora 600 14pt, sans doublon */}
-          {SECTIONS_ACTIVES.includes('Projet phare') && profil.projet_titre ? (
+          {/* Projet phare — conditionné à projet_phare, titre par défaut si projet_titre absent */}
+          {SECTIONS_ACTIVES.includes('Projet phare') && profil.projet_phare ? (
             <Card s={s}>
               <CardTitle label="Projet phare" s={s} />
               <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#2C4A3E', lineHeight: s.lineH }}>
-                {profil.projet_titre}
+                {profil.projet_titre || 'Projet phare'}
               </Text>
               <Text style={{ fontFamily: 'Inter', fontStyle: 'italic', fontSize: FS.italic, color: '#6B7A73', marginTop: 4, lineHeight: 1.45 }}>
                 Le détail de ce projet et le profil complet sont consultables sur Kapolia.
@@ -424,7 +425,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           )}
 
           {/* Qualités naturelles — toujours séparée */}
-          {SECTIONS_ACTIVES.includes('Qualités naturelles') && qualites.length > 0 && (
+          {SECTIONS_ACTIVES.includes('Qualités naturelles') && (qualites.length > 0 || qualitesProches.length > 0) && (
             <Card s={s}>
               <CardTitle label="Qualités naturelles" s={s} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -433,7 +434,22 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                     <Text style={{ fontSize: FS.badge, color: '#C4673A', fontWeight: 700 }}>{q}</Text>
                   </View>
                 ))}
+                {qualitesProches.map((q, i) => (
+                  <View key={`p${i}`} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FBF0E9', borderRadius: 8, borderWidth: 1, borderColor: '#C4673A', borderStyle: 'solid', paddingHorizontal: 9, paddingVertical: 1.5, marginRight: 3.5, marginBottom: 4 }}>
+                    <Svg width={9} height={9} viewBox="0 0 42 42" style={{ marginRight: 3 }}>
+                      <Circle cx="21" cy="21" r="21" fill="#2C4A3E" />
+                      <Path d="M14 29 L21 12 L28 29" stroke="#FFFFFF" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+                      <Path d="M14 29 L21 25 L28 29" stroke="#C4673A" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </Svg>
+                    <Text style={{ fontSize: FS.badge, color: '#C4673A', fontWeight: 700 }}>{q}</Text>
+                  </View>
+                ))}
               </View>
+              {qualitesProches.length > 0 && (
+                <Text style={{ fontSize: FS.italic, fontStyle: 'italic', color: '#8A9A92', marginTop: 5 }}>
+                  Les qualités marquées viennent de proches.
+                </Text>
+              )}
             </Card>
           )}
 
@@ -477,10 +493,17 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
         </View>
 
         {/* ── Pied de page ────────────────────────────────────────────────── */}
-        <View style={{ paddingHorizontal: MARGIN_H, paddingBottom: 16, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ fontFamily: 'Lora', fontSize: FS.footer, color: '#2C4A3E' }}>
-            Portrait Kapolia
-          </Text>
+        <View style={{ paddingHorizontal: MARGIN_H, paddingBottom: 16, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Svg width={9} height={9} viewBox="0 0 42 42" style={{ marginRight: 4 }}>
+              <Circle cx="21" cy="21" r="21" fill="#2C4A3E" />
+              <Path d="M14 29 L21 12 L28 29" stroke="#FFFFFF" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M14 29 L21 25 L28 29" stroke="#C4673A" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={{ fontFamily: 'Lora', fontSize: FS.footer, color: '#2C4A3E' }}>
+              Portrait Kapolia
+            </Text>
+          </View>
           <Text style={{ fontSize: FS.footer, color: '#6B7A73' }}>
             {moisCourant()}
           </Text>

@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import BoussoleKapolia from '@/components/BoussoleKapolia'
+import LogoKapolia from '@/components/LogoKapolia'
+import InvitationModal from '@/components/InvitationModal'
 import {
   ONBOARDING_TOTAL as TOTAL,
   DOMAINES,
@@ -13,25 +14,35 @@ import {
   buildStepPayload,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
+import {
+  SITUATIONS,
+  CURRENT_VERSION,
+  QUALITE_LABELS,
+  calculerQualites,
+} from '@/lib/test-qualites'
+import type { TestAnswer } from '@/lib/test-qualites'
+import MissionsTextArea from '@/components/MissionsTextArea'
+import SignatureCounter from '@/components/SignatureCounter'
+import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLOCKS = [
   { label: 'Identité & Parcours',       steps: [1, 2, 3, 4] },
-  { label: 'Personnalité & Soft skills', steps: [5, 6, 7] },
-  { label: 'Projets & Hobbies',          steps: [8, 9, 10] },
-  { label: 'Cap & Préférences',           steps: [11, 12, 13, 14] },
-  { label: 'Parcours professionnel',      steps: [15, 16, 17] },
+  { label: 'Personnalité & Soft skills', steps: [5, 6] },
+  { label: 'Projets & Hobbies',          steps: [7, 8] },
+  { label: 'Cap & Préférences',           steps: [9, 10, 11, 12] },
+  { label: 'Parcours professionnel',      steps: [13, 14, 15] },
 ]
 
-const OPTIONAL_STEPS = new Set([4, 7, 8, 9, 10, 13, 15, 16, 17])
-const LONG_OPTIONAL  = new Set([15, 16, 17])
+const OPTIONAL_STEPS = new Set([4, 7, 8, 11, 13, 14, 15])
+const LONG_OPTIONAL  = new Set([13, 14, 15])
 
 const TRANSITIONS: Record<number, string> = {
   5:  'Voyons à présent ce qui vous définit, au-delà de votre parcours.',
-  8:  'Parlons de ce que vous avez construit.',
-  11: 'Votre profil prend forme. Précisons ce que vous recherchez.',
-  15: "Presque terminé. Il ne reste qu'à détailler votre parcours professionnel.",
+  7:  'Parlons de ce que vous avez construit.',
+  9:  'Votre profil prend forme. Précisons ce que vous recherchez.',
+  13: "Presque terminé. Il ne reste qu'à détailler votre parcours professionnel.",
 }
 
 const MICRO_TEXTS: Record<number, string> = {
@@ -39,35 +50,28 @@ const MICRO_TEXTS: Record<number, string> = {
   2:  'Votre domaine oriente les offres que nous vous proposons, et aide les recruteurs de votre secteur à vous repérer.',
   3:  "Votre niveau d'expérience affine les offres que nous vous présentons, pour rester au plus près de là où vous en êtes.",
   4:  "C'est souvent la première section que lisent les recruteurs. Formations, reconversions, expériences marquantes : racontez votre parcours avec vos mots, sans format imposé.",
-  5:  "Les compétences s'apprennent. La personnalité, non. Ces trois mots complètent votre profil et aident les recruteurs à cerner qui vous êtes avant même de vous rencontrer.",
+  5:  "Neuf situations de travail, quatre réponses chacune. Choisissez les deux qui vous ressemblent le plus.",
   6:  "L'environnement où vous vous épanouissez compte autant que le poste lui-même. Votre réponse nous aide à vous présenter des entreprises dont le fonctionnement vous conviendra.",
-  7:  "Votre façon de travailler est souvent ce que les recruteurs cherchent à comprendre en entretien. En la partageant dès maintenant, vous prenez les devants, à votre avantage.",
-  8:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
-  9:  'Sur Kapolia, les recruteurs s\'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d\'intérêt créent parfois de vrais points communs.',
-  10: 'Blog, association, application, projet perso : ce que vous menez à côté en dit long sur votre curiosité et votre énergie.',
-  11: 'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
-  12: 'Où vous souhaitez travailler, et comment (sur site, hybride, à distance) : ces critères comptent autant pour vous que pour les recruteurs.',
-  13: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités nous aident à vous proposer des environnements qui vous ressemblent.",
-  14: 'Indiquez où vous en êtes dans votre recherche. Les recruteurs sauront ainsi à quel moment vous pourriez les rejoindre.',
-  15: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
-  16: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
-  17: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
+  7:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
+  8:  "Sur Kapolia, les recruteurs s'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d'intérêt créent parfois de vrais points communs.",
+  9:  'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
+  10: 'Où vous souhaitez travailler, et comment (sur site, hybride, à distance) : ces critères comptent autant pour vous que pour les recruteurs.',
+  11: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
+  12: 'Indiquez où vous en êtes dans votre recherche. Les recruteurs sauront ainsi à quel moment vous pourriez les rejoindre.',
+  13: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
+  14: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
+  15: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
 }
 
 
 const ENVIRONNEMENTS = [
-  { key: 'startup',   label: 'Startup agile',  desc: 'Rythme rapide, polyvalence' },
-  { key: 'scaleup',   label: 'Scale-up',        desc: 'Croissance forte, structuration en cours' },
-  { key: 'corporate', label: 'Grand groupe',    desc: 'Structure, expertise, ressources' },
-  { key: 'indep',     label: 'Indépendant(e)',  desc: 'Autonomie totale, projets variés' },
+  { key: 'startup',   label: 'Startup agile',   desc: 'Rythme rapide, polyvalence' },
+  { key: 'scaleup',   label: 'Scale-up',         desc: 'Croissance forte, structuration en cours' },
+  { key: 'corporate', label: 'Grand groupe',     desc: 'Structure, expertise, ressources' },
+  { key: 'indep',     label: 'Indépendant(e)',   desc: 'Autonomie totale, projets variés' },
+  { key: 'sans_pref', label: 'Sans préférence',  desc: "L'environnement n'est pas un critère prioritaire" },
 ]
 
-const DEFIS = [
-  { key: 'analyse', label: "J'analyse avant d'agir", desc: 'Comprendre pour mieux décider' },
-  { key: 'action',  label: "Je teste et j'ajuste",   desc: 'Apprendre en faisant' },
-  { key: 'collab',  label: "Je consulte l'équipe",   desc: 'La force du collectif' },
-  { key: 'creativ', label: "L'angle inattendu",      desc: "L'originalité comme levier" },
-]
 
 const LIEUX = [
   { key: 'remote',     label: '100 % Remote', desc: 'Depuis partout dans le monde' },
@@ -117,177 +121,513 @@ const C = {
 // ─── Écran d'accueil ──────────────────────────────────────────────────────────
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
+  const [anim, setAnim] = useState<'idle' | 'hover' | 'spinning'>('idle')
+
+  function handleClick() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onStart()
+      return
+    }
+    setAnim('spinning')
+    setTimeout(onStart, 420)
+  }
+
+  const needleCls = anim === 'spinning' ? 'kv-needle kv-needle--spin'
+                  : anim === 'hover'    ? 'kv-needle kv-needle--hover'
+                  :                       'kv-needle'
+
   return (
-    <div className="kv-welcome">
+    <div style={{
+      backgroundColor: '#EFE8DC',
+      height: '100vh',
+      padding: 14,
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+      boxSizing: 'border-box',
+    }}>
       <style suppressHydrationWarning>{`
-        .kv-welcome {
-          position: relative;
-          min-height: 100vh;
-          background: #F7F2EB;
-          overflow: hidden;
-          display: flex;
-          align-items: center;
+        .kv-btn { transition: background-color 0.2s, transform 0.15s; }
+        .kv-btn:hover { background-color: #b05832 !important; transform: translateY(-1px); }
+
+        .kv-needle { transform-box: view-box; transform-origin: center; transition: transform 200ms ease; }
+        .kv-needle--hover { transform: rotate(8deg); }
+        .kv-needle--spin  { animation: kv-spin-needle 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        @keyframes kv-spin-needle { from { transform: rotate(0deg); } to { transform: rotate(90deg); } }
+        @media (prefers-reduced-motion: reduce) {
+          .kv-needle { transition: none; }
+          .kv-needle--spin { animation: none; }
         }
 
-        /* Logo — haut gauche */
-        .kv-logo {
-          position: absolute;
-          top: clamp(24px, 3.5vh, 44px);
-          left: clamp(28px, 4.5vw, 72px);
-          z-index: 3;
-          animation: kv-fade 0.7s ease-out both;
-        }
-
-        /* Boussole héros — grande, centrée verticalement, anneau débordant à droite */
-        .kv-compass-hero {
-          position: absolute;
-          right: -5%;
-          top: 50%;
-          width: clamp(520px, 72vh, 740px);
-          height: clamp(520px, 72vh, 740px);
-          z-index: 1;
-          animation: kv-compass-in 1.1s cubic-bezier(0.22,1,0.36,1) 0.1s both;
-        }
-
-        /* Aiguille — CSS overrides SVG transform attr */
-        .kv-needle {
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: kv-needle-settle 2.4s cubic-bezier(0.22,1,0.36,1) 0.5s both;
-        }
-
-        /* Texte — gauche, centré verticalement */
-        .kv-text {
-          position: relative;
-          z-index: 2;
-          width: 50%;
-          padding-left: clamp(28px, 4.5vw, 72px);
-          animation: kv-rise 0.85s cubic-bezier(0.22,1,0.36,1) 0.3s both;
-        }
-
-        .kv-btn {
-          transition: background-color 0.2s, transform 0.15s;
-        }
-        .kv-btn:hover {
-          background-color: #b05832 !important;
-          transform: translateY(-1px);
-        }
-
-        @keyframes kv-fade {
-          from { opacity: 0; } to { opacity: 1; }
-        }
-        @keyframes kv-rise {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes kv-compass-in {
-          from { opacity: 0; transform: translateY(-50%) scale(0.95); }
-          to   { opacity: 1; transform: translateY(-50%) scale(1); }
-        }
-        @keyframes kv-needle-settle {
-          from { transform: rotate(11deg); }
-          to   { transform: rotate(35deg); }
-        }
-
-        /* Mobile */
         @media (max-width: 768px) {
-          .kv-welcome {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .kv-compass-hero {
-            position: relative;
-            order: 1;
-            right: auto; bottom: auto;
-            width: clamp(180px, 52vw, 260px);
-            height: clamp(180px, 52vw, 260px);
-            margin: clamp(72px, 12vh, 92px) auto 24px;
-            animation: kv-fade 0.9s ease-out 0.1s both;
-          }
-          .kv-text {
-            order: 2;
-            width: 100%;
-            padding: 0 clamp(24px, 6vw, 36px) clamp(44px, 7vh, 60px);
-          }
+          .kv-grid  { grid-template-columns: 1fr !important; }
+          .kv-bloc-a { grid-row: 1 !important; grid-column: 1 !important; }
+          .kv-bloc-c { grid-row: 2 !important; grid-column: 1 !important; }
+          .kv-bloc-b { grid-row: 3 !important; grid-column: 1 !important; height: 140px !important; min-height: 140px !important; }
+          .kv-title  { font-size: 32px !important; }
         }
-
       `}</style>
 
-      {/* Logo — haut gauche */}
-      <div className="kv-logo">
+      {/* ── Signature ────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
+        <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
         <span style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: '20px',
+          fontFamily: 'Lora, Georgia, serif',
+          fontWeight: 600,
+          fontSize: 14,
           color: '#2C4A3E',
-          letterSpacing: '0.03em',
+          lineHeight: 1,
         }}>
           Kapolia
         </span>
       </div>
 
-      {/* Boussole héros — fond transparent, très grande, débordante bas-droite */}
-      <div className="kv-compass-hero">
-        <BoussoleKapolia size="100%" ringFill="transparent" needleClassName="kv-needle" />
+      {/* ── Grille 3 blocs ───────────────────────────────────────────────────── */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        minHeight: 0,
+      }}>
+      <div className="kv-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: '1.6fr 1fr',
+        gridTemplateRows: '1fr auto',
+        gap: 12,
+        width: '100%',
+        height: '100%',
+        maxHeight: 620,
+      }}>
+
+        {/* ── Bloc A — colonne gauche, 2 rangées ─────────────────────────────── */}
+        <div className="kv-bloc-a" style={{
+          gridRow: '1 / 3',
+          gridColumn: 1,
+          backgroundColor: '#F7F2EB',
+          borderRadius: 16,
+          padding: 32,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        }}>
+          <p style={{
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: 12,
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: '#C4673A',
+            margin: '0 0 16px',
+          }}>
+            Trouvez votre cap{' '}!
+          </p>
+          <h1 className="kv-title" style={{
+            fontFamily: 'Lora, Georgia, serif',
+            fontWeight: 600,
+            fontSize: 48,
+            lineHeight: 1.06,
+            letterSpacing: '-0.015em',
+            color: '#22312B',
+            margin: '0 0 24px',
+          }}>
+            Bienvenue<br />sur Kapolia
+          </h1>
+          <p style={{
+            fontSize: 15.5,
+            lineHeight: 1.62,
+            color: '#4A5A52',
+            maxWidth: 420,
+            margin: '0 0 32px',
+          }}>
+            Ici, pas de CV. Les recruteurs vous découvrent à travers un profil vivant :
+            vos compétences, bien sûr, mais aussi votre personnalité, vos valeurs et ce
+            que vous recherchez. C'est ce qui donne envie de vous rencontrer.
+          </p>
+          <div>
+            <button
+              onClick={handleClick}
+              disabled={anim === 'spinning'}
+              onMouseEnter={() => { if (anim !== 'spinning') setAnim('hover') }}
+              onMouseLeave={() => { if (anim !== 'spinning') setAnim('idle') }}
+              className="kv-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                backgroundColor: '#C4673A',
+                color: '#F7F2EB',
+                border: 'none',
+                borderRadius: 100,
+                padding: '14px 28px',
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: anim === 'spinning' ? 'default' : 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Commencer
+              <svg
+                viewBox="0 0 14 16"
+                width={14}
+                height={16}
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 2 L11 8 L3 14"
+                  stroke="#F7F2EB"
+                  strokeWidth={2.4}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Bloc B — fond vert, logo contour débordant ──────────────────────── */}
+        <div className="kv-bloc-b" style={{
+          gridRow: 1,
+          gridColumn: 2,
+          backgroundColor: '#2C4A3E',
+          borderRadius: 16,
+          minHeight: 150,
+          overflow: 'hidden',
+          position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute',
+            left: '26%',
+            top: '22%',
+            width: '92%',
+            height: '92%',
+          }}>
+            <LogoKapolia
+              variante="contour"
+              taille="100%"
+              avecTexte={false}
+              needleClassName={needleCls}
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          </div>
+        </div>
+
+        {/* ── Bloc C — durée et flexibilité ───────────────────────────────────── */}
+        <div className="kv-bloc-c" style={{
+          gridRow: 2,
+          gridColumn: 2,
+          backgroundColor: '#E8D5B7',
+          borderRadius: 16,
+          padding: '22px 24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 10 }}>
+            <span style={{
+              fontFamily: 'Lora, Georgia, serif',
+              fontWeight: 600,
+              fontSize: 34,
+              color: '#2C4A3E',
+              lineHeight: 1,
+            }}>
+              10
+            </span>
+            <span style={{ fontSize: 12.5, color: '#5A6B62' }}>minutes environ</span>
+          </div>
+          <p style={{ fontSize: 12.5, lineHeight: 1.55, color: '#5A6B62', margin: 0 }}>
+            Rien n'est figé : vous pourrez enrichir votre profil quand vous le souhaitez.
+          </p>
+        </div>
+
+      </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Carrousel qualités (étape 5) ─────────────────────────────────────────────
+
+const TOTAL_SITUATIONS = SITUATIONS[CURRENT_VERSION].length  // 9
+
+function QualitesCarousel({
+  userId,
+  onComplete,
+}: {
+  userId:     string
+  onComplete: (done: boolean) => void
+}) {
+  const [idx,        setIdx]        = useState(0)
+  const [selections, setSelections] = useState<Record<number, (1|2|3|4)[]>>({})
+  const [savingIdx,  setSavingIdx]  = useState<number | null>(null)
+  const [phase,      setPhase]      = useState<'quiz' | 'done'>('quiz')
+  const [flashId,    setFlashId]    = useState<number | null>(null)
+  const [loading,    setLoading]    = useState(true)
+
+  // Charge les réponses existantes
+  useEffect(() => {
+    if (!userId) return
+    supabase
+      .from('test_qualites')
+      .select('situation_id, reponse_1, reponse_2, version_test')
+      .eq('user_id', userId)
+      .then(({ data, error }) => {
+        if (error) { console.error('[test_qualites] fetch error:', error); setLoading(false); return }
+        if (data && data.length > 0) {
+          const loaded: Record<number, (1|2|3|4)[]> = {}
+          for (const row of data) {
+            loaded[row.situation_id] = [row.reponse_1, row.reponse_2]
+          }
+          setSelections(loaded)
+          if (data.length >= TOTAL_SITUATIONS) {
+            setPhase('done')
+            onComplete(true)
+          } else {
+            // Commence à la première situation sans réponse
+            const situations = SITUATIONS[CURRENT_VERSION]
+            const firstUnanswered = situations.findIndex(s => !loaded[s.id])
+            setIdx(firstUnanswered >= 0 ? firstUnanswered : 0)
+          }
+        }
+        setLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+
+  function handleSelect(reponseId: 1|2|3|4) {
+    const sitId = SITUATIONS[CURRENT_VERSION][idx].id
+    const current = selections[sitId] ?? []
+    if (current.includes(reponseId)) {
+      // Désélection
+      setSelections(prev => ({ ...prev, [sitId]: current.filter(r => r !== reponseId) }))
+      return
+    }
+    if (current.length < 2) {
+      setSelections(prev => ({ ...prev, [sitId]: [...current, reponseId] }))
+      return
+    }
+    // FIFO : remplace le plus ancien
+    const replaced = current[0]
+    setFlashId(replaced)
+    setTimeout(() => setFlashId(null), 300)
+    setSelections(prev => ({ ...prev, [sitId]: [current[1], reponseId] }))
+  }
+
+  async function handleAdvance() {
+    const situation = SITUATIONS[CURRENT_VERSION][idx]
+    const sel = selections[situation.id]
+    if (!sel || sel.length < 2 || savingIdx !== null) return
+
+    setSavingIdx(idx)
+    const { error } = await supabase
+      .from('test_qualites')
+      .upsert(
+        {
+          user_id:     userId,
+          situation_id: situation.id,
+          reponse_1:   sel[0],
+          reponse_2:   sel[1],
+          version_test: CURRENT_VERSION,
+        },
+        { onConflict: 'user_id,situation_id' },
+      )
+    setSavingIdx(null)
+
+    if (error) { console.error('[test_qualites] upsert error:', error); return }
+
+    if (idx < TOTAL_SITUATIONS - 1) {
+      setIdx(idx + 1)
+    } else {
+      setPhase('done')
+      onComplete(true)
+    }
+  }
+
+  if (loading) return null
+
+  const situations    = SITUATIONS[CURRENT_VERSION]
+  const situation     = situations[idx]
+  const sel           = phase === 'quiz' ? (selections[situation?.id] ?? []) : []
+  const selCount      = sel.length
+  const canAdvance    = selCount === 2 && savingIdx === null
+  const isSaving      = savingIdx === idx
+  const answeredCount = Object.keys(selections).filter(k => (selections[Number(k)] ?? []).length === 2).length
+
+  if (phase === 'done') {
+    const answers = situations
+      .map(s => {
+        const r = selections[s.id]
+        if (!r || r.length < 2) return null
+        return { situation_id: s.id, reponse_1: r[0], reponse_2: r[1], version_test: CURRENT_VERSION } as TestAnswer
+      })
+      .filter((a): a is TestAnswer => a !== null)
+    const resultats = calculerQualites(answers)
+
+    return (
+      <div>
+        <p style={{
+          fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark,
+          margin: '0 0 10px', fontWeight: 'normal', lineHeight: 1.3,
+        }}>
+          Votre profil de qualités est prêt.
+        </p>
+        <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px', lineHeight: 1.6 }}>
+          Voici les qualités qui sont ressorties le plus souvent.
+        </p>
+
+        {resultats.length === 0 ? (
+          <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>
+            Aucune qualité n'est apparue deux fois ou plus. Vous pouvez en ajouter manuellement depuis votre profil.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+            {resultats.map(r => (
+              <div key={r.qualite} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px', borderRadius: 24,
+                border: `1.5px solid ${C.terracotta}`,
+                backgroundColor: 'rgba(196,103,58,0.06)',
+              }}>
+                <span style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+                  {QUALITE_LABELS[r.qualite] ?? r.qualite}
+                </span>
+                <span style={{ fontSize: 12, color: C.terracotta }}>
+                  {r.count === 1 ? '1 situation' : `${r.count} situations`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p style={{ fontSize: 12, color: C.grey, fontStyle: 'italic', lineHeight: 1.55 }}>
+          Les qualités apparues dans une seule situation ne sont pas retenues.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Pastilles de progression */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20, alignItems: 'center' }}>
+        {situations.map((s, i) => {
+          const done    = (selections[s.id] ?? []).length === 2
+          const current = i === idx
+          return (
+            <div key={s.id} style={{
+              width: current ? 10 : 8,
+              height: current ? 10 : 8,
+              borderRadius: '50%',
+              flexShrink: 0,
+              backgroundColor: done || current ? C.terracotta : C.sable,
+              transition: 'all 0.2s',
+            }} />
+          )
+        })}
       </div>
 
-      {/* Texte — gauche, centré verticalement par flexbox */}
-      <div className="kv-text">
-        <p style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: 'clamp(11px, 0.9vw, 13px)',
-          color: '#C4673A',
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          marginBottom: '18px', marginTop: 0,
-        }}>
-          Trouvez votre cap
+      {/* Compteur */}
+      <p style={{ fontSize: 12, color: C.grey, fontWeight: 600, margin: '0 0 16px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+        Situation {idx + 1} sur {TOTAL_SITUATIONS}
+      </p>
+
+      {/* Introduction — visible uniquement sur la situation 1 */}
+      {idx === 0 && (
+        <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.7, margin: '0 0 24px' }}>
+          Neuf situations de travail. Pour chacune, choisissez les deux réactions
+          les plus proches de la vôtre. Il n'y a pas de bonne réponse, et répondre
+          au plus près de ce que vous feriez réellement vous servira davantage
+          qu'essayer de bien faire. Les qualités qui ressortent de vos choix seront
+          affichées sur votre profil : elles auront plus de poids que si vous les
+          aviez simplement déclarées. Vous pourrez ensuite inviter un proche à
+          compléter ce regard par le sien.
         </p>
-        <h1 style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: 'clamp(32px, 3.8vw, 52px)',
-          color: '#1A1A1A',
-          fontWeight: 'normal',
-          lineHeight: '1.1',
-          letterSpacing: '-0.01em',
-          marginBottom: '24px', marginTop: 0,
-        }}>
-          Bienvenue sur Kapolia
-        </h1>
-        <p style={{
-          fontSize: 'clamp(14px, 1.1vw, 16px)',
-          color: '#6B6B6B',
-          lineHeight: '1.78',
-          marginBottom: '14px', marginTop: 0,
-          maxWidth: '420px',
-        }}>
-          Ici, pas de CV. Les recruteurs vous découvrent à travers un profil vivant : vos compétences,
-          bien sûr, mais aussi votre personnalité, vos valeurs et ce que vous recherchez.
-          C'est ce qui donne envie de vous rencontrer.
-        </p>
-        <p style={{
-          fontSize: 'clamp(14px, 1.1vw, 16px)',
-          color: '#6B6B6B',
-          lineHeight: '1.78',
-          marginBottom: '38px', marginTop: 0,
-          maxWidth: '420px',
-        }}>
-          Comptez une dizaine de minutes. Rien n'est figé : vous pourrez enrichir votre profil
-          quand vous le souhaitez.
-        </p>
+      )}
+
+      {/* Texte de la situation */}
+      <p style={{
+        fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark,
+        margin: '0 0 20px', lineHeight: 1.5, fontWeight: 'normal',
+      }}>
+        {situation.texte}
+      </p>
+
+      {/* Cartes de réponse */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        {situation.reponses.map(r => {
+          const selected = sel.includes(r.id)
+          const flashing = flashId === r.id
+          return (
+            <button
+              key={r.id}
+              onClick={() => handleSelect(r.id)}
+              style={{
+                textAlign: 'left', padding: '13px 16px', borderRadius: 12,
+                border: `2px solid ${selected ? C.terracotta : C.sable}`,
+                backgroundColor: flashing ? `${C.terracotta}18`
+                                : selected ? `${C.terracotta}0D` : C.white,
+                color: selected ? C.dark : C.dark,
+                fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'border-color 0.15s, background-color 0.15s',
+                outline: 'none',
+              }}
+            >
+              {r.texte}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Compteur de sélection */}
+      <p style={{
+        fontSize: 13, color: selCount === 2 ? C.terracotta : C.grey,
+        margin: '0 0 20px', fontWeight: selCount === 2 ? 600 : 400,
+        transition: 'color 0.2s',
+      }}>
+        {selCount === 0 ? 'Choisissez 2 réponses'
+         : selCount === 1 ? '1 réponse choisie sur 2'
+         : '2 réponses choisies'}
+      </p>
+
+      {/* Navigation */}
+      <div style={{ display: 'flex', gap: 10 }}>
         <button
-          onClick={onStart}
-          className="kv-btn"
+          onClick={() => setIdx(i => i - 1)}
+          disabled={idx === 0}
           style={{
-            backgroundColor: '#C4673A', color: '#FFFFFF',
-            border: 'none', borderRadius: '12px',
-            padding: '14px 40px', fontSize: '15px', fontWeight: '500',
-            cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.01em',
+            flex: 1, padding: '12px 16px', borderRadius: 12,
+            border: `1.5px solid ${idx === 0 ? C.sable : C.sable}`,
+            backgroundColor: C.white,
+            color: idx === 0 ? C.sable : C.dark,
+            fontSize: 14, cursor: idx === 0 ? 'default' : 'pointer',
+            fontFamily: 'inherit', fontWeight: 500,
           }}
         >
-          Commencer
+          Situation précédente
+        </button>
+        <button
+          onClick={handleAdvance}
+          disabled={!canAdvance}
+          style={{
+            flex: 1, padding: '12px 16px', borderRadius: 12,
+            border: 'none',
+            backgroundColor: canAdvance ? C.terracotta : C.sable,
+            color: canAdvance ? C.white : C.grey,
+            fontSize: 14, fontWeight: 600,
+            cursor: canAdvance ? 'pointer' : 'default',
+            fontFamily: 'inherit', transition: 'background-color 0.15s',
+          }}
+        >
+          {isSaving ? 'Enregistrement...'
+           : idx < TOTAL_SITUATIONS - 1 ? 'Situation suivante'
+           : 'Voir mes résultats'}
         </button>
       </div>
 
+      {/* Indicateur de progression globale (nombre de situations répondues) */}
+      {answeredCount > 0 && answeredCount < TOTAL_SITUATIONS && (
+        <p style={{ fontSize: 12, color: C.grey, margin: '12px 0 0', textAlign: 'center' }}>
+          {answeredCount} situation{answeredCount > 1 ? 's' : ''} sur {TOTAL_SITUATIONS} répondue{answeredCount > 1 ? 's' : ''}
+        </p>
+      )}
     </div>
   )
 }
@@ -295,8 +635,22 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
 // ─── Écran final ──────────────────────────────────────────────────────────────
 
 function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; userId: string }) {
-  const [chosen, setChosen] = useState<boolean | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [chosen, setChosen]             = useState<boolean | null>(null)
+  const [saving, setSaving]             = useState(false)
+  const [invitModalOpen, setInvitModalOpen] = useState(false)
+  const [activeCount, setActiveCount]   = useState(0)
+  const [invitHover, setInvitHover]     = useState(false)
+
+  useEffect(() => {
+    const now = new Date().toISOString()
+    supabase
+      .from('invitations_proches')
+      .select('id', { count: 'exact', head: true })
+      .eq('candidat_id', userId)
+      .gt('expire_at', now)
+      .is('used_at', null)
+      .then(({ count, error }) => { if (!error) setActiveCount(count ?? 0) })
+  }, [userId])
 
   async function handleChoice(value: boolean) {
     setSaving(true)
@@ -312,105 +666,180 @@ function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; use
   }
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ padding: '22px clamp(20px, 5%, 48px)' }}>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kapolia</span>
-      </header>
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '32px clamp(20px, 5%, 48px)',
+    <main style={{
+      backgroundColor: '#2C4A3E',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '40px 34px 34px',
+      boxSizing: 'border-box' as const,
+    }}>
+      <style suppressHydrationWarning>{`
+        .final-title { font-size: 36px; }
+        .final-card  { max-width: 460px; width: 100%; }
+        .final-btns  { flex-direction: row; }
+        .final-btn   { flex: 1; }
+        @media (max-width: 768px) {
+          .final-title { font-size: 28px; }
+          .final-card  { max-width: 100%; }
+          .final-btns  { flex-direction: column; }
+          .final-btn   { width: 100%; }
+        }
+      `}</style>
+
+      {/* Logo */}
+      <div style={{ marginBottom: 32 }}>
+        <LogoKapolia variante="clair" taille={52} avecTexte={false} />
+      </div>
+
+      {/* Titre */}
+      <h1 className="final-title" style={{
+        fontFamily: 'Lora, Georgia, serif',
+        fontWeight: 600,
+        lineHeight: 1.1,
+        color: '#F7F2EB',
+        textAlign: 'center',
+        marginBottom: 20,
+        marginTop: 0,
       }}>
-        <div style={{ width: '100%', maxWidth: '480px', textAlign: 'center' }}>
-          {/* Boussole */}
-          <div style={{ marginBottom: '36px', display: 'flex', justifyContent: 'center' }}>
-            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="26" stroke={C.terracotta} strokeWidth="1" opacity="0.2" />
-              <circle cx="28" cy="28" r="22" stroke={C.terracotta} strokeWidth="1.5" />
-              <path d="M28 9 L25 25 L28 23 L31 25 Z" fill={C.terracotta} />
-              <path d="M28 47 L31 31 L28 33 L25 31 Z" fill={C.sable} />
-              <circle cx="28" cy="28" r="3.5" fill={C.terracotta} />
-              <line x1="28" y1="3"  x2="28" y2="7"  stroke={C.terracotta} strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="28" y1="49" x2="28" y2="53" stroke={C.sable}      strokeWidth="1.5" strokeLinecap="round" />
-              <line x1="3"  y1="28" x2="7"  y2="28" stroke={C.grey}       strokeWidth="1"   strokeLinecap="round" opacity="0.4" />
-              <line x1="49" y1="28" x2="53" y2="28" stroke={C.grey}       strokeWidth="1"   strokeLinecap="round" opacity="0.4" />
-            </svg>
-          </div>
+        Vous avez trouvé votre cap
+      </h1>
 
-          <h1 style={{
-            fontFamily: 'Georgia, serif',
-            fontSize: 'clamp(24px, 4vw, 36px)',
-            color: C.dark, fontWeight: 'normal',
-            marginBottom: '16px', lineHeight: '1.3',
+      {/* Accroche */}
+      <p style={{
+        fontFamily: 'Inter, sans-serif',
+        fontSize: 14,
+        lineHeight: 1.6,
+        color: '#A9BDB2',
+        textAlign: 'center',
+        maxWidth: 400,
+        marginBottom: 36,
+        marginTop: 0,
+      }}>
+        Votre profil est prêt. Les recruteurs vous découvriront tel que vous êtes, et vous pourrez
+        l'enrichir quand vous le souhaitez.
+      </p>
+
+      {chosen === null ? (
+        /* Carte de visibilité */
+        <div className="final-card" style={{
+          backgroundColor: '#F7F2EB',
+          borderRadius: 14,
+          padding: '24px 26px',
+          textAlign: 'left',
+        }}>
+          <p style={{
+            fontFamily: 'Lora, Georgia, serif',
+            fontWeight: 600,
+            fontSize: 17,
+            color: '#22312B',
+            margin: '0 0 12px',
+            lineHeight: 1.35,
           }}>
-            Vous avez trouvé votre cap.
-          </h1>
-          <p style={{ fontSize: '16px', color: C.grey, lineHeight: '1.8', marginBottom: '32px' }}>
-            Votre profil est prêt : les recruteurs vont vous découvrir autrement qu'à travers un CV.
-            Enrichissez-le quand vous le souhaitez, il n'en sera que plus vivant.
+            Souhaitez-vous être visible par les recruteurs ?
           </p>
-
-          {chosen === null ? (
-            <div style={{
-              textAlign: 'left', backgroundColor: C.white,
-              border: `1px solid ${C.sable}`, borderRadius: '16px', padding: '24px',
-            }}>
-              <p style={{
-                fontFamily: 'Georgia, serif', fontSize: '18px', color: C.dark,
-                margin: '0 0 12px', lineHeight: '1.4',
-              }}>
-                Souhaitez-vous être visible par les recruteurs ?
-              </p>
-              <p style={{ fontSize: '14px', color: C.grey, lineHeight: '1.7', margin: '0 0 24px' }}>
-                Les recruteurs inscrits sur Kapolia pourront consulter votre profil et vous contacter,
-                même si vous n'avez postulé à aucune de leurs offres.
-                Vous pourrez changer d'avis à tout moment depuis vos paramètres.
-              </p>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' as const }}>
-                <button
-                  onClick={() => handleChoice(true)}
-                  disabled={saving}
-                  style={{
-                    flex: 1, minWidth: '180px',
-                    backgroundColor: C.terracotta, color: C.white,
-                    border: 'none', borderRadius: '12px',
-                    padding: '12px 20px', fontSize: '14px', fontWeight: '600',
-                    cursor: saving ? 'default' : 'pointer',
-                    opacity: saving ? 0.7 : 1, fontFamily: 'inherit',
-                  }}
-                >
-                  Oui, je veux être visible
-                </button>
-                <button
-                  onClick={() => handleChoice(false)}
-                  disabled={saving}
-                  style={{
-                    flex: 1, minWidth: '180px',
-                    backgroundColor: C.white, color: C.dark,
-                    border: `1.5px solid ${C.sable}`, borderRadius: '12px',
-                    padding: '12px 20px', fontSize: '14px', fontWeight: '500',
-                    cursor: saving ? 'default' : 'pointer',
-                    opacity: saving ? 0.7 : 1, fontFamily: 'inherit',
-                  }}
-                >
-                  Non, pas pour le moment
-                </button>
-              </div>
-            </div>
-          ) : (
+          <p style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 13,
+            color: '#5A6B62',
+            lineHeight: 1.6,
+            margin: '0 0 24px',
+          }}>
+            Les recruteurs inscrits pourront consulter votre profil et vous écrire, même sans
+            candidature de votre part. Vous pourrez changer d'avis à tout moment.
+          </p>
+          <div className="final-btns" style={{ display: 'flex', gap: 12 }}>
             <button
-              onClick={onGoToProfile}
+              className="final-btn"
+              onClick={() => handleChoice(true)}
+              disabled={saving}
               style={{
-                backgroundColor: C.terracotta, color: C.white,
-                border: 'none', borderRadius: '14px',
-                padding: '14px 36px', fontSize: '16px', fontWeight: '500',
-                cursor: 'pointer', fontFamily: 'inherit',
+                backgroundColor: '#C4673A',
+                color: '#F7F2EB',
+                border: 'none',
+                borderRadius: 100,
+                padding: '12px 20px',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: saving ? 'default' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+                fontFamily: 'inherit',
               }}
             >
-              Accéder à mon espace
+              Oui, je veux être visible
+            </button>
+            <button
+              className="final-btn"
+              onClick={() => handleChoice(false)}
+              disabled={saving}
+              style={{
+                backgroundColor: 'transparent',
+                color: '#5A6B62',
+                border: '1.5px solid #DDD2BF',
+                borderRadius: 100,
+                padding: '12px 20px',
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: saving ? 'default' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+                fontFamily: 'inherit',
+              }}
+            >
+              Pas pour le moment
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Après le choix */
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, width: '100%', maxWidth: 340 }}>
+          <button
+            onClick={onGoToProfile}
+            style={{
+              width: '100%',
+              backgroundColor: '#C4673A',
+              color: '#F7F2EB',
+              border: 'none',
+              borderRadius: 100,
+              padding: '14px 36px',
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            Accéder à mon profil
+          </button>
+          {activeCount < 4 && (
+            <button
+              onClick={() => setInvitModalOpen(true)}
+              onMouseEnter={() => setInvitHover(true)}
+              onMouseLeave={() => setInvitHover(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 13,
+                color: invitHover ? '#F7F2EB' : '#A9BDB2',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                transition: 'color 0.15s',
+              }}
+            >
+              Inviter un proche à compléter vos qualités
             </button>
           )}
         </div>
-      </div>
+      )}
+
+      <InvitationModal
+        open={invitModalOpen}
+        onClose={() => setInvitModalOpen(false)}
+        candidatId={userId}
+        activeCount={activeCount}
+        onCreated={() => setActiveCount(prev => prev + 1)}
+      />
     </main>
   )
 }
@@ -444,18 +873,21 @@ function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: st
   )
 }
 
-function ChoiceCard({ label, desc, selected, onClick }: {
-  label: string; desc?: string; selected: boolean; onClick: () => void
+function ChoiceCard({ label, desc, selected, onClick, disabled = false }: {
+  label: string; desc?: string; selected: boolean; onClick: () => void; disabled?: boolean
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       style={{
         width: '100%', textAlign: 'left', padding: '14px 18px',
-        borderRadius: '14px', border: `2px solid ${selected ? C.terracotta : C.sable}`,
+        borderRadius: '14px',
+        border: `2px solid ${selected ? C.terracotta : C.sable}`,
         backgroundColor: selected ? 'rgba(196,103,58,0.07)' : C.white,
-        cursor: 'pointer', transition: 'all 0.15s',
+        cursor: disabled ? 'default' : 'pointer', transition: 'all 0.15s',
         marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '14px',
+        opacity: disabled ? 0.45 : 1,
       }}
     >
       <span style={{
@@ -703,11 +1135,11 @@ export default function OnboardingPage() {
   const [showWelcome, setShowWelcome] = useState(true)
   const [showFinal,   setShowFinal]   = useState(false)
   const [step, setStep] = useState(1)
+  const [step5Complete, setStep5Complete] = useState(false)
   const [data, setData] = useState<FormData>({
     prenom: '', nom: '', domaine: '', experience: '', parcours: '',
-    mots: ['', '', ''],
-    environnement: '', defi: '', projet: '', passions: [],
-    sideProject: '', disponibilite: '', dispo_date: '',
+    environnement: [], projet: '', projet_titre: '', passions: [],
+    disponibilite: '', dispo_date: '',
     typePoste: [], lieu: '', ville: '', priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
@@ -724,11 +1156,20 @@ export default function OnboardingPage() {
       if (!user) { setLoadingResume(false); return }
       setUserId(user.id)
 
-      const { data: profil } = await supabase
-        .from('profils')
-        .select('prenom, nom, domaine, experience, signature, qualites, mode_travail, valeur, projet_phare, passions, side_project, type_poste, structure, ville, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
-        .eq('user_id', user.id)
-        .single()
+      const [{ data: profil }, { count: testCount }] = await Promise.all([
+        supabase
+          .from('profils')
+          .select('prenom, nom, domaine, experience, signature, mode_travail, valeur, projet_phare, projet_titre, passions, type_poste, structure, ville, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
+          .eq('user_id', user.id)
+          .single(),
+        supabase
+          .from('test_qualites')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+      ])
+
+      const allTestDone = (testCount ?? 0) >= SITUATIONS[CURRENT_VERSION].length
+      if (allTestDone) setStep5Complete(true)
 
       if (profil?.prenom) {
         const p = profil as Record<string, unknown>
@@ -738,16 +1179,10 @@ export default function OnboardingPage() {
           domaine:              (p.domaine as string)      || '',
           experience:           (p.experience as string)   || '',
           parcours:             (p.signature as string)    || '',
-          mots:                 Array.isArray(p.qualites) && (p.qualites as string[]).length === 3
-                                  ? p.qualites as [string, string, string]
-                                  : ['', '', ''],
-          environnement:        Array.isArray(p.mode_travail) && (p.mode_travail as string[]).length > 0
-                                  ? (p.mode_travail as string[])[0]
-                                  : '',
-          defi:                 (p.valeur as string)       || '',
+          environnement:        Array.isArray(p.mode_travail) ? p.mode_travail as string[] : [],
           projet:               (p.projet_phare as string) || '',
+          projet_titre:         (p.projet_titre as string)  || '',
           passions:             Array.isArray(p.passions) ? p.passions as string[] : [],
-          sideProject:          (p.side_project as string) || '',
           typePoste:            Array.isArray(p.type_poste) ? p.type_poste as string[] : [],
           lieu:                 (p.structure as string)    || '',
           ville:                (p.ville as string)        || '',
@@ -761,7 +1196,7 @@ export default function OnboardingPage() {
         }
         // Reprend exactement au step enregistré, avec firstIncompleteStep en fallback
         const savedStep = typeof p.onboarding_step === 'number' ? p.onboarding_step : 0
-        const resumeAt  = savedStep > 1 ? savedStep : firstIncompleteStep(filled)
+        const resumeAt  = savedStep > 1 ? savedStep : firstIncompleteStep(filled, allTestDone)
         maxStepRef.current = Math.max(resumeAt, 1)
         setData(filled)
         setStep(resumeAt)
@@ -785,19 +1220,20 @@ export default function OnboardingPage() {
       case 2:  return data.domaine.length > 0
       case 3:  return data.experience.length > 0
       case 4:  return true
-      case 5:  return data.mots.every(m => m.trim().length > 0)
+      case 5:  return step5Complete
       case 6:  return data.environnement.length > 0
-      case 7:  return true
+      case 7: {
+        const hasDesc = data.projet.trim().length > 0
+        return !hasDesc || data.projet_titre.trim().length > 0
+      }
       case 8:  return true
-      case 9:  return true
-      case 10: return true
-      case 11: return data.typePoste.length > 0
-      case 12: return data.lieu.length > 0
+      case 9:  return data.typePoste.length > 0
+      case 10: return data.lieu.length > 0
+      case 11: return true
+      case 12: return data.disponibilite.length > 0
       case 13: return true
-      case 14: return data.disponibilite.length > 0
+      case 14: return true
       case 15: return true
-      case 16: return true
-      case 17: return true
       default: return false
     }
   }
@@ -838,12 +1274,10 @@ export default function OnboardingPage() {
         domaine: data.domaine,
         experience: data.experience,
         signature: data.parcours,
-        qualites: data.mots,
-        mode_travail: [data.environnement],
-        valeur: data.defi,
+        mode_travail: data.environnement,
         projet_phare: data.projet,
+        projet_titre: data.projet_titre || null,
         passions: data.passions,
-        side_project: data.sideProject || null,
         type_poste: data.typePoste,
         structure: data.lieu,
         ville: data.ville || null,
@@ -932,87 +1366,100 @@ export default function OnboardingPage() {
             <QuestionLabel num={step} text="Racontez-nous votre parcours." sub={MICRO_TEXTS[step]} />
             <VoiceTextArea
               value={data.parcours}
-              onChange={v => set('parcours', v)}
+              onChange={v => {
+                const next = v
+                if (next.length <= MAX_SIGNATURE || next.length < data.parcours.length) {
+                  set('parcours', next)
+                }
+              }}
               placeholder="Formations, expériences, reconversions, particularités… Soyez vous-même."
             />
+            <SignatureCounter count={data.parcours.length} max={MAX_SIGNATURE} theme="light" />
           </>
         )
 
       case 5:
         return (
-          <>
-            <QuestionLabel num={step} text="Comment vos proches vous décriraient-ils en trois mots ?" sub={MICRO_TEXTS[step]} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {([0, 1, 2] as const).map(i => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{
-                    width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
-                    backgroundColor: data.mots[i] ? C.terracotta : C.sable,
-                    color: data.mots[i] ? 'white' : C.grey,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '13px', fontWeight: '600', transition: 'all 0.2s',
-                  }}>
-                    {i + 1}
-                  </span>
-                  <input
-                    type="text"
-                    value={data.mots[i]}
-                    onChange={e => {
-                      const next = [...data.mots] as [string, string, string]
-                      next[i] = e.target.value
-                      set('mots', next)
-                    }}
-                    placeholder={(['Créatif(ve)', 'Fiable', 'Curieux(se)'])[i]}
-                    autoFocus={i === 0}
-                    style={{
-                      flex: 1, padding: '12px 15px', fontSize: '15px',
-                      borderRadius: '12px',
-                      border: `2px solid ${data.mots[i] ? C.terracotta : C.sable}`,
-                      backgroundColor: C.white, color: C.dark, outline: 'none',
-                      fontFamily: 'inherit', transition: 'border-color 0.2s', boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </>
+          <QualitesCarousel
+            userId={userId}
+            onComplete={done => setStep5Complete(done)}
+          />
         )
 
-      case 6:
+      case 6: {
+        const MAX_ENVS = 3
+        function toggleEnv(key: string) {
+          const current = data.environnement
+          if (key === 'sans_pref') {
+            set('environnement', current.includes('sans_pref') ? [] : ['sans_pref'])
+            return
+          }
+          if (current.includes(key)) {
+            set('environnement', current.filter(k => k !== key))
+            return
+          }
+          const withoutSansPref = current.filter(k => k !== 'sans_pref')
+          if (withoutSansPref.length >= MAX_ENVS) return
+          set('environnement', [...withoutSansPref, key])
+        }
+        const atMax = data.environnement.filter(k => k !== 'sans_pref').length >= MAX_ENVS
         return (
           <>
             <QuestionLabel num={step} text="Quel environnement de travail vous correspond ?" sub={MICRO_TEXTS[step]} />
-            {ENVIRONNEMENTS.map(e => (
-              <ChoiceCard key={e.key} label={e.label} desc={e.desc}
-                selected={data.environnement === e.key} onClick={() => set('environnement', e.key)} />
-            ))}
+            {ENVIRONNEMENTS.map(e => {
+              const sel      = data.environnement.includes(e.key)
+              const isDisabled = !sel && e.key !== 'sans_pref' && (atMax || data.environnement.includes('sans_pref'))
+              return (
+                <ChoiceCard key={e.key} label={e.label} desc={e.desc}
+                  selected={sel} disabled={isDisabled}
+                  onClick={() => toggleEnv(e.key)} />
+              )
+            })}
+            {atMax && (
+              <p style={{ fontSize: 13, color: C.grey, margin: '4px 0 0' }}>
+                Maximum de {MAX_ENVS} environnements atteint.
+              </p>
+            )}
           </>
         )
+      }
 
       case 7:
         return (
           <>
-            <QuestionLabel num={step} text="Face à un défi, quelle est votre première réaction ?" sub={MICRO_TEXTS[step]} />
-            {DEFIS.map(d => (
-              <ChoiceCard key={d.key} label={d.label} desc={d.desc}
-                selected={data.defi === d.key} onClick={() => set('defi', d.key)} />
-            ))}
+            <QuestionLabel num={step} text="Quel est le projet dont vous êtes le plus fier ?" sub={MICRO_TEXTS[step]} />
+            <input
+              type="text"
+              value={data.projet_titre}
+              onChange={e => {
+                const v = e.target.value
+                if (v.length <= MAX_PROJET_TITRE || v.length < data.projet_titre.length) set('projet_titre', v)
+              }}
+              placeholder="Titre du projet"
+              style={{
+                width: '100%', boxSizing: 'border-box' as const,
+                padding: '12px 16px', borderRadius: 10,
+                border: `1.5px solid ${C.sable}`, fontSize: 15,
+                fontFamily: 'inherit', outline: 'none',
+                backgroundColor: C.white, color: C.dark,
+                marginBottom: 2,
+              }}
+            />
+            <SignatureCounter count={data.projet_titre.length} max={MAX_PROJET_TITRE} theme="light" />
+            <div style={{ marginTop: 12 }}>
+              <VoiceTextArea
+                value={data.projet}
+                onChange={v => {
+                  if (v.length <= MAX_PROJET_DESC || v.length < data.projet.length) set('projet', v)
+                }}
+                placeholder="Un projet perso, pro, associatif… Ce qui l'a rendu marquant."
+              />
+              <SignatureCounter count={data.projet.length} max={MAX_PROJET_DESC} theme="light" />
+            </div>
           </>
         )
 
       case 8:
-        return (
-          <>
-            <QuestionLabel num={step} text="Quel est le projet dont vous êtes le plus fier ?" sub={MICRO_TEXTS[step]} />
-            <VoiceTextArea
-              value={data.projet}
-              onChange={v => set('projet', v)}
-              placeholder="Un projet perso, pro, associatif… Ce qui l'a rendu marquant."
-            />
-          </>
-        )
-
-      case 9:
         return (
           <>
             <QuestionLabel num={step} text="Quelles sont vos passions en dehors du travail ?" sub={MICRO_TEXTS[step]} />
@@ -1027,20 +1474,7 @@ export default function OnboardingPage() {
           </>
         )
 
-      case 10:
-        return (
-          <>
-            <QuestionLabel num={step} text="Avez-vous des projets personnels ou créatifs ?" sub={MICRO_TEXTS[step]} />
-            <VoiceTextArea
-              value={data.sideProject}
-              onChange={v => set('sideProject', v)}
-              placeholder="Side-project, blog, association, application… ou simplement pas pour l'instant."
-              rows={4}
-            />
-          </>
-        )
-
-      case 11: {
+      case 9: {
         return (
           <>
             <QuestionLabel num={step} text="Quel type de contrat recherchez-vous ?" sub={MICRO_TEXTS[step]} />
@@ -1077,7 +1511,7 @@ export default function OnboardingPage() {
         )
       }
 
-      case 12:
+      case 10:
         return (
           <>
             <QuestionLabel num={step} text="Où souhaitez-vous travailler ?" sub={MICRO_TEXTS[step]} />
@@ -1095,7 +1529,7 @@ export default function OnboardingPage() {
           </>
         )
 
-      case 13: {
+      case 11: {
         const maxReached = data.priorite.length >= 3
         return (
           <>
@@ -1130,7 +1564,7 @@ export default function OnboardingPage() {
         )
       }
 
-      case 14: {
+      case 12: {
         const showDate = data.disponibilite === 'a_partir_de'
         return (
           <>
@@ -1159,7 +1593,7 @@ export default function OnboardingPage() {
         )
       }
 
-      case 15: {
+      case 13: {
         const addExp = () => set('experiences', [
           ...data.experiences,
           { poste: '', entreprise: '', date_debut: '', date_fin: '', en_poste: false, missions: '' },
@@ -1199,8 +1633,18 @@ export default function OnboardingPage() {
                     </label>
                   </div>
                 </div>
-                <StyledTextArea value={exp.missions} onChange={v => updateExp(i, { missions: v })}
-                  placeholder="Missions principales (une par ligne)…" rows={3} />
+                <MissionsTextArea
+                  value={exp.missions}
+                  onChange={v => updateExp(i, { missions: v })}
+                  rows={3}
+                  textareaStyle={{
+                    width: '100%', padding: '13px 16px', fontSize: '15px',
+                    borderRadius: '12px', border: `2px solid ${exp.missions ? C.terracotta : C.sable}`,
+                    backgroundColor: C.white, color: C.dark, outline: 'none',
+                    boxSizing: 'border-box', resize: 'vertical', lineHeight: '1.65',
+                    fontFamily: 'inherit', transition: 'border-color 0.2s',
+                  }}
+                />
                 <button onClick={() => removeExp(i)} style={{
                   marginTop: '10px', background: 'none', border: 'none',
                   color: '#C0392B', fontSize: '13px', cursor: 'pointer',
@@ -1222,7 +1666,7 @@ export default function OnboardingPage() {
         )
       }
 
-      case 16: {
+      case 14: {
         const addDiplome = () => set('diplomes', [
           ...data.diplomes,
           { intitule: '', ecole: '', annee: '', mention: '' },
@@ -1270,7 +1714,7 @@ export default function OnboardingPage() {
         )
       }
 
-      case 17:
+      case 15:
         return (
           <>
             <QuestionLabel num={step} text="Compétences et langues" sub={MICRO_TEXTS[step]} />

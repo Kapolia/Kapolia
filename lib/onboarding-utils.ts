@@ -1,6 +1,7 @@
 // Utilitaires purs de l'onboarding — extraits ici pour être testables indépendamment.
 
-export const ONBOARDING_TOTAL = 17
+export const ONBOARDING_TOTAL = 15
+export const MAX_MISSIONS     = 4
 
 export const DOMAINES = [
   'Tech & Ingénierie', 'Design & Créativité', 'Marketing & Com',
@@ -45,12 +46,10 @@ export type OnboardingFormData = {
   domaine: string
   experience: string
   parcours: string
-  mots: [string, string, string]
-  environnement: string
-  defi: string
+  environnement: string[]
   projet: string
+  projet_titre: string
   passions: string[]
-  sideProject: string
   disponibilite: string
   dispo_date: string
   typePoste: string[]
@@ -65,24 +64,24 @@ export type OnboardingFormData = {
 
 export const EMPTY_FORM: OnboardingFormData = {
   prenom: '', nom: '', domaine: '', experience: '', parcours: '',
-  mots: ['', '', ''],
-  environnement: '', defi: '', projet: '', passions: [],
-  sideProject: '', disponibilite: '', dispo_date: '',
+  environnement: [], projet: '', projet_titre: '', passions: [],
+  disponibilite: '', dispo_date: '',
   typePoste: [], lieu: '', ville: '', priorite: [],
   experiences: [], diplomes: [], competences_acquises: [], langues: [],
 }
 
 // Retourne la première étape OBLIGATOIRE non encore remplie.
 // Utilisé en fallback quand onboarding_step n'est pas encore enregistré en base.
-export function firstIncompleteStep(d: OnboardingFormData): number {
+// step5Done doit être passé depuis la page (résolu via test_qualites en base).
+export function firstIncompleteStep(d: OnboardingFormData, step5Done = false): number {
   if (!d.prenom.trim() || !d.nom.trim()) return 1
   if (!d.domaine)                         return 2
   if (!d.experience)                      return 3
-  if (!d.mots.every(m => m.trim()))       return 5
-  if (!d.environnement)                   return 6
-  if (!d.typePoste.length)                return 11
-  if (!d.lieu)                            return 12
-  if (!d.disponibilite)                   return 14
+  if (!step5Done)                         return 5
+  if (!d.environnement.length)            return 6
+  if (!d.typePoste.length)                return 10
+  if (!d.lieu)                            return 11
+  if (!d.disponibilite)                   return 13
   return ONBOARDING_TOTAL
 }
 
@@ -107,28 +106,24 @@ export function buildStepPayload(
     case 4:
       return d.parcours.trim() ? { ...base, signature: d.parcours } : null
     case 5:
-      return d.mots.every(m => m.trim()) ? { ...base, qualites: d.mots } : null
+      return null  // Step 5 saves via test_qualites (QualitesCarousel handles its own persistence)
     case 6:
-      return d.environnement ? { ...base, mode_travail: [d.environnement] } : null
+      return d.environnement.length ? { ...base, mode_travail: d.environnement } : null
     case 7:
-      return d.defi ? { ...base, valeur: d.defi } : null
+      return d.projet.trim() ? { ...base, projet_phare: d.projet, projet_titre: d.projet_titre.trim() || null } : null
     case 8:
-      return d.projet.trim() ? { ...base, projet_phare: d.projet } : null
-    case 9:
       return d.passions.length ? { ...base, passions: d.passions } : null
-    case 10:
-      return d.sideProject.trim() ? { ...base, side_project: d.sideProject } : null
-    case 11:
+    case 9:
       return d.typePoste.length ? { ...base, type_poste: d.typePoste } : null
-    case 12: {
+    case 10: {
       const p: Record<string, unknown> = { ...base }
       if (d.lieu)         p.structure = d.lieu
       if (d.ville.trim()) p.ville     = d.ville
       return Object.keys(p).length > 1 ? p : null
     }
-    case 13:
+    case 11:
       return d.priorite.length ? { ...base, priorites: d.priorite } : null
-    case 14: {
+    case 12: {
       if (!d.disponibilite) return null
       return {
         ...base,
@@ -136,9 +131,9 @@ export function buildStepPayload(
         dispo_date: d.disponibilite === 'a_partir_de' ? (d.dispo_date || null) : null,
       }
     }
-    case 15:
+    case 13:
       return d.experiences.length ? { ...base, experiences: d.experiences } : null
-    case 16:
+    case 14:
       return d.diplomes.length ? { ...base, diplomes: d.diplomes } : null
     default:
       return null
