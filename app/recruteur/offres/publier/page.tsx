@@ -183,7 +183,7 @@ function DynList({ items, onChange, placeholder, addLabel = 'Ajouter une étape'
 
 function Stepper({ step }: { step: number }) {
   return (
-    <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '18px 0', position: 'sticky', top: 56, zIndex: 15 }}>
+    <div style={{ backgroundColor: C.creme, borderBottom: `1px solid ${C.sable}`, padding: '18px 0', position: 'sticky', top: 0, zIndex: 15 }}>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'flex-start' }}>
         {STEP_LABELS.map((label, i) => {
           const n = i + 1; const done = step > n; const active = step === n
@@ -486,8 +486,10 @@ function PublierOffrePageInner() {
   const [compBonusInput, setCompBonusInput] = useState('')
 
   // Step 4
-  const [avantages, setAvantages]   = useState<string[]>([])
+  const [avantages, setAvantages]           = useState<string[]>([])
   const [processRecrutement, setProcessRecrutement] = useState<string[]>(['Entretien RH'])
+  const [dureePublication, setDureePublication] = useState<30 | 60 | 90>(60)
+  const existingPublishedAt = useRef<string | null>(null)
 
   // F2 — Ref for auto-save (avoids stale closures)
   const formRef = useRef({ titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement })
@@ -532,6 +534,7 @@ function PublierOffrePageInner() {
       setCompetencesBonus(data.competences_bonus ?? [])
       setAvantages(data.avantages ?? [])
       setProcessRecrutement(data.process_recrutement?.length ? data.process_recrutement : ['Entretien RH'])
+      existingPublishedAt.current = data.published_at ?? null
     }
     load()
   }, [editId])
@@ -560,6 +563,7 @@ function PublierOffrePageInner() {
         avantages: f.avantages,
         process_recrutement: f.processRecrutement.filter(p => p.trim()),
         statut: 'brouillon',
+        active: false,
       })
       showToast('Brouillon sauvegardé automatiquement ✓')
     }, 60000)
@@ -625,6 +629,14 @@ function PublierOffrePageInner() {
       avantages,
       process_recrutement: processRecrutement.filter(p => p.trim()),
       statut,
+      active: statut === 'publiée',
+      ...(statut === 'publiée' ? (() => {
+        const now = new Date()
+        return {
+          published_at: existingPublishedAt.current ?? now.toISOString(),
+          expire_at: new Date(now.getTime() + dureePublication * 24 * 60 * 60 * 1000).toISOString(),
+        }
+      })() : {}),
     }
 
     const { error } = editId
@@ -679,23 +691,6 @@ function PublierOffrePageInner() {
 
       <Toast msg={toastMsg} />
       {previewOpen && <PreviewModal d={previewData} onClose={() => setPreviewOpen(false)} />}
-
-      {/* ── TOP BAR ───────────────────────────────────────────────────────── */}
-      <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '0 32px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, letterSpacing: '-0.01em' }}>Kapolia</div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {hasData && (
-            <button onClick={() => save('brouillon', { silent: true })} disabled={savingDraft}
-              style={{ padding: '7px 14px', borderRadius: 10, border: `1.5px solid ${C.vert}`, backgroundColor: 'transparent', color: C.vert, fontSize: 12, fontWeight: 600, cursor: savingDraft ? 'default' : 'pointer', fontFamily: 'inherit', opacity: savingDraft ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {savingDraft ? <><div style={{ width: 11, height: 11, borderRadius: '50%', border: `1.5px solid ${C.vert}50`, borderTopColor: C.vert, animation: 'kapolia-spin 0.7s linear infinite' }} /> Sauvegarde…</> : '💾 Brouillon'}
-            </button>
-          )}
-          <button onClick={() => router.push('/recruteur/offres')}
-            style={{ padding: '7px 16px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-            ← Mes offres
-          </button>
-        </div>
-      </div>
 
       {/* ── STEPPER ───────────────────────────────────────────────────────── */}
       <Stepper step={step} />
@@ -895,6 +890,19 @@ function PublierOffrePageInner() {
               <div>
                 <SLabel sub="Les candidats apprécient la transparence sur le process.">Process de recrutement</SLabel>
                 <DynList items={processRecrutement} onChange={setProcessRecrutement} placeholder="ex. Entretien RH, Test technique, Entretien CEO…" addLabel="Ajouter une étape" />
+              </div>
+            </Card>
+
+            {/* Durée de publication */}
+            <Card>
+              <SLabel sub="Durée pendant laquelle l'offre sera visible par les candidats. 60 jours par défaut.">Durée de publication</SLabel>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {([30, 60, 90] as const).map(d => (
+                  <button key={d} type="button" onClick={() => setDureePublication(d)}
+                    style={{ flex: 1, padding: '12px 8px', borderRadius: 10, border: `1.5px solid ${dureePublication === d ? C.vert : C.sable}`, backgroundColor: dureePublication === d ? `${C.vert}0D` : C.white, color: dureePublication === d ? C.vert : C.dark, fontSize: 13, fontWeight: dureePublication === d ? 700 : 400, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                    {d} jours
+                  </button>
+                ))}
               </div>
             </Card>
 

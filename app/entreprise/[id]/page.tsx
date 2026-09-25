@@ -60,7 +60,7 @@ export default function EntrepriseVitrinePage() {
       const { data: offresData } = await supabase
         .from('offres')
         .select('id, titre, type_contrat, ville, mode_travail, domaine, experience, salaire_min, salaire_max, periode_salaire, valeurs, created_at')
-        .eq('recruteur_id', id).eq('statut_publication', 'publiée').eq('active', true)
+        .eq('recruteur_id', id).eq('statut_publication', 'publiée').eq('active', true).gt('expire_at', new Date().toISOString())
         .order('created_at', { ascending: false })
 
       const raw = (offresData ?? []) as Offre[]

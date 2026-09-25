@@ -597,7 +597,10 @@ export default function RecruteurEntreprisePage() {
 
       {/* HEADER */}
       <header style={{ backgroundColor: C.vert, padding: '48px 40px 44px', position: 'relative' }}>
-        <button onClick={startEdit} style={{ position: 'absolute', top: 20, right: 24, backgroundColor: 'rgba(255,255,255,0.12)', color: C.white, border: '1px solid rgba(255,255,255,0.25)', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Modifier</button>
+        <button onClick={startEdit} style={{ position: 'absolute', top: 20, right: 24, backgroundColor: C.creme, color: C.vert, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 7 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+          Modifier
+        </button>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           {offres.length > 0 && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '5px 14px', borderRadius: 20, marginBottom: 26 }}>
@@ -614,7 +617,6 @@ export default function RecruteurEntreprisePage() {
                 {profil.entreprise_taille  && <span style={{ fontSize: 13, color: C.sable }}>◷ {profil.entreprise_taille}</span>}
                 {profil.entreprise_site    && <a href={profil.entreprise_site.startsWith('http') ? profil.entreprise_site : `https://${profil.entreprise_site}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: C.sable, opacity: 0.75, textDecoration: 'none' }}>↗ {profil.entreprise_site.replace(/^https?:\/\//, '')}</a>}
               </div>
-              {userId && <a href={`/entreprise/${userId}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: C.sable, opacity: 0.7, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 18px', border: '1px solid rgba(232,213,183,0.35)', borderRadius: 10 }}>Voir la vitrine publique ↗</a>}
             </div>
           </div>
         </div>

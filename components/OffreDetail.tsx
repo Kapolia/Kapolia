@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { FONT_SERIF } from '@/lib/typography'
 
 const C = {
   terracotta: '#C4673A',
@@ -157,7 +158,7 @@ function EntrepriseLogo({ nom, logoUrl, size = 48 }: { nom: string; logoUrl?: st
       {showFallback ? (
         <span style={{
           fontSize: Math.round(size * 0.44),
-          fontFamily: 'Georgia, serif', fontWeight: 700, color,
+          fontFamily: FONT_SERIF, fontWeight: 700, color,
           lineHeight: 1, userSelect: 'none',
         }}>
           {initial}
@@ -202,7 +203,7 @@ function formatSalaire(min?: number, max?: number, periode?: string): string | n
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '28px 32px' }}>
-      <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark, margin: '0 0 18px', fontWeight: 600 }}>
+      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: '0 0 18px', fontWeight: 600 }}>
         {title}
       </h2>
       {children}
@@ -254,7 +255,7 @@ function PageApplyButton({ applied, appliedDate, applying, onApply, isConnected 
 
 function PanelSectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontFamily: 'Georgia, serif', fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+    <div style={{ fontFamily: FONT_SERIF, fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
       {children}
     </div>
   )
@@ -379,7 +380,7 @@ export function OffreDetail({
         }}>
           {/* Title */}
           <h2 style={{
-            fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700,
+            fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 700,
             color: C.dark, margin: '0 0 12px', lineHeight: 1.2,
           }}>
             {offre.titre}
@@ -786,7 +787,7 @@ export function OffreDetail({
           gap: 20, flexWrap: 'wrap',
         }}>
           <div>
-            <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 5 }}>
+            <div style={{ fontFamily: FONT_SERIF, fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 5 }}>
               Ce poste vous intéresse ?
             </div>
             <div style={{ fontSize: 13, color: C.grey }}>
@@ -823,7 +824,7 @@ export function OffreDetail({
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: '0 0 14px', lineHeight: 1.2, fontWeight: 700 }}>
+              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: '0 0 14px', lineHeight: 1.2, fontWeight: 700 }}>
                 {offre.titre}
               </h1>
               {/* Bloc identité entreprise */}
@@ -903,7 +904,7 @@ export function OffreDetail({
         {bodySections}
         {similaires && similaires.length > 0 && (
           <div style={{ marginTop: 40, paddingTop: 36, borderTop: `1px solid ${C.sable}` }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark, margin: '0 0 20px', fontWeight: 600 }}>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: '0 0 20px', fontWeight: 600 }}>
               {similairesTitle ?? 'Offres similaires'}
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>

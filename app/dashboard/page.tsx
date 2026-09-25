@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { calculerScore } from '@/lib/matching'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import Avatar from '@/components/Avatar'
+import { FONT_SERIF } from '@/lib/typography'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -284,7 +285,7 @@ function SectionTitle({ title, link, href, onClick }: { title: string; link?: st
   const router = useRouter()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-      <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark, margin: 0 }}>
+      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: 0 }}>
         {title}
       </h2>
       {link && (
@@ -495,6 +496,7 @@ export default function DashboardPage() {
         supabase.from('offres').select('*')
           .eq('active', true)
           .eq('statut_publication', 'publiée')
+          .gt('expire_at', new Date().toISOString())
           .limit(6),
         supabase.from('conversations')
           .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, offres(titre)')
@@ -759,7 +761,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
               <h1 style={{
-                fontFamily: 'Georgia, serif',
+                fontFamily: FONT_SERIF,
                 fontSize: 'clamp(28px, 4vw, 44px)',
                 color: C.white, margin: '0 0 8px',
                 lineHeight: 1.15,
@@ -1042,7 +1044,7 @@ export default function DashboardPage() {
           <Card>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark, margin: 0 }}>
+                <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: 0 }}>
                   Messages
                 </h2>
                 {unreadCount > 0 && (
@@ -1134,7 +1136,7 @@ export default function DashboardPage() {
 
             <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
               <div style={{
-                fontFamily: 'Georgia, serif',
+                fontFamily: FONT_SERIF,
                 fontSize: 40, fontWeight: 700, color: C.vert, lineHeight: 1,
               }}>
                 {vueCount}

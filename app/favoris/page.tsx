@@ -129,7 +129,7 @@ export default function FavorisPage() {
             offres (
               id, titre, entreprise_nom, type_contrat, ville,
               mode_travail, salaire_min, salaire_max, periode_salaire,
-              active, statut_publication, created_at, recruteur_id
+              active, statut_publication, created_at, recruteur_id, expire_at
             )
           `)
           .eq('candidat_id', user.id)
@@ -150,12 +150,12 @@ export default function FavorisPage() {
           mode_travail: string | null; salaire_min: string | null
           salaire_max: string | null; periode_salaire: string | null
           active: boolean; statut_publication: string; created_at: string
-          recruteur_id: string | null
+          recruteur_id: string | null; expire_at: string | null
         } | null
       }
 
       const list: FavOffre[] = ((favsRes.data as unknown as RawRow[]) ?? [])
-        .filter(row => row.offres?.active === true && row.offres.statut_publication === 'publiée')
+        .filter(row => row.offres?.active === true && row.offres.statut_publication === 'publiée' && !!row.offres.expire_at && new Date(row.offres.expire_at) > new Date())
         .map(row => {
           const o = row.offres!
           return {

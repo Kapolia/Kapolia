@@ -941,7 +941,7 @@ export default function OffresPage() {
       setUserId(user?.id ?? null)
 
       const [offresRes, profilRes, candidaturesRes] = await Promise.all([
-        supabase.from('offres').select('*').eq('active', true).eq('statut_publication', 'publiée').order('created_at', { ascending: false }),
+        supabase.from('offres').select('*').eq('active', true).eq('statut_publication', 'publiée').gt('expire_at', new Date().toISOString()).order('created_at', { ascending: false }),
         user
           ? supabase.from('profils').select('domaine, experience, type_poste, valeur, disponibilite, ville').eq('user_id', user.id).single()
           : Promise.resolve({ data: null }),

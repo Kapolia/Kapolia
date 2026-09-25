@@ -23,6 +23,7 @@ const C = {
 type Offre = OffreData & {
   active?: boolean
   statut_publication?: string
+  expire_at?: string | null
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ export default function OffreDetailPage() {
       ])
 
       const o = offreRes.data as Offre | null
-      if (offreRes.error || !o || !o.active || o.statut_publication !== 'publiée') {
+      if (offreRes.error || !o || !o.active || o.statut_publication !== 'publiée' || !o.expire_at || new Date(o.expire_at) <= new Date()) {
         setNotFound(true)
         setLoading(false)
         return
@@ -133,7 +134,7 @@ export default function OffreDetailPage() {
       if (o.domaine) {
         const { data: domainRaw } = await supabase
           .from('offres').select(SIM_FIELDS)
-          .eq('active', true).eq('statut_publication', 'publiée')
+          .eq('active', true).eq('statut_publication', 'publiée').gt('expire_at', new Date().toISOString())
           .neq('id', id).eq('domaine', o.domaine).limit(20)
 
         const pool = (domainRaw ?? []) as SimRaw[]
@@ -157,7 +158,7 @@ export default function OffreDetailPage() {
       if (oLat != null && oLng != null) {
         const { data: zoneRaw } = await supabase
           .from('offres').select(SIM_FIELDS)
-          .eq('active', true).eq('statut_publication', 'publiée')
+          .eq('active', true).eq('statut_publication', 'publiée').gt('expire_at', new Date().toISOString())
           .neq('id', id).limit(30)
 
         const nearby = ((zoneRaw ?? []) as SimRaw[]).filter(s =>
