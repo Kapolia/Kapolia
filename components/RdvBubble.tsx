@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { notifCreneauConfirme } from '@/lib/actions/email-notifs'
 
 export type RdvRole = 'candidat' | 'recruteur'
 
@@ -99,6 +100,7 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
       ? { ...prev, statut: 'acceptee', creneaux_rdv: prev.creneaux_rdv.map(c => ({ ...c, selectionne: c.id === creneauId })) }
       : prev
     )
+    notifCreneauConfirme(rdvId, creneauId).catch(e => console.error('[notif creneau-confirme]', e))
     setActing(false)
   }
 

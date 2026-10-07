@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import Avatar from '@/components/Avatar'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -22,7 +23,7 @@ const C = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'compte' | 'confidentialite'
+type Tab = 'compte' | 'confidentialite' | 'notifications'
 
 type Privacy = {
   messages_recruteurs:   boolean
@@ -70,7 +71,7 @@ function Toast({ msg, visible }: { msg: string; visible: boolean }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 400 }}>{children}</h2>
+  return <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 400 }}>{children}</h2>
 }
 
 function SectionSub({ children }: { children: React.ReactNode }) {
@@ -168,7 +169,9 @@ export default function ParametresPage() {
   const [savingPwd, setSavingPwd]       = useState(false)
   const [savingContact, setSavingContact] = useState(false)
   const [contactError, setContactError] = useState('')
-  const [savingPrivacy, setSavingPrivacy] = useState(false)
+  const [savingPrivacy, setSavingPrivacy]       = useState(false)
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [savingNotifs, setSavingNotifs]         = useState(false)
   const [deleting, setDeleting]         = useState(false)
   const [deletePhrase, setDeletePhrase] = useState('')
   const [deleteError, setDeleteError]   = useState('')
@@ -190,7 +193,7 @@ export default function ParametresPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
       setEmail(user.email ?? '')
-      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone').eq('user_id', user.id).single()
+      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone,email_notifications').eq('user_id', user.id).single()
       if (data) {
         setPrenom(data.prenom ?? '')
         setNom(data.nom ?? '')
@@ -203,6 +206,7 @@ export default function ParametresPage() {
           messages_recruteurs: data.messages_recruteurs ?? false,
           visible_candidatheque: vc,
         })
+        setEmailNotifications(data.email_notifications ?? true)
       }
       setLoading(false)
     }
@@ -306,9 +310,29 @@ export default function ParametresPage() {
 
   if (loading) return <Spinner />
 
+  async function saveNotifications() {
+    setSavingNotifs(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { error } = await supabase
+        .from('profils')
+        .update({ email_notifications: emailNotifications })
+        .eq('user_id', user.id)
+      if (error) {
+        console.error('[saveNotifications] update failed', error)
+        setSavingNotifs(false)
+        showToast('Erreur : impossible de sauvegarder.')
+        return
+      }
+    }
+    setSavingNotifs(false)
+    showToast('Préférences sauvegardées !')
+  }
+
   const TABS: { id: Tab; label: string; icon: string }[] = [
     { id: 'compte',          label: 'Compte',          icon: '⬡' },
     { id: 'confidentialite', label: 'Confidentialité', icon: '◷' },
+    { id: 'notifications',   label: 'Notifications',   icon: '◎' },
   ]
 
   return (
@@ -323,7 +347,7 @@ export default function ParametresPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 20,
       }}>
-        <div onClick={() => router.push('/')} style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, cursor: 'pointer' }}>
+        <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, cursor: 'pointer' }}>
           Kapolia
         </div>
         <button onClick={() => router.push('/profil')} style={{
@@ -416,7 +440,7 @@ export default function ParametresPage() {
                 <Divider />
 
                 <div>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: C.dark, marginBottom: 16 }}>
+                  <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, marginBottom: 16 }}>
                     Changer le mot de passe
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -444,7 +468,7 @@ export default function ParametresPage() {
                 <Divider />
 
                 <div style={{ padding: '20px 22px', borderRadius: 14, backgroundColor: C.redBg, border: `1px solid ${C.red}25` }}>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.red, marginBottom: 6 }}>Zone de danger</div>
+                  <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.red, marginBottom: 6 }}>Zone de danger</div>
                   <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px', lineHeight: 1.5 }}>
                     La suppression est permanente et irréversible. Vos messages, fichiers, candidatures et profil seront effacés.
                     Pour confirmer, tapez&nbsp;<strong style={{ color: C.dark }}>{DELETE_PHRASE}</strong> ci-dessous.
@@ -513,6 +537,25 @@ export default function ParametresPage() {
                 />
                 <div style={{ marginTop: 8 }}>
                   <SaveBtn loading={savingPrivacy} onClick={savePrivacy} />
+                </div>
+              </div>
+            )}
+
+            {/* ─── NOTIFICATIONS ──────────────────────────────────────── */}
+            {tab === 'notifications' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <SectionTitle>Notifications</SectionTitle>
+                  <SectionSub>Choisissez les événements pour lesquels vous souhaitez recevoir un e-mail.</SectionSub>
+                </div>
+                <Toggle
+                  checked={emailNotifications}
+                  onChange={setEmailNotifications}
+                  label="Recevoir des e-mails de notification"
+                  desc="RDV proposés, réponses de vos proches, mises à jour de candidatures."
+                />
+                <div style={{ marginTop: 8 }}>
+                  <SaveBtn loading={savingNotifs} onClick={saveNotifications} />
                 </div>
               </div>
             )}

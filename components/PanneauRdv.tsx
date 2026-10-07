@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
+import { notifRdvAnnule } from '@/lib/actions/email-notifs'
 
 const C = {
   terracotta: '#C4673A',
@@ -279,6 +281,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
   async function annuler() {
     if (!rdv || acting) return
     setActing(true)
+    const statutAvant = rdv.statut
     const { error } = await supabase
       .from('rendez_vous')
       .update({ statut: 'annulee' })
@@ -288,6 +291,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
       setActing(false)
       return
     }
+    notifRdvAnnule(rdv.id, statutAvant).catch(e => console.error('[notif rdv-annule]', e))
     onAnnulee(rdv.id)
     onClose()
   }
@@ -332,7 +336,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
           padding: '16px 20px', borderBottom: `1px solid ${C.sable}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: C.dark, fontWeight: 600 }}>
+          <span style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, fontWeight: 600 }}>
             Rendez-vous
           </span>
           <div style={{ flex: 1 }} />

@@ -13,9 +13,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
 import { calculerScore, type ProfilMatch, type OffreMatch } from '@/lib/matching'
 import { getStatut } from '@/lib/statuts'
+import { notifStatutCandidature } from '@/lib/actions/email-notifs'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -222,7 +224,7 @@ function StatBar({ cands }: { cands: Candidature[] }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         {statCards.map(s => (
           <div key={s.label} style={{ display: 'flex', flex: '1 1 90px', flexDirection: 'column', alignItems: 'center', padding: '12px 10px', borderRadius: 12, backgroundColor: s.label === 'Total' ? C.creme : `${s.color}0A`, border: `1px solid ${s.label === 'Total' ? C.sable : `${s.color}25`}` }}>
-            <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.count}</div>
+            <div style={{ fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.count}</div>
             <div style={{ fontSize: 11, color: C.grey, marginTop: 4, textAlign: 'center', fontWeight: 500 }}>{s.label}</div>
           </div>
         ))}
@@ -472,8 +474,6 @@ export default function CandidaturesPage() {
     async function load() {
       setLoading(true)
 
-      console.log('params.id:', params.id)
-
       const { data: offreData } = await supabase
         .from('offres')
         .select('id, titre, type_contrat, domaine, ville, mode_travail, experience, salaire_min, salaire_max, periode_salaire, competences, valeurs')
@@ -488,7 +488,7 @@ export default function CandidaturesPage() {
         .eq('offre_id', params.id)
         .order('created_at', { ascending: false })
 
-      if (candError) console.log('erreur candidatures:', candError)
+      if (candError) console.error('[candidatures] fetch candidatures:', candError)
 
       // Étape 2 : charger les profils séparément et fusionner
       if (candidaturesData && candidaturesData.length > 0) {
@@ -499,7 +499,7 @@ export default function CandidaturesPage() {
           .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, competences_acquises, avatar_url, avatar_type, projet_phare, passions, type_poste, structure, disponibilite, valeur')
           .in('user_id', candidatIds)
 
-        if (profilsError) console.log('erreur profils:', profilsError)
+        if (profilsError) console.error('[candidatures] fetch profils:', profilsError)
 
         setCands(candidaturesData.map(c => ({
           ...c,
@@ -529,6 +529,9 @@ export default function CandidaturesPage() {
     setCands(p => p.map(c => c.id === candId ? { ...c, statut } : c))
     if (active?.id === candId) setActive(prev => prev ? { ...prev, statut } : null)
     showToast(`Statut → ${statutInfo(statut).label}`)
+    if (statut === 'acceptée' || statut === 'refusée') {
+      notifStatutCandidature(candId, statut).catch(e => console.error('[notif statut]', e))
+    }
   }
 
   // ── Bulk ─────────────────────────────────────────────────────────────────
@@ -586,7 +589,7 @@ export default function CandidaturesPage() {
               <span style={{ color: C.lightGrey, fontSize: 13 }}>/</span>
               <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  {offre && <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, fontWeight: 600 }}>{offre.titre}</div>}
+                  {offre && <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, fontWeight: 600 }}>{offre.titre}</div>}
                   <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
                     {cands.length} candidature{cands.length !== 1 ? 's' : ''} reçue{cands.length !== 1 ? 's' : ''}
                   </div>
@@ -624,7 +627,7 @@ export default function CandidaturesPage() {
                 {displayed.length === 0 ? (
                   <div style={{ backgroundColor: C.white, borderRadius: 16, border: `1px solid ${C.sable}`, padding: '60px 24px', textAlign: 'center' }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>◎</div>
-                    <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, marginBottom: 6 }}>
+                    <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, marginBottom: 6 }}>
                       {tab === 'toutes' ? 'Aucune candidature reçue' : `Aucune candidature « ${statutInfo(tab).label} »`}
                     </div>
                     <div style={{ fontSize: 13, color: C.grey }}>

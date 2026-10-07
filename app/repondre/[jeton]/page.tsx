@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
 
-const LORA  = "'Lora', Georgia, serif"
+import { FONT_SERIF } from '@/lib/typography'
 const INTER = "'Inter', system-ui, sans-serif"
 
 const C = {
@@ -90,6 +90,12 @@ export default function RepondrePage() {
 
     if (error) { setEtat('erreur'); return }
     setEtat('succes')
+
+    void fetch('/api/notif/reponse-proche', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ jeton }),
+    })
   }
 
   const boutonActif = peutEnvoyer
@@ -123,7 +129,7 @@ export default function RepondrePage() {
         {(actif || etat === 'envoi') && (
           <div>
             <h1 style={{
-              fontFamily: LORA,
+              fontFamily: FONT_SERIF,
               fontSize:   'clamp(20px, 5vw, 26px)',
               fontWeight: 600,
               color:      C.vert,
@@ -293,7 +299,7 @@ export default function RepondrePage() {
         {etat === 'succes' && (
           <div>
             <h1 style={{
-              fontFamily: LORA,
+              fontFamily: FONT_SERIF,
               fontSize:   32,
               fontWeight: 600,
               color:      C.vert,
