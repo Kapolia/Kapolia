@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/rappels-rdv",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
