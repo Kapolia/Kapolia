@@ -990,7 +990,6 @@ function MessagesPageInner() {
       })
       return
     }
-    console.info('[rdv] étape 1 rendez_vous — ok', { id: rdv.id })
 
     // Étape 2 : creneaux_rdv
     const { error: crErr } = await supabase
@@ -1013,7 +1012,6 @@ function MessagesPageInner() {
       await supabase.from('rendez_vous').delete().eq('id', rdv.id)
       return
     }
-    console.info('[rdv] étape 2 creneaux_rdv — ok', { count: form.creneaux.length })
 
     // Étape 3 : message lié à la proposition
     const { data: msgInserted, error: msgErr } = await supabase
@@ -1036,7 +1034,6 @@ function MessagesPageInner() {
       })
       return
     }
-    console.info('[rdv] étape 3 message — ok', { id: msgInserted.id })
     notifRdvPropose(rdv.id).catch(e => console.error('[notif rdv-propose]', e))
 
     setMsgCache(prev => ({

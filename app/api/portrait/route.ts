@@ -150,7 +150,7 @@ export async function GET(req: NextRequest) {
     {
       const buf   = await renderToBuffer(makeDocument({ profil: p, email, title, withPhoto, avatarData, scale: BASE_SCALE, mergeMode: 'A', showEmail, showPhone }))
       const pages = countPages(buf)
-      console.info(`[portrait] étape 1 · fusion A · base · ${pages} page${pages > 1 ? 's' : ''}`, { user_id: user.id, octets: buf.length })
+      if (pages > 1) console.info(`[portrait] étape 1 · fusion A · base · ${pages} pages`, { user_id: user.id, octets: buf.length })
       if (pages === 1) { finalBuffer = buf; found = true }
     }
 

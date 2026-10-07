@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
@@ -447,7 +448,7 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
         />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: size * 0.22, color: C.white, fontWeight: 700, lineHeight: 1 }}>{score}%</div>
+        <div style={{ fontFamily: FONT_SERIF, fontSize: size * 0.22, color: C.white, fontWeight: 700, lineHeight: 1 }}>{score}%</div>
         <div style={{ fontSize: size * 0.12, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginTop: 2 }}>Match</div>
       </div>
     </div>
@@ -668,8 +669,7 @@ export default function ProfilView({
             visiteur_type: 'recruteur',
           })
           if (vueError) {
-            if (vueError.code === '23505') console.log('vues_profil: vue déjà enregistrée aujourd\'hui')
-            else console.error('vues_profil INSERT error:', vueError)
+            if (vueError.code !== '23505') console.error('vues_profil INSERT error:', vueError)
           }
         }
       }
@@ -783,7 +783,7 @@ export default function ProfilView({
   if (notFound) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 40 }}>◎</div>
-      <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark }}>Profil introuvable</div>
+      <div style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark }}>Profil introuvable</div>
       <div style={{ fontSize: 14, color: C.grey }}>Ce profil n'existe pas ou n'est plus accessible.</div>
       <button onClick={() => router.back()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
         ← Retour
@@ -1308,7 +1308,7 @@ export default function ProfilView({
 
           {/* Identité */}
           <div style={{ flex: 1, minWidth: 240 }}>
-            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 8px', lineHeight: 1.2 }}>
+            <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 8px', lineHeight: 1.2 }}>
               {p.prenom} {p.nom}
             </h1>
 
@@ -1347,7 +1347,7 @@ export default function ProfilView({
                     width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8,
                     color: C.white, fontSize: 13, padding: '8px 12px',
-                    fontFamily: 'Georgia, serif', fontStyle: 'italic', lineHeight: 1.6,
+                    fontFamily: FONT_SERIF, fontStyle: 'italic', lineHeight: 1.6,
                     resize: 'none', outline: 'none', boxSizing: 'border-box' as const,
                     overflow: 'hidden', minHeight: 42,
                   }}
@@ -1359,7 +1359,7 @@ export default function ProfilView({
                 <div style={{ marginTop: 12 }}>
                   <p style={{
                     margin: 0,
-                    fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                    fontFamily: FONT_SERIF, fontStyle: 'italic',
                     fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
                     ...(signatureExpanded ? {} : {
                       display: '-webkit-box', WebkitLineClamp: 3,
@@ -1754,7 +1754,7 @@ export default function ProfilView({
               }}>
                 <div style={{ fontSize: 36, flexShrink: 0, lineHeight: 1 }}>🎬</div>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 16, color: C.dark, marginBottom: 8 }}>
+                  <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, marginBottom: 8 }}>
                     Ajoutez votre vidéo de présentation
                   </div>
                   <p style={{ margin: '0 0 12px', fontSize: 13, color: C.grey, lineHeight: 1.65 }}>
@@ -1988,7 +1988,7 @@ export default function ProfilView({
               </div>
             ) : (
               <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
-                <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.white, fontWeight: 400, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
+                <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.white, fontWeight: 400, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Voir les détails du projet →</div>
               </div>
@@ -2479,7 +2479,7 @@ export default function ProfilView({
         <div onClick={() => setProjetModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px, 4%, 40px)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
-              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark, margin: 0, fontWeight: 400, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
+              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark, margin: 0, fontWeight: 400, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
               <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.grey, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
             </div>
             {projetVideoUrl && (
@@ -2524,7 +2524,7 @@ export default function ProfilView({
         <div onClick={() => setAvatarModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 24, width: '100%', maxWidth: 480, padding: 'clamp(24px, 4%, 36px)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, margin: 0, fontWeight: 400 }}>Personnaliser mon avatar</h2>
+              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: 0, fontWeight: 400 }}>Personnaliser mon avatar</h2>
               <button onClick={() => setAvatarModal(false)} style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>✕</button>
             </div>
             <div style={{ display: 'flex', gap: 4, marginBottom: 28, backgroundColor: C.creme, borderRadius: 12, padding: 4 }}>
@@ -2560,7 +2560,7 @@ export default function ProfilView({
             )}
             {avatarTab === 'initiales' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
-                <div style={{ width: 96, height: 96, borderRadius: '50%', backgroundColor: selectedColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontSize: 30, color: C.white, fontWeight: 700 }}>{initials}</div>
+                <div style={{ width: 96, height: 96, borderRadius: '50%', backgroundColor: selectedColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, fontSize: 30, color: C.white, fontWeight: 700 }}>{initials}</div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
                   {['#C4673A','#2C4A3E','#3B82F6','#7C3AED','#EC4899','#475569'].map(color => (
                     <button key={color} onClick={() => setSelectedColor(color)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', backgroundColor: color, cursor: 'pointer', outline: selectedColor === color ? `3px solid ${C.dark}` : '3px solid transparent', outlineOffset: 2, transition: 'outline 0.15s' }} title={color} />
@@ -2631,7 +2631,7 @@ export default function ProfilView({
                   {/* Countdown overlay */}
                   {recordPhase === 'countdown' && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-                      <div style={{ fontFamily: 'Georgia, serif', fontSize: 112, color: C.white, fontWeight: 700, lineHeight: 1, textShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>{countdown}</div>
+                      <div style={{ fontFamily: FONT_SERIF, fontSize: 112, color: C.white, fontWeight: 700, lineHeight: 1, textShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>{countdown}</div>
                     </div>
                   )}
 
