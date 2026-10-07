@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import { calculerScore, type ProfilMatch } from '@/lib/matching'
 import {
   EntrepriseVitrineContenu,
@@ -92,7 +93,7 @@ export default function EntrepriseVitrinePage() {
   if (fetchError) return (
     <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 64 : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
+        <p style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
         <p style={{ fontSize: 14, color: C.grey, margin: 0 }}>Impossible de charger cette page. Veuillez réessayer dans quelques instants.</p>
       </div>
     </div>
@@ -101,7 +102,7 @@ export default function EntrepriseVitrinePage() {
   if (notFound || !ep) return (
     <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 64 : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
+        <h1 style={{ fontFamily: FONT_SERIF, fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px' }}>Cette page n'existe pas ou l'entreprise n'a pas encore configuré son profil.</p>
         <a href="/offres" style={{ padding: '11px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none', display: 'inline-block' }}>Voir les offres</a>
       </div>

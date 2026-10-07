@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Politique de confidentialité — Kapolia',
 }
 
-const LORA  = 'Lora, Georgia, serif'
+import { FONT_SERIF } from '@/lib/typography'
 const INTER = 'Inter, system-ui, sans-serif'
 
 const C = {
@@ -22,7 +22,7 @@ function Section({ titre, children }: { titre: string; children: React.ReactNode
   return (
     <section style={{ marginBottom: '48px' }}>
       <h2 style={{
-        fontFamily: LORA,
+        fontFamily: FONT_SERIF,
         fontSize:   '20px',
         fontWeight: 600,
         color:      C.vert,
@@ -91,7 +91,7 @@ export default function Confidentialite() {
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '64px 32px 0' }}>
 
         <h1 style={{
-          fontFamily: LORA,
+          fontFamily: FONT_SERIF,
           fontSize:   'clamp(28px, 4vw, 40px)',
           fontWeight: 700,
           color:      C.vert,

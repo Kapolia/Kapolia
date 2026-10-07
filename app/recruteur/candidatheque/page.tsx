@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import Avatar from '@/components/Avatar'
 import { DOMAINES, EXPERIENCES, TYPES_POSTE } from '@/lib/onboarding-utils'
 import { trouverConversation } from '@/lib/conversations'
@@ -204,7 +205,7 @@ function CandidateRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         {profil.signature && (
           <p style={{
-            fontFamily: 'Georgia, serif', fontStyle: 'italic',
+            fontFamily: FONT_SERIF, fontStyle: 'italic',
             fontSize: '12.5px', color: C.grey, lineHeight: '1.5',
             margin: '0 0 7px',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -305,7 +306,7 @@ function RightPanel({
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Avatar profil={profil} size="md" />
           <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontFamily: 'Georgia, serif', fontSize: 18, color: C.white, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
+            <h3 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.white, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
               {nom}
             </h3>
             {headerMeta && (
@@ -656,7 +657,7 @@ export default function RecruteurPage() {
           padding: '14px 22px', display: 'flex', alignItems: 'center', gap: '10px',
           borderBottom: `1px solid ${C.sable}`,
         }}>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '19px', color: C.dark, fontWeight: '400', margin: '0 auto 0 0' }}>
+          <h1 style={{ fontFamily: FONT_SERIF, fontSize: '19px', color: C.dark, fontWeight: '400', margin: '0 auto 0 0' }}>
             Repérer des profils
           </h1>
           <div style={{ position: 'relative' }}>
@@ -687,13 +688,13 @@ export default function RecruteurPage() {
           {/* KPI réels */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
             <div style={{ backgroundColor: C.white, borderRadius: '13px', padding: '16px 18px', border: `1px solid ${C.sable}` }}>
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: '26px', fontWeight: '400', lineHeight: 1, marginBottom: '4px', color: C.vert }}>
+              <div style={{ fontFamily: FONT_SERIF, fontSize: '26px', fontWeight: '400', lineHeight: 1, marginBottom: '4px', color: C.vert }}>
                 {profils.length}
               </div>
               <div style={{ fontSize: '12.5px', fontWeight: '600', color: C.dark }}>Profils disponibles</div>
             </div>
             <div style={{ backgroundColor: C.white, borderRadius: '13px', padding: '16px 18px', border: `1px solid ${C.sable}` }}>
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: '26px', fontWeight: '400', lineHeight: 1, marginBottom: '4px', color: C.terracotta }}>
+              <div style={{ fontFamily: FONT_SERIF, fontSize: '26px', fontWeight: '400', lineHeight: 1, marginBottom: '4px', color: C.terracotta }}>
                 {filtered.length}
               </div>
               <div style={{ fontSize: '12.5px', fontWeight: '600', color: C.dark }}>Résultats filtrés</div>

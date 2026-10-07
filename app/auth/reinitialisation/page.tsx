@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
+import { FONT_SERIF } from '@/lib/typography'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         marginTop: '32px',
         fontSize: '12px',
         color: C.lightGrey,
-        fontFamily: 'Georgia, serif',
+        fontFamily: FONT_SERIF,
         fontStyle: 'italic',
         textAlign: 'center',
       }}>
@@ -203,7 +204,7 @@ export default function ReinitialisationPage() {
           </svg>
         </div>
         <h1 style={{
-          fontFamily: 'Georgia, serif',
+          fontFamily: FONT_SERIF,
           fontSize: 'clamp(20px, 3.5vw, 26px)',
           color: C.dark, fontWeight: '400',
           margin: '0 0 12px',
@@ -248,7 +249,7 @@ export default function ReinitialisationPage() {
     return (
       <Shell>
         <h1 style={{
-          fontFamily: 'Georgia, serif',
+          fontFamily: FONT_SERIF,
           fontSize: 'clamp(20px, 3.5vw, 26px)',
           color: C.dark, fontWeight: '400',
           margin: '0 0 12px',
@@ -299,7 +300,7 @@ export default function ReinitialisationPage() {
           </svg>
         </div>
         <h1 style={{
-          fontFamily: 'Georgia, serif',
+          fontFamily: FONT_SERIF,
           fontSize: 'clamp(20px, 3.5vw, 26px)',
           color: C.dark, fontWeight: '400',
           margin: '0 0 12px',
@@ -318,7 +319,7 @@ export default function ReinitialisationPage() {
   return (
     <Shell>
       <h1 style={{
-        fontFamily: 'Georgia, serif',
+        fontFamily: FONT_SERIF,
         fontSize: 'clamp(22px, 4vw, 28px)',
         color: C.dark, fontWeight: '400',
         margin: '0 0 10px',

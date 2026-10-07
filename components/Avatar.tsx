@@ -1,5 +1,7 @@
 'use client'
 
+import { FONT_SERIF } from '@/lib/typography'
+
 const DEFAULT_COLOR = '#C4673A'
 
 const SIZES: Record<'sm' | 'md' | 'lg', { px: number; fontSize: number }> = {
@@ -54,7 +56,7 @@ export default function Avatar({
 
   return (
     <div style={{ ...base, backgroundColor: bgColor }}>
-      <span style={{ fontSize, fontWeight: 700, color: '#FFFFFF', fontFamily: 'Georgia, serif', lineHeight: 1 }}>
+      <span style={{ fontSize, fontWeight: 700, color: '#FFFFFF', fontFamily: FONT_SERIF, lineHeight: 1 }}>
         {initials}
       </span>
     </div>

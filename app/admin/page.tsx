@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ function StatCard({ label, value, icon, accent }: {
     }}>
       <div style={{ fontSize: '18px', marginBottom: '10px' }}>{icon}</div>
       <div style={{
-        fontFamily: 'Georgia, serif',
+        fontFamily: FONT_SERIF,
         fontSize: '34px', fontWeight: '700',
         color: accent, lineHeight: 1, marginBottom: '6px',
       }}>
@@ -147,7 +148,7 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
       display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '16px',
     }}>
       <h2 style={{
-        fontFamily: 'Georgia, serif', fontSize: '18px',
+        fontFamily: FONT_SERIF, fontSize: '18px',
         color: C.dark, margin: 0,
       }}>
         {title}
@@ -329,7 +330,7 @@ export default function AdminPage() {
           marginBottom: '8px',
         }}>
           <div style={{
-            fontFamily: 'Georgia, serif', fontSize: '18px',
+            fontFamily: FONT_SERIF, fontSize: '18px',
             color: C.white, marginBottom: '4px',
           }}>
             Kapolia

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import { OffreDetail, type OffreData } from '@/components/OffreDetail'
 import { useFavoris } from '@/lib/favoris-context'
 import { getStatut } from '@/lib/statuts'
@@ -108,7 +109,7 @@ function StatCard({ icon, value, label, accent }: {
     }}>
       <div style={{ fontSize: 20, marginBottom: 10 }}>{icon}</div>
       <div style={{
-        fontFamily: 'Georgia, serif', fontSize: 32,
+        fontFamily: FONT_SERIF, fontSize: 32,
         color: accent, fontWeight: 700, lineHeight: 1, marginBottom: 6,
       }}>
         {value}
@@ -163,7 +164,7 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onDismiss }: {
         }}
       >
         <h3 style={{
-          fontFamily: 'Georgia, serif', fontSize: 18,
+          fontFamily: FONT_SERIF, fontSize: 18,
           color: C.dark, margin: '0 0 10px', fontWeight: 400,
         }}>
           {title}
@@ -256,7 +257,7 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: 'Georgia, serif', fontSize: 15,
+            fontFamily: FONT_SERIF, fontSize: 15,
             color: C.dark, fontWeight: 600, marginBottom: 4, lineHeight: 1.2,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
@@ -582,7 +583,7 @@ export default function CandidaturesPage() {
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <h1 style={{
-            fontFamily: 'Georgia, serif', fontSize: 17,
+            fontFamily: FONT_SERIF, fontSize: 17,
             color: C.creme, margin: 0, fontWeight: 400,
           }}>
             Mes candidatures
@@ -666,7 +667,7 @@ export default function CandidaturesPage() {
         {/* Header */}
         <div style={{ marginBottom: 36 }}>
           <h1 style={{
-            fontFamily: 'Georgia, serif',
+            fontFamily: FONT_SERIF,
             fontSize: 'clamp(26px, 4vw, 36px)',
             color: C.dark, margin: '0 0 6px', lineHeight: 1.15,
           }}>
@@ -696,7 +697,7 @@ export default function CandidaturesPage() {
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>◎</div>
             <h2 style={{
-              fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark,
+              fontFamily: FONT_SERIF, fontSize: 22, color: C.dark,
               margin: '0 0 8px', fontWeight: 400,
             }}>
               Vous n&apos;avez pas encore postulé.

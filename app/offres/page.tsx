@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import { calculerScore, type ProfilMatch } from '@/lib/matching'
 import { OffreDetail, type OffreSimilaire } from '@/components/OffreDetail'
 import { type GeoCoords } from '@/components/GeoVilleInput'
@@ -763,7 +764,7 @@ function EmptyState({ hasFilters, onReset }: { hasFilters: boolean; onReset: () 
       }}>
         {hasFilters ? '🔍' : '📭'}
       </div>
-      <h3 style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
+      <h3 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
         {hasFilters ? 'Aucune offre ne correspond' : 'Aucune offre pour le moment'}
       </h3>
       <p style={{ fontSize: 14, color: C.grey, margin: '0 0 20px', maxWidth: 360, lineHeight: 1.65 }}>
@@ -1296,7 +1297,7 @@ export default function OffresPage() {
 
               {/* Titre */}
               <p style={{
-                fontFamily: 'Georgia, serif', fontStyle: 'italic',
+                fontFamily: FONT_SERIF, fontStyle: 'italic',
                 fontSize: 21, color: C.creme, fontWeight: 400,
                 margin: '0 0 12px', lineHeight: 1.2,
               }}>

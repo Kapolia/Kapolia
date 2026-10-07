@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
+import { FONT_SERIF } from '@/lib/typography'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -186,7 +187,7 @@ export default function InscriptionPage() {
 
         {/* Header */}
         <h1 style={{
-          fontFamily: 'Georgia, serif',
+          fontFamily: FONT_SERIF,
           fontSize: 'clamp(22px, 4vw, 28px)',
           color: C.dark,
           fontWeight: '400',

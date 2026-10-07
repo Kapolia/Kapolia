@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 import LogoKapolia from '@/components/LogoKapolia'
 import InvitationModal from '@/components/InvitationModal'
 import {
@@ -173,7 +174,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
         <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
         <span style={{
-          fontFamily: 'Lora, Georgia, serif',
+          fontFamily: FONT_SERIF,
           fontWeight: 600,
           fontSize: 14,
           color: '#2C4A3E',
@@ -212,7 +213,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           justifyContent: 'center',
         }}>
           <p style={{
-            fontFamily: 'Inter, system-ui, sans-serif',
+            fontFamily: FONT_SANS,
             fontSize: 12,
             letterSpacing: '0.2em',
             textTransform: 'uppercase',
@@ -222,7 +223,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
             Trouvez votre cap{' '}!
           </p>
           <h1 className="kv-title" style={{
-            fontFamily: 'Lora, Georgia, serif',
+            fontFamily: FONT_SERIF,
             fontWeight: 600,
             fontSize: 48,
             lineHeight: 1.06,
@@ -323,7 +324,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 10 }}>
             <span style={{
-              fontFamily: 'Lora, Georgia, serif',
+              fontFamily: FONT_SERIF,
               fontWeight: 600,
               fontSize: 34,
               color: '#2C4A3E',
@@ -464,7 +465,7 @@ function QualitesCarousel({
     return (
       <div>
         <p style={{
-          fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark,
+          fontFamily: FONT_SERIF, fontSize: 22, color: C.dark,
           margin: '0 0 10px', fontWeight: 'normal', lineHeight: 1.3,
         }}>
           Votre profil de qualités est prêt.
@@ -544,7 +545,7 @@ function QualitesCarousel({
 
       {/* Texte de la situation */}
       <p style={{
-        fontFamily: 'Georgia, serif', fontSize: 18, color: C.dark,
+        fontFamily: FONT_SERIF, fontSize: 18, color: C.dark,
         margin: '0 0 20px', lineHeight: 1.5, fontWeight: 'normal',
       }}>
         {situation.texte}
@@ -695,7 +696,7 @@ function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; use
 
       {/* Titre */}
       <h1 className="final-title" style={{
-        fontFamily: 'Lora, Georgia, serif',
+        fontFamily: FONT_SERIF,
         fontWeight: 600,
         lineHeight: 1.1,
         color: '#F7F2EB',
@@ -730,7 +731,7 @@ function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; use
           textAlign: 'left',
         }}>
           <p style={{
-            fontFamily: 'Lora, Georgia, serif',
+            fontFamily: FONT_SERIF,
             fontWeight: 600,
             fontSize: 17,
             color: '#22312B',
@@ -856,7 +857,7 @@ function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: st
         Étape {num} sur {TOTAL}
       </p>
       <h2 style={{
-        fontFamily: 'Georgia, serif',
+        fontFamily: FONT_SERIF,
         fontSize: 'clamp(22px, 3.5vw, 32px)',
         color: C.dark, lineHeight: '1.35',
         marginBottom: sub ? '10px' : '28px',
@@ -1826,7 +1827,7 @@ export default function OnboardingPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${C.sable}`,
       }}>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: '20px', color: C.dark }}>Kapolia</span>
+        <span style={{ fontFamily: FONT_SERIF, fontSize: '20px', color: C.dark }}>Kapolia</span>
         <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
           {step} / {TOTAL}
         </span>

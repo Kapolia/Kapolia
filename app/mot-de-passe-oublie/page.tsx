@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
+import { FONT_SERIF } from '@/lib/typography'
 
 const C = {
   terracotta: '#C4673A',
@@ -77,7 +78,7 @@ export default function MotDePasseOubliePage() {
         {!sent ? (
           <>
             <h1 style={{
-              fontFamily: 'Georgia, serif',
+              fontFamily: FONT_SERIF,
               fontSize: 'clamp(22px, 4vw, 28px)',
               color: C.dark,
               fontWeight: '400',
@@ -193,7 +194,7 @@ export default function MotDePasseOubliePage() {
             </div>
 
             <h1 style={{
-              fontFamily: 'Georgia, serif',
+              fontFamily: FONT_SERIF,
               fontSize: 'clamp(20px, 3.5vw, 26px)',
               color: C.dark,
               fontWeight: '400',
@@ -229,7 +230,7 @@ export default function MotDePasseOubliePage() {
         marginTop: '32px',
         fontSize: '12px',
         color: C.lightGrey,
-        fontFamily: 'Georgia, serif',
+        fontFamily: FONT_SERIF,
         fontStyle: 'italic',
         textAlign: 'center',
       }}>

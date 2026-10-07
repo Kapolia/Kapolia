@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { type GeoCoords } from '@/components/GeoVilleInput'
+import { FONT_SERIF } from '@/lib/typography'
 import { haversineKm } from '@/lib/geo'
 
 const C = {
@@ -123,7 +124,7 @@ export function OffreCard({
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
           <span style={{
-            flex: 1, fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700, lineHeight: 1.35,
+            flex: 1, fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 700, lineHeight: 1.35,
             color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
             transition: 'color 0.15s',
           }}>
@@ -205,7 +206,7 @@ export function OffreCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{
-            fontFamily: 'Georgia, serif', fontSize: 16, fontWeight: 700,
+            fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 700,
             color: hov ? C.terracotta : C.dark,
             margin: '0 0 4px', lineHeight: 1.3, transition: 'color 0.15s',
           }}>

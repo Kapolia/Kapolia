@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
@@ -73,7 +74,7 @@ function EmptyFavoris({ onBrowse }: { onBrowse: () => void }) {
         ☆
       </div>
       <h2 style={{
-        fontFamily: 'Georgia, serif', fontSize: 22, color: C.dark,
+        fontFamily: FONT_SERIF, fontSize: 22, color: C.dark,
         margin: '0 0 10px', fontWeight: 600,
       }}>
         Aucune offre sauvegardée
@@ -251,7 +252,7 @@ export default function FavorisPage() {
       <div style={{ backgroundColor: C.vert }}>
         <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 24px 0' }}>
           <p style={{
-            fontFamily: 'Georgia, serif', fontStyle: 'italic',
+            fontFamily: FONT_SERIF, fontStyle: 'italic',
             fontSize: 21, color: C.creme, fontWeight: 400,
             margin: '0 0 4px',
           }}>

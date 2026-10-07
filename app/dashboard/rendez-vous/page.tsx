@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import RdvBubble from '@/components/RdvBubble'
 
 const C = {
@@ -171,7 +172,7 @@ function AttenteCard({ rdv }: { rdv: RdvRow }) {
 function EmptyState() {
   return (
     <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 17, fontFamily: 'Georgia, serif', color: C.dark, marginBottom: 8 }}>
+      <div style={{ fontSize: 17, fontFamily: FONT_SERIF, color: C.dark, marginBottom: 8 }}>
         Aucun rendez-vous pour le moment
       </div>
       <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>
@@ -251,7 +252,7 @@ export default function RendezVousPage() {
 
         {/* ── En-tête ──────────────────────────────────────────────────── */}
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 600, color: C.dark, margin: 0, lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 600, color: C.dark, margin: 0, lineHeight: 1.2 }}>
             Mes rendez-vous
           </h1>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
+import { FONT_SERIF } from '@/lib/typography'
 
 const RadiusMap = dynamic(() => import('@/components/RadiusMap'), { ssr: false })
 
@@ -187,7 +188,7 @@ export function LieuRadiusPopover({
       )}
 
       {/* Title */}
-      <div style={{ fontFamily: 'Georgia, serif', fontSize: 15, fontWeight: 700, color: C.dark }}>
+      <div style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 700, color: C.dark }}>
         Zone de recherche
       </div>
 

@@ -1,4 +1,4 @@
-const LORA = 'Lora, Georgia, serif'
+import { FONT_SERIF } from '@/lib/typography'
 
 export type Variante = 'sombre' | 'clair' | 'contour' | 'terracotta' | 'monochrome'
 
@@ -104,7 +104,7 @@ export default function LogoKapolia({
       {symbol}
       <span
         style={{
-          fontFamily: LORA,
+          fontFamily: FONT_SERIF,
           fontWeight: 600,
           fontSize:   typeof taille === 'number' ? `${Math.round(taille * 0.56)}px` : undefined,
           color:      c.texte,

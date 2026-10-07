@@ -28,6 +28,7 @@ import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
 import RdvBubble from '@/components/RdvBubble'
 
@@ -145,7 +146,7 @@ function initEntreprise(nom: string): string {
 
 function ConvAvatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
   return (
-    <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Georgia, serif', fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>
+    <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>
       {i}
     </div>
   )
@@ -310,7 +311,7 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 280 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
+        <div style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
         <div style={{ fontSize: 14, color: C.grey, marginBottom: 24, lineHeight: 1.6 }}>Les recruteurs intéressés par votre profil vous contacteront ici.</div>
         <button onClick={onBrowse} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
           Découvrir les offres →
@@ -929,7 +930,7 @@ function CandidatMessagesPageInner() {
         <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.sable}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark }}>Mes messages</span>
+              <span style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark }}>Mes messages</span>
               {!selectMode && totalUnread > 0 && (
                 <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>
                   {totalUnread}
@@ -1180,7 +1181,7 @@ function CandidatMessagesPageInner() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
           <div style={{ textAlign: 'center', maxWidth: 300 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
-            <div style={{ fontFamily: 'Georgia, serif', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
+            <div style={{ fontFamily: FONT_SERIF, fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
             <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF } from '@/lib/typography'
 
 const C = {
   terracotta: '#C4673A',
@@ -149,7 +150,7 @@ export default function InvitationModal({
         }}
       >
         <h2 style={{
-          fontFamily: 'Georgia, serif', fontSize: 20,
+          fontFamily: FONT_SERIF, fontSize: 20,
           color: C.dark, margin: '0 0 16px', fontWeight: 'normal',
         }}>
           Inviter un proche

@@ -20,10 +20,8 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
     async function guard() {
       // ── 1. Check auth ──────────────────────────────────────────────────────
       const { data: { user }, error: authError } = await supabase.auth.getUser()
-      console.log('[recruteur/layout] user:', user?.id ?? null, 'authError:', authError?.message ?? null)
 
       if (!user) {
-        console.log('[recruteur/layout] → not logged in, redirect /connexion')
         setStatus('redirect')
         router.replace('/connexion')
         return
@@ -36,8 +34,6 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
         .eq('user_id', user.id)
         .single()
 
-      console.log('[recruteur/layout] type_compte:', profil?.type_compte ?? null, 'profilError:', profilError?.message ?? null)
-
       // ── 3. Route by type ───────────────────────────────────────────────────
       if (profilError || !profil) {
         // Can't determine type — let them through rather than loop
@@ -47,7 +43,6 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
       }
 
       if (profil.type_compte === 'candidat') {
-        console.log('[recruteur/layout] → candidat, redirect /dashboard')
         setStatus('redirect')
         router.replace('/dashboard')
         return

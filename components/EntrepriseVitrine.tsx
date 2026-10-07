@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { type ProfilMatch } from '@/lib/matching'
+import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 
 const C = {
   terracotta: '#C4673A', sable: '#E8D5B7', creme: '#F7F2EB',
@@ -10,7 +11,9 @@ const C = {
   lightGrey: '#D0D0D0', white: '#FFFFFF', amber: '#C88A2A',
 }
 
-export type PresseItem = { titre: string; source: string; url: string; annee: string }
+export type PresseItem    = { titre: string; source: string; url: string; annee: string }
+export type EtapeHistoire = { annee: string; titre: string; description: string }
+export type Temoignage    = { poste: string; citation: string }
 
 export type EntrepriseProfil = {
   user_id:                   string
@@ -26,12 +29,14 @@ export type EntrepriseProfil = {
   entreprise_annee_creation: string | null
   entreprise_effectif:       string | null
   entreprise_ca:             string | null
-  entreprise_levees:         string | null
   entreprise_pays:           string | null
   entreprise_avantages:      string[] | null
   entreprise_linkedin:       string | null
   entreprise_instagram:      string | null
   entreprise_presse:         PresseItem[] | null
+  entreprise_video_url:      string | null
+  entreprise_histoire:       EtapeHistoire[] | null
+  entreprise_temoignages:    Temoignage[] | null
 }
 
 export type Offre = {
@@ -45,17 +50,27 @@ export const PROFIL_SELECT = [
   'user_id', 'entreprise_nom', 'entreprise_secteur', 'entreprise_taille', 'entreprise_ville',
   'entreprise_site', 'entreprise_description', 'entreprise_valeurs', 'entreprise_logo_url',
   'entreprise_mission', 'entreprise_annee_creation', 'entreprise_effectif', 'entreprise_ca',
-  'entreprise_levees', 'entreprise_pays', 'entreprise_avantages',
+  'entreprise_pays', 'entreprise_avantages',
   'entreprise_linkedin', 'entreprise_instagram', 'entreprise_presse',
+  'entreprise_video_url', 'entreprise_histoire', 'entreprise_temoignages',
 ].join(', ')
 
 export const CHIFFRES: { key: keyof EntrepriseProfil; label: string }[] = [
   { key: 'entreprise_annee_creation', label: 'Fondée en'          },
   { key: 'entreprise_effectif',       label: 'Collaborateurs'      },
-  { key: 'entreprise_levees',         label: 'Levées de fonds'     },
   { key: 'entreprise_ca',             label: "Chiffre d'affaires"  },
   { key: 'entreprise_pays',           label: 'Pays / bureaux'      },
 ]
+
+function videoEmbedUrl(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  if (yt) return `https://www.youtube-nocookie.com/embed/${yt[1]}`
+  const vi = url.match(/vimeo\.com\/(\d+)/)
+  if (vi) return `https://player.vimeo.com/video/${vi[1]}`
+  return null
+}
+
+export const OFFRES_PREVIEW = 3
 
 function dateLabel(iso: string) {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
@@ -76,7 +91,7 @@ function LogoBlock({ ep, size = 80 }: { ep: EntrepriseProfil; size?: number }) {
   )
   return (
     <div style={{ width: size, height: size, borderRadius: Math.round(size / 5), backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.2)' }}>
-      <span style={{ fontFamily: 'Georgia, serif', fontSize: Math.round(size * 0.42), fontWeight: 700, color: C.white }}>{nom.charAt(0).toUpperCase()}</span>
+      <span style={{ fontFamily: FONT_SERIF, fontSize: Math.round(size * 0.42), fontWeight: 700, color: C.white }}>{nom.charAt(0).toUpperCase()}</span>
     </div>
   )
 }
@@ -102,7 +117,7 @@ function ScoreRing({ score, delay = 0 }: { score: number; delay?: number }) {
 }
 
 function STitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>{children}</h2>
+  return <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>{children}</h2>
 }
 
 function PresseRow({ item }: { item: PresseItem }) {
@@ -138,11 +153,13 @@ export function EntrepriseVitrineContenu({
   const router = useRouter()
   const [suivre, setSuivre] = useState(false)
 
-  const nom       = ep.entreprise_nom!
-  const valeurs   = ep.entreprise_valeurs ?? []
-  const avantages = ep.entreprise_avantages ?? []
-  const presse    = ep.entreprise_presse ?? []
-  const chiffres  = CHIFFRES.filter(c => ep[c.key])
+  const nom        = ep.entreprise_nom!
+  const valeurs    = ep.entreprise_valeurs ?? []
+  const avantages  = ep.entreprise_avantages ?? []
+  const presse     = ep.entreprise_presse ?? []
+  const histoire   = ep.entreprise_histoire ?? []
+  const temoignages = ep.entreprise_temoignages ?? []
+  const chiffres   = CHIFFRES.filter(c => { const v = ep[c.key] as string | null; return !!v && v.trim() !== '' })
 
   return (
     <main style={{
@@ -155,7 +172,7 @@ export function EntrepriseVitrineContenu({
       {/* Navbar minimaliste pour les visiteurs non connectés (mode public uniquement) */}
       {!isConnected && !contexteRecruteur && (
         <nav style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '0 40px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-          <div onClick={() => router.push('/')} style={{ fontFamily: 'Georgia, serif', fontSize: 20, color: C.dark, cursor: 'pointer', letterSpacing: '-0.02em' }}>Kapolia</div>
+          <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, cursor: 'pointer', letterSpacing: '-0.02em' }}>Kapolia</div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => router.push('/offres')} style={{ padding: '7px 16px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Toutes les offres</button>
             <button onClick={() => router.push('/connexion')} style={{ padding: '7px 16px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Se connecter</button>
@@ -185,7 +202,7 @@ export function EntrepriseVitrineContenu({
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
             <LogoBlock ep={ep} size={80} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(28px, 5vw, 44px)', color: C.white, margin: '0 0 8px', lineHeight: 1.1 }}>{nom}</h1>
+              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 5vw, 44px)', color: C.white, margin: '0 0 8px', lineHeight: 1.1 }}>{nom}</h1>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 28 }}>
                 {ep.entreprise_secteur && <span style={{ fontSize: 14, color: C.sable }}>⬡ {ep.entreprise_secteur}</span>}
                 {ep.entreprise_ville   && <span style={{ fontSize: 14, color: C.sable }}>◎ {ep.entreprise_ville}</span>}
@@ -213,7 +230,7 @@ export function EntrepriseVitrineContenu({
         {ep.entreprise_mission && (
           <section style={{ marginBottom: 56, textAlign: 'center', padding: '0 32px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.terracotta, marginBottom: 16 }}>Notre mission</div>
-            <p style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(18px, 2.5vw, 26px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
+            <p style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(18px, 2.5vw, 26px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
               « {ep.entreprise_mission} »
             </p>
           </section>
@@ -228,14 +245,49 @@ export function EntrepriseVitrineContenu({
           </section>
         )}
 
+        {ep.entreprise_video_url && (() => {
+          const embed = videoEmbedUrl(ep.entreprise_video_url!)
+          return (
+            <section style={{ marginBottom: 56 }}>
+              <STitle>Nous en vidéo</STitle>
+              {embed ? (
+                <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 16, overflow: 'hidden', backgroundColor: C.dark }}>
+                  <iframe src={embed} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                </div>
+              ) : (
+                <a href={ep.entreprise_video_url!.startsWith('http') ? ep.entreprise_video_url! : `https://${ep.entreprise_video_url}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, fontSize: 14, color: C.dark, textDecoration: 'none', fontWeight: 500 }}>
+                  ▶ Voir la vidéo ↗
+                </a>
+              )}
+            </section>
+          )
+        })()}
+
         {chiffres.length > 0 && (
           <section style={{ marginBottom: 56 }}>
             <STitle>En chiffres</STitle>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(chiffres.length, 3)}, 1fr)`, gap: 14 }}>
               {chiffres.map(c => (
                 <div key={c.key} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 4vw, 34px)', color: C.vert, fontWeight: 700, marginBottom: 8, lineHeight: 1 }}>{ep[c.key] as string}</div>
+                  <div style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 4vw, 34px)', color: C.vert, fontWeight: 700, marginBottom: 8, lineHeight: 1 }}>{ep[c.key] as string}</div>
                   <div style={{ fontSize: 11, color: C.grey, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {histoire.length > 0 && (
+          <section style={{ marginBottom: 56 }}>
+            <STitle>Notre histoire</STitle>
+            <div style={{ position: 'relative', paddingLeft: 28 }}>
+              <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
+              {histoire.map((etape, i) => (
+                <div key={i} style={{ position: 'relative', marginBottom: i < histoire.length - 1 ? 32 : 0 }}>
+                  <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.creme}`, boxSizing: 'border-box' }} />
+                  <div style={{ fontSize: 12, fontWeight: 700, color: C.terracotta, letterSpacing: '0.07em', marginBottom: 4 }}>{etape.annee}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
+                  {etape.description && <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>{etape.description}</div>}
                 </div>
               ))}
             </div>
@@ -246,7 +298,7 @@ export function EntrepriseVitrineContenu({
           <section style={{ marginBottom: 56 }}>
             <STitle>Nos valeurs</STitle>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 15, fontWeight: 600, color: C.vert }}>{v}</div>)}
+              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.creme }}>{v}</div>)}
             </div>
           </section>
         )}
@@ -254,8 +306,28 @@ export function EntrepriseVitrineContenu({
         {avantages.length > 0 && (
           <section style={{ marginBottom: 56 }}>
             <STitle>La vie chez nous</STitle>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              {avantages.map(a => <div key={a} style={{ backgroundColor: C.vert, borderRadius: 14, padding: '18px 20px', color: C.sable, fontSize: 14, fontWeight: 500, lineHeight: 1.4 }}>{a}</div>)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {avantages.map(a => (
+                <div key={a} style={{ backgroundColor: C.white, border: '1px solid #E3D9C6', borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ width: 0, height: 0, flexShrink: 0, marginTop: 3, borderTop: '6.5px solid transparent', borderBottom: '6.5px solid transparent', borderLeft: `11px solid ${C.terracotta}` }} />
+                  <span style={{ fontFamily: FONT_SANS, fontSize: 13.5, lineHeight: 1.5, color: '#22312B' }}>{a}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {temoignages.length > 0 && (
+          <section style={{ marginBottom: 56 }}>
+            <STitle>Ils en parlent</STitle>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+              {temoignages.map((t, i) => (
+                <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF }}>"</div>
+                  <p style={{ fontSize: 14, color: '#3A3A3A', lineHeight: 1.7, fontStyle: 'italic', margin: 0, flex: 1 }}>{t.citation}</p>
+                  <div style={{ fontSize: 12, color: C.grey, fontWeight: 500 }}>{t.poste}</div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -267,12 +339,12 @@ export function EntrepriseVitrineContenu({
           </p>
           {offres.length === 0 ? (
             <div style={{ backgroundColor: C.white, borderRadius: 16, border: `1px solid ${C.sable}`, padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, marginBottom: 6 }}>Aucune offre active en ce moment</div>
+              <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, marginBottom: 6 }}>Aucune offre active en ce moment</div>
               <div style={{ fontSize: 13, color: C.grey }}>Revenez bientôt ou suivez cette entreprise pour être notifié.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {offres.map((offre, i) => {
+              {offres.slice(0, OFFRES_PREVIEW).map((offre, i) => {
                 const sal = (offre.salaire_min || offre.salaire_max)
                   ? ((offre.salaire_min && offre.salaire_max)
                     ? `${offre.salaire_min.toLocaleString('fr-FR')} – ${offre.salaire_max.toLocaleString('fr-FR')} €`
@@ -283,7 +355,7 @@ export function EntrepriseVitrineContenu({
                   <div key={offre.id} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
                     {candidatProfil && offre.score != null && <ScoreRing score={offre.score} delay={i * 120} />}
                     <div style={{ flex: 1, minWidth: 180 }}>
-                      <div style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, fontWeight: 600, marginBottom: 7 }}>{offre.titre}</div>
+                      <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, fontWeight: 600, marginBottom: 7 }}>{offre.titre}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                         {offre.type_contrat && <span style={{ fontSize: 12, fontWeight: 700, color: C.vert, backgroundColor: `${C.vert}15`, padding: '3px 10px', borderRadius: 20 }}>{offre.type_contrat}</span>}
                         {sal && <span style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>💰 {sal}</span>}
@@ -298,6 +370,14 @@ export function EntrepriseVitrineContenu({
                 )
               })}
             </div>
+          )}
+          {offres.length > OFFRES_PREVIEW && (
+            <button
+              onClick={() => router.push(isConnected ? `/offres?entreprise=${ep.user_id}` : '/offres')}
+              style={{ marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: C.terracotta, fontWeight: 600, fontFamily: 'inherit', padding: 0, textAlign: 'left' }}
+            >
+              Voir les {offres.length} offres →
+            </button>
           )}
           {!isConnected && offres.length > 0 && (
             <div style={{ marginTop: 20, padding: '18px 22px', backgroundColor: `${C.terracotta}0D`, border: `1px solid ${C.terracotta}30`, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
@@ -357,7 +437,7 @@ export function EntrepriseVitrineContenu({
       {/* FOOTER */}
       <footer style={{ backgroundColor: C.dark, padding: '32px 40px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.white }}>{nom}</div>
+          <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.white }}>{nom}</div>
           <div style={{ fontSize: 12, color: C.sable, opacity: 0.5 }}>{offres.length} offre{offres.length !== 1 ? 's' : ''} sur Kapolia</div>
         </div>
       </footer>

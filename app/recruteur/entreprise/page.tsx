@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { PROFIL_SELECT, OFFRES_PREVIEW } from '@/components/EntrepriseVitrine'
 
 const C = {
   terracotta: '#C4673A', sable: '#E8D5B7', creme: '#F7F2EB',
@@ -20,7 +22,9 @@ const SECTEUR_OPTIONS = [
 
 type PresseItem     = { titre: string; source: string; url: string; annee: string }
 type EtapeHistoire  = { annee: string; titre: string; description: string }
-type Temoignage     = { nom: string; role: string; citation: string }
+type Temoignage     = { poste: string; citation: string }
+type InvitationTemo = { id: string; label: string; jeton: string; expire_at: string }
+type TemoignageRecu = { id: string; poste: string; citation: string; affiche: boolean; created_at: string }
 
 type EntrepriseProfil = {
   entreprise_nom:            string | null
@@ -35,7 +39,6 @@ type EntrepriseProfil = {
   entreprise_annee_creation: string | null
   entreprise_effectif:       string | null
   entreprise_ca:             string | null
-  entreprise_levees:         string | null
   entreprise_pays:           string | null
   entreprise_avantages:      string[] | null
   entreprise_linkedin:       string | null
@@ -51,19 +54,10 @@ type OffreActive = {
   ville: string | null; mode_travail: string | null; created_at: string
 }
 
-const PROFIL_SELECT = [
-  'entreprise_nom', 'entreprise_secteur', 'entreprise_taille', 'entreprise_ville',
-  'entreprise_site', 'entreprise_description', 'entreprise_valeurs', 'entreprise_logo_url',
-  'entreprise_mission', 'entreprise_annee_creation', 'entreprise_effectif', 'entreprise_ca',
-  'entreprise_levees', 'entreprise_pays', 'entreprise_avantages',
-  'entreprise_linkedin', 'entreprise_instagram', 'entreprise_presse',
-  'entreprise_video_url', 'entreprise_histoire', 'entreprise_temoignages',
-].join(', ')
 
 const CHIFFRES: { key: keyof EntrepriseProfil; label: string }[] = [
   { key: 'entreprise_annee_creation', label: 'Fondée en' },
   { key: 'entreprise_effectif',       label: 'Collaborateurs' },
-  { key: 'entreprise_levees',         label: 'Levées de fonds' },
   { key: 'entreprise_ca',             label: "Chiffre d'affaires" },
   { key: 'entreprise_pays',           label: 'Pays / bureaux' },
 ]
@@ -96,7 +90,7 @@ function LogoBlock({ url, nom, size = 76 }: { url: string | null; nom: string; s
   )
   return (
     <div style={{ width: size, height: size, borderRadius: Math.round(size / 5), backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.2)' }}>
-      <span style={{ fontFamily: 'Georgia, serif', fontSize: Math.round(size * 0.42), fontWeight: 700, color: C.white }}>{(nom || 'E').charAt(0).toUpperCase()}</span>
+      <span style={{ fontFamily: FONT_SERIF, fontSize: Math.round(size * 0.42), fontWeight: 700, color: C.white }}>{(nom || 'E').charAt(0).toUpperCase()}</span>
     </div>
   )
 }
@@ -104,7 +98,7 @@ function LogoBlock({ url, nom, size = 76 }: { url: string | null; nom: string; s
 function SCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 18, border: `1px solid ${C.sable}`, padding: '24px 28px', marginBottom: 16 }}>
-      <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: C.dark, margin: '0 0 18px' }}>{title}</h2>
+      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, margin: '0 0 18px' }}>{title}</h2>
       {children}
     </div>
   )
@@ -174,7 +168,7 @@ const EMPTY_PROFIL: EntrepriseProfil = {
   entreprise_ville: null, entreprise_site: null, entreprise_description: null,
   entreprise_valeurs: null, entreprise_logo_url: null, entreprise_mission: null,
   entreprise_annee_creation: null, entreprise_effectif: null, entreprise_ca: null,
-  entreprise_levees: null, entreprise_pays: null, entreprise_avantages: null,
+  entreprise_pays: null, entreprise_avantages: null,
   entreprise_linkedin: null, entreprise_instagram: null, entreprise_presse: null,
   entreprise_video_url: null, entreprise_histoire: null, entreprise_temoignages: null,
 }
@@ -202,7 +196,6 @@ export default function RecruteurEntreprisePage() {
   const [editCreation, setEditCreation]     = useState('')
   const [editEffectif, setEditEffectif]     = useState('')
   const [editCa, setEditCa]                 = useState('')
-  const [editLevees, setEditLevees]         = useState('')
   const [editPays, setEditPays]             = useState('')
   const [editValeurs, setEditValeurs]       = useState<string[]>([])
   const [valeurInput, setValeurInput]       = useState('')
@@ -215,9 +208,6 @@ export default function RecruteurEntreprisePage() {
   const [editHistoire, setEditHistoire]       = useState<EtapeHistoire[]>([])
   const [addingHistoire, setAddingHistoire]   = useState(false)
   const [histoireForm, setHistoireForm]       = useState<EtapeHistoire>({ annee: '', titre: '', description: '' })
-  const [editTemoignages, setEditTemoignages] = useState<Temoignage[]>([])
-  const [addingTemo, setAddingTemo]           = useState(false)
-  const [temoForm, setTemoForm]               = useState<Temoignage>({ nom: '', role: '', citation: '' })
   const [editLogoUrl, setEditLogoUrl]         = useState<string | null>(null)
   const [logoPreview, setLogoPreview]       = useState<string | null>(null)
   const [uploadingLogo, setUploadingLogo]   = useState(false)
@@ -228,20 +218,40 @@ export default function RecruteurEntreprisePage() {
 
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const [invitations, setInvitations]           = useState<InvitationTemo[]>([])
+  const [temoignagesRecus, setTemoignagesRecus] = useState<TemoignageRecu[]>([])
+  const [labelSalarie, setLabelSalarie]         = useState('')
+  const [etatInvit, setEtatInvit]               = useState<'idle' | 'form' | 'envoi' | 'lien' | 'erreur'>('idle')
+  const [lienCree, setLienCree]                 = useState<{ jeton: string; expire_at: string } | null>(null)
+  const [copieLien, setCopieLien]               = useState(false)
+  const [confirmSuppTemo, setConfirmSuppTemo]   = useState<string | null>(null)
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
       setUserId(user.id)
-      const [pr, or] = await Promise.all([
+      const [pr, or, invR, temoR] = await Promise.all([
         supabase.from('profils').select(PROFIL_SELECT).eq('user_id', user.id).single(),
         supabase.from('offres').select('id, titre, type_contrat, ville, mode_travail, created_at')
           .eq('recruteur_id', user.id).eq('statut_publication', 'publiée').eq('active', true)
+          .order('created_at', { ascending: false }),
+        supabase.from('invitations_temoignages')
+          .select('id, label, jeton, expire_at')
+          .eq('recruteur_id', user.id)
+          .eq('utilise', false)
+          .gt('expire_at', new Date().toISOString())
+          .order('created_at', { ascending: false }),
+        supabase.from('temoignages_recus')
+          .select('id, poste, citation, affiche, created_at')
+          .eq('recruteur_id', user.id)
           .order('created_at', { ascending: false }),
       ])
       if (pr.error && pr.error.code !== 'PGRST116') console.error('[entreprise] Erreur profil:', pr.error)
       if (pr.data) setProfil(pr.data as unknown as EntrepriseProfil)
       setOffres((or.data as unknown as OffreActive[] | null) ?? [])
+      setInvitations((invR.data as unknown as InvitationTemo[] | null) ?? [])
+      setTemoignagesRecus((temoR.data as unknown as TemoignageRecu[] | null) ?? [])
       setLoading(false)
     }
     load()
@@ -260,7 +270,7 @@ export default function RecruteurEntreprisePage() {
     setEditInstagram(p.entreprise_instagram ?? ''); setEditMission(p.entreprise_mission ?? '')
     setEditDesc(p.entreprise_description ?? ''); setEditCreation(p.entreprise_annee_creation ?? '')
     setEditEffectif(p.entreprise_effectif ?? ''); setEditCa(p.entreprise_ca ?? '')
-    setEditLevees(p.entreprise_levees ?? ''); setEditPays(p.entreprise_pays ?? '')
+    setEditPays(p.entreprise_pays ?? '')
     setEditValeurs([...(p.entreprise_valeurs ?? [])]); setValeurInput('')
     setEditAvantages([...(p.entreprise_avantages ?? [])]); setAvantageInput('')
     setEditPresse([...(p.entreprise_presse ?? [])])
@@ -268,12 +278,10 @@ export default function RecruteurEntreprisePage() {
     setEditHistoire([...(p.entreprise_histoire ?? [])])
     setHistoireForm({ annee: '', titre: '', description: '' })
     setAddingHistoire(false)
-    setEditTemoignages([...(p.entreprise_temoignages ?? [])])
-    setTemoForm({ nom: '', role: '', citation: '' })
-    setAddingTemo(false)
     setEditLogoUrl(p.entreprise_logo_url); setLogoPreview(p.entreprise_logo_url)
     setSaveError(null); setAddingPresse(false)
     setPresseForm({ titre: '', source: '', url: '', annee: '' })
+    setEtatInvit('idle'); setLienCree(null); setLabelSalarie(''); setConfirmSuppTemo(null); setCopieLien(false)
     setEditing(true)
   }
 
@@ -307,11 +315,49 @@ export default function RecruteurEntreprisePage() {
     setAddingHistoire(false)
   }
 
-  function addTemoignage() {
-    if (!temoForm.nom.trim() || !temoForm.citation.trim()) return
-    setEditTemoignages([...editTemoignages, { ...temoForm }])
-    setTemoForm({ nom: '', role: '', citation: '' })
-    setAddingTemo(false)
+  async function creerInvitationTemo() {
+    if (!labelSalarie.trim() || !userId) return
+    setEtatInvit('envoi')
+    const { data, error } = await supabase
+      .from('invitations_temoignages')
+      .insert({ recruteur_id: userId, label: labelSalarie.trim() })
+      .select('id, label, jeton, expire_at')
+      .single()
+    if (error || !data) { setEtatInvit('erreur'); return }
+    const inv = data as unknown as InvitationTemo
+    setInvitations(prev => [inv, ...prev])
+    setLienCree({ jeton: inv.jeton, expire_at: inv.expire_at })
+    setEtatInvit('lien')
+  }
+
+  async function supprimerInvitation(id: string) {
+    const { error } = await supabase.from('invitations_temoignages').delete().eq('id', id)
+    if (error) { showToast('Impossible de supprimer cette invitation'); return }
+    setInvitations(prev => prev.filter(i => i.id !== id))
+  }
+
+  async function basculerAffichage(id: string, affiche: boolean) {
+    const { error } = await supabase.rpc('basculer_affichage_temoignage', { p_id: id, p_affiche: affiche })
+    if (error) {
+      showToast(error.message?.includes('plafond') ? 'Limite de 6 témoignages affichés atteinte' : 'Erreur lors de la mise à jour')
+      return
+    }
+    setTemoignagesRecus(prev => prev.map(t => t.id === id ? { ...t, affiche } : t))
+  }
+
+  async function supprimerTemoignage(id: string) {
+    const { error } = await supabase.rpc('supprimer_temoignage', { p_id: id })
+    if (error) { showToast('Impossible de supprimer ce témoignage'); return }
+    setTemoignagesRecus(prev => prev.filter(t => t.id !== id))
+    setConfirmSuppTemo(null)
+  }
+
+  async function copierLienTemo(jeton: string) {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/temoignage/${jeton}`)
+      setCopieLien(true)
+      setTimeout(() => setCopieLien(false), 2500)
+    } catch { /* ignore */ }
   }
 
   async function handleSave() {
@@ -331,7 +377,6 @@ export default function RecruteurEntreprisePage() {
       entreprise_annee_creation: editCreation.trim() || null,
       entreprise_effectif:       editEffectif.trim() || null,
       entreprise_ca:             editCa.trim() || null,
-      entreprise_levees:         editLevees.trim() || null,
       entreprise_pays:           editPays.trim() || null,
       entreprise_valeurs:        editValeurs.length > 0 ? editValeurs : null,
       entreprise_avantages:      editAvantages.length > 0 ? editAvantages : null,
@@ -339,7 +384,6 @@ export default function RecruteurEntreprisePage() {
       entreprise_presse:         editPresse.length > 0 ? editPresse : null,
       entreprise_video_url:      editVideo.trim() || null,
       entreprise_histoire:       editHistoire.length > 0 ? editHistoire : null,
-      entreprise_temoignages:    editTemoignages.length > 0 ? editTemoignages : null,
     }
     const { error } = await supabase.from('profils').update(payload).eq('user_id', userId)
     if (error) { setSaveError('Erreur : ' + error.message); setSaving(false); return }
@@ -366,7 +410,7 @@ export default function RecruteurEntreprisePage() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(20px, 4vw, 28px)', color: C.dark, margin: '0 0 3px' }}>Modifier mon entreprise</h1>
+            <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(20px, 4vw, 28px)', color: C.dark, margin: '0 0 3px' }}>Modifier mon entreprise</h1>
             <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Ces informations s'affichent sur votre vitrine publique et vos offres.</p>
           </div>
           <button onClick={() => setEditing(false)} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 10, padding: '8px 18px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
@@ -426,7 +470,6 @@ export default function RecruteurEntreprisePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <FWrap><FLabel>Fondée en</FLabel><input value={editCreation} onChange={e => setEditCreation(e.target.value)} placeholder="2020" style={iStyle} /></FWrap>
             <FWrap><FLabel>Collaborateurs</FLabel><input value={editEffectif} onChange={e => setEditEffectif(e.target.value)} placeholder="48" style={iStyle} /></FWrap>
-            <FWrap><FLabel>Levées de fonds</FLabel><input value={editLevees} onChange={e => setEditLevees(e.target.value)} placeholder="8 M€" style={iStyle} /></FWrap>
             <FWrap><FLabel>Chiffre d'affaires</FLabel><input value={editCa} onChange={e => setEditCa(e.target.value)} placeholder="14 M€" style={iStyle} /></FWrap>
             <FWrap><FLabel>Pays / bureaux</FLabel><input value={editPays} onChange={e => setEditPays(e.target.value)} placeholder="12 pays" style={iStyle} /></FWrap>
           </div>
@@ -487,41 +530,6 @@ export default function RecruteurEntreprisePage() {
           )}
         </SCard>
 
-        {/* ── Témoignages ── */}
-        <SCard title="Ils en parlent — témoignages">
-          <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px' }}>La parole à vos collaborateurs. Maximum 6.</p>
-          {editTemoignages.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
-              {editTemoignages.map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontStyle: 'italic', color: C.dark, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>« {t.citation} »</div>
-                    <div style={{ fontSize: 12, color: C.grey }}>{t.nom}{t.role ? ` · ${t.role}` : ''}</div>
-                  </div>
-                  <button onClick={() => setEditTemoignages(editTemoignages.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: '0 4px', flexShrink: 0 }}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {editTemoignages.length >= 6 ? (
-            <div style={{ fontSize: 12, color: C.amber, fontWeight: 500 }}>Limite atteinte (6 maximum)</div>
-          ) : !addingTemo ? (
-            <button onClick={() => setAddingTemo(true)} style={{ backgroundColor: 'transparent', border: `1.5px dashed ${C.sable}`, borderRadius: 10, padding: '10px 20px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>+ Ajouter un témoignage</button>
-          ) : (
-            <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div><FLabel>Prénom Nom *</FLabel><input value={temoForm.nom} onChange={e => setTemoForm(f => ({ ...f, nom: e.target.value }))} placeholder="Marie D." style={iStyle} /></div>
-                <div><FLabel>Rôle & ancienneté</FLabel><input value={temoForm.role} onChange={e => setTemoForm(f => ({ ...f, role: e.target.value }))} placeholder="Dev senior · 3 ans" style={iStyle} /></div>
-              </div>
-              <div style={{ marginBottom: 12 }}><FLabel>Citation *</FLabel><textarea value={temoForm.citation} onChange={e => setTemoForm(f => ({ ...f, citation: e.target.value }))} placeholder="Ce que j'aime chez nous, c'est…" rows={3} style={{ ...iStyle, resize: 'vertical', lineHeight: 1.6 }} /></div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => { setAddingTemo(false); setTemoForm({ nom: '', role: '', citation: '' }) }} style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 9, padding: '8px 16px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
-                <button onClick={addTemoignage} disabled={!temoForm.nom.trim() || !temoForm.citation.trim()} style={{ backgroundColor: C.vert, color: C.white, border: 'none', borderRadius: 9, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: (temoForm.nom.trim() && temoForm.citation.trim()) ? 1 : 0.4 }}>Ajouter</button>
-              </div>
-            </div>
-          )}
-        </SCard>
-
         {/* ── Presse ── */}
         <SCard title="Dans la presse">
           {editPresse.length > 0 && (
@@ -555,6 +563,169 @@ export default function RecruteurEntreprisePage() {
           )}
         </SCard>
 
+        {/* ── Témoignages ── */}
+        <SCard title="Témoignages salariés">
+
+          {/* Zone 1 : Invitation */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.grey, marginBottom: 12 }}>
+              Inviter un salarié
+            </div>
+            {invitations.length >= 8 ? (
+              <div style={{ fontSize: 13, color: C.amber, backgroundColor: `${C.amber}10`, borderRadius: 10, padding: '11px 14px' }}>
+                Vous avez 8 invitations en attente. Supprimez-en une ou attendez qu'une expire avant d'en créer une nouvelle.
+              </div>
+            ) : etatInvit === 'idle' ? (
+              <button
+                onClick={() => { setEtatInvit('form'); setLabelSalarie('') }}
+                style={{ backgroundColor: 'transparent', border: `1.5px dashed ${C.sable}`, borderRadius: 10, padding: '10px 20px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}
+              >
+                + Créer un lien d'invitation
+              </button>
+            ) : (etatInvit === 'form' || etatInvit === 'erreur' || etatInvit === 'envoi') ? (
+              <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+                <FWrap>
+                  <FLabel>Pour qui créez-vous ce lien ?</FLabel>
+                  <input
+                    value={labelSalarie}
+                    onChange={e => setLabelSalarie(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); creerInvitationTemo() } }}
+                    placeholder="Ex. : Sophie, ou Responsable produit"
+                    style={iStyle}
+                    autoFocus
+                  />
+                </FWrap>
+                {etatInvit === 'erreur' && (
+                  <div style={{ fontSize: 13, color: C.errorRed, marginBottom: 12 }}>Le lien n'a pas pu être créé. Veuillez réessayer.</div>
+                )}
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => { setEtatInvit('idle'); setLabelSalarie('') }}
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 9, padding: '8px 16px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={creerInvitationTemo}
+                    disabled={!labelSalarie.trim() || etatInvit === 'envoi'}
+                    style={{ backgroundColor: C.vert, color: C.white, border: 'none', borderRadius: 9, padding: '8px 20px', fontSize: 13, fontWeight: 600, cursor: (!labelSalarie.trim() || etatInvit === 'envoi') ? 'default' : 'pointer', fontFamily: 'inherit', opacity: (!labelSalarie.trim() || etatInvit === 'envoi') ? 0.4 : 1 }}
+                  >
+                    {etatInvit === 'envoi' ? 'Création...' : 'Créer le lien'}
+                  </button>
+                </div>
+              </div>
+            ) : (etatInvit === 'lien' && lienCree) ? (
+              <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+                <div style={{ fontSize: 13, color: C.dark, marginBottom: 12 }}>
+                  Lien créé pour <strong>{labelSalarie.trim()}</strong>. Transmettez-le par le moyen de votre choix.
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ flex: 1, fontSize: 12, color: C.grey, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 8, padding: '9px 12px', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                    {typeof window !== 'undefined' ? `${window.location.origin}/temoignage/${lienCree.jeton}` : ''}
+                  </div>
+                  <button
+                    onClick={() => copierLienTemo(lienCree.jeton)}
+                    style={{ backgroundColor: copieLien ? C.vert : C.terracotta, color: C.white, border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                  >
+                    {copieLien ? 'Copié' : 'Copier'}
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: C.grey, marginBottom: 14 }}>Ce lien est valable 7 jours et ne peut servir qu'une seule fois.</div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => { setEtatInvit('idle'); setLienCree(null); setLabelSalarie(''); setCopieLien(false) }}
+                    style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 9, padding: '8px 18px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Zone 2 : Invitations en attente */}
+          {invitations.length > 0 && (
+            <div style={{ borderTop: `1px solid ${C.sable}`, marginTop: 20, paddingTop: 20 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.grey, marginBottom: 12 }}>
+                Invitations en attente ({invitations.length}/8)
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {invitations.map(inv => (
+                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.label}</div>
+                      <div style={{ fontSize: 11, color: C.grey }}>Expire le {new Date(inv.expire_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</div>
+                    </div>
+                    <button
+                      onClick={() => supprimerInvitation(inv.id)}
+                      style={{ background: 'none', border: `1px solid ${C.sable}`, cursor: 'pointer', color: C.grey, fontSize: 12, padding: '5px 12px', borderRadius: 7, fontFamily: 'inherit' }}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Zone 3 : Témoignages reçus */}
+          <div style={{ borderTop: `1px solid ${C.sable}`, marginTop: 20, paddingTop: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: C.grey, marginBottom: temoignagesRecus.length ? 12 : 0 }}>
+              Témoignages reçus ({temoignagesRecus.filter(t => t.affiche).length}/6 affichés)
+            </div>
+            {temoignagesRecus.length === 0 ? (
+              <p style={{ fontSize: 13, color: C.grey, margin: '10px 0 0' }}>Aucun témoignage reçu pour le moment.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {temoignagesRecus.map(t => (
+                  <div key={t.id} style={{ backgroundColor: C.creme, borderRadius: 10, padding: '14px 16px', border: t.affiche ? `1px solid ${C.vert}30` : `1px solid ${C.sable}` }}>
+                    {confirmSuppTemo === t.id ? (
+                      <div>
+                        <div style={{ fontSize: 13, color: C.dark, marginBottom: 14 }}>Supprimer ce témoignage définitivement ? Cette action est irréversible.</div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => setConfirmSuppTemo(null)}
+                            style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 9, padding: '7px 16px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            onClick={() => supprimerTemoignage(t.id)}
+                            style={{ backgroundColor: C.errorRed, color: C.white, border: 'none', borderRadius: 9, padding: '7px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            Supprimer définitivement
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p style={{ fontSize: 14, fontStyle: 'italic', color: '#3A3A3A', lineHeight: 1.65, margin: '0 0 6px' }}>« {t.citation} »</p>
+                        <div style={{ fontSize: 12, color: C.grey, marginBottom: 12 }}>{t.poste}</div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+                          {t.affiche && <span style={{ fontSize: 11, color: C.vert, fontWeight: 700, marginRight: 'auto' }}>Visible sur la vitrine</span>}
+                          <button
+                            onClick={() => setConfirmSuppTemo(t.id)}
+                            style={{ background: 'none', border: `1px solid ${C.sable}`, cursor: 'pointer', color: C.grey, fontSize: 12, padding: '5px 12px', borderRadius: 7, fontFamily: 'inherit' }}
+                          >
+                            Supprimer
+                          </button>
+                          <button
+                            onClick={() => basculerAffichage(t.id, !t.affiche)}
+                            style={{ backgroundColor: t.affiche ? 'transparent' : C.vert, color: t.affiche ? C.grey : C.white, border: `1px solid ${t.affiche ? C.sable : C.vert}`, borderRadius: 7, padding: '5px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            {t.affiche ? 'Masquer' : 'Afficher'}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </SCard>
+
         {saveError && <div style={{ backgroundColor: `${C.errorRed}10`, border: `1px solid ${C.errorRed}40`, borderRadius: 12, padding: '11px 16px', marginBottom: 14, fontSize: 13, color: C.errorRed }}>{saveError}</div>}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
           <button onClick={() => setEditing(false)} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 12, padding: '12px 28px', fontSize: 14, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
@@ -574,13 +745,13 @@ export default function RecruteurEntreprisePage() {
   const presse      = profil.entreprise_presse ?? []
   const histoire    = profil.entreprise_histoire ?? []
   const temoignages = profil.entreprise_temoignages ?? []
-  const chiffres    = CHIFFRES.filter(c => profil[c.key])
+  const chiffres    = CHIFFRES.filter(c => { const v = profil[c.key] as string | null; return !!v && v.trim() !== '' })
 
   if (!nom) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', padding: '60px 24px', textAlign: 'center' }}>
         <div style={{ width: 88, height: 88, borderRadius: 22, backgroundColor: C.sable, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, marginBottom: 28 }}>🏢</div>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 4vw, 30px)', color: C.dark, margin: '0 0 10px' }}>Votre vitrine entreprise</h1>
+        <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 4vw, 30px)', color: C.dark, margin: '0 0 10px' }}>Votre vitrine entreprise</h1>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 32px', lineHeight: 1.7, maxWidth: 420 }}>Renseignez le profil de votre entreprise pour qu'il s'affiche sur vos offres et votre page publique.</p>
         <button onClick={startEdit} style={{ backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 14, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Créer mon profil entreprise →</button>
       </div>
@@ -610,7 +781,7 @@ export default function RecruteurEntreprisePage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 22, flexWrap: 'wrap' }}>
             <LogoBlock url={profil.entreprise_logo_url} nom={nom} size={76} />
             <div style={{ flex: 1, minWidth: 200 }}>
-              <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(26px, 5vw, 42px)', color: C.white, margin: '0 0 10px', lineHeight: 1.1 }}>{nom}</h1>
+              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(26px, 5vw, 42px)', color: C.white, margin: '0 0 10px', lineHeight: 1.1 }}>{nom}</h1>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 26 }}>
                 {profil.entreprise_secteur && <span style={{ fontSize: 13, color: C.sable }}>⬡ {profil.entreprise_secteur}</span>}
                 {profil.entreprise_ville   && <span style={{ fontSize: 13, color: C.sable }}>◎ {profil.entreprise_ville}</span>}
@@ -628,14 +799,14 @@ export default function RecruteurEntreprisePage() {
         {profil.entreprise_mission && (
           <section style={{ marginBottom: 52, textAlign: 'center', padding: '0 24px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.terracotta, marginBottom: 14 }}>Notre mission</div>
-            <p style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(18px, 2.5vw, 24px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>« {profil.entreprise_mission} »</p>
+            <p style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(18px, 2.5vw, 24px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>« {profil.entreprise_mission} »</p>
           </section>
         )}
 
         {/* Description */}
         {profil.entreprise_description && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Qui sommes-nous</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Qui sommes-nous</h2>
             {profil.entreprise_description.split('\n\n').filter(Boolean).map((para, i) => (
               <p key={i} style={{ fontSize: 15, color: '#3A3A3A', lineHeight: 1.75, margin: '0 0 14px' }}>{para}</p>
             ))}
@@ -647,7 +818,7 @@ export default function RecruteurEntreprisePage() {
           const embed = videoEmbedUrl(profil.entreprise_video_url!)
           return (
             <section style={{ marginBottom: 52 }}>
-              <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
+              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
               {embed ? (
                 <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 16, overflow: 'hidden', backgroundColor: C.dark }}>
                   <iframe src={embed} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
@@ -664,11 +835,11 @@ export default function RecruteurEntreprisePage() {
         {/* Chiffres clés */}
         {chiffres.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 20px' }}>En chiffres</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 20px' }}>En chiffres</h2>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(chiffres.length, 3)}, 1fr)`, gap: 14 }}>
               {chiffres.map(c => (
                 <div key={c.key} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 700, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
+                  <div style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 700, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
                   <div style={{ fontSize: 11, color: C.grey, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{c.label}</div>
                 </div>
               ))}
@@ -679,7 +850,7 @@ export default function RecruteurEntreprisePage() {
         {/* Histoire */}
         {histoire.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
             <div style={{ position: 'relative', paddingLeft: 28 }}>
               <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
               {histoire.map((etape, i) => (
@@ -697,9 +868,9 @@ export default function RecruteurEntreprisePage() {
         {/* Valeurs */}
         {valeurs.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nos valeurs</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nos valeurs</h2>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 15, fontWeight: 600, color: C.vert }}>{v}</div>)}
+              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.creme }}>{v}</div>)}
             </div>
           </section>
         )}
@@ -707,9 +878,14 @@ export default function RecruteurEntreprisePage() {
         {/* Avantages */}
         {avantages.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              {avantages.map(a => <div key={a} style={{ backgroundColor: C.vert, borderRadius: 14, padding: '18px 20px', color: C.sable, fontSize: 14, fontWeight: 500, lineHeight: 1.4 }}>{a}</div>)}
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+              {avantages.map(a => (
+                <div key={a} style={{ backgroundColor: C.white, border: '1px solid #E3D9C6', borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <div style={{ width: 0, height: 0, flexShrink: 0, marginTop: 3, borderTop: '6.5px solid transparent', borderBottom: '6.5px solid transparent', borderLeft: `11px solid ${C.terracotta}` }} />
+                  <span style={{ fontFamily: FONT_SANS, fontSize: 13.5, lineHeight: 1.5, color: '#22312B' }}>{a}</span>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -717,21 +893,13 @@ export default function RecruteurEntreprisePage() {
         {/* Témoignages */}
         {temoignages.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {temoignages.map((t, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: 'Georgia, serif' }}>"</div>
+                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF }}>"</div>
                   <p style={{ fontSize: 14, color: '#3A3A3A', lineHeight: 1.7, fontStyle: 'italic', margin: 0, flex: 1 }}>{t.citation}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: `${C.vert}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: C.vert }}>{t.nom.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{t.nom}</div>
-                      {t.role && <div style={{ fontSize: 12, color: C.grey }}>{t.role}</div>}
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 12, color: C.grey, fontWeight: 500 }}>{t.poste}</div>
                 </div>
               ))}
             </div>
@@ -740,12 +908,9 @@ export default function RecruteurEntreprisePage() {
 
         {/* Offres */}
         <section style={{ marginBottom: 52 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: 0 }}>
-              Offres actives {offres.length > 0 && <span style={{ fontSize: 16, color: C.grey, fontWeight: 400 }}>({offres.length})</span>}
-            </h2>
-            <button onClick={() => router.push('/recruteur/offres')} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 10, padding: '8px 16px', fontSize: 13, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>Gérer →</button>
-          </div>
+          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>
+            Offres actives {offres.length > 0 && <span style={{ fontSize: 16, color: C.grey, fontWeight: 400 }}>({offres.length})</span>}
+          </h2>
           {offres.length === 0 ? (
             <div style={{ backgroundColor: C.white, borderRadius: 14, border: `1px solid ${C.sable}`, padding: '36px 24px', textAlign: 'center' }}>
               <div style={{ fontSize: 13, color: C.grey, marginBottom: 16 }}>Aucune offre publiée pour le moment.</div>
@@ -753,22 +918,24 @@ export default function RecruteurEntreprisePage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {offres.map(o => (
+              {offres.slice(0, OFFRES_PREVIEW).map(o => (
                 <div key={o.id} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 150 }}>
-                    <div style={{ fontFamily: 'Georgia, serif', fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
+                    <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {o.type_contrat && <span style={{ fontSize: 11, fontWeight: 700, color: C.vert, backgroundColor: `${C.vert}12`, padding: '2px 9px', borderRadius: 20 }}>{o.type_contrat}</span>}
                       {o.ville && <span style={{ fontSize: 12, color: C.grey }}>◎ {o.ville}{o.mode_travail ? ` · ${o.mode_travail}` : ''}</span>}
                       <span style={{ fontSize: 11, color: '#BBBBBB' }}>{dateLabel(o.created_at)}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    {userId && <a href={`/entreprise/${userId}#offres`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.grey, textDecoration: 'none', padding: '6px 12px', border: `1px solid ${C.sable}`, borderRadius: 8 }}>Vitrine ↗</a>}
-                    <button onClick={() => router.push(`/recruteur/offres/${o.id}`)} style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>Voir →</button>
-                  </div>
+                  <button onClick={() => router.push(`/recruteur/offres/${o.id}`)} style={{ backgroundColor: 'transparent', border: `1px solid ${C.sable}`, borderRadius: 8, padding: '6px 14px', fontSize: 12, color: C.dark, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Voir →</button>
                 </div>
               ))}
+              {offres.length > OFFRES_PREVIEW && (
+                <button onClick={() => router.push('/recruteur/offres')} style={{ width: '100%', marginTop: 4, padding: '11px 16px', backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 12, fontSize: 13, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Voir les {offres.length} offres →
+                </button>
+              )}
             </div>
           )}
         </section>
@@ -776,7 +943,7 @@ export default function RecruteurEntreprisePage() {
         {/* Presse */}
         {presse.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Dans la presse</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Dans la presse</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {presse.map((item, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13 }}>
