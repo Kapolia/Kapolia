@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/rappels-rdv",
+      "path": "/api/cron/taches-quotidiennes",
       "schedule": "0 8 * * *"
     }
   ]

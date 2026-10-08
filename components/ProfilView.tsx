@@ -1447,7 +1447,7 @@ export default function ProfilView({
                         fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer',
                         fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1,
                       }}
-                    >{writingMsg ? '…' : '✉ Écrire'}</button>
+                    >{writingMsg ? '…' : 'Écrire'}</button>
                     <button onClick={() => setSaved(s => !s)} style={{
                       padding: '8px 18px', borderRadius: 10,
                       border: `1.5px solid ${saved ? '#6ABFA0' : 'rgba(255,255,255,0.2)'}`,

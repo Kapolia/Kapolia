@@ -437,6 +437,16 @@ function QualitesCarousel({
     if (idx < TOTAL_SITUATIONS - 1) {
       setIdx(idx + 1)
     } else {
+      const allAnswers = SITUATIONS[CURRENT_VERSION]
+        .map(s => {
+          const saved = selections[s.id]
+          if (!saved || saved.length < 2) return null
+          return { situation_id: s.id, reponse_1: saved[0], reponse_2: saved[1], version_test: CURRENT_VERSION } as TestAnswer
+        })
+        .filter((a): a is TestAnswer => a !== null)
+      const resultats    = calculerQualites(allAnswers)
+      const qualitesTest = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
+      await supabase.from('profils').update({ qualites_test: qualitesTest }).eq('user_id', userId)
       setPhase('done')
       onComplete(true)
     }
@@ -635,7 +645,7 @@ function QualitesCarousel({
 
 // ─── Écran final ──────────────────────────────────────────────────────────────
 
-function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; userId: string }) {
+function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: () => void; userId: string; emailConfirme: boolean }) {
   const [chosen, setChosen]             = useState<boolean | null>(null)
   const [saving, setSaving]             = useState(false)
   const [invitModalOpen, setInvitModalOpen] = useState(false)
@@ -750,11 +760,17 @@ function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; use
             Les recruteurs inscrits pourront consulter votre profil et vous écrire, même sans
             candidature de votre part. Vous pourrez changer d'avis à tout moment.
           </p>
+          {!emailConfirme && (
+            <p style={{ fontSize: 12, color: '#8BA99E', lineHeight: 1.55, margin: '0 0 14px' }}>
+              Confirmez d'abord votre adresse e-mail pour activer la visibilité.
+              Vous pourrez le faire depuis vos paramètres.
+            </p>
+          )}
           <div className="final-btns" style={{ display: 'flex', gap: 12 }}>
             <button
               className="final-btn"
               onClick={() => handleChoice(true)}
-              disabled={saving}
+              disabled={saving || !emailConfirme}
               style={{
                 backgroundColor: '#C4673A',
                 color: '#F7F2EB',
@@ -763,8 +779,8 @@ function FinalScreen({ onGoToProfile, userId }: { onGoToProfile: () => void; use
                 padding: '12px 20px',
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: saving ? 'default' : 'pointer',
-                opacity: saving ? 0.7 : 1,
+                cursor: saving || !emailConfirme ? 'default' : 'pointer',
+                opacity: saving || !emailConfirme ? 0.4 : 1,
                 fontFamily: 'inherit',
               }}
             >
@@ -1148,6 +1164,7 @@ export default function OnboardingPage() {
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [loadingResume, setLoadingResume] = useState(true)
   const [userId,        setUserId]        = useState('')
+  const [emailConfirme, setEmailConfirme] = useState(true)
   // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière
   const maxStepRef = useRef(1)
 
@@ -1156,6 +1173,7 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoadingResume(false); return }
       setUserId(user.id)
+      setEmailConfirme(!!user.email_confirmed_at)
 
       const [{ data: profil }, { count: testCount }] = await Promise.all([
         supabase
@@ -1805,7 +1823,7 @@ export default function OnboardingPage() {
   )
 
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
-  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} userId={userId} />
+  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} userId={userId} emailConfirme={emailConfirme} />
 
   const isOpt      = OPTIONAL_STEPS.has(step)
   const skipLabel  = LONG_OPTIONAL.has(step) ? 'Passer, je compléterai plus tard' : 'Passer'

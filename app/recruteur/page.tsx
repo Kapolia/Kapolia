@@ -139,7 +139,7 @@ export default function RecruteurDashboard() {
           .eq('recruteur_id', uid)
           .eq('masquee_recruteur', false),
         supabase
-          .from('profils')
+          .from('profils_email_confirmes')
           .select('user_id', { count: 'exact', head: true })
           .eq('visible_candidatheque', true)
           .eq('type_compte', 'candidat'),

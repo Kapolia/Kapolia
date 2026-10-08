@@ -178,6 +178,10 @@ export default function ParametresPage() {
 
   const DELETE_PHRASE = 'supprimer mon compte'
 
+  const [emailConfirme, setEmailConfirme]   = useState(true)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendEnvoi, setResendEnvoi]       = useState(false)
+
   const [pwdOld, setPwdOld]         = useState('')
   const [pwdNew, setPwdNew]         = useState('')
   const [pwdConfirm, setPwdConfirm] = useState('')
@@ -193,6 +197,7 @@ export default function ParametresPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/connexion'); return }
       setEmail(user.email ?? '')
+      setEmailConfirme(!!user.email_confirmed_at)
       const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone,email_notifications').eq('user_id', user.id).single()
       if (data) {
         setPrenom(data.prenom ?? '')
@@ -212,6 +217,27 @@ export default function ParametresPage() {
     }
     load()
   }, [router])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const id = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(id)
+  }, [resendCooldown])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email_confirmed_at) setEmailConfirme(true)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function renvoyerConfirmation() {
+    if (resendCooldown > 0 || resendEnvoi || !email) return
+    setResendEnvoi(true)
+    await supabase.auth.resend({ type: 'signup', email })
+    setResendEnvoi(false)
+    setResendCooldown(60)
+  }
 
   function showToast(msg: string) {
     setToastMsg(msg); setToastVisible(true)
@@ -529,12 +555,34 @@ export default function ParametresPage() {
                   label="Recevoir des messages de recruteurs"
                   desc="Les recruteurs peuvent vous envoyer des messages directs."
                 />
-                <Toggle
-                  checked={privacy.visible_candidatheque}
-                  onChange={v => setPrivacy(p => ({ ...p, visible_candidatheque: v }))}
-                  label="Souhaitez-vous être visible par les recruteurs ?"
-                  desc="Les recruteurs inscrits sur Kapolia pourront consulter votre profil et vous contacter, même si vous n'avez postulé à aucune de leurs offres."
-                />
+                <div style={{ opacity: emailConfirme ? 1 : 0.45, pointerEvents: emailConfirme ? 'auto' : 'none' }}>
+                  <Toggle
+                    checked={privacy.visible_candidatheque}
+                    onChange={v => setPrivacy(p => ({ ...p, visible_candidatheque: v }))}
+                    label="Souhaitez-vous être visible par les recruteurs ?"
+                    desc="Les recruteurs inscrits sur Kapolia pourront consulter votre profil et vous contacter, même si vous n'avez postulé à aucune de leurs offres."
+                  />
+                </div>
+                {!emailConfirme && (
+                  <p style={{ fontSize: 12, color: C.grey, margin: '-4px 0 0', lineHeight: 1.55 }}>
+                    Option disponible après confirmation de votre adresse e-mail.{' '}
+                    <button
+                      onClick={renvoyerConfirmation}
+                      disabled={resendCooldown > 0 || resendEnvoi}
+                      style={{
+                        background: 'none', border: 'none', padding: 0,
+                        color: resendCooldown > 0 ? C.lightGrey : C.terracotta,
+                        fontSize: 12, fontWeight: 600,
+                        cursor: resendCooldown > 0 || resendEnvoi ? 'default' : 'pointer',
+                        fontFamily: 'inherit', textDecoration: 'underline',
+                      }}
+                    >
+                      {resendEnvoi            ? 'envoi…'
+                       : resendCooldown > 0   ? `lien envoyé (${resendCooldown} s)`
+                       : 'Renvoyer le lien'}
+                    </button>
+                  </p>
+                )}
                 <div style={{ marginTop: 8 }}>
                   <SaveBtn loading={savingPrivacy} onClick={savePrivacy} />
                 </div>

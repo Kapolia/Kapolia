@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import Avatar from '@/components/Avatar'
 import { DOMAINES, EXPERIENCES, TYPES_POSTE } from '@/lib/onboarding-utils'
+import { QUALITE_LABELS } from '@/lib/test-qualites'
 import { trouverConversation } from '@/lib/conversations'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ type Profil = {
   qualites:             string[] | null
   competences_acquises: string[] | null
   type_poste:           string[] | null
-  valeur:               string | null
+  qualites_test:        Record<string, number> | null
   disponibilite:        string | null
   avatar_url:           string | null
   avatar_type:          string | null
@@ -54,7 +55,8 @@ type Filters = {
   experience:   string
   localisation: string
   typePoste:    string
-  valeur:       string
+  qualite:      string
+  minimum:      number
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -282,7 +284,7 @@ function RightPanel({
   const comps    = profil.competences_acquises ?? []
 
   const mobilite = (profil.mode_travail ?? []).filter(k => k !== 'sans_pref').map(k => LIEU_MAP[k] ?? k).join(', ')
-  const recherche = [poste, dp.label, profil.ville, mobilite, profil.valeur].filter(Boolean).join('  ·  ')
+  const recherche = [poste, dp.label, profil.ville, mobilite].filter(Boolean).join('  ·  ')
 
   const latestExp = (profil.experiences ?? [])[0] ?? null
   const latestDip = (profil.diplomes ?? [])[0] ?? null
@@ -497,7 +499,7 @@ export default function RecruteurPage() {
   const [loadError, setLoadError]   = useState(false)
   const [search, setSearch]         = useState('')
   const [filters, setFilters]       = useState<Filters>({
-    domaine: '', experience: '', localisation: '', typePoste: '', valeur: '',
+    domaine: '', experience: '', localisation: '', typePoste: '', qualite: '', minimum: 2,
   })
   const [savedIds, setSavedIds]     = useState<Set<string>>(new Set())
   const [recruteurId, setRecruteurId] = useState<string | null>(null)
@@ -511,8 +513,8 @@ export default function RecruteurPage() {
 
       const [profilsRes, favorisRes] = await Promise.all([
         supabase
-          .from('profils')
-          .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, competences_acquises, type_poste, valeur, disponibilite, avatar_url, avatar_type, mode_travail, experiences, diplomes, projet_phare, projet_titre')
+          .from('profils_email_confirmes')
+          .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, competences_acquises, type_poste, qualites_test, disponibilite, avatar_url, avatar_type, mode_travail, experiences, diplomes, projet_phare, projet_titre')
           .eq('visible_candidatheque', true)
           .eq('type_compte', 'candidat'),
         user
@@ -544,17 +546,13 @@ export default function RecruteurPage() {
     [...new Set(profils.map(p => p.ville).filter((v): v is string => !!v))].sort()
   , [profils])
 
-  const valeurOptions = useMemo(() =>
-    [...new Set(profils.map(p => p.valeur).filter((v): v is string => !!v))].sort()
-  , [profils])
-
   // Filtrage client
   const filtered = useMemo(() => profils.filter(p => {
     if (filters.domaine      && p.domaine !== filters.domaine) return false
     if (filters.experience   && p.experience !== filters.experience) return false
     if (filters.localisation && !p.ville?.toLowerCase().includes(filters.localisation.toLowerCase())) return false
     if (filters.typePoste    && !(p.type_poste ?? []).includes(filters.typePoste)) return false
-    if (filters.valeur       && p.valeur !== filters.valeur) return false
+    if (filters.qualite      && ((p.qualites_test as Record<string, number> | null)?.[filters.qualite] ?? 0) < filters.minimum) return false
     if (search.trim()) {
       const q = search.toLowerCase().trim()
       const name   = nomComplet(p).toLowerCase()
@@ -573,7 +571,7 @@ export default function RecruteurPage() {
     ...(filters.experience   ? [{ key: 'experience',   label: 'Expérience',     value: filters.experience }] : []),
     ...(filters.localisation ? [{ key: 'localisation', label: 'Ville',          value: filters.localisation }] : []),
     ...(filters.typePoste    ? [{ key: 'typePoste',    label: 'Type de poste',  value: TYPES_POSTE.find(t => t.key === filters.typePoste)?.label ?? filters.typePoste }] : []),
-    ...(filters.valeur       ? [{ key: 'valeur',       label: 'Valeur',         value: filters.valeur }] : []),
+    ...(filters.qualite      ? [{ key: 'qualite',      label: 'Qualité',        value: `${QUALITE_LABELS[filters.qualite] ?? filters.qualite}${filters.minimum >= 3 ? ` (×${filters.minimum})` : ''}` }] : []),
   ], [filters])
 
   function removeTag(key: string) {
@@ -581,7 +579,7 @@ export default function RecruteurPage() {
   }
 
   function clearAll() {
-    setFilters({ domaine: '', experience: '', localisation: '', typePoste: '', valeur: '' })
+    setFilters({ domaine: '', experience: '', localisation: '', typePoste: '', qualite: '', minimum: 2 })
     setSearch('')
   }
 
@@ -747,10 +745,25 @@ export default function RecruteurPage() {
               </div>
 
               <div>
-                <FLabel>Valeur</FLabel>
-                <select value={filters.valeur} onChange={e => setFilters(f => ({ ...f, valeur: e.target.value }))} style={selectStyle}>
+                <FLabel>Qualité</FLabel>
+                <select value={filters.qualite} onChange={e => setFilters(f => ({ ...f, qualite: e.target.value }))} style={selectStyle}>
                   <option value="">Toutes</option>
-                  {valeurOptions.map(v => <option key={v} value={v}>{v}</option>)}
+                  {Object.entries(QUALITE_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <FLabel>Minimum</FLabel>
+                <select
+                  value={filters.minimum}
+                  onChange={e => setFilters(f => ({ ...f, minimum: Number(e.target.value) }))}
+                  disabled={!filters.qualite}
+                  style={{ ...selectStyle, opacity: filters.qualite ? 1 : 0.4 }}
+                >
+                  <option value={2}>2 fois ou plus</option>
+                  <option value={3}>3 fois ou plus</option>
                 </select>
               </div>
 
