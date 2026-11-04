@@ -187,7 +187,7 @@ function ExpandedItem({ item, active, badge, btnRef }: {
         width: '100%', height: 40,
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '0 12px', borderRadius: 12, border: 'none',
-        backgroundColor: active ? 'rgba(194, 97, 31,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
+        backgroundColor: hov ? 'rgba(255,255,255,0.07)' : 'transparent',
         cursor: 'pointer',
         transition: 'background-color 0.15s',
         fontFamily: 'inherit',
@@ -349,26 +349,45 @@ export default function CandidatSidebar({
   }, [pathname])
 
   // ── Sliding active-nav pill ───────────────────────────────────────────────
+  const remeasureRef = useRef<() => void>(() => {})
+
   useEffect(() => {
-    const activeItem = repliee
-      ? null
-      : (NAV.find(e => e.kind === 'item' && isActive(e as NavItem)) as NavItem | undefined) ?? null
-    if (!activeItem) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPillStyle(null)
-      return
+    function measure() {
+      const activeItem = repliee
+        ? null
+        : (NAV.find(e => e.kind === 'item' && isActive(e as NavItem)) as NavItem | undefined) ?? null
+      if (!activeItem) {
+        setPillStyle(null)
+        return
+      }
+      const btn = navItemRefs.current.get(activeItem.id)
+      const nav = navRef.current
+      if (!btn || !nav) {
+        setPillStyle(null)
+        return
+      }
+      const navRect = nav.getBoundingClientRect()
+      const btnRect = btn.getBoundingClientRect()
+      setPillStyle({ top: btnRect.top - navRect.top + nav.scrollTop, height: btnRect.height })
     }
-    const btn = navItemRefs.current.get(activeItem.id)
-    const nav = navRef.current
-    if (!btn || !nav) {
-      setPillStyle(null)
-      return
-    }
-    const navRect = nav.getBoundingClientRect()
-    const btnRect = btn.getBoundingClientRect()
-    setPillStyle({ top: btnRect.top - navRect.top + nav.scrollTop, height: btnRect.height })
+    measure()
+    remeasureRef.current = measure
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, repliee])
+
+  // Remesure après chargement des polices
+  useEffect(() => {
+    document.fonts.ready.then(() => remeasureRef.current())
+  }, [])
+
+  // Remesure quand le nav change de taille (transition de repli incluse)
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const ro = new ResizeObserver(() => remeasureRef.current())
+    ro.observe(nav)
+    return () => ro.disconnect()
+  }, [])
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function isActive(item: NavItem): boolean {
@@ -386,6 +405,7 @@ export default function CandidatSidebar({
     const next = !repliee
     setRepliee(next)
     setMenuOpen(false)
+    setTimeout(() => remeasureRef.current(), 340)
     try {
       localStorage.setItem(LS_KEY, String(next))
       document.documentElement.style.setProperty('--kapolia-sidebar-w', next ? '64px' : '228px')

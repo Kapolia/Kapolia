@@ -309,6 +309,7 @@ function PillDropdown({
       {(open || isClosing) && createPortal(
         <div
           ref={dropRef}
+          data-kapolia-filter-portal="1"
           style={{
             position: 'fixed',
             top: dropPos.top,
@@ -458,6 +459,7 @@ function MultiPillDropdown({
       {(open || isClosing) && createPortal(
         <div
           ref={dropRef}
+          data-kapolia-filter-portal="1"
           style={{
             position: 'fixed',
             top: dropPos.top,
@@ -638,6 +640,7 @@ function SalairePillDropdown({
       {(open || isClosing) && createPortal(
         <div
           ref={dropRef}
+          data-kapolia-filter-portal="1"
           style={{
             position: 'fixed', top: dropPos.top, left: dropPos.left,
             minWidth: dropPos.minWidth,
@@ -839,6 +842,7 @@ function LangPillDropdown({
       {(open || isClosing) && createPortal(
         <div
           ref={dropRef}
+          data-kapolia-filter-portal="1"
           style={{
             position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.minWidth,
             backgroundColor: C.white, border: `1px solid ${C.sable}`,
@@ -1024,7 +1028,7 @@ function CorrespondancePill({ value, onChange, profil, isConnected }: {
       )}
 
       {(open || isClosing) && createPortal(
-        <div ref={dropRef} style={{
+        <div ref={dropRef} data-kapolia-filter-portal="1" style={{
           position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: 180,
           backgroundColor: C.white, border: `1px solid ${C.sable}`,
           borderRadius: 12, padding: '6px 4px', zIndex: 400,
@@ -1157,7 +1161,7 @@ function ContratPillDropdown({
       </button>
 
       {(open || isClosing) && createPortal(
-        <div ref={dropRef} style={{
+        <div ref={dropRef} data-kapolia-filter-portal="1" style={{
           position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: dropPos.minWidth,
           backgroundColor: C.white, border: `1px solid ${C.sable}`,
           borderRadius: 12, padding: '6px 4px', zIndex: 400,
@@ -1358,7 +1362,7 @@ function AutresPillButton({
       )}
 
       {(open || isClosing) && createPortal(
-        <div ref={panelRef} style={{
+        <div ref={panelRef} data-kapolia-filter-portal="1" style={{
           position: 'fixed', top: panelPos.top, left: panelPos.left, width: 520,
           backgroundColor: C.white, border: `1px solid ${C.sable}`,
           borderRadius: 14, zIndex: 400, overflow: 'hidden',
@@ -1560,10 +1564,51 @@ export default function OffresPage() {
   const prevPositionsRef    = useRef<Map<string, DOMRect>>(new Map())
   const filterTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const filteredRef         = useRef<typeof offres>([])
+  const rouletteRafRef      = useRef<number | null>(null)
 
   function setDisplayedOffres(list: typeof offres) {
     displayedOffresRef.current = list
     setDisplayedOffresState(list)
+  }
+
+  function applyRoulette() {
+    const col = leftColRef.current
+    if (!col) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      cardRefsMap.current.forEach(el => { el.style.transform = ''; el.style.opacity = ''; el.style.transformOrigin = '' })
+      return
+    }
+    if (col.scrollHeight <= col.clientHeight + 1) {
+      cardRefsMap.current.forEach(el => { el.style.transform = ''; el.style.opacity = ''; el.style.transformOrigin = '' })
+      return
+    }
+    cardRefsMap.current.forEach(el => {
+      if (!el.isConnected) return
+      if (el.offsetParent !== col) return
+      // Annule les animations terminées (fill:both/forwards) avant d'écrire les styles inline
+      el.getAnimations().forEach(a => { if (a.playState === 'finished') a.cancel() })
+      const h   = el.offsetHeight
+      const top = el.offsetTop - col.scrollTop
+      const bot = (col.scrollTop + col.clientHeight) - (el.offsetTop + el.offsetHeight)
+      let t = 0, sens = 0, origin = '50% 50%'
+      if      (top < 0) { t = Math.min(1, -top / h); sens =  1; origin = '50% 100%' }
+      else if (bot < 0) { t = Math.min(1, -bot / h); sens = -1; origin = '50% 0%'   }
+      if (t === 0) {
+        el.style.transform = ''; el.style.opacity = ''; el.style.transformOrigin = ''
+      } else {
+        el.style.transformOrigin = origin
+        el.style.transform       = `perspective(900px) rotateX(${sens * t * 38}deg) scale(${1 - 0.08 * t})`
+        el.style.opacity         = String(1 - 0.55 * t)
+      }
+    })
+  }
+
+  function scheduleRoulette() {
+    if (rouletteRafRef.current !== null) return
+    rouletteRafRef.current = requestAnimationFrame(() => {
+      rouletteRafRef.current = null
+      applyRoulette()
+    })
   }
 
   // ── Animation carte ↔ pastille ─────────────────────────────────────────
@@ -1595,6 +1640,7 @@ export default function OffresPage() {
     const node = el
     scrollPosRef.current = node.scrollTop
     function onScroll() {
+      scheduleRoulette()
       // Correction 1 — ignorer les événements pendant et juste après une transition
       if (scrollLockRef.current) return
 
@@ -1611,6 +1657,7 @@ export default function OffresPage() {
         scrollLockRef.current = true
         setCardHidden(true)
         setTimeout(() => { scrollLockRef.current = false }, 320)
+        setTimeout(scheduleRoulette, 270)
       } else if (delta < 0) {
         scrollLockRef.current = true
         setCardHidden(false)
@@ -1618,10 +1665,12 @@ export default function OffresPage() {
           scrollLockRef.current = false
           scrollPosRef.current = node.scrollTop
         }, 320)
+        setTimeout(scheduleRoulette, 270)
       }
     }
     node.addEventListener('scroll', onScroll, { passive: true })
     return () => node.removeEventListener('scroll', onScroll)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSplit])
 
   void profil // used indirectly via scoring
@@ -1638,11 +1687,30 @@ export default function OffresPage() {
 
   // ── Window resize → isSplit ────────────────────────────────────────────────
   useEffect(() => {
-    const check = () => setIsSplit(largeurUtile() >= 900)
+    const check = () => { setIsSplit(largeurUtile() >= 900); requestAnimationFrame(scheduleRoulette) }
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ── Roulette : init quand le mode split s'active ───────────────────────────
+  useEffect(() => {
+    if (isSplit) requestAnimationFrame(scheduleRoulette)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSplit])
+
+  // ── Roulette : recalcul quand la colonne gauche change de hauteur ──────────
+  // (bandeau vert qui se replie/déplie au défilement, resize fenêtre)
+  useEffect(() => {
+    if (!isSplit) return
+    const col = leftColRef.current
+    if (!col) return
+    const ro = new ResizeObserver(scheduleRoulette)
+    ro.observe(col)
+    return () => ro.disconnect()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSplit])
 
 
   // ── Init filters + selectedId from URL ────────────────────────────────────
@@ -1985,9 +2053,11 @@ export default function OffresPage() {
       filterTimerRef.current = setTimeout(() => {
         filterTimerRef.current = null
         setDisplayedOffres(filteredRef.current)
+        setTimeout(scheduleRoulette, 340)
       }, 165)
     } else {
       setDisplayedOffres(filtered)
+      setTimeout(scheduleRoulette, 340)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, loading])
@@ -2042,7 +2112,6 @@ export default function OffresPage() {
     if (!selectedIdRef.current || !filtered.some(o => o.id === selectedIdRef.current)) {
       setSelectedId(filtered[0].id)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, loading])
 
   // ── Restore scroll position after returning from /offres/[id] ───────────────
@@ -2100,7 +2169,6 @@ export default function OffresPage() {
   // ── [DEV] fin du timer render-liste après commit DOM ─────────────────────
   useLayoutEffect(() => {
     if (process.env.NODE_ENV === 'development') console.timeEnd('[DEV] render-liste')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered])
 
   // ── Sélection carte + transition panneau droit ───────────────────────────
@@ -2131,8 +2199,43 @@ export default function OffresPage() {
       [{ opacity: '0', transform: 'translateY(6px)' }, { opacity: '1', transform: 'translateY(0)' }],
       { duration: 240, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
     )
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId])
+
+  // ── Navigation clavier : flèches haut/bas ────────────────────────────────
+  useEffect(() => {
+    if (!isSplit) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const tag = (document.activeElement as HTMLElement | null)?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return
+      if (document.querySelector('[data-kapolia-filter-portal]')) return
+      const list = displayedOffresRef.current
+      if (list.length === 0) return
+      const curIdx = list.findIndex(o => o.id === selectedIdRef.current)
+      let nextIdx  = curIdx
+      if (e.key === 'ArrowDown') nextIdx = Math.min(list.length - 1, curIdx + 1)
+      if (e.key === 'ArrowUp')   nextIdx = Math.max(0, curIdx - 1)
+      if (nextIdx === curIdx) return
+      e.preventDefault()
+      const nextId = list[nextIdx].id
+      handleCardSelect(nextId)
+      requestAnimationFrame(() => {
+        const el  = cardRefsMap.current.get(nextId)
+        const col = leftColRef.current
+        if (!el || !col) return
+        el.focus({ preventScroll: true })
+        const r    = el.getBoundingClientRect()
+        const colR = col.getBoundingClientRect()
+        if (r.top < colR.top || r.bottom > colR.bottom) {
+          const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          el.scrollIntoView({ block: 'nearest', behavior: pref ? 'instant' : 'smooth' })
+        }
+      })
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSplit])
 
   // ── Reusable list content (counter + sort + cards) ────────────────────────
   const listContent = (
@@ -2186,6 +2289,8 @@ export default function OffresPage() {
               key={offre.id}
               id={`offre-card-${offre.id}`}
               data-card-id={offre.id}
+              tabIndex={-1}
+              className="kapolia-card-wrapper"
               ref={el => {
                 if (el) cardRefsMap.current.set(offre.id, el)
                 else cardRefsMap.current.delete(offre.id)
@@ -2231,6 +2336,7 @@ export default function OffresPage() {
         .kap-layer-anim { transition: opacity 260ms ease, transform 260ms ease; }
         .kap-pill-btn { transition: transform 260ms ease; }
         @media (prefers-reduced-motion: reduce) { .kap-container-anim, .kap-layer-anim, .kap-pill-btn { transition: none !important; } }
+        .kapolia-card-wrapper:focus, .kapolia-card-wrapper:focus-visible { outline: none; }
       `}</style>
 
       {/* ── CONTENEUR ANIMÉ — carte verte + pastille ─────────────────────────── */}
@@ -2401,6 +2507,7 @@ export default function OffresPage() {
               borderRight: `1px solid ${C.sable}`,
               padding: '24px 24px 60px 20px',
               backgroundColor: C.bg,
+              position: 'relative',
               WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
               maskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
             }}>

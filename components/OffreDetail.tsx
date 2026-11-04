@@ -457,7 +457,7 @@ export function OffreDetail({
                 title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.grey : 'none'} stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
               </button>
@@ -884,7 +884,7 @@ export function OffreDetail({
                       title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                       style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.grey : 'none'} stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                     </button>
