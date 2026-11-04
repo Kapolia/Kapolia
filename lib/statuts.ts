@@ -15,7 +15,7 @@ export type StatutConfig = {
 }
 
 export const STATUTS: Record<StatutCandidature, StatutConfig> = {
-  'envoyée':  { label: 'Envoyée',   bg: 'rgba(107,107,107,0.09)', color: '#6B6B6B', dot: '#D0D0D0' },
+  'envoyée':  { label: 'Envoyée',   bg: 'rgba(104,112,105,0.09)', color: '#687069', dot: '#D0D0D0' },
   'vue':      { label: 'Vue',       bg: 'rgba(200,138,42,0.10)',  color: '#C88A2A', dot: '#C88A2A' },
   'en cours': { label: 'En cours',  bg: 'rgba(37,99,235,0.08)',   color: '#2563EB', dot: '#2563EB' },
   'acceptée': { label: 'Acceptée',  bg: 'rgba(44,74,62,0.08)',    color: '#2C4A3E', dot: '#2C4A3E' },

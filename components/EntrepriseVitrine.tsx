@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { type ProfilMatch } from '@/lib/matching'
+import { type ProfilMatch, type ScoreBreakdown } from '@/lib/matching'
 import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { ScoreRingInteractive } from '@/components/ScoreRingInteractive'
 
 const C = {
-  terracotta: '#C4673A', sable: '#E8D5B7', creme: '#F7F2EB',
-  vert: '#2C4A3E', dark: '#1A1A1A', grey: '#6B6B6B',
+  terracotta: '#C4673A', sable: '#E7EAE8', creme: '#F6F7F6',
+  vert: '#2C4A3E', dark: '#15201B', grey: '#687069',
   lightGrey: '#D0D0D0', white: '#FFFFFF', amber: '#C88A2A',
 }
 
@@ -43,7 +44,7 @@ export type Offre = {
   id: string; titre: string; type_contrat: string | null; ville: string | null
   mode_travail: string | null; domaine: string | null; experience: string | null
   salaire_min: number | null; salaire_max: number | null; periode_salaire: string | null
-  valeurs: string[] | null; created_at: string; score?: number
+  valeurs: string[] | null; created_at: string; score?: number; breakdown?: ScoreBreakdown | null
 }
 
 export const PROFIL_SELECT = [
@@ -96,26 +97,6 @@ function LogoBlock({ ep, size = 80 }: { ep: EntrepriseProfil; size?: number }) {
   )
 }
 
-function ScoreRing({ score, delay = 0 }: { score: number; delay?: number }) {
-  const [go, setGo] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setGo(true), delay); return () => clearTimeout(t) }, [delay])
-  const size = 54, sw = 5, r = (size - sw * 2) / 2, circ = 2 * Math.PI * r
-  const offset = go ? circ * (1 - score / 100) : circ
-  const color  = score >= 75 ? C.vert : score >= 50 ? C.amber : C.lightGrey
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C.sable} strokeWidth={sw} />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(0.22,1,0.36,1)' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1 }}>{score}%</span>
-        <span style={{ fontSize: 9, color: C.grey, lineHeight: 1.2 }}>match</span>
-      </div>
-    </div>
-  )
-}
-
 function STitle({ children }: { children: React.ReactNode }) {
   return <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>{children}</h2>
 }
@@ -152,6 +133,12 @@ export function EntrepriseVitrineContenu({
 }) {
   const router = useRouter()
   const [suivre, setSuivre] = useState(false)
+  const [offresExpanded, setOffresExpanded] = useState(false)
+
+  function retour() {
+    if (window.history.length > 1) router.back()
+    else router.replace('/offres')
+  }
 
   const nom        = ep.entreprise_nom!
   const valeurs    = ep.entreprise_valeurs ?? []
@@ -186,10 +173,10 @@ export function EntrepriseVitrineContenu({
           {/* Lien de retour — candidat connecté uniquement (remplace le bouton navbar) */}
           {isConnected && !contexteRecruteur && (
             <button
-              onClick={() => router.push('/offres')}
+              onClick={retour}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: `${C.sable}AA`, fontSize: 13, padding: '0 0 20px', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}
             >
-              Toutes les offres
+              Retour
             </button>
           )}
 
@@ -344,7 +331,7 @@ export function EntrepriseVitrineContenu({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {offres.slice(0, OFFRES_PREVIEW).map((offre, i) => {
+              {(offresExpanded ? offres : offres.slice(0, OFFRES_PREVIEW)).map((offre, i) => {
                 const sal = (offre.salaire_min || offre.salaire_max)
                   ? ((offre.salaire_min && offre.salaire_max)
                     ? `${offre.salaire_min.toLocaleString('fr-FR')} – ${offre.salaire_max.toLocaleString('fr-FR')} €`
@@ -353,7 +340,9 @@ export function EntrepriseVitrineContenu({
                   : null
                 return (
                   <div key={offre.id} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-                    {candidatProfil && offre.score != null && <ScoreRing score={offre.score} delay={i * 120} />}
+                    {candidatProfil && offre.score != null && offre.breakdown != null && (
+                      <ScoreRingInteractive score={offre.score} breakdown={offre.breakdown} delay={i * 120} />
+                    )}
                     <div style={{ flex: 1, minWidth: 180 }}>
                       <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, fontWeight: 600, marginBottom: 7 }}>{offre.titre}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
@@ -373,10 +362,10 @@ export function EntrepriseVitrineContenu({
           )}
           {offres.length > OFFRES_PREVIEW && (
             <button
-              onClick={() => router.push(isConnected ? `/offres?entreprise=${ep.user_id}` : '/offres')}
+              onClick={() => setOffresExpanded(e => !e)}
               style={{ marginTop: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: C.terracotta, fontWeight: 600, fontFamily: 'inherit', padding: 0, textAlign: 'left' }}
             >
-              Voir les {offres.length} offres →
+              {offresExpanded ? 'Réduire' : `Voir les ${offres.length} offres →`}
             </button>
           )}
           {!isConnected && offres.length > 0 && (

@@ -9,11 +9,11 @@ import { FONT_SERIF } from '@/lib/typography'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
   bg:         '#F5F5F5',
@@ -41,6 +41,7 @@ type Profil = {
 type Offre = {
   id: string
   titre: string
+  recruteur_id: string | null
   entreprise_nom: string | null
   ville: string | null
   type_contrat: string | null
@@ -238,13 +239,23 @@ export default function AdminPage() {
 
       const [profilsRes, offresRes, candsRes] = await Promise.all([
         supabase.from('profils').select('id,user_id,prenom,type_compte,domaine,ville,created_at').order('created_at', { ascending: false }),
-        supabase.from('offres').select('id,titre,entreprise_nom,ville,type_contrat,active,created_at').order('created_at', { ascending: false }),
+        supabase.from('offres').select('id,titre,recruteur_id,ville,type_contrat,active,created_at').order('created_at', { ascending: false }),
         supabase.from('candidatures').select('id,created_at,statut,candidat_id,offre_id,profils(prenom),offres(titre)').order('created_at', { ascending: false }).limit(50),
       ])
 
       setStats({ total, candidats, recruteurs, offres: nOffres, candidatures: nCands })
       setProfils((profilsRes.data as Profil[]) ?? [])
-      setOffres((offresRes.data as Offre[]) ?? [])
+
+      const rawOffres = (offresRes.data as Offre[]) ?? []
+      const recruteurIds = [...new Set(rawOffres.map(o => o.recruteur_id).filter(Boolean))] as string[]
+      const { data: epData } = recruteurIds.length
+        ? await supabase.from('profils').select('user_id, entreprise_nom').in('user_id', recruteurIds)
+        : { data: [] as { user_id: string; entreprise_nom: string | null }[] }
+      const epMap: Record<string, string | null> = {}
+      for (const ep of (epData ?? [])) epMap[ep.user_id] = ep.entreprise_nom
+
+      setOffres(rawOffres.map(o => ({ ...o, entreprise_nom: epMap[o.recruteur_id ?? ''] ?? null })))
+
       setCandidatures((candsRes.data as unknown as Candidature[]) ?? [])
       setLoading(false)
     }

@@ -10,10 +10,10 @@ import LogoKapolia from '@/components/LogoKapolia'
 const C = {
   terracotta: '#C4673A',
   vert:       '#2C4A3E',
-  sable:      '#E8D5B7',
+  sable:      '#E7EAE8',
   white:      '#FFFFFF',
-  grey:       '#6B6B6B',
-  dark:       '#1A1A1A',
+  grey:       '#687069',
+  dark:       '#15201B',
 }
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ function DropItem({ label, onClick, danger = false }: { label: string; onClick: 
       style={{
         display: 'block', width: '100%', textAlign: 'left',
         padding: '9px 12px', border: 'none', borderRadius: 8,
-        backgroundColor: hov ? (danger ? '#FDECEA' : '#F7F2EB') : 'transparent',
+        backgroundColor: hov ? (danger ? '#FDECEA' : '#F6F7F6') : 'transparent',
         color: danger ? '#C0392B' : C.dark,
         fontSize: 13, fontWeight: 500, cursor: 'pointer',
         transition: 'background-color 0.12s', fontFamily: 'inherit',

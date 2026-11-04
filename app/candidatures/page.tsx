@@ -9,16 +9,16 @@ import { OffreDetail, type OffreData } from '@/components/OffreDetail'
 import { useFavoris } from '@/lib/favoris-context'
 import { getStatut } from '@/lib/statuts'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
-
+import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
 }
@@ -240,8 +240,9 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        backgroundColor: C.white, border: `1px solid ${C.sable}`,
-        borderRadius: 16, padding: '16px 22px',
+        backgroundColor: C.white,
+        borderRadius: CARD_RADIUS, padding: '16px 22px',
+        boxShadow: CARD_SHADOW,
       }}
     >
       {/* Ligne principale — avatar + info seulement, nowrap */}
@@ -422,7 +423,7 @@ export default function CandidaturesPage() {
 
       const { data, error: candErr } = await supabase
         .from('candidatures')
-        .select('*, offres(id, titre, type_contrat, ville, entreprise_nom, created_at, recruteur_id)')
+        .select('*, offres(id, titre, type_contrat, ville, created_at, recruteur_id)')
         .eq('candidat_id', user.id)
         .eq('masquee_candidat', false)
         .order('created_at', { ascending: false })
@@ -446,7 +447,7 @@ export default function CandidaturesPage() {
           ...cand,
           offres: {
             ...cand.offres,
-            entreprise_nom: ep.entreprise_nom ?? cand.offres.entreprise_nom,
+            entreprise_nom: ep.entreprise_nom,
           },
         }
       })
@@ -512,13 +513,13 @@ export default function CandidaturesPage() {
     let offre = offreData ? { ...(offreData as OffreData) } : null
     if (offre?.recruteur_id) {
       const { data: ep, error: epErr } = await supabase
-        .from('profils')
+        .from('profils_vue_publique')
         .select('entreprise_nom, entreprise_logo_url')
         .eq('user_id', offre.recruteur_id)
         .single()
       if (epErr) console.error('[candidatures handleViewOffre profils]', epErr)
       if (ep) {
-        if (ep.entreprise_nom)      offre = { ...offre, entreprise_nom:      ep.entreprise_nom }
+        offre = { ...offre, entreprise_nom: ep.entreprise_nom }
         if (ep.entreprise_logo_url) offre = { ...offre, entreprise_logo_url: ep.entreprise_logo_url }
       }
     }
@@ -568,8 +569,8 @@ export default function CandidaturesPage() {
   if (selectedCandId) {
     return (
       <main style={{
-        backgroundColor: C.creme, marginLeft: 64,
-        height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        backgroundColor: C.creme,
+        height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
@@ -600,7 +601,7 @@ export default function CandidaturesPage() {
           {/* Gauche — liste compacte */}
           <div style={{
             width: 340, flexShrink: 0, overflowY: 'auto',
-            padding: '12px 10px', borderRight: `1px solid ${C.sable}`,
+            padding: '24px 20px', borderRight: `1px solid ${C.sable}`,
             backgroundColor: C.creme,
             display: 'flex', flexDirection: 'column', gap: 6,
           }}>
@@ -657,7 +658,7 @@ export default function CandidaturesPage() {
   // ── Vue liste pleine largeur ──────────────────────────────────────────────
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
+    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
       {renderModal()}
@@ -692,8 +693,9 @@ export default function CandidaturesPage() {
         {/* Liste */}
         {candidatures.length === 0 ? (
           <div style={{
-            backgroundColor: C.white, border: `1px solid ${C.sable}`,
-            borderRadius: 20, padding: '72px 24px', textAlign: 'center',
+            backgroundColor: C.white,
+            borderRadius: CARD_RADIUS, padding: '72px 24px', textAlign: 'center',
+            boxShadow: CARD_SHADOW,
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>◎</div>
             <h2 style={{

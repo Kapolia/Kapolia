@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import CandidatPanneauLayout, { preloadSidebarCache } from '@/components/CandidatPanneauLayout'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  dark:       '#1A1A1A',
+  sable:      '#E7EAE8',
+  dark:       '#15201B',
   grey:       '#9B9B9B',
 }
 
@@ -71,6 +72,7 @@ type Status = 'loading' | 'ok' | 'redirect'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+
   const [status, setStatus]               = useState<Status>('loading')
   const [emailConfirme, setEmailConfirme] = useState(true)
 
@@ -85,7 +87,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       const { data: profil } = await supabase
         .from('profils')
-        .select('type_compte')
+        .select('type_compte, onboarding_completed')
         .eq('user_id', user.id)
         .single()
 
@@ -95,6 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return
       }
 
+      preloadSidebarCache(profil?.type_compte === 'candidat' && !!profil?.onboarding_completed)
       setEmailConfirme(!!user.email_confirmed_at)
       setStatus('ok')
     }
@@ -110,24 +113,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (status === 'loading' || status === 'redirect') {
     return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#F7F2EB',
-      }}>
-        <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
+      <CandidatPanneauLayout>
         <div style={{
-          width: 36, height: 36, borderRadius: '50%',
-          border: '3px solid #E8D5B7', borderTopColor: '#C4673A',
-          animation: 'kapolia-spin 0.8s linear infinite',
-        }} />
-      </div>
+          height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            border: '3px solid #E7EAE8', borderTopColor: '#C4673A',
+            animation: 'kapolia-spin 0.8s linear infinite',
+          }} />
+        </div>
+      </CandidatPanneauLayout>
     )
   }
 
   return (
-    <div style={{ marginLeft: 64, flex: 1, minWidth: 0 }}>
+    <CandidatPanneauLayout>
       {!emailConfirme && <BandeauEmailNonVerifie />}
       {children}
-    </div>
+    </CandidatPanneauLayout>
   )
 }

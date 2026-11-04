@@ -417,32 +417,66 @@ CREATE POLICY "Suppression avatar propre"
   );
 
 -- Bucket `projets-medias` — upload dans son propre dossier
+--
+-- Deux cas acceptés :
+--   • chemin direct      : {user.id}/fichier     → foldername[1] = auth.uid()
+--   • chemin sous-dossier: projets/{user.id}/...  → foldername[1] = 'projets'
+--                                                    foldername[2] = auth.uid()
+-- Cette expression couvre les deux conventions de chemin utilisées dans le code.
+-- Mise à jour dashboard : 2026-10-28 (ancienne expression : foldername[1] seul,
+-- qui rejetait tous les uploads projets/{user.id}/... en production).
 CREATE POLICY "Upload media propre"
   ON storage.objects AS PERMISSIVE FOR INSERT
   TO public
   WITH CHECK (
-    bucket_id = 'projets-medias'::text
-    AND (auth.uid())::text = (storage.foldername(name))[1]
+    (bucket_id = 'projets-medias'::text)
+    AND (
+      ((auth.uid())::text = (storage.foldername(name))[1])
+      OR (
+        (storage.foldername(name))[1] = 'projets'::text
+        AND (auth.uid())::text = (storage.foldername(name))[2]
+      )
+    )
   );
 
 -- Bucket `projets-medias` — remplacement d'un fichier existant
+-- Même logique double-chemin que la policy INSERT ci-dessus.
 CREATE POLICY "Mise a jour media propre"
   ON storage.objects AS PERMISSIVE FOR UPDATE
   TO public
   USING (
-    bucket_id = 'projets-medias'::text
-    AND (auth.uid())::text = (storage.foldername(name))[1]
+    (bucket_id = 'projets-medias'::text)
+    AND (
+      ((auth.uid())::text = (storage.foldername(name))[1])
+      OR (
+        (storage.foldername(name))[1] = 'projets'::text
+        AND (auth.uid())::text = (storage.foldername(name))[2]
+      )
+    )
   )
   WITH CHECK (
-    bucket_id = 'projets-medias'::text
-    AND (auth.uid())::text = (storage.foldername(name))[1]
+    (bucket_id = 'projets-medias'::text)
+    AND (
+      ((auth.uid())::text = (storage.foldername(name))[1])
+      OR (
+        (storage.foldername(name))[1] = 'projets'::text
+        AND (auth.uid())::text = (storage.foldername(name))[2]
+      )
+    )
   );
 
 -- Bucket `projets-medias` — suppression de son propre fichier
+-- Même logique double-chemin que la policy INSERT ci-dessus.
 CREATE POLICY "Suppression media propre"
   ON storage.objects AS PERMISSIVE FOR DELETE
   TO public
   USING (
-    bucket_id = 'projets-medias'::text
-    AND (auth.uid())::text = (storage.foldername(name))[1]
+    (bucket_id = 'projets-medias'::text)
+    AND (
+      ((auth.uid())::text = (storage.foldername(name))[1])
+      OR (
+        (storage.foldername(name))[1] = 'projets'::text
+        AND (auth.uid())::text = (storage.foldername(name))[2]
+      )
+    )
   );

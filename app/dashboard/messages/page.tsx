@@ -31,16 +31,17 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
 import RdvBubble from '@/components/RdvBubble'
+import { sanitizeFilename } from '@/lib/storage-utils'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#C8C8C8',
   white:      '#FFFFFF',
 }
@@ -379,7 +380,7 @@ function CandidatMessagesPageInner() {
 
       const { data: convsRaw, error } = await supabase
         .from('conversations')
-        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, epinglee, offres(titre, entreprise_nom)')
+        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, epinglee, offres(titre)')
         .eq('candidat_id', user.id)
         .eq('masquee_candidat', false)
         .order('derniere_activite', { ascending: false })
@@ -389,7 +390,7 @@ function CandidatMessagesPageInner() {
 
       const recruteurIds = [...new Set(convsRaw.map(r => r.recruteur_id).filter(Boolean))]
       const { data: rData, error: rErr } = recruteurIds.length
-        ? await supabase.from('profils').select('user_id, prenom, nom, entreprise_nom').in('user_id', recruteurIds)
+        ? await supabase.from('profils_vue_publique').select('user_id, prenom, nom, entreprise_nom').in('user_id', recruteurIds)
         : { data: [] as { user_id: string; prenom?: string; nom?: string; entreprise_nom?: string | null }[], error: null }
       if (rErr) console.error('[messages init profils]', rErr)
 
@@ -398,8 +399,8 @@ function CandidatMessagesPageInner() {
 
       const loaded: LocalConv[] = convsRaw.map(row => {
         const p          = profilMap[row.recruteur_id]
-        const offre      = row.offres as { titre?: string; entreprise_nom?: string } | null
-        const entreprise = p?.entreprise_nom ?? offre?.entreprise_nom ?? ''
+        const offre      = row.offres as { titre?: string } | null
+        const entreprise = p?.entreprise_nom ?? ''
         const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
         const displayKey = entreprise || nom
         return {
@@ -454,15 +455,15 @@ function CandidatMessagesPageInner() {
             if (!convInList && c.masquee_candidat === false && c.recruteur_id) {
               const [{ data: offre, error: rtOffreErr }, { data: profil, error: rtProfilErr }] = await Promise.all([
                 c.offre_id
-                  ? supabase.from('offres').select('titre, entreprise_nom').eq('id', c.offre_id).single()
+                  ? supabase.from('offres').select('titre').eq('id', c.offre_id).single()
                   : Promise.resolve({ data: null, error: null }),
-                supabase.from('profils').select('prenom, nom, entreprise_nom').eq('user_id', c.recruteur_id).single(),
+                supabase.from('profils_vue_publique').select('prenom, nom, entreprise_nom').eq('user_id', c.recruteur_id).single(),
               ])
               if (rtOffreErr)  console.error('[messages realtime UPDATE offre]', rtOffreErr)
               if (rtProfilErr) console.error('[messages realtime UPDATE profil]', rtProfilErr)
               const p          = profil as { prenom?: string; nom?: string; entreprise_nom?: string | null } | null
-              const o          = offre as { titre?: string; entreprise_nom?: string } | null
-              const entreprise = p?.entreprise_nom ?? o?.entreprise_nom ?? ''
+              const o          = offre as { titre?: string } | null
+              const entreprise = p?.entreprise_nom ?? ''
               const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
               const displayKey = entreprise || nom
               const restored: LocalConv = {
@@ -487,15 +488,15 @@ function CandidatMessagesPageInner() {
             const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_candidat?: number; epinglee?: boolean }
             const [{ data: offre, error: insOffreErr }, { data: profil, error: insProfilErr }] = await Promise.all([
               row.offre_id
-                ? supabase.from('offres').select('titre, entreprise_nom').eq('id', row.offre_id).single()
+                ? supabase.from('offres').select('titre').eq('id', row.offre_id).single()
                 : Promise.resolve({ data: null, error: null }),
-              supabase.from('profils').select('prenom, nom, entreprise_nom').eq('user_id', row.recruteur_id).single(),
+              supabase.from('profils_vue_publique').select('prenom, nom, entreprise_nom').eq('user_id', row.recruteur_id).single(),
             ])
             if (insOffreErr)  console.error('[messages realtime INSERT offre]', insOffreErr)
             if (insProfilErr) console.error('[messages realtime INSERT profil]', insProfilErr)
             const p          = profil as { prenom?: string; nom?: string; entreprise_nom?: string | null } | null
-            const o          = offre as { titre?: string; entreprise_nom?: string } | null
-            const entreprise = p?.entreprise_nom ?? o?.entreprise_nom ?? ''
+            const o          = offre as { titre?: string } | null
+            const entreprise = p?.entreprise_nom ?? ''
             const nom        = [p?.prenom, p?.nom].filter(Boolean).join(' ') || (entreprise ? '' : 'Recruteur inconnu')
             const displayKey = entreprise || nom
             const newConv: LocalConv = {
@@ -751,7 +752,7 @@ function CandidatMessagesPageInner() {
 
     if (pf && userIdRef.current && activeId) {
       setUploading(true)
-      const path = `${activeId}/${Date.now()}-${pf.nom}`
+      const path = `${activeId}/${Date.now()}-${sanitizeFilename(pf.nom)}`
       const { data: up, error } = await supabase.storage.from('pieces-jointes').upload(path, pf.file)
       if (error) {
         alert(`Impossible d'envoyer le fichier : ${error.message}`)
@@ -904,7 +905,7 @@ function CandidatMessagesPageInner() {
   const menuConv = menuId ? convs.find(c => c.id === menuId) : null
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', backgroundColor: C.creme }}>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.creme }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
         @keyframes kapolia-sp     { to{transform:rotate(360deg)} }

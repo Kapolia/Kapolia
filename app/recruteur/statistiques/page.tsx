@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
-import { calculerScore, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matching'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell,
@@ -14,11 +14,11 @@ import {
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
   amber:      '#C88A2A',
@@ -73,7 +73,7 @@ const PIE_COLORS = [
   C.terracotta, C.vert, C.amber, '#5C6BC0', '#7B5EA7', '#2C6E49', '#B06000',
 ]
 
-function computeScore(cand: Candidature, offre: Offre | undefined): number {
+function computeScore(cand: Candidature, offre: Offre | undefined): number | null {
   if (!offre || !cand.profils) return 0
   const p = cand.profils
   const profil: ProfilMatch = {
@@ -85,11 +85,12 @@ function computeScore(cand: Candidature, offre: Offre | undefined): number {
     type_contrat: offre.type_contrat, valeurs: offre.valeurs, ville: offre.ville,
     teletravail: offre.mode_travail === '100% remote' || offre.mode_travail === 'Hybride',
   }
-  return Math.min(100, 10 + Math.round(calculerScore(profil, offreMatch) * 0.9))
+  return scoreRecruteur(profil, offreMatch)
 }
 
-function avg(arr: number[]): number {
-  return arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0
+function avg(arr: (number | null)[]): number {
+  const valid = arr.filter((n): n is number => n !== null)
+  return valid.length ? Math.round(valid.reduce((a, b) => a + b, 0) / valid.length) : 0
 }
 
 // ─── Small components ─────────────────────────────────────────────────────────

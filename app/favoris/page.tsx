@@ -7,16 +7,18 @@ import { FONT_SERIF } from '@/lib/typography'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
+import { scoreBreakdownCandidat, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
 }
@@ -44,8 +46,8 @@ function ajoutLabel(iso: string): string {
 function SkeletonCard() {
   return (
     <div style={{
-      backgroundColor: C.white, borderRadius: 14, padding: '20px 24px',
-      border: `1px solid #EDE7DB`, borderLeft: `3px solid transparent`,
+      backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px 24px',
+      borderLeft: `3px solid transparent`, boxShadow: CARD_SHADOW,
     }}>
       {([['68%', 18], ['42%', 13], ['88%', 12], ['55%', 12]] as [string, number][]).map(([w, h], i) => (
         <div key={i} style={{
@@ -122,19 +124,25 @@ export default function FavorisPage() {
       setIsConnected(true)
       setUserId(user.id)
 
-      const [favsRes, candidaturesRes] = await Promise.all([
+      const [favsRes, profilRes, candidaturesRes] = await Promise.all([
         supabase
           .from('offres_favorites')
           .select(`
             created_at,
             offres (
-              id, titre, entreprise_nom, type_contrat, ville,
-              mode_travail, salaire_min, salaire_max, periode_salaire,
+              id, titre, type_contrat, ville, domaine, experience,
+              mode_travail, valeurs, langues, competences, competences_bonus,
+              salaire_min, salaire_max, periode_salaire,
               active, statut_publication, created_at, recruteur_id, expire_at
             )
           `)
           .eq('candidat_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('profils')
+          .select('domaine, experience, type_poste, valeur, ville, mode_travail, langues, competences_acquises')
+          .eq('user_id', user.id)
+          .single(),
         supabase
           .from('candidatures')
           .select('offre_id')
@@ -146,10 +154,14 @@ export default function FavorisPage() {
       type RawRow = {
         created_at: string
         offres: {
-          id: string; titre: string; entreprise_nom: string | null
+          id: string; titre: string
           type_contrat: string | null; ville: string | null
-          mode_travail: string | null; salaire_min: string | null
-          salaire_max: string | null; periode_salaire: string | null
+          domaine: string | null; experience: string | null
+          mode_travail: string | null; valeurs: string[] | null
+          langues: string[] | null; competences: string[] | null
+          competences_bonus: string[] | null
+          salaire_min: string | null; salaire_max: string | null
+          periode_salaire: string | null
           active: boolean; statut_publication: string; created_at: string
           recruteur_id: string | null; expire_at: string | null
         } | null
@@ -163,7 +175,6 @@ export default function FavorisPage() {
             id:              o.id,
             titre:           o.titre,
             recruteur_id:    o.recruteur_id    ?? undefined,
-            entreprise_nom:  o.entreprise_nom  ?? undefined,
             type_contrat:    o.type_contrat    ?? undefined,
             ville:           o.ville           ?? undefined,
             mode_travail:    o.mode_travail    ?? undefined,
@@ -180,12 +191,34 @@ export default function FavorisPage() {
       const { map, error: profErr } = await fetchProfilsEntreprise(recruteurIds)
       if (profErr) console.error('[favoris profils]', profErr)
 
+      // Table de lookup pour les données de scoring (champs non portés par FavOffre)
+      const scoringData = new Map<string, OffreMatch>()
+      for (const row of (favsRes.data as unknown as RawRow[] ?? [])) {
+        const o = row.offres
+        if (!o) continue
+        scoringData.set(o.id, {
+          domaine:           o.domaine          ?? undefined,
+          experience:        o.experience       ?? undefined,
+          type_contrat:      o.type_contrat     ?? undefined,
+          valeurs:           o.valeurs          ?? undefined,
+          ville:             o.ville            ?? undefined,
+          mode_travail:      o.mode_travail     ?? undefined,
+          langues:           o.langues          ?? undefined,
+          competences:       o.competences      ?? undefined,
+          competences_bonus: o.competences_bonus ?? undefined,
+        })
+      }
+
+      const profil = (profilRes.data as ProfilMatch | null) ?? null
+
       const enriched = list.map(o => {
         const ep = o.recruteur_id ? map[o.recruteur_id] : undefined
-        return {
-          ...o,
-          entreprise_nom: ep?.entreprise_nom ?? o.entreprise_nom,
-        }
+        const base = { ...o, entreprise_nom: ep?.entreprise_nom ?? undefined }
+        if (!profil) return base
+        const om = scoringData.get(o.id)
+        if (!om) return base
+        const bd = scoreBreakdownCandidat(profil, om)
+        return { ...base, score: bd.total, breakdown: bd }
       })
 
       setOffres(enriched)
@@ -241,41 +274,32 @@ export default function FavorisPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: 64 }}>
+    <div style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.42; } }
         @keyframes kapolia-spin  { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
       `}</style>
 
-      {/* En-tête vert */}
-      <div style={{ backgroundColor: C.vert }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '28px 24px 0' }}>
-          <p style={{
-            fontFamily: FONT_SERIF, fontStyle: 'italic',
-            fontSize: 21, color: C.creme, fontWeight: 400,
-            margin: '0 0 4px',
+      {/* Contenu */}
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 80px' }}>
+
+        {/* En-tête */}
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{
+            fontFamily: FONT_SERIF,
+            fontSize: 'clamp(26px, 4vw, 36px)',
+            color: C.dark, margin: '0 0 6px', lineHeight: 1.15,
           }}>
             Mes favoris
-          </p>
-          <p style={{ fontSize: 13, color: 'rgba(247,242,235,0.65)', margin: 0, minHeight: 18 }}>
-            {!loading && `${offres.length} offre${offres.length !== 1 ? 's' : ''} sauvegardée${offres.length !== 1 ? 's' : ''}`}
+          </h1>
+          <p style={{ fontSize: 14, color: C.grey, margin: 0, minHeight: 20 }}>
+            {!loading && offres.length > 0 && `${offres.length} offre${offres.length !== 1 ? 's' : ''} sauvegardée${offres.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        <svg
-          viewBox="0 0 1440 28"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          style={{ display: 'block', width: '100%', height: 28, marginBottom: -1, marginTop: 16 }}
-        >
-          <path d="M0,14 C320,28 640,0 960,14 C1120,21 1300,6 1440,14 L1440,28 L0,28 Z" fill={C.creme} />
-        </svg>
-      </div>
 
-      {/* Contenu */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '20px 24px 80px' }}>
         {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
           </div>
         ) : offres.length === 0 ? (
@@ -304,7 +328,7 @@ export default function FavorisPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {sorted.map(offre => (
                 <OffreCard
                   key={offre.id}

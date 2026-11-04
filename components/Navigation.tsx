@@ -10,10 +10,10 @@ import LogoKapolia from '@/components/LogoKapolia'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
+  dark:       '#15201B',
+  grey:       '#687069',
   white:      '#FFFFFF',
 }
 
@@ -212,7 +212,7 @@ export default function Navigation() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <GhostBtn onClick={() => router.push('/connexion')}>Se connecter</GhostBtn>
-          <PrimaryBtn onClick={() => router.push('/inscription')}>Créer mon profil</PrimaryBtn>
+          <PrimaryBtn onClick={() => router.push('/inscription')}>Créer un compte</PrimaryBtn>
         </div>
       </div>
     </nav>

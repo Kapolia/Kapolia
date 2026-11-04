@@ -27,7 +27,7 @@ function ProfilPageInner() {
       isOwner={state.isOwner}
       initialEditMode={state.isOwner && searchParams.get('edit') === 'true'}
       notFoundRedirect={state.isOwner ? '/onboarding' : undefined}
-      sidebarOffset={64}
+      sidebarOffset={0}
     />
   )
 }

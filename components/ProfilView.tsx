@@ -7,21 +7,30 @@ import { FONT_SERIF } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
-import { LANGUES, findLangue } from '@/lib/langues'
+import { LANGUES } from '@/lib/langues'
+import { COMP_REF, DOMAINES } from '@/lib/referentiels'
+import { QUALITE_LABELS } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 import InvitationModal, { type ActiveInvitation } from '@/components/InvitationModal'
+import AssistantProfilPanel from '@/components/AssistantProfilPanel'
+import { CARD_RADIUS, CARD_SHADOW } from '@/lib/colors'
+import { sanitizeFilename } from '@/lib/storage-utils'
+
+function isFromRef(comp: string): boolean {
+  return Object.values(COMP_REF).some(list => list.includes(comp))
+}
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#C8C8C8',
   white:      '#FFFFFF',
 }
@@ -36,6 +45,8 @@ type ProfilExperience = {
 type ProfilDiplome = {
   intitule: string; ecole: string; annee: string; mention?: string
 }
+
+type Lien = { intitule: string; url: string }
 
 type ReponseGroupe = {
   reponse_id:    string
@@ -58,9 +69,9 @@ function formatExpiry(dateStr: string) {
 
 type Profil = {
   prenom: string; nom: string; domaine?: string; experience?: string
-  signature?: string; qualites?: string[]; mode_travail?: string[]
+  signature?: string; qualites?: string[]; type_entreprise?: string[]
   valeur?: string; projet_phare?: string; passions?: string[]
-  type_poste?: string[]; structure?: string; disponibilite?: string | null
+  type_poste?: string[]; mode_travail?: string; disponibilite?: string | null
   dispo_date?: string | null; priorites?: string[]
   ville?: string; competences?: string[]; competences_bonus?: string[]
   portfolio?: string; user_id?: string
@@ -76,7 +87,39 @@ type Profil = {
   derniere_maj_profil?: string
   video_presentation_url?: string | null
   video_miroir?: boolean | null
+  qualites_test?: Record<string, number> | null
+  liens?: Lien[] | null
 }
+
+// Colonnes sélectionnées selon le contexte d'affichage.
+// Propriétaire : liste complète, incluant telephone et les préférences privées.
+// Visiteur (recruteur) : même liste sans telephone, email_notifications,
+// messages_recruteurs ni visible_candidatheque — ces colonnes ne transitent
+// pas dans la réponse réseau, indépendamment de ce qui est rendu à l'écran.
+const COLONNES_PROPRIETAIRE = [
+  'user_id', 'prenom', 'nom', 'domaine', 'experience', 'signature',
+  'qualites', 'type_entreprise', 'valeur', 'projet_phare', 'passions',
+  'type_poste', 'mode_travail', 'disponibilite', 'dispo_date', 'priorites',
+  'ville',
+  'experiences', 'diplomes', 'competences_acquises', 'langues',
+  'projet_titre', 'projet_impact', 'projet_lien', 'projet_images', 'projet_video_url',
+  'avatar_url', 'avatar_type', 'telephone', 'linkedin_url', 'portfolio_url',
+  'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
+  'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
+  'email_notifications', 'messages_recruteurs', 'visible_candidatheque',
+].join(', ')
+
+const COLONNES_VISITEUR = [
+  'user_id', 'prenom', 'nom', 'domaine', 'experience', 'signature',
+  'qualites', 'type_entreprise', 'valeur', 'projet_phare', 'passions',
+  'type_poste', 'mode_travail', 'disponibilite', 'dispo_date', 'priorites',
+  'ville',
+  'experiences', 'diplomes', 'competences_acquises', 'langues',
+  'projet_titre', 'projet_impact', 'projet_lien', 'projet_images', 'projet_video_url',
+  'avatar_url', 'avatar_type', 'linkedin_url', 'portfolio_url',
+  'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
+  'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
+].join(', ')
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
 
@@ -447,9 +490,9 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
           style={{ transition: 'stroke-dashoffset 1.3s cubic-bezier(0.22,1,0.36,1)' }}
         />
       </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontFamily: FONT_SERIF, fontSize: size * 0.22, color: C.white, fontWeight: 700, lineHeight: 1 }}>{score}%</div>
-        <div style={{ fontSize: size * 0.12, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.07em', textTransform: 'uppercase' as const, marginTop: 2 }}>Match</div>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+        <div style={{ fontFamily: FONT_SERIF, fontSize: Math.min(17, size * 0.38), color: C.white, fontWeight: 600, lineHeight: 1 }}>{score}%</div>
+        <div style={{ fontSize: Math.min(9.5, size * 0.21), color: 'rgba(255,255,255,0.55)', lineHeight: 1 }}>match</div>
       </div>
     </div>
   )
@@ -457,7 +500,7 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
 
 function SLabel({ children }: { children: string }) {
   return (
-    <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>
+    <div style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
       {children}
     </div>
   )
@@ -505,9 +548,10 @@ export default function ProfilView({
   const router = useRouter()
 
   const [profil, setProfil]   = useState<Profil | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saved, setSaved]     = useState(false)
-  const [notFound, setNotFound] = useState(false)
+  const [loading, setLoading]     = useState(true)
+  const [saved, setSaved]         = useState(false)
+  const [notFound, setNotFound]   = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [projetModal, setProjetModal]         = useState(false)
   const [zoomImage, setZoomImage]             = useState<string | null>(null)
   const [projetCardHover, setProjetCardHover] = useState(false)
@@ -532,7 +576,7 @@ export default function ProfilView({
   const [reponsesProches, setReponsesProches]         = useState<ReponseGroupe[]>([])
   const [qualitesProchesSel, setQualitesProchesSel]   = useState<Array<{reponse_id: string; qualite: string}>>([])
   const [editQualitesProches, setEditQualitesProches] = useState<Array<{reponse_id: string; qualite: string}>>([])
-  const [savingProches, setSavingProches]             = useState(false)
+
   const [unreadNotifCount, setUnreadNotifCount]       = useState(0)
   const [activeInvitations, setActiveInvitations]     = useState<ActiveInvitation[]>([])
   const [invitModalOpen, setInvitModalOpen]           = useState(false)
@@ -556,14 +600,16 @@ export default function ProfilView({
   const [uploadingAvatar, setUploadingAvatar]       = useState(false)
   const [newQualite, setNewQualite]                 = useState('')
   const [newCompetence, setNewCompetence]           = useState('')
+  const [showOtherDomains,  setShowOtherDomains]    = useState(false)
+  const [otherBrowseDomain, setOtherBrowseDomain]   = useState<string | null>(null)
   const [editVille, setEditVille]                   = useState('')
-  const [editStructure, setEditStructure]           = useState('')
+  const [editModeTravail, setEditModeTravail]        = useState('')
   const [editDispo, setEditDispo]                   = useState('')
   const [editDispoDate, setEditDispoDate]           = useState('')
   const [editTypePoste, setEditTypePoste]           = useState<string[]>([])
-  const [editLinkedinUrl, setEditLinkedinUrl]       = useState('')
-  const [editPortfolioUrl, setEditPortfolioUrl]     = useState('')
-  const [editModeTravail, setEditModeTravail]       = useState<string[]>([])
+  const [editLiens, setEditLiens]                   = useState<Lien[]>([])
+  const [editLiensErrs, setEditLiensErrs]           = useState<Record<number, string>>({})
+  const [editTypeEntreprise, setEditTypeEntreprise] = useState<string[]>([])
   const [editPriorite, setEditPriorite]             = useState<string[]>([])
   const [editLangues, setEditLangues]               = useState<string[]>([])
   const [selectingLangue, setSelectingLangue]       = useState('')
@@ -599,10 +645,23 @@ export default function ProfilView({
     async function load() {
       setLoading(true)
       setNotFound(false)
+      setFetchError(null)
 
-      const { data, error } = await supabase.from('profils').select('*').eq('user_id', userId).single()
+      const { data, error } = await supabase
+        .from('profils')
+        .select(isOwner ? COLONNES_PROPRIETAIRE : COLONNES_VISITEUR)
+        .eq('user_id', userId)
+        .single()
 
-      if (error || !data) {
+      if (error && error.code !== 'PGRST116') {
+        // Erreur technique (colonne inexistante, RLS, réseau…) — ne pas renvoyer en onboarding
+        setFetchError('Une erreur est survenue lors du chargement de ce profil.')
+        setLoading(false)
+        return
+      }
+
+      if (!data) {
+        // Profil réellement absent (PGRST116 = 0 lignes)
         if (notFoundRedirect) {
           router.replace(notFoundRedirect)
         } else {
@@ -687,14 +746,16 @@ export default function ProfilView({
         setEditProjetImages([...(profil.projet_images ?? [])])
         setEditProjetVideo(profil.projet_video_url ?? '')
         setEditVille(profil.ville ?? '')
-        setEditStructure(profil.structure ?? '')
+        setEditModeTravail(profil.mode_travail ?? '')
         setEditDispo(profil.disponibilite ?? '')
         setEditDispoDate(profil.dispo_date ?? '')
         setEditTypePoste([...(profil.type_poste ?? [])])
         setEditPriorite([...(profil.priorites ?? [])])
-        setEditLinkedinUrl(profil.linkedin_url ?? '')
-        setEditPortfolioUrl(profil.portfolio_url ?? '')
-        setEditModeTravail([...(profil.mode_travail ?? [])])
+        setEditLiens(profil.liens && profil.liens.length > 0 ? [...profil.liens] : [
+          ...(profil.linkedin_url ? [{ intitule: 'LinkedIn', url: profil.linkedin_url }] : []),
+          ...(profil.portfolio_url ? [{ intitule: 'Portfolio', url: profil.portfolio_url }] : []),
+        ])
+        setEditTypeEntreprise([...(profil.type_entreprise ?? [])])
         setEditLangues([...(profil.langues ?? [])])
         setEditPassions([...(profil.passions ?? [])])
         setIsEditing(true)
@@ -780,6 +841,16 @@ export default function ProfilView({
     </main>
   )
 
+  if (fetchError) return (
+    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark }}>Erreur de chargement</div>
+      <div style={{ fontSize: 14, color: C.grey, textAlign: 'center', maxWidth: 320 }}>{fetchError}</div>
+      <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+        Réessayer
+      </button>
+    </main>
+  )
+
   if (notFound) return (
     <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 40 }}>◎</div>
@@ -795,9 +866,9 @@ export default function ProfilView({
 
   const initials         = getInitials(p.prenom, p.nom)
   const dispo            = getDispoStatus(p.disponibilite, p.dispo_date)
-  const modeTravailItems  = (p.mode_travail ?? []).filter(k => k !== 'sans_pref').map(k => ENVIRONNEMENT_MAP[k] ?? k)
-  const typePosteLabel    = (p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' · ') || '—'
-  const structureLabel    = LIEU_MAP[p.structure ?? ''] ?? p.structure ?? ''
+  const typeEntrepriseItems = (p.type_entreprise ?? []).filter(k => k !== 'sans_pref').map(k => ENVIRONNEMENT_MAP[k] ?? k)
+  const typePosteLabel      = (p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' · ') || '—'
+  const modeTravailLabel    = LIEU_MAP[p.mode_travail ?? ''] ?? p.mode_travail ?? ''
   const qualites            = p.qualites ?? []
   const passions            = p.passions ?? []
   const experiences         = p.experiences ?? []
@@ -830,14 +901,17 @@ export default function ProfilView({
     setEditProjetImages([...(p.projet_images ?? [])])
     setEditProjetVideo(p.projet_video_url ?? '')
     setEditVille(p.ville ?? '')
-    setEditStructure(p.structure ?? '')
+    setEditModeTravail(p.mode_travail ?? '')
     setEditDispo(p.disponibilite ?? '')
     setEditDispoDate(p.dispo_date ?? '')
     setEditTypePoste([...(p.type_poste ?? [])])
     setEditPriorite([...(p.priorites ?? [])])
-    setEditLinkedinUrl(p.linkedin_url ?? '')
-    setEditPortfolioUrl(p.portfolio_url ?? '')
-    setEditModeTravail([...(p.mode_travail ?? [])])
+    setEditLiens(p.liens && p.liens.length > 0 ? [...p.liens] : [
+      ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
+      ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
+    ])
+    setEditLiensErrs({})
+    setEditTypeEntreprise([...(p.type_entreprise ?? [])])
     setEditLangues([...(p.langues ?? [])])
     setEditPassions([...(p.passions ?? [])])
     setNewQualite(''); setNewCompetence('')
@@ -850,32 +924,9 @@ export default function ProfilView({
     setIsEditing(false)
   }
 
-  async function publierQualitesProches() {
-    setSavingProches(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSavingProches(false); return }
-
-    const currentSet = new Set(qualitesProchesSel.map(s => s.qualite))
-    const newMap     = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
-
-    const toDelete = qualitesProchesSel.filter(s => !newMap.has(s.qualite))
-    const toInsert = editQualitesProches.filter(s => !currentSet.has(s.qualite))
-
-    if (toDelete.length > 0) {
-      await supabase
-        .from('qualites_proches_selectionnees')
-        .delete()
-        .eq('user_id', user.id)
-        .in('qualite', toDelete.map(s => s.qualite))
-    }
-    if (toInsert.length > 0) {
-      await supabase
-        .from('qualites_proches_selectionnees')
-        .insert(toInsert.map(s => ({ user_id: user.id, reponse_id: s.reponse_id, qualite: s.qualite })))
-    }
-    setQualitesProchesSel([...editQualitesProches])
-    setSavingProches(false)
-    showToast('Sélection publiée')
+  function toggleEditCompetence(comp: string) {
+    if (editCompetences.includes(comp)) setEditCompetences(editCompetences.filter(x => x !== comp))
+    else if (editCompetences.length < 15) setEditCompetences([...editCompetences, comp])
   }
 
   async function supprimerInvitation(invId: string) {
@@ -939,6 +990,28 @@ export default function ProfilView({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaving(false); return }
 
+    // ── Valider et sauvegarder les liens via la route sécurisée ─────────────
+    if (isOwner) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        const res = await fetch('/api/profil/liens', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ liens: editLiens }),
+        })
+        const json = await res.json()
+        if (!res.ok || json.errors) {
+          setEditLiensErrs(json.errors ?? { 0: json.error ?? 'Erreur de validation.' })
+          setSaving(false)
+          return
+        }
+        setEditLiensErrs({})
+      }
+    }
+
     const coreData = {
       signature:                editSignature,
       qualites:                 editQualites,
@@ -947,12 +1020,12 @@ export default function ProfilView({
       diplomes:                 editDiplomes,
       projet_phare:             editProjetDesc,
       ville:                    editVille,
-      structure:                editStructure,
+      mode_travail:             editModeTravail,
       disponibilite:            editDispo || null,
       dispo_date:               editDispo === 'a_partir_de' ? (editDispoDate || null) : null,
       type_poste:               editTypePoste,
       priorites:                editPriorite,
-      mode_travail:             editModeTravail,
+      type_entreprise:          editTypeEntreprise,
       langues:                  editLangues,
       passions:                 editPassions,
     }
@@ -963,8 +1036,6 @@ export default function ProfilView({
       projet_lien:      editProjetLien,
       projet_images:    editProjetImages,
       projet_video_url: editProjetVideo,
-      linkedin_url:     editLinkedinUrl,
-      portfolio_url:    editPortfolioUrl,
     }
 
     const editData = { ...coreData, ...projetData }
@@ -972,10 +1043,38 @@ export default function ProfilView({
     const { error } = await supabase.from('profils').update(editData).eq('user_id', user.id)
 
     if (!error) {
-      setProfil(prev => prev ? { ...prev, ...editData } : null)
+      setProfil(prev => prev ? { ...prev, ...editData, liens: editLiens } : null)
+
+      // ── Sauvegarde intégrée de la sélection de qualités reçues ──────────────
+      const currentSet = new Set(qualitesProchesSel.map(s => s.qualite))
+      const newMap     = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
+      const toDelete   = qualitesProchesSel.filter(s => !newMap.has(s.qualite))
+      const toInsert   = editQualitesProches.filter(s => !currentSet.has(s.qualite))
+      let prochesErr   = false
+
+      if (toDelete.length > 0) {
+        const { error: errDel } = await supabase
+          .from('qualites_proches_selectionnees')
+          .delete()
+          .eq('user_id', user.id)
+          .in('qualite', toDelete.map(s => s.qualite))
+        if (errDel) prochesErr = true
+      }
+      if (!prochesErr && toInsert.length > 0) {
+        const { error: errIns } = await supabase
+          .from('qualites_proches_selectionnees')
+          .insert(toInsert.map(s => ({ user_id: user.id, reponse_id: s.reponse_id, qualite: s.qualite })))
+        if (errIns) prochesErr = true
+      }
+
       setIsEditing(false)
-      showToast('Profil mis à jour ✓')
       setSaving(false)
+      if (prochesErr) {
+        showToast('Profil enregistré. La sélection de qualités reçues n\'a pas pu être sauvegardée — réessayez en repassant en modification.')
+      } else {
+        setQualitesProchesSel([...editQualitesProches])
+        showToast('Profil mis à jour ✓')
+      }
       return
     }
 
@@ -996,7 +1095,7 @@ export default function ProfilView({
     setSaving(false)
   }
 
-  async function processImageFiles(files: FileList) {
+  async function processImageFiles(files: File[]) {
     const remaining = 5 - editProjetImages.length
     if (remaining <= 0) { showToast('Maximum 5 images.'); return }
     const MAX = 5 * 1024 * 1024
@@ -1004,22 +1103,28 @@ export default function ProfilView({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploadingImages(false); return }
     const urls: string[] = []
-    for (const file of Array.from(files).slice(0, remaining)) {
+    let erreurs = 0
+    for (const file of files.slice(0, remaining)) {
       if (file.size > MAX) { showToast(`${file.name} dépasse 5 MB.`); continue }
-      const path = `projets/${user.id}/${Date.now()}-${file.name}`
+      const path = `projets/${user.id}/${Date.now()}-${sanitizeFilename(file.name)}`
       const { error } = await supabase.storage.from('projets-medias').upload(path, file)
       if (!error) {
         const { data: u } = supabase.storage.from('projets-medias').getPublicUrl(path)
         urls.push(u.publicUrl)
+      } else {
+        console.error('[upload image] Supabase Storage erreur:', error.message, error)
+        erreurs++
       }
     }
-    setEditProjetImages(prev => [...prev, ...urls])
+    if (urls.length > 0) setEditProjetImages(prev => [...prev, ...urls])
+    if (erreurs > 0) showToast(erreurs === 1 ? 'Une image n\'a pas pu être envoyée.' : `${erreurs} images n'ont pas pu être envoyées.`)
     setUploadingImages(false)
   }
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files; e.target.value = ''
-    if (files?.length) processImageFiles(files)
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (files.length) processImageFiles(files)
   }
 
   async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1036,9 +1141,9 @@ export default function ProfilView({
     setUploadingVideo(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploadingVideo(false); return }
-    const path = `projets/${user.id}/video-${Date.now()}-${file.name}`
+    const path = `projets/${user.id}/video-${Date.now()}-${sanitizeFilename(file.name)}`
     const { error } = await supabase.storage.from('projets-medias').upload(path, file)
-    if (error) { showToast("Erreur upload vidéo."); setUploadingVideo(false); return }
+    if (error) { console.error('[upload vidéo projet] Supabase Storage erreur:', error.message, error); showToast("Erreur upload vidéo."); setUploadingVideo(false); return }
     const { data: u } = supabase.storage.from('projets-medias').getPublicUrl(path)
     setEditProjetVideo(u.publicUrl)
     setUploadingVideo(false)
@@ -1247,7 +1352,14 @@ export default function ProfilView({
         @keyframes kapolia-spin { to { transform: rotate(360deg); } }
         @keyframes kapolia-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
         * { box-sizing: border-box; }
-        .btn-portrait:hover:not(:disabled) { background-color: rgba(255,255,255,0.15) !important; }
+        .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
+        .profil-layout { display: flex; gap: 20px; align-items: flex-start; }
+        .profil-left { width: 360px; flex-shrink: 0; position: sticky; top: 20px; }
+        .profil-right { flex: 1; min-width: 0; }
+        @media (max-width: 1000px) {
+          .profil-layout { flex-direction: column; }
+          .profil-left { width: 100%; position: static; }
+        }
       `}</style>
 
       {/* Toast */}
@@ -1275,10 +1387,17 @@ export default function ProfilView({
         setAvatarPreview(URL.createObjectURL(file))
       }} />
 
-      {/* ━━━ HERO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section style={{ backgroundColor: C.vert, padding: '40px clamp(24px, 5vw, 60px)' }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
 
+      {/* ━━━ MISE EN PAGE DEUX COLONNES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 80px' }}>
+        <div className="profil-layout">
+
+          {/* ── COLONNE GAUCHE (fixe) ─────────────────────────────────────── */}
+          <div className="profil-left">
+
+            {/* Carte verte — identité */}
+            <div style={{ backgroundColor: C.vert, borderRadius: CARD_RADIUS, boxShadow: '0 1px 2px rgba(27, 48, 38, .10), 0 6px 16px rgba(27, 48, 38, .14)', padding: '20px 16px 16px', marginBottom: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {/* Avatar */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <Avatar profil={p} size="lg" />
@@ -1295,7 +1414,7 @@ export default function ProfilView({
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0' }}
                 title="Changer l'avatar"
               >
-                ✏️
+                ✎
               </button>
             )}
             {!isEditing && (
@@ -1307,14 +1426,14 @@ export default function ProfilView({
           </div>
 
           {/* Identité */}
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3vw, 28px)', color: C.white, fontWeight: 400, margin: '0 0 8px', lineHeight: 1.2 }}>
+          <div style={{ width: '100%', textAlign: 'center' }}>
+            <h1 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.white, fontWeight: 400, margin: '0 0 4px', lineHeight: 1.2 }}>
               {p.prenom} {p.nom}
             </h1>
 
             {/* Indicateur activité (signal de confiance côté recruteur) */}
             {!isEditing && activity.label && (
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {activity.isActif && (
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -1323,7 +1442,7 @@ export default function ProfilView({
                     border: '1px solid rgba(39,174,96,0.4)',
                   }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#27AE60', flexShrink: 0, boxShadow: '0 0 0 2px rgba(39,174,96,0.3)' }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#6ABFA0', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Actif</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6ABFA0', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Actif</span>
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>{activity.label}</span>
@@ -1356,11 +1475,11 @@ export default function ProfilView({
               </div>
             ) : (
               p.signature && (
-                <div style={{ marginTop: 12 }}>
+                <div style={{ marginTop: 6 }}>
                   <p style={{
-                    margin: 0,
+                    margin: 0, textAlign: 'left',
                     fontFamily: FONT_SERIF, fontStyle: 'italic',
-                    fontSize: 14, color: 'rgba(255,255,255,0.72)', lineHeight: 1.65,
+                    fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.55,
                     ...(signatureExpanded ? {} : {
                       display: '-webkit-box', WebkitLineClamp: 3,
                       WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
@@ -1374,7 +1493,7 @@ export default function ProfilView({
                       style={{
                         background: 'none', border: 'none', padding: 0, marginTop: 5,
                         color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer',
-                        fontFamily: 'inherit', textDecoration: 'underline',
+                        fontFamily: 'inherit', textDecoration: 'underline', display: 'block', textAlign: 'left',
                       }}
                     >
                       {signatureExpanded ? 'voir moins' : 'voir plus'}
@@ -1385,6 +1504,11 @@ export default function ProfilView({
             )}
           </div>
 
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ marginBottom: 12 }}>
           {/* CTA */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, flexShrink: 0 }}>
             {!isEditing && !isOwner && <ScoreCircle score={83} size={72} />}
@@ -1397,7 +1521,7 @@ export default function ProfilView({
                     backgroundColor: C.terracotta, color: C.white,
                     fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    ✏️ Modifier mon profil
+                    Modifier mon profil
                   </button>
                   <button
                     className="btn-portrait"
@@ -1417,14 +1541,14 @@ export default function ProfilView({
                     }}
                     style={{
                       padding: '8px 20px', borderRadius: 10,
-                      border: '1.5px solid rgba(255,255,255,0.25)',
-                      backgroundColor: 'rgba(255,255,255,0.08)',
-                      color: C.white,
+                      border: `1px solid ${C.sable}`,
+                      backgroundColor: C.white,
+                      color: C.dark,
                       fontSize: 13, fontWeight: 600,
                       cursor: 'pointer',
                       fontFamily: 'inherit',
                       display: 'flex', alignItems: 'center', gap: 6,
-                      transition: 'background-color 0.2s',
+                      transition: 'opacity 0.15s',
                     }}
                   >
                     ↓ Mon portrait en PDF
@@ -1455,33 +1579,30 @@ export default function ProfilView({
                       color: saved ? '#6ABFA0' : 'rgba(255,255,255,0.8)',
                       fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
                     }}>
-                      {saved ? '⭐ Sauvegardé' : '☆ Sauvegarder'}
+                      {saved ? 'Sauvegardé' : 'Sauvegarder'}
                     </button>
                   </>
                 )}
               </div>
             )}
           </div>
-        </div>
-      </section>
+            </div>
 
-      {/* ━━━ BANDEAU PRÉFÉRENCES (maritime) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <section style={{ backgroundColor: '#FEF4EE', borderBottom: `1px solid ${C.sable}` }}>
-        <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px, 5vw, 60px)' }}>
+            {/* Carte Son cap */}
+            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '16px 18px', marginBottom: 12 }}>
           {/* Cap header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 8px' }}>
-            <span style={{ fontSize: 14 }}>🧭</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.12em' }}>{isOwner ? 'Cap sur votre recherche' : 'Son cap'}</span>
+            <span style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 600, color: C.dark }}>{isOwner ? 'Cap sur votre recherche' : 'Son cap'}</span>
             <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
           </div>
           {/* 3 columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', paddingBottom: 14, gap: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', paddingBottom: 14, gap: 12 }}>
 
             {/* Disponibilité */}
-            <div style={{ paddingRight: 20, borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
+            <div style={{ display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
               {!(isEditing && isOwner) && <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0, boxShadow: `0 0 0 3px ${dispo.color}22` }} />}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 5 }}>Disponibilité</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 5 }}>Disponibilité</div>
                 {isEditing && isOwner ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {DISPO_OPTIONS.map(opt => {
@@ -1541,10 +1662,9 @@ export default function ProfilView({
             </div>
 
             {/* Type de poste — sélection multiple */}
-            <div style={{ padding: '0 20px', borderRight: `1px solid ${C.sable}`, display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
-              {!(isEditing && isOwner) && <span style={{ fontSize: 15, flexShrink: 0 }}>⚓</span>}
+            <div style={{ display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 5 }}>Type de poste</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 5 }}>Type de poste</div>
                 {isEditing && isOwner ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {Object.entries(TYPE_POSTE_MAP).map(([key, label]) => {
@@ -1576,10 +1696,9 @@ export default function ProfilView({
             </div>
 
             {/* Lieu / Mobilité — éditable directement ici */}
-            <div style={{ paddingLeft: 20, display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
-              {!(isEditing && isOwner) && <span style={{ fontSize: 15, flexShrink: 0 }}>🗺</span>}
+            <div style={{ display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: isEditing && isOwner ? 5 : 3 }}>Lieu / Mobilité</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: isEditing && isOwner ? 5 : 3 }}>Lieu / Mobilité</div>
                 {isEditing && isOwner ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <input
@@ -1594,12 +1713,12 @@ export default function ProfilView({
                     />
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
                       {Object.entries(LIEU_MAP).map(([key, label]) => {
-                        const sel = editStructure === key
+                        const sel = editModeTravail === key
                         return (
                           <button
                             key={key}
                             type="button"
-                            onClick={() => setEditStructure(sel ? '' : key)}
+                            onClick={() => setEditModeTravail(sel ? '' : key)}
                             style={{
                               padding: '3px 8px', borderRadius: 20, border: `1.5px solid ${sel ? C.vert : C.sable}`,
                               backgroundColor: sel ? `${C.vert}12` : 'transparent',
@@ -1615,7 +1734,7 @@ export default function ProfilView({
                   </div>
                 ) : (
                   <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {[p.ville, structureLabel].filter(Boolean).join(' · ') || '—'}
+                    {[p.ville, modeTravailLabel].filter(Boolean).join(' · ') || '—'}
                   </div>
                 )}
               </div>
@@ -1626,7 +1745,7 @@ export default function ProfilView({
           {/* Priorités — ligne sous les 3 colonnes, visible si renseignées ou en édition */}
           {((isEditing && isOwner) || (p.priorites && p.priorites.length > 0)) && (
             <div style={{ borderTop: `1px solid ${C.sable}`, paddingTop: 12, paddingBottom: 14 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Priorités</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 8 }}>Priorités</div>
               {isEditing && isOwner ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                   {PRIORITES.map(prio => {
@@ -1673,13 +1792,94 @@ export default function ProfilView({
               )}
             </div>
           )}
-        </div>
-      </section>
+            </div>
+
+
+            {/* Carte Liens */}
+            {(isEditing || (p.liens && p.liens.length > 0) || p.linkedin_url || p.portfolio_url) && (
+              <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '16px 18px', marginBottom: 12 }}>
+                <SLabel>Liens</SLabel>
+                {isEditing ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {editLiens.map((lien, i) => (
+                      <div key={i} style={{ backgroundColor: C.creme, borderRadius: 8, padding: '10px 12px', position: 'relative' as const }}>
+                        {editLiensErrs[i] && (
+                          <p style={{ margin: '0 0 6px', fontSize: 11, color: C.terracotta, lineHeight: 1.4 }}>{editLiensErrs[i]}</p>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                          <input
+                            style={{ ...editInputStyle, fontSize: 12 }}
+                            value={lien.intitule}
+                            onChange={e => { const l = [...editLiens]; l[i] = { ...l[i], intitule: e.target.value }; setEditLiens(l) }}
+                            placeholder="Intitulé (LinkedIn, GitHub…)"
+                            maxLength={50}
+                          />
+                          <input
+                            style={{ ...editInputStyle, fontSize: 12 }}
+                            type="url"
+                            value={lien.url}
+                            onChange={e => { const l = [...editLiens]; l[i] = { ...l[i], url: e.target.value }; setEditLiens(l) }}
+                            placeholder="https://…"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { const errs = { ...editLiensErrs }; delete errs[i]; setEditLiensErrs(errs); setEditLiens(editLiens.filter((_, j) => j !== i)) }}
+                          style={{ position: 'absolute' as const, top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: C.grey, padding: 2, lineHeight: 1 }}
+                          title="Supprimer ce lien"
+                        >✕</button>
+                      </div>
+                    ))}
+                    {editLiens.length < 6 && (
+                      <button
+                        type="button"
+                        onClick={() => setEditLiens([...editLiens, { intitule: '', url: '' }])}
+                        style={{ padding: '7px 14px', borderRadius: 8, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' as const }}
+                      >
+                        + Ajouter un lien {editLiens.length > 0 ? `(${editLiens.length}/6)` : ''}
+                      </button>
+                    )}
+                  </div>
+                ) : (() => {
+                  const liensAffiches = p.liens && p.liens.length > 0
+                    ? p.liens
+                    : [
+                      ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
+                      ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
+                    ]
+                  if (liensAffiches.length === 0) return null
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                      {liensAffiches.map((lien, i) => {
+                        let hostname = ''
+                        try { hostname = new URL(lien.url).hostname.replace(/^www\./, '') } catch {}
+                        return (
+                          <a
+                            key={i}
+                            href={lien.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 12px', borderRadius: 8, backgroundColor: C.creme, border: `1px solid ${C.sable}`, textDecoration: 'none' }}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{lien.intitule}</span>
+                            <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{hostname} →</span>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+          </div>
+
+          {/* ── COLONNE DROITE (défile) ───────────────────────────────────── */}
+          <div className="profil-right">
 
       {/* ━━━ VIDÉO EN VEDETTE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {!isEditing && (videoPresentation || isOwner) && (
-        <section style={{ backgroundColor: C.creme, borderBottom: `1px solid ${C.sable}` }}>
-          <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px clamp(24px, 5vw, 60px)' }}>
+        <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             {videoPresentation ? (
               <div>
                 {/* Player 16:9 — contrôles custom non affectés par scaleX(-1) */}
@@ -1696,7 +1896,7 @@ export default function ProfilView({
                 {/* Caption + boutons owner */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 4 }}>Présentation vidéo</div>
+                    <div style={{ fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Présentation vidéo</div>
                     <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
                   </div>
                   {isOwner && (
@@ -1715,7 +1915,7 @@ export default function ProfilView({
                           transition: 'all 0.15s',
                         }}
                       >
-                        ⇄ Miroir
+                        Miroir
                       </button>
                       <button
                         onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
@@ -1727,7 +1927,7 @@ export default function ProfilView({
                           opacity: uploadingVedette || deletingVideo ? 0.5 : 1,
                         }}
                       >
-                        🔄 Remplacer
+                        Remplacer
                       </button>
                       <button
                         onClick={deleteVideoPresentation}
@@ -1739,7 +1939,7 @@ export default function ProfilView({
                           opacity: uploadingVedette || deletingVideo ? 0.5 : 1,
                         }}
                       >
-                        {deletingVideo ? 'Suppression…' : '🗑 Supprimer'}
+                        {deletingVideo ? 'Suppression…' : 'Supprimer'}
                       </button>
                     </div>
                   )}
@@ -1748,87 +1948,80 @@ export default function ProfilView({
             ) : (
               /* isOwner && pas de vidéo — invitation */
               <div style={{
-                backgroundColor: C.white, borderRadius: 18, padding: '28px 32px',
+                backgroundColor: C.white, borderRadius: 14, padding: '16px 20px',
                 border: `1.5px dashed ${C.sable}`,
-                display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap',
               }}>
-                <div style={{ fontSize: 36, flexShrink: 0, lineHeight: 1 }}>🎬</div>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, marginBottom: 8 }}>
-                    Ajoutez votre vidéo de présentation
-                  </div>
-                  <p style={{ margin: '0 0 12px', fontSize: 13, color: C.grey, lineHeight: 1.65 }}>
-                    Les recruteurs regardent les vidéos en priorité. 30 à 60 secondes suffisent.
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 7, marginBottom: 18 }}>
-                    {[
-                      'Qui vous êtes et votre domaine d\'expertise',
-                      'Ce que vous recherchez comme prochain rôle',
-                      'Ce qui vous anime et vous différencie',
-                    ].map((tip, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                        <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: `${C.terracotta}18`, color: C.terracotta, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
-                        <span style={{ fontSize: 13, color: C.dark, lineHeight: 1.5 }}>{tip}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-                    <button
-                      onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
-                      disabled={uploadingVedette}
-                      style={{
-                        padding: '9px 18px', borderRadius: 12, border: 'none',
-                        backgroundColor: C.terracotta, color: C.white,
-                        fontSize: 13, fontWeight: 600, cursor: uploadingVedette ? 'default' : 'pointer',
-                        fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7,
-                        opacity: uploadingVedette ? 0.5 : 1,
-                      }}
-                    >
-                      <span style={{ fontSize: 15 }}>●</span> Enregistrer ma vidéo
-                    </button>
-                    <button
-                      onClick={() => vedetteVideoInputRef.current?.click()}
-                      disabled={uploadingVedette}
-                      style={{
-                        padding: '9px 18px', borderRadius: 12,
-                        border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
-                        color: C.dark, fontSize: 13, fontWeight: 500,
-                        cursor: uploadingVedette ? 'default' : 'pointer',
-                        fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 7,
-                        opacity: uploadingVedette ? 0.5 : 1,
-                      }}
-                    >
-                      {uploadingVedette
-                        ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Envoi en cours…</>
-                        : <>📁 Importer un fichier</>
-                      }
-                    </button>
-                  </div>
-                  {uploadingVedette && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: C.grey }}>
-                      Les vidéos peuvent prendre quelques secondes selon votre connexion.
-                    </div>
-                  )}
+                <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark, marginBottom: 6 }}>
+                  Ajoutez votre vidéo de présentation
                 </div>
+                <p style={{ margin: '0 0 10px', fontSize: 13, color: C.grey, lineHeight: 1.55 }}>
+                  Les recruteurs regardent les vidéos en priorité. 30 à 60 secondes suffisent.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5, marginBottom: 14 }}>
+                  {[
+                    'Qui vous êtes et votre domaine d\'expertise',
+                    'Ce que vous recherchez comme prochain rôle',
+                    'Ce qui vous anime et vous différencie',
+                  ].map((tip, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: `${C.terracotta}18`, color: C.terracotta, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                      <span style={{ fontSize: 13, color: C.dark, lineHeight: 1.45 }}>{tip}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                  <button
+                    onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                    disabled={uploadingVedette}
+                    style={{
+                      padding: '8px 16px', borderRadius: 10, border: 'none',
+                      backgroundColor: C.terracotta, color: C.white,
+                      fontSize: 13, fontWeight: 600, cursor: uploadingVedette ? 'default' : 'pointer',
+                      fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6,
+                      opacity: uploadingVedette ? 0.5 : 1,
+                    }}
+                  >
+                    <span style={{ fontSize: 14 }}>●</span> Enregistrer ma vidéo
+                  </button>
+                  <button
+                    onClick={() => vedetteVideoInputRef.current?.click()}
+                    disabled={uploadingVedette}
+                    style={{
+                      padding: '8px 16px', borderRadius: 10,
+                      border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
+                      color: C.dark, fontSize: 13, fontWeight: 500,
+                      cursor: uploadingVedette ? 'default' : 'pointer',
+                      fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6,
+                      opacity: uploadingVedette ? 0.5 : 1,
+                    }}
+                  >
+                    {uploadingVedette
+                      ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Envoi en cours…</>
+                      : 'Importer un fichier'
+                    }
+                  </button>
+                </div>
+                {uploadingVedette && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: C.grey }}>
+                    Les vidéos peuvent prendre quelques secondes selon votre connexion.
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </section>
+        </div>
       )}
 
-      {/* ━━━ CONTENU PRINCIPAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px clamp(24px, 5vw, 60px) 0' }}>
 
         {/* ── EXPÉRIENCES ────────────────────────────────────────────────────── */}
         {(isEditing || experiences.length > 0) && (
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>Expériences professionnelles</SLabel>
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {editExperiences.map((exp, i) => (
                   <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Expérience {i + 1}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: C.grey }}>Expérience {i + 1}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <button type="button" aria-label="Monter" onClick={() => setEditExperiences(moveUp(editExperiences, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
                         <button type="button" aria-label="Descendre" onClick={() => setEditExperiences(moveDown(editExperiences, i))} disabled={i === editExperiences.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editExperiences.length - 1 ? 'default' : 'pointer', color: i === editExperiences.length - 1 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
@@ -1889,16 +2082,17 @@ export default function ProfilView({
           </div>
         )}
 
+
         {/* ── DIPLÔMES ───────────────────────────────────────────────────────── */}
         {(isEditing || diplomes.length > 0) && (
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>Formations</SLabel>
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {editDiplomes.map((d, i) => (
                   <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>Diplôme {i + 1}</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: C.grey }}>Diplôme {i + 1}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <button type="button" aria-label="Monter" onClick={() => setEditDiplomes(moveUp(editDiplomes, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
                         <button type="button" aria-label="Descendre" onClick={() => setEditDiplomes(moveDown(editDiplomes, i))} disabled={i === editDiplomes.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editDiplomes.length - 1 ? 'default' : 'pointer', color: i === editDiplomes.length - 1 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
@@ -1921,7 +2115,6 @@ export default function ProfilView({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {diplomes.map((d, i) => (
                   <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.sable}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 18, flexShrink: 0 }}>🎓</span>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 14, color: C.dark }}>{d.intitule}</div>
                       <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
@@ -1935,9 +2128,10 @@ export default function ProfilView({
           </div>
         )}
 
+
         {/* ── MON PROJET PHARE ───────────────────────────────────────────────── */}
         {(isEditing || p.projet_phare) && (
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>Mon projet phare</SLabel>
             {isEditing ? (
               <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
@@ -1953,8 +2147,8 @@ export default function ProfilView({
                   <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
                   <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
-                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(e.dataTransfer.files) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
+                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(Array.from(e.dataTransfer.files)) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
                       {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
                     </div>
                     <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
@@ -1973,7 +2167,7 @@ export default function ProfilView({
                     )}
                   </div>
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
+                    <div style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
                     <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
                       {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>{editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
                     </button>
@@ -1997,30 +2191,31 @@ export default function ProfilView({
         )}
 
 
+
         {/* ── ENVIRONNEMENT RECHERCHÉ ────────────────────────────────────────── */}
-        {(isEditing || modeTravailItems.length > 0) && (
-          <div style={{ marginBottom: 32 }}>
+        {(isEditing || typeEntrepriseItems.length > 0) && (
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>Environnement recherché</SLabel>
             {isEditing && isOwner ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {Object.entries(ENVIRONNEMENT_MAP).map(([key, label]) => {
-                  const sel = editModeTravail.includes(key)
+                  const sel = editTypeEntreprise.includes(key)
                   return (
                     <button
                       key={key}
                       type="button"
                       onClick={() => {
                         if (key === 'sans_pref') {
-                          setEditModeTravail(sel ? [] : ['sans_pref'])
+                          setEditTypeEntreprise(sel ? [] : ['sans_pref'])
                           return
                         }
                         if (sel) {
-                          setEditModeTravail(editModeTravail.filter(k => k !== key))
+                          setEditTypeEntreprise(editTypeEntreprise.filter(k => k !== key))
                           return
                         }
-                        const withoutSansPref = editModeTravail.filter(k => k !== 'sans_pref')
+                        const withoutSansPref = editTypeEntreprise.filter(k => k !== 'sans_pref')
                         if (withoutSansPref.length >= 3) return
-                        setEditModeTravail([...withoutSansPref, key])
+                        setEditTypeEntreprise([...withoutSansPref, key])
                       }}
                       style={{
                         padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: sel ? 600 : 400,
@@ -2037,7 +2232,7 @@ export default function ProfilView({
               </div>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {modeTravailItems.map(item => (
+                {typeEntrepriseItems.map(item => (
                   <span key={item} style={{
                     padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
                     backgroundColor: C.white, border: `1px solid ${C.sable}`, color: C.dark,
@@ -2050,12 +2245,14 @@ export default function ProfilView({
           </div>
         )}
 
-        {/* ── QUALITÉS ───────────────────────────────────────────────────────── */}
-        {(isEditing || qualites.length > 0 || qualitesProchesSel.length > 0 || unreadNotifCount > 0) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Qualités naturelles</SLabel>
+
+        {/* ── QUALITÉS ────────────────────────────────────────────────────────── */}
+        {(isEditing || qualites.length > 0 || qualitesProchesSel.length > 0 || unreadNotifCount > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
+            <SLabel>Qualités</SLabel>
             {isEditing ? (
               <div>
+                <p style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 10px' }}>Mes qualités</p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
                   {editQualites.map(q => (
                     <span key={q} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
@@ -2087,6 +2284,15 @@ export default function ProfilView({
                   </p>
                 )}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {p.qualites_test && Object.entries(p.qualites_test)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([key, count]) => (
+                      <span key={key} style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}18`, color: C.vert, border: `1px solid ${C.vert}30`, fontSize: 12, fontWeight: 600 }}>
+                        {QUALITE_LABELS[key] ?? key}
+                        <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.6, fontWeight: 400 }}>×{count}</span>
+                      </span>
+                    ))
+                  }
                   {qualites.map(q => (
                     <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>
                   ))}
@@ -2104,99 +2310,99 @@ export default function ProfilView({
                 )}
               </>
             )}
-          </div>
-        )}
+            {isEditing && isOwner && (() => {
+              const limiteAtteinte = activeInvitations.length >= 4
+              const selMap   = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
+              const totalSel = editQualitesProches.length
+              const unchanged =
+                totalSel === qualitesProchesSel.length &&
+                editQualitesProches.every(s =>
+                  qualitesProchesSel.some(c => c.qualite === s.qualite && c.reponse_id === s.reponse_id)
+                )
+              return (
+                <div>
+                  {/* Filet de séparation */}
+                  <div style={{ borderTop: `1px solid ${C.sable}`, margin: '20px 0 18px' }} />
+                  <p style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 14px' }}>Ce que mes proches disent de moi</p>
 
-        {/* ── QUALITÉS REÇUES ──────────────────────────────────────────────────── */}
-        {isEditing && isOwner && (() => {
-          const limiteAtteinte = activeInvitations.length >= 4
-          const selMap   = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
-          const totalSel = editQualitesProches.length
-          const unchanged =
-            totalSel === qualitesProchesSel.length &&
-            editQualitesProches.every(s =>
-              qualitesProchesSel.some(c => c.qualite === s.qualite && c.reponse_id === s.reponse_id)
-            )
-          return (
-            <div style={{ marginBottom: 32 }}>
-              <SLabel>Qualités reçues</SLabel>
+                  {/* Bouton d'invitation */}
+                  <div style={{ marginBottom: 12 }}>
+                    <button
+                      onClick={() => setInvitModalOpen(true)}
+                      disabled={limiteAtteinte}
+                      style={{
+                        padding: '7px 16px', borderRadius: 8,
+                        border: `1.5px solid ${limiteAtteinte ? C.sable : C.terracotta}`,
+                        backgroundColor: C.white,
+                        color: limiteAtteinte ? C.grey : C.terracotta,
+                        fontSize: 13, fontWeight: 500,
+                        cursor: limiteAtteinte ? 'default' : 'pointer',
+                        fontFamily: 'inherit', opacity: limiteAtteinte ? 0.7 : 1,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      Inviter un proche
+                    </button>
+                    {limiteAtteinte && (
+                      <p style={{ fontSize: 12, color: C.grey, margin: '6px 0 0', lineHeight: 1.5 }}>
+                        Vous avez déjà quatre invitations en attente. Supprimez-en une ou attendez qu'une expire.
+                      </p>
+                    )}
+                  </div>
 
-              {/* Bouton d'invitation */}
-              <div style={{ marginBottom: 12 }}>
-                <button
-                  onClick={() => setInvitModalOpen(true)}
-                  disabled={limiteAtteinte}
-                  style={{
-                    padding: '7px 16px', borderRadius: 8,
-                    border: `1.5px solid ${limiteAtteinte ? C.sable : C.terracotta}`,
-                    backgroundColor: C.white,
-                    color: limiteAtteinte ? C.grey : C.terracotta,
-                    fontSize: 13, fontWeight: 500,
-                    cursor: limiteAtteinte ? 'default' : 'pointer',
-                    fontFamily: 'inherit', opacity: limiteAtteinte ? 0.7 : 1,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  Inviter un proche
-                </button>
-                {limiteAtteinte && (
-                  <p style={{ fontSize: 12, color: C.grey, margin: '6px 0 0', lineHeight: 1.5 }}>
-                    Vous avez déjà quatre invitations en attente. Supprimez-en une ou attendez qu'une expire.
-                  </p>
-                )}
-              </div>
-
-              {/* Invitations en attente */}
-              {activeInvitations.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
-                  {activeInvitations.map(inv => (
-                    <div key={inv.id} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                      padding: '9px 12px', borderRadius: 8,
-                      backgroundColor: C.creme, border: `1px solid ${C.sable}`,
-                    }}>
-                      <span style={{ fontSize: 13, color: C.dark, flex: 1, lineHeight: 1.4 }}>
-                        {inv.label_proche} · {LIEN_LABELS[inv.lien] ?? inv.lien} · expire le {formatExpiry(inv.expire_at)}
-                      </span>
-                      <button
-                        onClick={() => supprimerInvitation(inv.id)}
-                        disabled={supprimantInvId === inv.id}
-                        style={{
-                          fontSize: 12, color: C.grey, background: 'none', border: 'none',
-                          cursor: supprimantInvId === inv.id ? 'default' : 'pointer',
-                          padding: '2px 0', flexShrink: 0, fontFamily: 'inherit',
-                        }}
-                      >
-                        {supprimantInvId === inv.id ? '...' : 'Supprimer'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Réponses à valider */}
-              {reponsesProches.length > 0 && (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {reponsesProches.map(r => (
-                      <div key={r.reponse_id}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>
-                          {r.prenom_proche} · {LIEN_LABELS[r.lien] ?? r.lien}
+                  {/* Invitations en attente */}
+                  {activeInvitations.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
+                      {activeInvitations.map(inv => (
+                        <div key={inv.id} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                          padding: '9px 12px', borderRadius: 8,
+                          backgroundColor: C.creme, border: `1px solid ${C.sable}`,
+                        }}>
+                          <span style={{ fontSize: 13, color: C.dark, flex: 1, lineHeight: 1.4 }}>
+                            {inv.label_proche} · {LIEN_LABELS[inv.lien] ?? inv.lien} · expire le {formatExpiry(inv.expire_at)}
+                          </span>
+                          <button
+                            onClick={() => supprimerInvitation(inv.id)}
+                            disabled={supprimantInvId === inv.id}
+                            style={{
+                              fontSize: 12, color: C.grey, background: 'none', border: 'none',
+                              cursor: supprimantInvId === inv.id ? 'default' : 'pointer',
+                              padding: '2px 0', flexShrink: 0, fontFamily: 'inherit',
+                            }}
+                          >
+                            {supprimantInvId === inv.id ? '...' : 'Supprimer'}
+                          </button>
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {r.qualites.map(q => {
-                            const isChecked        = selMap.get(q) === r.reponse_id
-                            const isTakenElsewhere = selMap.has(q) && selMap.get(q) !== r.reponse_id
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Réponses — toutes les pastilles ensemble */}
+                  {reponsesProches.length > 0 && (() => {
+                    const flat = reponsesProches.flatMap(r =>
+                      r.qualites.map(q => ({ q, reponse_id: r.reponse_id, prenom: r.prenom_proche, lien: r.lien }))
+                    )
+                    return (
+                      <>
+                        <p style={{ fontSize: 12, color: C.grey, margin: '0 0 10px', lineHeight: 1.5 }}>
+                          Choisissez jusqu'à 3 qualités à afficher sur votre profil.
+                        </p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                          {flat.map(({ q, reponse_id, prenom }) => {
+                            const isChecked        = selMap.get(q) === reponse_id
+                            const isTakenElsewhere = selMap.has(q) && selMap.get(q) !== reponse_id
                             const isDisabled       = isTakenElsewhere || (totalSel >= 3 && !isChecked)
                             return (
                               <label
-                                key={q}
+                                key={`${reponse_id}-${q}`}
+                                title={`Donnée par ${prenom}`}
                                 style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 6,
-                                  padding: '5px 12px', borderRadius: 20,
-                                  backgroundColor: isChecked ? `${C.vert}15` : C.white,
+                                  display: 'inline-flex', flexDirection: 'column', alignItems: 'center',
+                                  padding: '5px 12px 4px', borderRadius: 20,
+                                  backgroundColor: isChecked ? C.vert : C.white,
                                   border: `1px solid ${isChecked ? C.vert : C.sable}`,
-                                  color: isChecked ? C.vert : C.dark,
+                                  color: isChecked ? C.white : C.dark,
                                   fontSize: 12, fontWeight: 500,
                                   cursor: isDisabled ? 'not-allowed' : 'pointer',
                                   opacity: isDisabled && !isChecked ? 0.4 : 1,
@@ -2211,66 +2417,155 @@ export default function ProfilView({
                                   onChange={() => {
                                     if (isChecked) {
                                       setEditQualitesProches(prev =>
-                                        prev.filter(s => !(s.qualite === q && s.reponse_id === r.reponse_id))
+                                        prev.filter(s => !(s.qualite === q && s.reponse_id === reponse_id))
                                       )
                                     } else if (!isDisabled) {
-                                      setEditQualitesProches(prev => [...prev, { reponse_id: r.reponse_id, qualite: q }])
+                                      setEditQualitesProches(prev => [...prev, { reponse_id, qualite: q }])
                                     }
                                   }}
                                   style={{ display: 'none' }}
                                 />
                                 {q}
+                                <span style={{ fontSize: 9, lineHeight: 1.3, marginTop: 1, opacity: isChecked ? 0.7 : 0.5 }}>{prenom}</span>
                               </label>
                             )
                           })}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-                    <span style={{ fontSize: 11, color: C.grey }}>
-                      {totalSel}/3 qualité{totalSel !== 1 ? 's' : ''} sélectionnée{totalSel !== 1 ? 's' : ''}
-                    </span>
-                    <button
-                      onClick={publierQualitesProches}
-                      disabled={savingProches || unchanged}
-                      style={{
-                        padding: '8px 18px', borderRadius: 8, border: 'none',
-                        backgroundColor: savingProches || unchanged ? C.sable : C.vert,
-                        color: savingProches || unchanged ? C.grey : C.white,
-                        fontSize: 13, fontWeight: 600,
-                        cursor: savingProches || unchanged ? 'default' : 'pointer',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      {savingProches ? 'Publication...' : unchanged ? 'À jour' : 'Publier la sélection'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )
-        })()}
+                        <span style={{ fontSize: 11, color: C.grey }}>
+                          {totalSel}/3 sélectionnée{totalSel !== 1 ? 's' : ''}
+                        </span>
+                      </>
+                    )
+                  })()}
+                </div>
+              )
+            })()}
+          </div>
+        )}
 
         {/* ── COMPÉTENCES ────────────────────────────────────────────────────── */}
         {(isEditing || competencesAcquises.length > 0) && (
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>Compétences</SLabel>
-            {isEditing ? (
-              <div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {editCompetences.map(c => (
-                    <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>
-                      {c}<button type="button" onClick={() => setEditCompetences(editCompetences.filter(x => x !== c))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
-                    </span>
-                  ))}
+            {isEditing ? (() => {
+              const domain           = p.domaine ?? ''
+              const domainSuggs      = COMP_REF[domain] ?? []
+              const otherDomains     = DOMAINES.filter(d => d !== domain && !!COMP_REF[d])
+              const browseSuggs      = otherBrowseDomain ? (COMP_REF[otherBrowseDomain] ?? []) : []
+              const hasFreeTags      = editCompetences.some(c => !isFromRef(c))
+
+              const suggPill = (s: string): React.CSSProperties => {
+                const added = editCompetences.includes(s)
+                const full  = !added && editCompetences.length >= 15
+                return {
+                  padding: '5px 12px', borderRadius: 20, fontSize: 12,
+                  border: `1.5px solid ${added ? C.vert : C.sable}`,
+                  backgroundColor: added ? `${C.vert}12` : C.white,
+                  color: added ? C.vert : full ? C.lightGrey : C.grey,
+                  cursor: full && !added ? 'default' : 'pointer',
+                  fontFamily: 'inherit', transition: 'all 0.15s',
+                }
+              }
+
+              return (
+                <div>
+                  {/* Tags sélectionnés */}
+                  {editCompetences.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                      {editCompetences.map(c => {
+                        const inRef = isFromRef(c)
+                        return (
+                          <span key={c} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '5px 10px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                            backgroundColor: inRef ? `${C.vert}12` : '#F1F3F2',
+                            color: inRef ? C.vert : C.grey,
+                            border: `1.5px ${inRef ? 'solid' : 'dashed'} ${inRef ? `${C.vert}30` : C.lightGrey}`,
+                          }}>
+                            {c}
+                            <button type="button" onClick={() => setEditCompetences(editCompetences.filter(x => x !== c))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Note explicative pour les compétences hors référentiel */}
+                  {hasFreeTags && (
+                    <p style={{ fontSize: 12, color: C.grey, marginBottom: 12, lineHeight: 1.5 }}>
+                      Les compétences en pointillés ne sont pas prises en compte dans le calcul de correspondance. Choisissez l'équivalent dans la liste pour qu'elles comptent.
+                    </p>
+                  )}
+
+                  {/* Suggestions du domaine courant */}
+                  {domainSuggs.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <p style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>
+                        Suggestions pour « {domain} »
+                      </p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {domainSuggs.map(s => {
+                          const full = !editCompetences.includes(s) && editCompetences.length >= 15
+                          return (
+                            <button key={s} type="button" onClick={() => !full && toggleEditCompetence(s)} style={suggPill(s)}>
+                              {editCompetences.includes(s) ? `✓ ${s}` : `+ ${s}`}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Autres domaines */}
+                  <button type="button"
+                    onClick={() => { setShowOtherDomains(v => !v); if (showOtherDomains) setOtherBrowseDomain(null) }}
+                    style={{ padding: '6px 13px', borderRadius: 20, fontSize: 12, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 }}>
+                    {showOtherDomains ? '— Réduire' : "+ Compétences d'autres domaines"}
+                  </button>
+
+                  {showOtherDomains && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                        {otherDomains.map(d => (
+                          <button key={d} type="button"
+                            onClick={() => setOtherBrowseDomain(d === otherBrowseDomain ? null : d)}
+                            style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, border: `1.5px solid ${d === otherBrowseDomain ? C.terracotta : C.sable}`, backgroundColor: d === otherBrowseDomain ? `${C.terracotta}10` : C.white, color: d === otherBrowseDomain ? C.terracotta : C.grey, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                            {d}
+                          </button>
+                        ))}
+                      </div>
+                      {otherBrowseDomain && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {browseSuggs.map(s => {
+                            const full = !editCompetences.includes(s) && editCompetences.length >= 15
+                            return (
+                              <button key={s} type="button" onClick={() => !full && toggleEditCompetence(s)} style={suggPill(s)}>
+                                {editCompetences.includes(s) ? `✓ ${s}` : `+ ${s}`}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Saisie libre */}
+                  {editCompetences.length < 15 && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input style={{ ...editInputStyle, flex: 1 }} value={newCompetence}
+                        onChange={e => setNewCompetence(e.target.value)}
+                        onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }}
+                        placeholder="Autre compétence (saisie libre) — Entrée pour valider" />
+                      <button type="button"
+                        onClick={() => { const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }}
+                        style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>+</button>
+                    </div>
+                  )}
+                  <p style={{ fontSize: 11, color: C.grey, marginTop: 6 }}>{editCompetences.length} / 15 compétences</p>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...editInputStyle, flex: 1 }} value={newCompetence} onChange={e => setNewCompetence(e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }} placeholder="Ajouter une compétence… (Entrée pour valider)" />
-                  <button type="button" onClick={() => { const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>+</button>
-                </div>
-              </div>
-            ) : (
+              )
+            })() : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {competencesAcquises.map(s => <span key={s} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>{s}</span>)}
               </div>
@@ -2278,9 +2573,10 @@ export default function ProfilView({
           </div>
         )}
 
+
         {/* ── LANGUES ────────────────────────────────────────────────────────── */}
         {(isEditing && isOwner ? true : langues.length > 0) && (
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>Langues</SLabel>
             {isEditing && isOwner ? (
               <div>
@@ -2293,7 +2589,7 @@ export default function ProfilView({
                   >
                     <option value="">Ajouter une langue…</option>
                     {LANGUES.filter(l => !editLangues.some(e => e.startsWith(l.nom + ' — '))).map(l => (
-                      <option key={l.code} value={l.nom}>{l.drapeau} {l.nom}</option>
+                      <option key={l.code} value={l.nom}>{l.nom}</option>
                     ))}
                   </select>
                   <button
@@ -2314,10 +2610,8 @@ export default function ProfilView({
                       const sepIdx = entry.indexOf(' — ')
                       const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
                       const niveau = sepIdx >= 0 ? entry.slice(sepIdx + 3) : 'Natif'
-                      const drapeau = findLangue(nom)?.drapeau ?? '🌐'
                       return (
                         <div key={nom} style={{ display: 'flex', alignItems: 'center', gap: 12, backgroundColor: C.white, borderRadius: 10, border: `1px solid ${C.sable}`, padding: '10px 14px' }}>
-                          <span style={{ fontSize: 18, flexShrink: 0 }}>{drapeau}</span>
                           <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{nom}</span>
                           <select
                             value={NIVEAUX_LANGUE.includes(niveau) ? niveau : 'Natif'}
@@ -2342,13 +2636,12 @@ export default function ProfilView({
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {langues.map((entry: string) => {
-                  const sepIdx  = entry.indexOf(' — ')
-                  const nom     = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
-                  const niv     = sepIdx >= 0 ? entry.slice(sepIdx + 3) : ''
-                  const drapeau = findLangue(nom)?.drapeau ?? '🌐'
+                  const sepIdx = entry.indexOf(' — ')
+                  const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
+                  const niv    = sepIdx >= 0 ? entry.slice(sepIdx + 3) : ''
                   return (
                     <span key={entry} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                      {drapeau} {nom}{niv && <span style={{ color: C.grey, fontWeight: 400 }}> · {niv}</span>}
+                      {nom}{niv && <span style={{ color: C.grey, fontWeight: 400 }}> · {niv}</span>}
                     </span>
                   )
                 })}
@@ -2357,41 +2650,10 @@ export default function ProfilView({
           </div>
         )}
 
-        {/* ── LIENS & PORTFOLIO ──────────────────────────────────────────────── */}
-        {(isEditing || p.linkedin_url || p.portfolio_url) && (
-          <div style={{ marginBottom: 32 }}>
-            <SLabel>Liens & Portfolio</SLabel>
-            {isEditing ? (
-              <div style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: C.grey }}>Lien LinkedIn</span>
-                  <input style={editInputStyle} type="url" value={editLinkedinUrl} onChange={e => setEditLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/votre-profil" />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: C.grey }}>Portfolio / Site web</span>
-                  <input style={editInputStyle} type="url" value={editPortfolioUrl} onChange={e => setEditPortfolioUrl(e.target.value)} placeholder="https://votre-portfolio.com" />
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {p.linkedin_url && (
-                  <a href={p.linkedin_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, fontWeight: 600, color: '#0A66C2', textDecoration: 'none' }}>
-                    🔗 LinkedIn →
-                  </a>
-                )}
-                {p.portfolio_url && (
-                  <a href={p.portfolio_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, fontWeight: 600, color: C.vert, textDecoration: 'none' }}>
-                    🌐 Portfolio →
-                  </a>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── CE QUI M'ANIME ────────────────────────────────────────────────── */}
         {(isEditing && isOwner ? true : passions.length > 0) && (
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
             <SLabel>{isOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel>
             {isEditing && isOwner ? (
               <div>
@@ -2456,13 +2718,15 @@ export default function ProfilView({
           </div>
         )}
 
-      </div>
 
-      <div style={{ height: 60 }} />
+          </div>
+
+        </div>
+      </div>
 
       {/* ━━━ BARRE FLOTTANTE ÉDITION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {isEditing && (
-        <div style={{ position: 'fixed', bottom: 0, left: sidebarOffset, right: 0, zIndex: 200, backgroundColor: C.dark, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ position: 'fixed', bottom: 0, left: 'var(--kapolia-sidebar-w)', right: 0, zIndex: 200, backgroundColor: C.dark, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Mode édition — modifications non sauvegardées</span>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={cancelEdit} style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annuler</button>
@@ -2484,17 +2748,17 @@ export default function ProfilView({
             </div>
             {projetVideoUrl && (
               <div style={{ marginBottom: 28 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Présentation du projet (30 sec)</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Présentation du projet (30 sec)</div>
                 <div style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}><video src={projetVideoUrl} controls style={{ width: '100%', maxHeight: 320, display: 'block' }} /></div>
               </div>
             )}
             <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Description</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Description</div>
               <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.projet_phare}</p>
               {projetImpact && <div style={{ marginTop: 14 }}><span style={{ display: 'inline-block', padding: '5px 14px', borderRadius: 20, backgroundColor: `${C.terracotta}15`, color: C.terracotta, fontSize: 13, fontWeight: 700 }}>{projetImpact}</span></div>}
             </div>
             <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Images</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Images</div>
               {projetImages.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
                   {projetImages.map((url, i) => (
@@ -2510,8 +2774,8 @@ export default function ProfilView({
             </div>
             {projetLien && (
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.1em', marginBottom: 10 }}>Lien</div>
-                <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>🔗 Voir le projet en ligne →</a>
+                <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Lien</div>
+                <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Voir le projet en ligne →</a>
                 <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>{projetLien.length > 60 ? projetLien.slice(0, 60) + '…' : projetLien}</div>
               </div>
             )}
@@ -2884,6 +3148,8 @@ export default function ProfilView({
           onCreated={inv => setActiveInvitations(prev => [...prev, inv])}
         />
       )}
+
+      {isOwner && <AssistantProfilPanel isEditing={isEditing} />}
     </main>
   )
 }

@@ -25,11 +25,11 @@ function getConfig(variante: Variante, couleur: string): Cfg {
     case 'sombre':
       return { disque: '#2C4A3E', bordure: null, pointe: '#FFFFFF', base: '#C4673A', texte: '#2C4A3E'  }
     case 'clair':
-      return { disque: '#F7F2EB', bordure: null, pointe: '#2C4A3E', base: '#C4673A', texte: '#FFFFFF'  }
+      return { disque: '#F6F7F6', bordure: null, pointe: '#2C4A3E', base: '#C4673A', texte: '#FFFFFF'  }
     case 'contour':
-      return { disque: null,      bordure: '#E8D5B7', pointe: '#FFFFFF', base: '#C4673A', texte: '#E8D5B7' }
+      return { disque: null,      bordure: '#E7EAE8', pointe: '#FFFFFF', base: '#C4673A', texte: '#E7EAE8' }
     case 'terracotta':
-      return { disque: '#2C4A3E', bordure: null, pointe: '#FFFFFF', base: '#E8D5B7', texte: '#E8D5B7'  }
+      return { disque: '#2C4A3E', bordure: null, pointe: '#FFFFFF', base: '#E7EAE8', texte: '#E7EAE8'  }
     case 'monochrome':
       return { disque: couleur,   bordure: null, pointe: couleur,   base: couleur,   texte: couleur    }
   }

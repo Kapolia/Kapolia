@@ -1,28 +1,25 @@
 // Utilitaires purs de l'onboarding — extraits ici pour être testables indépendamment.
 
+import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_POSTE } from '@/lib/referentiels'
+
 export const ONBOARDING_TOTAL = 15
 export const MAX_MISSIONS     = 4
 
-export const DOMAINES = [
-  'Tech & Ingénierie', 'Design & Créativité', 'Marketing & Com',
-  'Finance & Compta', 'RH & Recrutement', 'Commerce & Vente',
-  'Opérations & Logistique', 'Conseil & Stratégie', 'Autre',
-]
+export { _DOMAINES as DOMAINES, _TYPES_POSTE as TYPES_POSTE }
 
-export const EXPERIENCES: { key: string; desc: string }[] = [
-  { key: '< 2 ans',  desc: 'Débuts prometteurs' },
-  { key: '2–5 ans',  desc: 'Vous avez vos marques' },
-  { key: '5–10 ans', desc: 'Confirmé(e), vous avancez avec confiance' },
-  { key: '10+ ans',  desc: 'Expert(e) reconnu(e)' },
-]
+// Descriptions affichées dans l'UI onboarding — données de présentation uniquement.
+const EXPERIENCE_DESCS: Record<string, string> = {
+  'Sans expérience': 'Premiers pas dans le monde professionnel',
+  '1-2 ans':         'Débuts prometteurs',
+  '3-5 ans':         'Vous avez vos marques',
+  '5-10 ans':        'Confirmé(e), vous avancez avec confiance',
+  '+10 ans':         'Expert(e) reconnu(e)',
+}
 
-export const TYPES_POSTE: { key: string; label: string }[] = [
-  { key: 'cdi',        label: 'CDI' },
-  { key: 'cdd',        label: 'CDD' },
-  { key: 'freelance',  label: 'Freelance / Mission' },
-  { key: 'alternance', label: 'Alternance / Stage' },
-  { key: 'ouvert',     label: 'Ouvert(e) à tout' },
-]
+export const EXPERIENCES: { key: string; desc: string }[] = _EXP_KEYS.map(key => ({
+  key,
+  desc: EXPERIENCE_DESCS[key] ?? key,
+}))
 
 export type Experience = {
   poste: string
@@ -108,7 +105,7 @@ export function buildStepPayload(
     case 5:
       return null  // Step 5 saves via test_qualites (QualitesCarousel handles its own persistence)
     case 6:
-      return d.environnement.length ? { ...base, mode_travail: d.environnement } : null
+      return d.environnement.length ? { ...base, type_entreprise: d.environnement } : null
     case 7:
       return d.projet.trim() ? { ...base, projet_phare: d.projet, projet_titre: d.projet_titre.trim() || null } : null
     case 8:
@@ -117,7 +114,7 @@ export function buildStepPayload(
       return d.typePoste.length ? { ...base, type_poste: d.typePoste } : null
     case 10: {
       const p: Record<string, unknown> = { ...base }
-      if (d.lieu)         p.structure = d.lieu
+      if (d.lieu)         p.mode_travail = d.lieu
       if (d.ville.trim()) p.ville     = d.ville
       return Object.keys(p).length > 1 ? p : null
     }

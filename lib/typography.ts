@@ -13,7 +13,7 @@
 export const FONT_SANS  = "'Inter', system-ui, sans-serif" as const
 
 /** Police serif — titres, accents éditoriaux */
-export const FONT_SERIF = "'Lora', Georgia, serif" as const
+export const FONT_SERIF = "'EB Garamond', Garamond, Georgia, serif" as const
 
 /**
  * Échelle de tailles en px.
@@ -31,13 +31,13 @@ export const FS = {
   /** Corps large, paragraphes de présentation */
   md:   16,
   /** Titres de cartes, libellés d'items importants */
-  card: 17,
+  card: 19,
   /** Titres de sections (h3) */
-  h3:   20,
+  h3:   22,
   /** Titres de panneaux et modales (h2) */
-  h2:   22,
+  h2:   24,
   /** Titres de page (h1) — valeur fluide */
-  h1:  'clamp(24px, 3.5vw, 32px)',
+  h1:  'clamp(27px, 3.85vw, 35px)',
 } as const
 
 /** Hauteurs de ligne */

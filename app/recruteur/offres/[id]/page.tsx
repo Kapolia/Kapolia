@@ -8,10 +8,10 @@ import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
+  dark:       '#15201B',
+  grey:       '#687069',
   white:      '#FFFFFF',
 }
 
@@ -78,7 +78,7 @@ export default function OffreRecruteurPage() {
           .eq('user_id', data.recruteur_id)
           .single()
         if (ep) {
-          if (ep.entreprise_nom)      data.entreprise_nom      = ep.entreprise_nom
+          data.entreprise_nom = ep.entreprise_nom
           if (ep.entreprise_logo_url) data.entreprise_logo_url = ep.entreprise_logo_url
         }
       }
@@ -107,12 +107,8 @@ export default function OffreRecruteurPage() {
   }, [id])
 
   function retour() {
-    const vientDeLApp = document.referrer && document.referrer.startsWith(window.location.origin)
-    if (vientDeLApp) {
-      router.back()
-    } else {
-      router.replace('/recruteur/offres')
-    }
+    if (window.history.length > 1) router.back()
+    else router.replace('/recruteur/offres')
   }
 
   if (loading) return <Spinner />

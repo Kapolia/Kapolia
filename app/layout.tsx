@@ -37,6 +37,10 @@ export default function RootLayout({
       className="h-full antialiased"
       suppressHydrationWarning
     >
+      <head>
+        {/* Initialise --kapolia-sidebar-w (panneau) et --kapolia-sidebar-aside-w (barre) avant le premier affichage */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var r=localStorage.getItem('kapolia-sidebar-repliee')==='true';document.documentElement.style.setProperty('--kapolia-sidebar-w',r?'64px':'228px');document.documentElement.style.setProperty('--kapolia-sidebar-aside-w',r?'70px':'228px');}catch(e){document.documentElement.style.setProperty('--kapolia-sidebar-w','228px');document.documentElement.style.setProperty('--kapolia-sidebar-aside-w','228px');}})();` }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <ClientProviders>
           <Navigation />

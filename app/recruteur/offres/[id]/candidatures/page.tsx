@@ -15,7 +15,8 @@ import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
-import { calculerScore, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { ScoreRing } from '@/components/ScoreRing'
 import { getStatut } from '@/lib/statuts'
 import { notifStatutCandidature } from '@/lib/actions/email-notifs'
 
@@ -23,11 +24,11 @@ import { notifStatutCandidature } from '@/lib/actions/email-notifs'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
   amber:      '#C88A2A',
@@ -102,7 +103,7 @@ function dateLabel(iso: string) {
 // Délégué à lib/statuts — source unique partagée avec la page candidat
 const statutInfo = getStatut
 
-function computeScore(cand: Candidature, offre: OffreRow | null): number {
+function computeScore(cand: Candidature, offre: OffreRow | null): number | null {
   if (!offre || !cand.profil) return 0
   const p = cand.profil
   const profil: ProfilMatch = {
@@ -120,8 +121,7 @@ function computeScore(cand: Candidature, offre: OffreRow | null): number {
     ville:        offre.ville,
     teletravail:  offre.mode_travail === '100% remote' || offre.mode_travail === 'Hybride',
   }
-  // Base score: +10 for applying, up to 90 from matching
-  return Math.min(100, 10 + Math.round(calculerScore(profil, offreMatch) * 0.9))
+  return scoreRecruteur(profil, offreMatch)
 }
 
 // ─── Small components ─────────────────────────────────────────────────────────
@@ -153,29 +153,6 @@ function Avatar({ prenom, nom, photoUrl, candidatId, size = 48 }: { prenom?: str
 }
 
 // ─── Score ring (animated) ────────────────────────────────────────────────────
-
-function ScoreRing({ score, size = 64, delay = 0 }: { score: number; size?: number; delay?: number }) {
-  const sw   = 5
-  const r    = (size - sw * 2) / 2
-  const circ = 2 * Math.PI * r
-  const [go, setGo] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setGo(true), delay); return () => clearTimeout(t) }, [delay])
-  const offset = go ? circ * (1 - score / 100) : circ
-  const color  = score >= 75 ? C.vert : score >= 50 ? C.terracotta : C.lightGrey
-
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={C.sable} strokeWidth={sw} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(0.22,1,0.36,1)' }} />
-      </svg>
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: size * 0.22, fontWeight: 700, color, lineHeight: 1 }}>{score}%</span>
-        <span style={{ fontSize: size * 0.14, color: C.grey, lineHeight: 1.2 }}>match</span>
-      </div>
-    </div>
-  )
-}
 
 // ─── Status dropdown ──────────────────────────────────────────────────────────
 
@@ -290,7 +267,7 @@ function CandidateCard({ cand, offre, index, selected, isActive, onSelect, onCli
                 {[p?.domaine, p?.experience, p?.ville].filter(Boolean).join(' · ')}
               </div>
             </div>
-            <ScoreRing score={score} size={60} delay={index * 60} />
+            {score != null && <ScoreRing score={score} size={60} delay={index * 60} />}
           </div>
 
           {p?.signature && (
@@ -361,7 +338,7 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
 
       {/* Score + statut */}
       <div style={{ padding: '16px 18px', borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <ScoreRing score={score} size={64} />
+        {score != null && <ScoreRing score={score} size={64} />}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
           <StatutDropdown statut={cand.statut} onChange={s => onStatusChange(cand.id, s)} />
           <div style={{ fontSize: 11, color: C.grey }}>{dateLabel(cand.created_at)}</div>

@@ -25,6 +25,28 @@ import type { TestAnswer } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
+import { COMP_REF } from '@/lib/referentiels'
+
+// ─── Post-signup redirect ─────────────────────────────────────────────────────
+
+const NEXT_KEY = 'kapolia_post_signup_next'
+const NEXT_TTL = 2 * 60 * 60 * 1000 // 2 hours
+
+function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
+function readPostSignupNext(): string | null {
+  try {
+    const raw = localStorage.getItem(NEXT_KEY)
+    if (!raw) return null
+    localStorage.removeItem(NEXT_KEY)
+    const { url, ts } = JSON.parse(raw) as { url: string; ts: number }
+    if (Date.now() - ts > NEXT_TTL) return null
+    return safeNext(url)
+  } catch { return null }
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,11 +74,11 @@ const MICRO_TEXTS: Record<number, string> = {
   3:  "Votre niveau d'expérience affine les offres que nous vous présentons, pour rester au plus près de là où vous en êtes.",
   4:  "C'est souvent la première section que lisent les recruteurs. Formations, reconversions, expériences marquantes : racontez votre parcours avec vos mots, sans format imposé.",
   5:  "Neuf situations de travail, quatre réponses chacune. Choisissez les deux qui vous ressemblent le plus.",
-  6:  "L'environnement où vous vous épanouissez compte autant que le poste lui-même. Votre réponse nous aide à vous présenter des entreprises dont le fonctionnement vous conviendra.",
+  6:  "Startup, grand groupe, indépendant… Votre réponse nous aide à vous présenter des entreprises dont le fonctionnement vous conviendra.",
   7:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
   8:  "Sur Kapolia, les recruteurs s'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d'intérêt créent parfois de vrais points communs.",
   9:  'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
-  10: 'Où vous souhaitez travailler, et comment (sur site, hybride, à distance) : ces critères comptent autant pour vous que pour les recruteurs.',
+  10: 'Télétravail, hybride ou présentiel : votre préférence pour le mode de travail. Votre ville est demandée juste en dessous.',
   11: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
   12: 'Indiquez où vous en êtes dans votre recherche. Les recruteurs sauront ainsi à quel moment vous pourriez les rejoindre.',
   13: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
@@ -111,11 +133,11 @@ const NIVEAUX_LANGUE = ['Natif', 'Courant', 'Intermédiaire', 'Débutant']
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   white:      '#FFFFFF',
 }
 
@@ -205,7 +227,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         <div className="kv-bloc-a" style={{
           gridRow: '1 / 3',
           gridColumn: 1,
-          backgroundColor: '#F7F2EB',
+          backgroundColor: '#F6F7F6',
           borderRadius: 16,
           padding: 32,
           display: 'flex',
@@ -256,7 +278,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
                 alignItems: 'center',
                 gap: 10,
                 backgroundColor: '#C4673A',
-                color: '#F7F2EB',
+                color: '#F6F7F6',
                 border: 'none',
                 borderRadius: 100,
                 padding: '14px 28px',
@@ -277,7 +299,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
               >
                 <path
                   d="M3 2 L11 8 L3 14"
-                  stroke="#F7F2EB"
+                  stroke="#F6F7F6"
                   strokeWidth={2.4}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -318,7 +340,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         <div className="kv-bloc-c" style={{
           gridRow: 2,
           gridColumn: 2,
-          backgroundColor: '#E8D5B7',
+          backgroundColor: '#E7EAE8',
           borderRadius: 16,
           padding: '22px 24px',
         }}>
@@ -709,7 +731,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
         fontFamily: FONT_SERIF,
         fontWeight: 600,
         lineHeight: 1.1,
-        color: '#F7F2EB',
+        color: '#F6F7F6',
         textAlign: 'center',
         marginBottom: 20,
         marginTop: 0,
@@ -735,7 +757,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
       {chosen === null ? (
         /* Carte de visibilité */
         <div className="final-card" style={{
-          backgroundColor: '#F7F2EB',
+          backgroundColor: '#F6F7F6',
           borderRadius: 14,
           padding: '24px 26px',
           textAlign: 'left',
@@ -773,7 +795,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
               disabled={saving || !emailConfirme}
               style={{
                 backgroundColor: '#C4673A',
-                color: '#F7F2EB',
+                color: '#F6F7F6',
                 border: 'none',
                 borderRadius: 100,
                 padding: '12px 20px',
@@ -815,7 +837,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
             style={{
               width: '100%',
               backgroundColor: '#C4673A',
-              color: '#F7F2EB',
+              color: '#F6F7F6',
               border: 'none',
               borderRadius: 100,
               padding: '14px 36px',
@@ -838,7 +860,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
                 padding: 0,
                 fontFamily: 'Inter, sans-serif',
                 fontSize: 13,
-                color: invitHover ? '#F7F2EB' : '#A9BDB2',
+                color: invitHover ? '#F6F7F6' : '#A9BDB2',
                 textDecoration: 'underline',
                 cursor: 'pointer',
                 transition: 'color 0.15s',
@@ -1145,6 +1167,155 @@ function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, coun
   )
 }
 
+// ─── Saisie des compétences avec suggestions par domaine ──────────────────────
+
+function CompRefTagInput({
+  domain, tags, onAdd, onRemove, maxTags = 15,
+}: {
+  domain: string; tags: string[]
+  onAdd: (t: string) => void; onRemove: (t: string) => void; maxTags?: number
+}) {
+  const [freeVal,      setFreeVal]      = useState('')
+  const [showOther,    setShowOther]    = useState(false)
+  const [otherDomain,  setOtherDomain]  = useState<string | null>(null)
+
+  const domainSuggestions = COMP_REF[domain] ?? []
+  const otherDomains      = DOMAINES.filter(d => d !== domain && !!COMP_REF[d])
+  const browseSuggestions = otherDomain ? (COMP_REF[otherDomain] ?? []) : []
+
+  function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    const trimmed = freeVal.trim()
+    if (trimmed && !tags.includes(trimmed) && tags.length < maxTags) {
+      onAdd(trimmed); setFreeVal('')
+    }
+  }
+
+  function toggle(comp: string) {
+    if (tags.includes(comp)) onRemove(comp)
+    else if (tags.length < maxTags) onAdd(comp)
+  }
+
+  const pillStyle = (added: boolean, full: boolean): React.CSSProperties => ({
+    padding: '6px 13px', borderRadius: 20, fontSize: 13,
+    border: `1.5px solid ${added ? C.vert : C.sable}`,
+    backgroundColor: added ? `${C.vert}12` : C.white,
+    color: added ? C.vert : full ? '#C0C0C0' : C.dark,
+    cursor: full && !added ? 'default' : 'pointer',
+    fontFamily: 'inherit', transition: 'all 0.15s',
+  })
+
+  return (
+    <div>
+      {/* Compétences sélectionnées */}
+      {tags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+          {tags.map(tag => (
+            <span key={tag} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 20,
+              backgroundColor: `${C.vert}12`, color: C.vert,
+              border: `1px solid ${C.vert}25`, fontSize: 13, fontWeight: 500,
+            }}>
+              {tag}
+              <button onClick={() => onRemove(tag)} style={{
+                background: 'none', border: 'none', color: C.grey,
+                cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1, display: 'flex',
+              }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Suggestions du domaine courant */}
+      {domainSuggestions.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+            Suggestions pour « {domain} »
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {domainSuggestions.map(s => {
+              const added = tags.includes(s)
+              const full  = !added && tags.length >= maxTags
+              return (
+                <button key={s} type="button" onClick={() => !full && toggle(s)}
+                  style={pillStyle(added, full)}>
+                  {added ? `✓ ${s}` : `+ ${s}`}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Autres domaines */}
+      <button type="button"
+        onClick={() => { setShowOther(v => !v); if (showOther) setOtherDomain(null) }}
+        style={{
+          padding: '7px 14px', borderRadius: 20, fontSize: 12,
+          border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent',
+          color: C.grey, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
+        }}>
+        {showOther ? '— Réduire' : '+ Compétences d\'autres domaines'}
+      </button>
+
+      {showOther && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
+            {otherDomains.map(d => (
+              <button key={d} type="button"
+                onClick={() => setOtherDomain(d === otherDomain ? null : d)}
+                style={{
+                  padding: '6px 13px', borderRadius: 20, fontSize: 12,
+                  border: `1.5px solid ${d === otherDomain ? C.terracotta : C.sable}`,
+                  backgroundColor: d === otherDomain ? `${C.terracotta}10` : C.white,
+                  color: d === otherDomain ? C.terracotta : C.grey,
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                }}>
+                {d}
+              </button>
+            ))}
+          </div>
+          {otherDomain && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {browseSuggestions.map(s => {
+                const added = tags.includes(s)
+                const full  = !added && tags.length >= maxTags
+                return (
+                  <button key={s} type="button" onClick={() => !full && toggle(s)}
+                    style={pillStyle(added, full)}>
+                    {added ? `✓ ${s}` : `+ ${s}`}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Saisie libre */}
+      {tags.length < maxTags && (
+        <input
+          type="text" value={freeVal}
+          onChange={e => setFreeVal(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder="Autre compétence (saisie libre) — Entrée pour valider"
+          style={{
+            width: '100%', padding: '13px 16px', fontSize: '14px',
+            borderRadius: '12px', border: `2px solid ${freeVal ? C.terracotta : C.sable}`,
+            backgroundColor: C.white, color: C.dark, outline: 'none',
+            boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.2s',
+          }}
+        />
+      )}
+      <p style={{ fontSize: '12px', color: C.grey, marginTop: '8px' }}>
+        {tags.length} / {maxTags} compétences
+      </p>
+    </div>
+  )
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
@@ -1178,7 +1349,7 @@ export default function OnboardingPage() {
       const [{ data: profil }, { count: testCount }] = await Promise.all([
         supabase
           .from('profils')
-          .select('prenom, nom, domaine, experience, signature, mode_travail, valeur, projet_phare, projet_titre, passions, type_poste, structure, ville, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
+          .select('prenom, nom, domaine, experience, signature, type_entreprise, valeur, projet_phare, projet_titre, passions, type_poste, mode_travail, ville, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
           .eq('user_id', user.id)
           .single(),
         supabase
@@ -1198,12 +1369,12 @@ export default function OnboardingPage() {
           domaine:              (p.domaine as string)      || '',
           experience:           (p.experience as string)   || '',
           parcours:             (p.signature as string)    || '',
-          environnement:        Array.isArray(p.mode_travail) ? p.mode_travail as string[] : [],
+          environnement:        Array.isArray(p.type_entreprise) ? p.type_entreprise as string[] : [],
           projet:               (p.projet_phare as string) || '',
           projet_titre:         (p.projet_titre as string)  || '',
           passions:             Array.isArray(p.passions) ? p.passions as string[] : [],
           typePoste:            Array.isArray(p.type_poste) ? p.type_poste as string[] : [],
-          lieu:                 (p.structure as string)    || '',
+          lieu:                 (p.mode_travail as string)  || '',
           ville:                (p.ville as string)        || '',
           priorite:             Array.isArray(p.priorites) ? p.priorites as string[] : [],
           disponibilite:        (p.disponibilite as string) || '',
@@ -1293,12 +1464,12 @@ export default function OnboardingPage() {
         domaine: data.domaine,
         experience: data.experience,
         signature: data.parcours,
-        mode_travail: data.environnement,
+        type_entreprise: data.environnement,
         projet_phare: data.projet,
         projet_titre: data.projet_titre || null,
         passions: data.passions,
         type_poste: data.typePoste,
-        structure: data.lieu,
+        mode_travail: data.lieu,
         ville: data.ville || null,
         priorites: data.priorite,
         disponibilite: data.disponibilite,
@@ -1424,7 +1595,7 @@ export default function OnboardingPage() {
         const atMax = data.environnement.filter(k => k !== 'sans_pref').length >= MAX_ENVS
         return (
           <>
-            <QuestionLabel num={step} text="Quel environnement de travail vous correspond ?" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel num={step} text="Dans quel type d'entreprise vous épanouissez-vous ?" sub={MICRO_TEXTS[step]} />
             {ENVIRONNEMENTS.map(e => {
               const sel      = data.environnement.includes(e.key)
               const isDisabled = !sel && e.key !== 'sans_pref' && (atMax || data.environnement.includes('sans_pref'))
@@ -1533,7 +1704,7 @@ export default function OnboardingPage() {
       case 10:
         return (
           <>
-            <QuestionLabel num={step} text="Où souhaitez-vous travailler ?" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel num={step} text="Sur place ou à distance ?" sub={MICRO_TEXTS[step]} />
             {LIEUX.map(l => (
               <ChoiceCard key={l.key} label={l.label} desc={l.desc}
                 selected={data.lieu === l.key} onClick={() => set('lieu', l.key)} />
@@ -1741,12 +1912,12 @@ export default function OnboardingPage() {
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
               Compétences techniques et outils
             </p>
-            <TagInput
+            <CompRefTagInput
+              domain={data.domaine}
               tags={data.competences_acquises}
-              onAddTag={tag => set('competences_acquises', [...data.competences_acquises, tag])}
-              onRemoveTag={tag => set('competences_acquises', data.competences_acquises.filter(t => t !== tag))}
+              onAdd={tag => set('competences_acquises', [...data.competences_acquises, tag])}
+              onRemove={tag => set('competences_acquises', data.competences_acquises.filter(t => t !== tag))}
               maxTags={15}
-              placeholder="React, Excel, Figma… Tapez et appuyez sur Entrée"
             />
 
             <div style={{ height: 28 }} />
@@ -1823,7 +1994,7 @@ export default function OnboardingPage() {
   )
 
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
-  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push('/profil')} userId={userId} emailConfirme={emailConfirme} />
+  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push(readPostSignupNext() ?? '/profil')} userId={userId} emailConfirme={emailConfirme} />
 
   const isOpt      = OPTIONAL_STEPS.has(step)
   const skipLabel  = LONG_OPTIONAL.has(step) ? 'Passer, je compléterai plus tard' : 'Passer'

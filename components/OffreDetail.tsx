@@ -1,16 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { FONT_SERIF } from '@/lib/typography'
+import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { type ScoreBreakdown } from '@/lib/matching'
+import { PILL, PILL_SALARY } from '@/components/OffreCard'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
 }
@@ -74,6 +78,8 @@ type Props = {
   onSelectSimilaire?: (id: string) => void
   mode?: 'page' | 'panel'
   onBack?: () => void
+  score?: number | null
+  breakdown?: ScoreBreakdown | null
   removeAction?: () => void
   /**
    * Quand fourni, remplace la zone d'actions candidat dans le header
@@ -106,24 +112,25 @@ function SimilaireCard({ s, onSelect, compact = false }: { s: OffreSimilaire; on
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
         {s.type_contrat && (
-          <span style={{ fontSize: 10, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '2px 7px', borderRadius: 20 }}>
-            {s.type_contrat}
-          </span>
+          <span style={{ ...PILL, fontSize: 10, padding: '2px 7px' }}>{s.type_contrat}</span>
         )}
         {sal && (
-          <span style={{ fontSize: 10, fontWeight: 600, color: '#16A34A', padding: '2px 7px', borderRadius: 20, backgroundColor: '#F0FDF4' }}>
-            {sal}
-          </span>
+          <span style={{ ...PILL_SALARY, fontSize: 10, padding: '2px 7px' }}>{sal}</span>
         )}
       </div>
     </div>
   )
 
-  const baseStyle: React.CSSProperties = {
-    display: 'block', borderRadius: 12,
+  const baseStyle: React.CSSProperties = compact ? {
+    display: 'block', borderRadius: CARD_RADIUS,
     border: `1px solid ${C.sable}`, backgroundColor: C.white,
     cursor: 'pointer', textDecoration: 'none',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
+    transition: 'border-color 0.15s',
+  } : {
+    display: 'block', borderRadius: CARD_RADIUS,
+    backgroundColor: C.white, boxShadow: CARD_SHADOW,
+    cursor: 'pointer', textDecoration: 'none',
+    transition: 'box-shadow 0.15s',
   }
 
   if (onSelect) {
@@ -179,7 +186,7 @@ function EntrepriseLogo({ nom, logoUrl, size = 48 }: { nom: string; logoUrl?: st
 
 function formatAppliedLabel(iso: string): string {
   const d = new Date(iso)
-  if (d.toDateString() === new Date().toDateString()) return 'Postulé aujourd’hui'
+  if (d.toDateString() === new Date().toDateString()) return "Postulé aujourd'hui"
   return `Postulé le ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 }
 
@@ -200,9 +207,9 @@ function formatSalaire(min?: number, max?: number, periode?: string): string | n
 
 // ─── Page-mode helpers ────────────────────────────────────────────────────────
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, first = false }: { title: string; children: React.ReactNode; first?: boolean }) {
   return (
-    <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '28px 32px' }}>
+    <div style={{ padding: '28px 32px', borderTop: first ? undefined : `1px solid ${C.sable}` }}>
       <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: '0 0 18px', fontWeight: 600 }}>
         {title}
       </h2>
@@ -310,11 +317,69 @@ function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected
   )
 }
 
+
+
+// ─── Guest CTA ────────────────────────────────────────────────────────────────
+
+function GuestCTA({ offreId }: { offreId: string }) {
+  const router = useRouter()
+  const next   = encodeURIComponent('/offres/' + offreId)
+
+  function goToInscription() {
+    try {
+      localStorage.setItem('kapolia_post_signup_next', JSON.stringify({
+        url: '/offres/' + offreId,
+        ts: Date.now(),
+      }))
+    } catch {}
+    router.push('/inscription?next=' + next)
+  }
+
+  return (
+    <div style={{
+      backgroundColor: '#F1F3F2',
+      border: '1px solid #E7EAE8',
+      borderRadius: 16,
+      padding: '28px 32px',
+      marginTop: 40,
+    }}>
+      <p style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: '0 0 8px', fontWeight: 600 }}>
+        Vous souhaitez postuler ?
+      </p>
+      <p style={{ fontSize: 14, color: C.grey, margin: '0 0 20px', lineHeight: 1.65 }}>
+        Créez votre profil candidat en quelques minutes et postulez à cette offre en un clic.
+      </p>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button
+          onClick={goToInscription}
+          style={{
+            backgroundColor: C.terracotta, color: C.white,
+            border: 'none', borderRadius: 10, padding: '11px 22px',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Créer un compte
+        </button>
+        <button
+          onClick={() => router.push('/connexion?next=' + next)}
+          style={{
+            backgroundColor: 'transparent', color: C.dark,
+            border: `1px solid ${C.sable}`, borderRadius: 10, padding: '11px 22px',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          Se connecter
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OffreDetail({
   offre, applied, appliedDate, applying, saved, isConnected,
-  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, removeAction, actionsRecruteur,
+  similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, score, breakdown: _breakdown, removeAction, actionsRecruteur,
   entrepriseLinkPrefix = '',
 }: Props) {
   const [copied, setCopied] = useState(false)
@@ -345,7 +410,6 @@ export function OffreDetail({
       ...(offre.date_debut     ? [{ label: 'Prise de poste',  value: offre.date_debut }]      : []),
     ]
 
-    // Compute which sections exist to apply last-child logic
     const hasDetails         = details.length > 0
     const hasLieu            = !!offre.ville
     const hasDescription     = !!offre.description
@@ -377,14 +441,44 @@ export function OffreDetail({
           padding: '20px 28px 16px',
           flexShrink: 0,
           boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+          overflow: 'hidden',
         }}>
-          {/* Title */}
-          <h2 style={{
-            fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 700,
-            color: C.dark, margin: '0 0 12px', lineHeight: 1.2,
-          }}>
-            {offre.titre}
-          </h2>
+          {/* Title row */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
+            <h2 style={{
+              fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 700,
+              color: C.dark, margin: 0, lineHeight: 1.2, flex: 1,
+            }}>
+              {offre.titre}
+            </h2>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 3 }}>
+              <button
+                onClick={onToggleSave}
+                title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.grey : 'none'} stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </button>
+              <button
+                onClick={handleShare}
+                title="Partager cette offre"
+                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${copied ? `${C.vert}40` : C.sable}`, backgroundColor: copied ? `${C.vert}08` : 'transparent', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}
+              >
+                {copied ? (
+                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                    <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
 
           {/* Bloc identité entreprise */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -408,77 +502,18 @@ export function OffreDetail({
             </div>
           </div>
 
-          {/* Salary + Contract badges */}
+          {/* Pills */}
           {(salaire || offre.type_contrat || offre.experience) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-              {salaire && (
-                <span style={{ fontSize: 12, fontWeight: 700, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '3px 10px', borderRadius: 20 }}>
-                  {salaire}
-                </span>
-              )}
-              {offre.type_contrat && (
-                <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '3px 10px', borderRadius: 20 }}>
-                  {offre.type_contrat}
-                </span>
-              )}
-              {offre.experience && (
-                <span style={{ fontSize: 12, fontWeight: 500, backgroundColor: C.creme, color: C.grey, padding: '3px 10px', borderRadius: 20, border: `1px solid ${C.sable}` }}>
-                  {offre.experience}
-                </span>
-              )}
+              {salaire           && <span style={PILL_SALARY}>{salaire}</span>}
+              {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
+              {offre.experience  && <span style={PILL}>{offre.experience}</span>}
             </div>
           )}
 
           {/* Action row */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <PanelApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
-
-            <button
-              onClick={onToggleSave}
-              title={saved ? 'Retirer des favoris' : 'Sauvegarder'}
-              style={{
-                width: 36, height: 36,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: 10,
-                border: `1px solid ${saved ? '#F59E0B50' : C.sable}`,
-                backgroundColor: saved ? '#FEF3C720' : C.white,
-                cursor: 'pointer', fontSize: 18, transition: 'all 0.15s',
-              }}
-            >
-              {saved ? '★' : '☆'}
-            </button>
-
-            <button
-              onClick={handleShare}
-              title="Copier le lien"
-              style={{
-                height: 36, padding: '0 12px',
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                borderRadius: 10,
-                border: `1px solid ${copied ? `${C.vert}40` : C.sable}`,
-                backgroundColor: copied ? `${C.vert}08` : C.white,
-                color: copied ? C.vert : C.grey,
-                cursor: 'pointer', fontSize: 12, fontWeight: 500,
-                fontFamily: 'inherit', transition: 'all 0.2s',
-              }}
-            >
-              {copied ? (
-                <>
-                  <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
-                    <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  Copié !
-                </>
-              ) : (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-                    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-                  </svg>
-                  Partager
-                </>
-              )}
-            </button>
 
             {offre.recruteur_id && (
               <Link
@@ -541,6 +576,7 @@ export function OffreDetail({
               </button>
             )}
           </div>
+
         </div>
 
         {/* Body scrollable */}
@@ -677,111 +713,118 @@ export function OffreDetail({
     : undefined
 
   const badges = (mt: number) => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: mt }}>
-      {offre.type_contrat && (
-        <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '4px 13px', borderRadius: 20 }}>
-          {offre.type_contrat}
-        </span>
-      )}
-      {offre.domaine && (
-        <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.vert}12`, color: C.vert, padding: '4px 13px', borderRadius: 20 }}>
-          {offre.domaine}
-        </span>
-      )}
-      {pageModeLabel && (
-        <span style={{
-          fontSize: 12, fontWeight: 600, padding: '4px 13px', borderRadius: 20,
-          backgroundColor: offre.mode_travail === '100% remote' ? `${C.vert}14` : offre.mode_travail === 'Hybride' ? '#7B5EA714' : `${C.dark}0A`,
-          color: offre.mode_travail === '100% remote' ? C.vert : offre.mode_travail === 'Hybride' ? '#7B5EA7' : C.grey,
-        }}>
-          {pageModeLabel}
-        </span>
-      )}
-      {offre.experience && (
-        <span style={{ fontSize: 12, fontWeight: 500, backgroundColor: C.creme, color: C.grey, padding: '4px 13px', borderRadius: 20, border: `1px solid ${C.sable}` }}>
-          {offre.experience}
-        </span>
-      )}
-      {salaire && (
-        <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '4px 13px', borderRadius: 20 }}>
-          💰 {salaire}
-        </span>
-      )}
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: mt }}>
+      {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
+      {offre.domaine      && <span style={PILL}>{offre.domaine}</span>}
+      {pageModeLabel      && <span style={PILL}>{pageModeLabel}</span>}
+      {offre.experience   && <span style={PILL}>{offre.experience}</span>}
+      {salaire            && <span style={PILL_SALARY}>{salaire}</span>}
     </div>
   )
 
   const validMissions = offre.missions?.filter(m => m.trim()) ?? []
   const validProcess  = offre.process_recrutement?.filter(p => p.trim()) ?? []
 
+  const pageDetails: { label: string; value: string }[] = [
+    ...(offre.type_contrat ? [{ label: 'Contrat',         value: offre.type_contrat }] : []),
+    ...(offre.experience   ? [{ label: 'Expérience',      value: offre.experience }]   : []),
+    ...(offre.domaine      ? [{ label: 'Domaine',         value: offre.domaine }]       : []),
+    ...(pageModeLabel      ? [{ label: 'Mode de travail', value: pageModeLabel }]       : []),
+    ...(offre.deplacements ? [{ label: 'Déplacements',    value: offre.deplacements }]  : []),
+    ...(offre.ville        ? [{ label: 'Lieu',            value: offre.ville }]         : []),
+    ...(offre.date_debut   ? [{ label: 'Prise de poste',  value: offre.date_debut }]    : []),
+  ]
+
+  const sectionEls: React.ReactNode[] = []
+  if (pageDetails.length > 0) sectionEls.push(
+    <Section key="details" title="Détails du poste" first={sectionEls.length === 0}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px 24px' }}>
+        {pageDetails.map(({ label, value }) => (
+          <div key={label}>
+            <div style={{ fontSize: 11, color: C.grey, fontWeight: 500, marginBottom: 3, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+              {label}
+            </div>
+            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  )
+  if (offre.description) sectionEls.push(
+    <Section key="desc" title="Description du poste" first={sectionEls.length === 0}>
+      <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+        {offre.description}
+      </p>
+    </Section>
+  )
+  if (validMissions.length > 0) sectionEls.push(
+    <Section key="missions" title="Missions principales" first={sectionEls.length === 0}>
+      <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {validMissions.map((m, i) => (
+          <li key={i} style={{ fontSize: 14, color: C.dark, lineHeight: 1.65 }}>{m}</li>
+        ))}
+      </ul>
+    </Section>
+  )
+  if (offre.profil_recherche) sectionEls.push(
+    <Section key="profil" title="Profil recherché" first={sectionEls.length === 0}>
+      <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+        {offre.profil_recherche}
+      </p>
+    </Section>
+  )
+  if ((offre.competences?.length ?? 0) > 0 || (offre.competences_bonus?.length ?? 0) > 0) sectionEls.push(
+    <Section key="competences" title="Compétences" first={sectionEls.length === 0}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {(offre.competences ?? []).map(s => (
+          <span key={s} style={{ fontSize: 13, fontWeight: 500, backgroundColor: C.creme, border: `1px solid ${C.sable}`, color: C.dark, padding: '5px 14px', borderRadius: 8 }}>
+            {s}
+          </span>
+        ))}
+        {(offre.competences_bonus ?? []).map(s => (
+          <span key={s} style={{ fontSize: 13, fontWeight: 400, backgroundColor: C.white, border: `1.5px dashed ${C.sable}`, color: C.grey, padding: '5px 14px', borderRadius: 8 }}>
+            {s} <span style={{ fontSize: 10, letterSpacing: '0.04em' }}>BONUS</span>
+          </span>
+        ))}
+      </div>
+    </Section>
+  )
+  if ((offre.avantages?.length ?? 0) > 0) sectionEls.push(
+    <Section key="avantages" title="Avantages" first={sectionEls.length === 0}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {offre.avantages!.map(a => (
+          <span key={a} style={{ fontSize: 13, fontWeight: 500, backgroundColor: `${C.terracotta}0A`, color: C.terracotta, border: `1px solid ${C.terracotta}20`, padding: '5px 14px', borderRadius: 20 }}>
+            {a}
+          </span>
+        ))}
+      </div>
+    </Section>
+  )
+  if (validProcess.length > 0) sectionEls.push(
+    <Section key="process" title="Processus de recrutement" first={sectionEls.length === 0}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {validProcess.map((p, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {i + 1}
+            </div>
+            <span style={{ fontSize: 14, color: C.dark }}>{p}</span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  )
+
   const bodySections = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {offre.description && (
-        <Section title="Description du poste">
-          <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-            {offre.description}
-          </p>
-        </Section>
-      )}
-      {validMissions.length > 0 && (
-        <Section title="Missions principales">
-          <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {validMissions.map((m, i) => (
-              <li key={i} style={{ fontSize: 14, color: C.dark, lineHeight: 1.65 }}>{m}</li>
-            ))}
-          </ul>
-        </Section>
-      )}
-      {offre.profil_recherche && (
-        <Section title="Profil recherché">
-          <p style={{ fontSize: 14, color: C.grey, margin: 0, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-            {offre.profil_recherche}
-          </p>
-        </Section>
-      )}
-      {((offre.competences?.length ?? 0) > 0 || (offre.competences_bonus?.length ?? 0) > 0) && (
-        <Section title="Compétences">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {(offre.competences ?? []).map(s => (
-              <span key={s} style={{ fontSize: 13, fontWeight: 500, backgroundColor: C.creme, border: `1px solid ${C.sable}`, color: C.dark, padding: '5px 14px', borderRadius: 8 }}>
-                {s}
-              </span>
-            ))}
-            {(offre.competences_bonus ?? []).map(s => (
-              <span key={s} style={{ fontSize: 13, fontWeight: 400, backgroundColor: C.white, border: `1.5px dashed ${C.sable}`, color: C.grey, padding: '5px 14px', borderRadius: 8 }}>
-                {s} <span style={{ fontSize: 10, letterSpacing: '0.04em' }}>BONUS</span>
-              </span>
-            ))}
-          </div>
-        </Section>
-      )}
-      {(offre.avantages?.length ?? 0) > 0 && (
-        <Section title="Avantages">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {offre.avantages!.map(a => (
-              <span key={a} style={{ fontSize: 13, fontWeight: 500, backgroundColor: `${C.terracotta}0A`, color: C.terracotta, border: `1px solid ${C.terracotta}20`, padding: '5px 14px', borderRadius: 20 }}>
-                {a}
-              </span>
-            ))}
-          </div>
-        </Section>
-      )}
-      {validProcess.length > 0 && (
-        <Section title="Processus de recrutement">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {validProcess.map((p, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 26, height: 26, borderRadius: '50%', backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {i + 1}
-                </div>
-                <span style={{ fontSize: 14, color: C.dark }}>{p}</span>
-              </div>
-            ))}
-          </div>
-        </Section>
+      {sectionEls.length > 0 && (
+        <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
+          {sectionEls}
+        </div>
       )}
       {!actionsRecruteur && (
         <div style={{
-          backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`,
+          backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW,
           padding: '28px 32px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 20, flexWrap: 'wrap',
@@ -804,8 +847,8 @@ export function OffreDetail({
 
   return (
     <>
-      <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '28px 40px 32px' }}>
-        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      <div style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '28px 40px 0', overflow: 'hidden' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto', paddingBottom: 32 }}>
           {onBack && (
             <button
               onClick={onBack}
@@ -818,15 +861,46 @@ export function OffreDetail({
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 5l-7 7 7 7" />
               </svg>
-              Retour aux offres
+              Retour
             </button>
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: '0 0 14px', lineHeight: 1.2, fontWeight: 700 }}>
-                {offre.titre}
-              </h1>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14 }}>
+                <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2, fontWeight: 700, flex: 1 }}>
+                  {offre.titre}
+                </h1>
+                {actionsRecruteur == null && (
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
+                    <button
+                      onClick={onToggleSave}
+                      title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.grey : 'none'} stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      title="Partager cette offre"
+                      style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${copied ? `${C.vert}40` : C.sable}`, backgroundColor: copied ? `${C.vert}08` : 'transparent', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}
+                    >
+                      {copied ? (
+                        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                          <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+                          <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
               {/* Bloc identité entreprise */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={42} />
@@ -877,31 +951,19 @@ export function OffreDetail({
                     Découvrir l'entreprise
                   </Link>
                 )}
-                <button
-                  onClick={onToggleSave}
-                  title={saved ? 'Retirer des favoris' : 'Sauvegarder'}
-                  style={{
-                    width: 44, height: 44,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    borderRadius: 12,
-                    border: `1px solid ${saved ? '#F59E0B50' : C.sable}`,
-                    backgroundColor: saved ? '#FEF3C720' : C.white,
-                    cursor: 'pointer', fontSize: 22, transition: 'all 0.15s',
-                  }}
-                >
-                  {saved ? '★' : '☆'}
-                </button>
                 <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
               </div>
             )}
           </div>
 
           {badges(16)}
+
         </div>
       </div>
 
       <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 40px 80px' }}>
         {bodySections}
+        {!isConnected && <GuestCTA offreId={offre.id} />}
         {similaires && similaires.length > 0 && (
           <div style={{ marginTop: 40, paddingTop: 36, borderTop: `1px solid ${C.sable}` }}>
             <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: '0 0 20px', fontWeight: 600 }}>

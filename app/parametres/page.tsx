@@ -5,16 +5,17 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import Avatar from '@/components/Avatar'
+import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
   red:        '#C0392B',
@@ -362,7 +363,7 @@ export default function ParametresPage() {
   ]
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: C.creme, marginLeft: 64 }}>
+    <main style={{ minHeight: '100vh', backgroundColor: C.creme }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <Toast msg={toastMsg} visible={toastVisible} />
 
@@ -389,8 +390,9 @@ export default function ParametresPage() {
         {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
         <aside style={{ width: 220, flexShrink: 0, position: 'sticky', top: 80 }}>
           <div style={{
-            backgroundColor: C.white, border: `1px solid ${C.sable}`,
-            borderRadius: 18, padding: 24, textAlign: 'center' as const, marginBottom: 14,
+            backgroundColor: C.white,
+            borderRadius: CARD_RADIUS, padding: 24, textAlign: 'center' as const, marginBottom: 14,
+            boxShadow: CARD_SHADOW,
           }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
               <Avatar
@@ -406,7 +408,7 @@ export default function ParametresPage() {
             </div>
           </div>
 
-          <div style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 18, padding: 8 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: 8, boxShadow: CARD_SHADOW }}>
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 width: '100%', textAlign: 'left' as const, padding: '10px 14px', borderRadius: 12,
@@ -425,7 +427,7 @@ export default function ParametresPage() {
 
         {/* ── CONTENT ─────────────────────────────────────────────────────── */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 20, padding: 'clamp(24px, 4%, 40px)' }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: 'clamp(24px, 4%, 40px)', boxShadow: CARD_SHADOW }}>
 
             {/* ─── COMPTE ─────────────────────────────────────────────────── */}
             {tab === 'compte' && (

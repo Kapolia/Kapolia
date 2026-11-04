@@ -126,19 +126,19 @@ describe('buildStepPayload', () => {
     expect(buildStepPayload(5, FULL, MAX)).toBeNull()
   })
 
-  it('returns payload for step 6 with mode_travail as array', () => {
+  it('returns payload for step 6 with type_entreprise as array', () => {
     const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['startup'] }, MAX)
-    expect(result).toMatchObject({ mode_travail: ['startup'], onboarding_step: MAX })
+    expect(result).toMatchObject({ type_entreprise: ['startup'], onboarding_step: MAX })
   })
 
   it('returns payload for step 6 with multiple values', () => {
     const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['startup', 'scaleup'] }, MAX)
-    expect(result).toMatchObject({ mode_travail: ['startup', 'scaleup'], onboarding_step: MAX })
+    expect(result).toMatchObject({ type_entreprise: ['startup', 'scaleup'], onboarding_step: MAX })
   })
 
   it('returns payload for step 6 with sans_pref', () => {
     const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['sans_pref'] }, MAX)
-    expect(result).toMatchObject({ mode_travail: ['sans_pref'], onboarding_step: MAX })
+    expect(result).toMatchObject({ type_entreprise: ['sans_pref'], onboarding_step: MAX })
   })
 
   it('returns null for step 6 when environnement is empty', () => {
@@ -179,13 +179,13 @@ describe('buildStepPayload', () => {
 
   it('returns payload for step 10 with only lieu', () => {
     const result = buildStepPayload(10, { ...EMPTY_FORM, lieu: 'hybride' }, MAX)
-    expect(result).toMatchObject({ structure: 'hybride', onboarding_step: MAX })
+    expect(result).toMatchObject({ mode_travail: 'hybride', onboarding_step: MAX })
     expect(result).not.toHaveProperty('ville')
   })
 
   it('returns payload for step 10 with both lieu and ville', () => {
     const result = buildStepPayload(10, { ...EMPTY_FORM, lieu: 'hybride', ville: 'Paris' }, MAX)
-    expect(result).toMatchObject({ structure: 'hybride', ville: 'Paris', onboarding_step: MAX })
+    expect(result).toMatchObject({ mode_travail: 'hybride', ville: 'Paris', onboarding_step: MAX })
   })
 
   it('step 12 returns null when disponibilite is empty', () => {

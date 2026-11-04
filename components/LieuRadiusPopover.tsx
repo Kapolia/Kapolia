@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
 import { FONT_SERIF } from '@/lib/typography'
@@ -9,11 +10,11 @@ const RadiusMap = dynamic(() => import('@/components/RadiusMap'), { ssr: false }
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   white:      '#FFFFFF',
 }
 
@@ -309,7 +310,7 @@ export function LieuRadiusPopover({
       </button>
 
       {/* Desktop — overlay transparent ferme au clic extérieur, popover par-dessus */}
-      {open && !isMobile && (
+      {open && !isMobile && createPortal(
         <>
           <div
             onClick={close}
@@ -324,7 +325,8 @@ export function LieuRadiusPopover({
           }}>
             {popoverContent}
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       {/* Mobile bottom-sheet */}

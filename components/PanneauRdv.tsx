@@ -8,10 +8,10 @@ import { notifRdvAnnule } from '@/lib/actions/email-notifs'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#C8C8C8',
   white:      '#FFFFFF',
   red:        '#C0392B',

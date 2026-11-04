@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
-import { calculerScore, type ProfilMatch } from '@/lib/matching'
+import { scoreBreakdownCandidat, profilSuffisantPourScoreCandidat, type ProfilMatch, type ScoreBreakdown } from '@/lib/matching'
+import { DOMAINES, EXPERIENCES } from '@/lib/referentiels'
 import { OffreDetail, type OffreSimilaire } from '@/components/OffreDetail'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { LieuRadiusPopover } from '@/components/LieuRadiusPopover'
@@ -12,16 +14,18 @@ import { haversineKm } from '@/lib/geo'
 import { LANGUES } from '@/lib/langues'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard } from '@/components/OffreCard'
-
+import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import LogoKapolia from '@/components/LogoKapolia'
+import { normalizeText } from '@/lib/storage-utils'
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
 }
@@ -35,6 +39,8 @@ type Profil = {
   valeur?: string
   disponibilite?: string | string[]
   ville?: string
+  mode_travail?: string[] | null
+  langues?: string[] | null
 }
 
 type Offre = {
@@ -59,7 +65,8 @@ type Offre = {
   duree_contrat?: string
   date_debut?: string
   created_at: string
-  score: number
+  score: number | null
+  breakdown?: ScoreBreakdown | null
   latitude?: number
   longitude?: number
 }
@@ -78,29 +85,26 @@ type Filters = {
   langue: string[]
   prise_de_poste: string
   duree_contrat: string
+  score_min: string
   tri: SortKey
   rayon: string
 }
 
 const EMPTY_FILTERS: Filters = {
   search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
-  date_pub: '', langue: [], prise_de_poste: '', duree_contrat: '', tri: 'match',
+  date_pub: '', langue: [], prise_de_poste: '', duree_contrat: '', score_min: '', tri: 'match',
   rayon: '25',
 }
 
 // ─── Filter config ────────────────────────────────────────────────────────────
 
-const DOMAINE_OPTS = [
-  'Tech', 'Design', 'Marketing', 'Finance', 'Commerce', 'RH',
-  'Santé', 'Juridique', 'Logistique', 'Communication',
-  'Achats', 'Audit', 'Immobilier', 'Production', 'R&D',
-]
+const DOMAINE_OPTS = DOMAINES
 const CONTRAT_OPTS = [
   'CDI', 'CDD', 'Freelance', 'Alternance', 'Stage',
   'Intérim', 'VIE', 'Portage salarial', 'Mission',
 ]
-const MODE_OPTS       = ['100% présentiel', 'Hybride', '100% remote']
-const EXP_OPTS        = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
+const MODE_OPTS = ['100% présentiel', 'Hybride', '100% remote']
+const EXP_OPTS  = EXPERIENCES
 const SALAIRE_PILL_OPTS = ['20 000 €+', '25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
 const DATE_PUB_OPTS   = ["Aujourd'hui", '3 derniers jours', '5 derniers jours', 'Cette semaine', 'Ce mois-ci']
 const PRISE_POSTE_OPTS = ['Immédiat', 'Dans le mois', 'Dans 3 mois', 'Flexible']
@@ -129,13 +133,93 @@ function getEntrepriseNom(offre: Offre): string {
   return offre.entreprise_nom || 'Entreprise'
 }
 
+// ─── Recherche textuelle pondérée ─────────────────────────────────────────────
+
+const STOP_FR = new Set([
+  'de', 'du', 'le', 'la', 'les', 'l', 'un', 'une', 'des',
+  'en', 'et', 'ou', 'a', 'au', 'aux',
+  'par', 'pour', 'avec', 'dans', 'sur',
+  'ce', 'qui', 'que', 'se', 'sa', 'son', 'ses',
+])
+
+const FUZZY_MIN_LEN   = 4    // tokens plus courts → pas de fuzzy (rh, cdi, seo…)
+const FUZZY_THRESHOLD = 0.6  // similarité trigramme minimale
+
+function makeTrigrams(s: string): Set<string> {
+  const tris = new Set<string>()
+  const p = ` ${s} `
+  for (let i = 0; i <= p.length - 3; i++) tris.add(p.slice(i, i + 3))
+  return tris
+}
+
+function trigramSim(a: string, b: string): number {
+  if (a.length < 2 || b.length < 2) return 0
+  const ta = makeTrigrams(a), tb = makeTrigrams(b)
+  let common = 0
+  for (const t of ta) if (tb.has(t)) common++
+  return (2 * common) / (ta.size + tb.size)
+}
+
+// Vérifie si au moins un mot du champ a une similarité >= seuil avec le token.
+function fieldFuzzy(field: string, token: string): boolean {
+  return normalizeText(field).split(/\s+/).some(w => trigramSim(w, token) >= FUZZY_THRESHOLD)
+}
+
+function getTokens(raw: string): string[] {
+  return normalizeText(raw)
+    .split(/\s+/)
+    .filter(t => t.length >= 2 && !STOP_FR.has(t))
+}
+
+// Poids exacts : titre=4, entreprise=4, ville=3, domaine=3, competences=3, description=1
+// Poids fuzzy  : titre=2, entreprise=2, ville=1, domaine=1, competences=1, description=ignoré
+// AND sur les tokens : un token sans correspondance (exacte ni fuzzy) = exclusion.
+// Résultat description-only exact (total === descPts, sans fuzzy) : exclusion.
+// Retourne { score, fuzzy } — fuzzy=true si au moins un token a résolu par approximation.
+function searchScore(offre: Offre, tokens: string[]): { score: number; fuzzy: boolean } {
+  const n = normalizeText
+  let total = 0
+  let descPts = 0
+  let anyFuzzy = false
+
+  for (const t of tokens) {
+    let pts = 0
+    let dp  = 0
+
+    // ── Correspondance exacte ──────────────────────────────────────────────
+    if (n(offre.titre).includes(t))                                    pts += 4
+    if (n(getEntrepriseNom(offre)).includes(t))                        pts += 4
+    if (n(offre.ville   ?? '').includes(t))                            pts += 3
+    if (n(offre.domaine ?? '').includes(t))                            pts += 3
+    if ((offre.competences ?? []).some(c => n(c).includes(t)))         pts += 3
+    if (n(offre.description ?? '').includes(t))                        { dp = 1; pts += 1 }
+
+    // ── Correspondance approximative (uniquement si exacte échoue) ────────
+    if (pts === 0 && t.length >= FUZZY_MIN_LEN) {
+      if (fieldFuzzy(offre.titre, t))                                  pts += 2
+      if (fieldFuzzy(getEntrepriseNom(offre), t))                      pts += 2
+      if (fieldFuzzy(offre.ville   ?? '', t))                          pts += 1
+      if (fieldFuzzy(offre.domaine ?? '', t))                          pts += 1
+      if ((offre.competences ?? []).some(c => fieldFuzzy(c, t)))       pts += 1
+      if (pts > 0) anyFuzzy = true
+    }
+
+    if (pts === 0) return { score: 0, fuzzy: false }
+    total   += pts
+    descPts += dp
+  }
+
+  if (total === descPts && !anyFuzzy) return { score: 0, fuzzy: false }
+  return { score: total, fuzzy: anyFuzzy }
+}
+
 // ─── Sub-components (page-local) ─────────────────────────────────────────────
 
 function SkeletonCard() {
   return (
     <div style={{
-      backgroundColor: C.white, borderRadius: 14, padding: '20px 24px',
-      border: `1px solid #EDE7DB`, borderLeft: `3px solid transparent`,
+      backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px 24px',
+      borderLeft: `3px solid transparent`, boxShadow: CARD_SHADOW,
     }}>
       {([['68%', 18], ['42%', 13], ['28%', 11], ['88%', 12], ['55%', 12]] as [string, number][]).map(([w, h], i) => (
         <div key={i} style={{
@@ -162,7 +246,9 @@ function PillDropdown({
   function handleToggle() {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190) })
+      const minWidth190 = Math.max(r.width, 190)
+      const left190 = Math.min(r.left, window.innerWidth - minWidth190 - 8)
+      setDropPos({ top: r.bottom + 6, left: Math.max(8, left190), minWidth: minWidth190 })
     }
     setOpen(o => !o)
   }
@@ -181,10 +267,10 @@ function PillDropdown({
   const short        = value.length > 13 ? value.slice(0, 13) + '…' : value
   const displayLabel = active ? `${label} · ${short}` : label
 
-  const pillBg        = dark ? (active ? C.creme   : 'transparent')            : (active ? C.vert  : C.white)
-  const pillBorder    = dark ? (active ? C.creme   : 'rgba(255,255,255,0.30)') : (active ? C.vert  : C.sable)
-  const pillColor     = dark ? (active ? C.vert    : 'rgba(255,255,255,0.90)') : (active ? C.white : C.dark)
-  const chevronStroke = dark ? (active ? C.vert    : 'rgba(255,255,255,0.7)')  : (active ? C.white : C.grey)
+  const pillBg        = dark ? (active ? 'rgba(246,247,246,0.12)' : 'transparent')           : (active ? C.vert  : C.white)
+  const pillBorder    = dark ? (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)') : (active ? C.vert  : C.sable)
+  const pillColor     = dark ? C.creme                                                         : (active ? C.white : C.dark)
+  const chevronStroke = dark ? 'rgba(246,247,246,0.75)'                                        : (active ? C.white : C.grey)
 
   return (
     <div style={{ flexShrink: 0 }}>
@@ -207,7 +293,7 @@ function PillDropdown({
         </svg>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={dropRef}
           style={{
@@ -251,7 +337,8 @@ function PillDropdown({
               {opt}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -271,7 +358,9 @@ function MultiPillDropdown({
   function handleToggle() {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 190) })
+      const minWidth190 = Math.max(r.width, 190)
+      const left190 = Math.min(r.left, window.innerWidth - minWidth190 - 8)
+      setDropPos({ top: r.bottom + 6, left: Math.max(8, left190), minWidth: minWidth190 })
     }
     setOpen(o => !o)
   }
@@ -297,10 +386,10 @@ function MultiPillDropdown({
       ? `${label} · ${value[0].length > 13 ? value[0].slice(0, 13) + '…' : value[0]}`
       : `${label} (${value.length})`
 
-  const pillBg        = dark ? (active ? C.creme   : 'transparent')            : (active ? C.vert  : C.white)
-  const pillBorder    = dark ? (active ? C.creme   : 'rgba(255,255,255,0.30)') : (active ? C.vert  : C.sable)
-  const pillColor     = dark ? (active ? C.vert    : 'rgba(255,255,255,0.90)') : (active ? C.white : C.dark)
-  const chevronStroke = dark ? (active ? C.vert    : 'rgba(255,255,255,0.7)')  : (active ? C.white : C.grey)
+  const pillBg        = dark ? (active ? 'rgba(246,247,246,0.12)' : 'transparent')           : (active ? C.vert  : C.white)
+  const pillBorder    = dark ? (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)') : (active ? C.vert  : C.sable)
+  const pillColor     = dark ? C.creme                                                         : (active ? C.white : C.dark)
+  const chevronStroke = dark ? 'rgba(246,247,246,0.75)'                                        : (active ? C.white : C.grey)
 
   return (
     <div style={{ flexShrink: 0 }}>
@@ -323,7 +412,7 @@ function MultiPillDropdown({
         </svg>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={dropRef}
           style={{
@@ -378,7 +467,8 @@ function MultiPillDropdown({
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -408,7 +498,9 @@ function SalairePillDropdown({
   function handleToggle() {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 230) })
+      const minWidth230 = Math.max(r.width, 230)
+      const left230 = Math.min(r.left, window.innerWidth - minWidth230 - 8)
+      setDropPos({ top: r.bottom + 6, left: Math.max(8, left230), minWidth: minWidth230 })
     }
     setOpen(o => !o)
   }
@@ -447,10 +539,10 @@ function SalairePillDropdown({
       : `Salaire · ${parseInt(value, 10).toLocaleString('fr-FR')} €+`
 
   const short          = displayLabel.length > 26 ? displayLabel.slice(0, 26) + '…' : displayLabel
-  const pillBg         = active ? C.creme   : 'transparent'
-  const pillBorder     = active ? C.creme   : 'rgba(255,255,255,0.30)'
-  const pillColor      = active ? C.vert    : 'rgba(255,255,255,0.90)'
-  const chevronStroke  = active ? C.vert    : 'rgba(255,255,255,0.7)'
+  const pillBg         = active ? 'rgba(246,247,246,0.12)' : 'transparent'
+  const pillBorder     = active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)'
+  const pillColor      = C.creme
+  const chevronStroke  = 'rgba(246,247,246,0.75)'
 
   return (
     <div style={{ flexShrink: 0 }}>
@@ -473,7 +565,7 @@ function SalairePillDropdown({
         </svg>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={dropRef}
           style={{
@@ -559,7 +651,8 @@ function SalairePillDropdown({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -581,7 +674,9 @@ function LangPillDropdown({
   function handleToggle() {
     if (!open && btnRef.current) {
       const r = btnRef.current.getBoundingClientRect()
-      setDropPos({ top: r.bottom + 6, left: r.left, minWidth: Math.max(r.width, 220) })
+      const minWidth220 = Math.max(r.width, 220)
+      const left220 = Math.min(r.left, window.innerWidth - minWidth220 - 8)
+      setDropPos({ top: r.bottom + 6, left: Math.max(8, left220), minWidth: minWidth220 })
     }
     if (!open) setSearch('')
     setOpen(o => !o)
@@ -616,10 +711,10 @@ function LangPillDropdown({
       ? (() => { const l = LANGUES.find(l => l.code === value[0]); return l ? `${l.drapeau} ${l.nom}` : 'Langue' })()
       : `Langue (${value.length})`
 
-  const pillBg        = dark ? (active ? C.creme   : 'transparent')            : (active ? C.vert  : C.white)
-  const pillBorder    = dark ? (active ? C.creme   : 'rgba(255,255,255,0.30)') : (active ? C.vert  : C.sable)
-  const pillColor     = dark ? (active ? C.vert    : 'rgba(255,255,255,0.90)') : (active ? C.white : C.dark)
-  const chevronStroke = dark ? (active ? C.vert    : 'rgba(255,255,255,0.7)')  : (active ? C.white : C.grey)
+  const pillBg        = dark ? (active ? 'rgba(246,247,246,0.12)' : 'transparent')           : (active ? C.vert  : C.white)
+  const pillBorder    = dark ? (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)') : (active ? C.vert  : C.sable)
+  const pillColor     = dark ? C.creme                                                         : (active ? C.white : C.dark)
+  const chevronStroke = dark ? 'rgba(246,247,246,0.75)'                                        : (active ? C.white : C.grey)
 
   return (
     <div style={{ flexShrink: 0 }}>
@@ -642,7 +737,7 @@ function LangPillDropdown({
         </svg>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={dropRef}
           style={{
@@ -713,7 +808,131 @@ function LangPillDropdown({
               </div>
             )}
           </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+const SCORE_OPTS = [
+  { label: '75 % et plus', value: '75' },
+  { label: '50 % et plus', value: '50' },
+]
+
+function CorrespondancePill({ value, onChange, profil, isConnected }: {
+  value: string; onChange: (v: string) => void; profil: Profil | null; isConnected: boolean
+}) {
+  const [open, setOpen]             = useState(false)
+  const [tooltipVisible, setTooltipVisible] = useState(false)
+  const [dropPos, setDropPos]       = useState({ top: 0, left: 0 })
+  const btnRef  = useRef<HTMLButtonElement>(null)
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  const canFilter = isConnected && profil != null && profilSuffisantPourScoreCandidat(profil as ProfilMatch)
+  const disabled  = !canFilter
+  const active    = !!value
+
+  function handleToggle() {
+    if (disabled) return
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const left180 = Math.min(r.left, window.innerWidth - 180 - 8)
+      setDropPos({ top: r.bottom + 6, left: Math.max(8, left180) })
+    }
+    setOpen(o => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onDoc(e: MouseEvent) {
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const displayLabel  = active ? SCORE_OPTS.find(o => o.value === value)?.label ?? 'Correspondance' : 'Correspondance'
+  const pillBg        = disabled ? 'transparent' : (active ? 'rgba(246,247,246,0.12)' : 'transparent')
+  const pillBorder    = disabled ? 'rgba(255,255,255,0.15)' : (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)')
+  const pillColor     = disabled ? 'rgba(246,247,246,0.35)' : C.creme
+
+  return (
+    <div style={{ flexShrink: 0, position: 'relative' }}>
+      <button
+        ref={btnRef}
+        onClick={handleToggle}
+        onMouseEnter={() => { if (disabled) setTooltipVisible(true) }}
+        onMouseLeave={() => setTooltipVisible(false)}
+        style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '7px 12px', borderRadius: 20, fontSize: 14,
+          fontWeight: active ? 600 : 400,
+          border: `1.5px solid ${pillBorder}`,
+          backgroundColor: pillBg, color: pillColor,
+          cursor: disabled ? 'default' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+          transition: 'all 0.12s',
+        }}
+      >
+        {displayLabel}
+        {!disabled && (
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0 }}>
+            <path d={open ? 'M2 6.5l3-3 3 3' : 'M2 3.5l3 3 3-3'} stroke="rgba(246,247,246,0.75)" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        )}
+      </button>
+
+      {tooltipVisible && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 6,
+          backgroundColor: C.dark, color: C.white, fontSize: 12,
+          padding: '6px 10px', borderRadius: 8, whiteSpace: 'nowrap',
+          zIndex: 500, pointerEvents: 'none',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+        }}>
+          Complétez votre profil pour filtrer par correspondance
         </div>
+      )}
+
+      {open && createPortal(
+        <div ref={dropRef} style={{
+          position: 'fixed', top: dropPos.top, left: dropPos.left, minWidth: 180,
+          backgroundColor: C.white, border: `1px solid ${C.sable}`,
+          borderRadius: 12, padding: '6px 4px', zIndex: 400,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.13)', animation: 'kapolia-fadein 0.12s ease',
+        }}>
+          {active && (
+            <button
+              onClick={() => { onChange(''); setOpen(false) }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '8px 12px', border: 'none', borderRadius: 8,
+                backgroundColor: 'transparent', color: C.terracotta,
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Toutes les offres
+            </button>
+          )}
+          {SCORE_OPTS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => { onChange(opt.value === value ? '' : opt.value); setOpen(false) }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '8px 12px', border: 'none', borderRadius: 8,
+                backgroundColor: opt.value === value ? `${C.vert}12` : 'transparent',
+                color: C.dark, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              {opt.value === value && <span style={{ color: C.vert, marginRight: 5, fontSize: 11 }}>✓</span>}
+              {opt.label}
+            </button>
+          ))}
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -835,7 +1054,6 @@ export default function OffresPage() {
   const [loadError, setLoadError]     = useState<string | null>(null)
   const [filters, setFilters]         = useState<Filters>(EMPTY_FILTERS)
   const [lieuCoords, setLieuCoords]   = useState<GeoCoords | null>(null)
-  const [drawerOpen, setDrawerOpen]   = useState(false)
 
   // Split view state
   const [selectedId, setSelectedId]     = useState<string | null>(null)
@@ -846,8 +1064,68 @@ export default function OffresPage() {
   const selectedIdRef = useRef<string | null>(null)
   selectedIdRef.current = selectedId
 
-  const [bandeauCollapsed, setBandeauCollapsed] = useState(false)
-  const leftColRef = useRef<HTMLDivElement>(null)
+  const leftColRef       = useRef<HTMLDivElement>(null)
+  const cardWrapperRef   = useRef<HTMLDivElement>(null)
+  const scrollPosRef     = useRef(0)
+  const scrollLockRef    = useRef(false)
+
+  // ── Animation carte ↔ pastille ─────────────────────────────────────────
+  const [cardHidden, setCardHidden] = useState(false)
+  const [cardHeight, setCardHeight] = useState(0)
+
+  // Mesure synchrone avant la première peinture, puis suivi par ResizeObserver
+  useLayoutEffect(() => {
+    const el = cardWrapperRef.current
+    if (el) setCardHeight(el.getBoundingClientRect().height)
+  }, [])
+
+  useEffect(() => {
+    const el = cardWrapperRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setCardHeight(el.getBoundingClientRect().height))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Réinitialise lors du changement de mode
+  useEffect(() => { setCardHidden(false); scrollPosRef.current = 0 }, [isSplit])
+
+  // Écouteur scroll — mode split : colonne gauche
+  useEffect(() => {
+    if (!isSplit) return
+    const el = leftColRef.current
+    if (!el) return
+    const node = el
+    scrollPosRef.current = node.scrollTop
+    function onScroll() {
+      // Correction 1 — ignorer les événements pendant et juste après une transition
+      if (scrollLockRef.current) return
+
+      // Correction 2 — ignorer quand on est en bout de liste (le navigateur
+      // peut bumper scrollTop automatiquement lors d'un redimensionnement)
+      if (node.scrollTop + node.clientHeight >= node.scrollHeight - 8) return
+
+      const pos   = node.scrollTop
+      const prev  = scrollPosRef.current
+      const delta = pos - prev
+      if (Math.abs(delta) < 8) return
+      scrollPosRef.current = pos
+      if (delta > 0 && pos > 120) {
+        scrollLockRef.current = true
+        setCardHidden(true)
+        setTimeout(() => { scrollLockRef.current = false }, 320)
+      } else if (delta < 0) {
+        scrollLockRef.current = true
+        setCardHidden(false)
+        setTimeout(() => {
+          scrollLockRef.current = false
+          scrollPosRef.current = node.scrollTop
+        }, 320)
+      }
+    }
+    node.addEventListener('scroll', onScroll, { passive: true })
+    return () => node.removeEventListener('scroll', onScroll)
+  }, [isSplit])
 
   void profil // used indirectly via scoring
 
@@ -869,23 +1147,6 @@ export default function OffresPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // ── Bandeau scroll retraction ─────────────────────────────────────────────
-  useEffect(() => {
-    setBandeauCollapsed(false)
-    if (!isSplit) return
-    const el = leftColRef.current
-    if (!el) return
-    const fn = () => setBandeauCollapsed(el.scrollTop > 80)
-    el.addEventListener('scroll', fn, { passive: true })
-    return () => el.removeEventListener('scroll', fn)
-  }, [isSplit])
-
-  useEffect(() => {
-    if (isSplit) return
-    const fn = () => setBandeauCollapsed(window.scrollY > 80)
-    window.addEventListener('scroll', fn, { passive: true })
-    return () => window.removeEventListener('scroll', fn)
-  }, [isSplit])
 
   // ── Init filters + selectedId from URL ────────────────────────────────────
   useEffect(() => {
@@ -903,6 +1164,7 @@ export default function OffresPage() {
     if (p.get('lang'))  patch.langue         = p.get('lang')!.split(',').filter(Boolean)
     if (p.get('pp'))    patch.prise_de_poste = p.get('pp')!
     if (p.get('dc'))    patch.duree_contrat  = p.get('dc')!
+    if (p.get('sm'))    patch.score_min      = p.get('sm')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
     if (p.get('r'))     patch.rayon          = p.get('r')!
     if (Object.keys(patch).length > 0) setFilters(prev => ({ ...prev, ...patch }))
@@ -927,6 +1189,7 @@ export default function OffresPage() {
     if (filters.langue.length)   p.set('lang', filters.langue.join(','))
     if (filters.prise_de_poste)  p.set('pp',  filters.prise_de_poste)
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
+    if (filters.score_min)       p.set('sm',  filters.score_min)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
     if (filters.rayon !== '25')  p.set('r',   filters.rayon)
     if (selectedId)              p.set('offre', selectedId)
@@ -944,7 +1207,7 @@ export default function OffresPage() {
       const [offresRes, profilRes, candidaturesRes] = await Promise.all([
         supabase.from('offres').select('*').eq('active', true).eq('statut_publication', 'publiée').gt('expire_at', new Date().toISOString()).order('created_at', { ascending: false }),
         user
-          ? supabase.from('profils').select('domaine, experience, type_poste, valeur, disponibilite, ville').eq('user_id', user.id).single()
+          ? supabase.from('profils').select('domaine, experience, type_poste, valeur, disponibilite, ville, mode_travail, langues, competences_acquises').eq('user_id', user.id).single()
           : Promise.resolve({ data: null }),
         user
           ? supabase.from('candidatures').select('offre_id, created_at').eq('candidat_id', user.id)
@@ -967,11 +1230,11 @@ export default function OffresPage() {
       setApplied(appliedMap)
 
       // ── Two-step : enrichir avec le profil entreprise du recruteur ──────────
-      type RawOffre = Omit<Offre, 'score'>
+      type RawOffre = Omit<Offre, 'score' | 'breakdown'>
       const offresRaw = (offresRes.data ?? []) as RawOffre[]
       const recruteurIds = [...new Set(offresRaw.map(o => o.recruteur_id).filter(Boolean))] as string[]
       const { data: profilsData } = recruteurIds.length > 0
-        ? await supabase.from('profils').select('user_id, entreprise_nom, entreprise_logo_url').in('user_id', recruteurIds)
+        ? await supabase.from('profils_vue_publique').select('user_id, entreprise_nom, entreprise_logo_url').in('user_id', recruteurIds)
         : { data: [] as { user_id: string; entreprise_nom: string | null; entreprise_logo_url: string | null }[] }
       const profilMap = Object.fromEntries((profilsData ?? []).map(p => [p.user_id, p]))
 
@@ -979,11 +1242,15 @@ export default function OffresPage() {
         const ep = o.recruteur_id ? profilMap[o.recruteur_id] : undefined
         return {
           ...o,
-          entreprise_nom:      ep?.entreprise_nom      ?? o.entreprise_nom      ?? undefined,
+          entreprise_nom:      ep?.entreprise_nom      ?? undefined,
           entreprise_logo_url: ep?.entreprise_logo_url ?? undefined,
           latitude:  o.latitude  != null ? parseFloat(o.latitude  as unknown as string) : undefined,
           longitude: o.longitude != null ? parseFloat(o.longitude as unknown as string) : undefined,
-          score: p ? calculerScore(p as ProfilMatch, o as Parameters<typeof calculerScore>[1]) : 0,
+          ...(p ? (() => {
+            const om = { ...o }
+            const bd = scoreBreakdownCandidat(p as ProfilMatch, om)
+            return { score: bd.total, breakdown: bd }
+          })() : { score: null, breakdown: null }),
         }
       })
 
@@ -1008,46 +1275,32 @@ export default function OffresPage() {
     setPanelApplying(false)
   }
 
-  // ── Drawer filter count ───────────────────────────────────────────────────
-  const drawerActiveCount = [
-    filters.exp, filters.prise_de_poste, filters.duree_contrat,
-  ].filter(Boolean).length
-
   const hasActiveFilters = !!(
     filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
-    filters.mode.length > 0 || filters.date_pub || drawerActiveCount > 0
+    filters.mode.length > 0 || filters.date_pub || filters.exp || filters.prise_de_poste ||
+    filters.duree_contrat || filters.score_min || filters.langue.length > 0 || filters.salaire
   )
-
-  const searchSummary = [
-    filters.search,
-    filters.lieu
-      ? (parseInt(filters.rayon, 10) > 0
-          ? `${filters.lieu} + ${filters.rayon} km`
-          : filters.lieu)
-      : '',
-  ].filter(Boolean).join(' · ')
-
-  const activeFilterCount = [
-    !!filters.search, !!filters.lieu,
-    filters.contrat.length > 0, filters.domaine.length > 0,
-    filters.mode.length > 0, !!filters.exp, !!filters.salaire,
-    !!filters.date_pub, filters.langue.length > 0,
-    !!filters.prise_de_poste, !!filters.duree_contrat,
-  ].filter(Boolean).length
 
   // ── Filter + sort pipeline ────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = [...offres]
+    let textScores: Map<string, number> | null = null
+    let fuzzySearch: Set<string> | null = null
+    let geoFallback: Set<string> | null = null
 
     if (filters.search.trim()) {
-      const q = filters.search.toLowerCase()
-      list = list.filter(o =>
-        o.titre.toLowerCase().includes(q) ||
-        getEntrepriseNom(o).toLowerCase().includes(q) ||
-        (o.ville ?? '').toLowerCase().includes(q) ||
-        (o.description ?? '').toLowerCase().includes(q) ||
-        (o.domaine ?? '').toLowerCase().includes(q)
-      )
+      const tokens = getTokens(filters.search)
+      if (tokens.length > 0) {
+        textScores  = new Map()
+        fuzzySearch = new Set()
+        list = list.flatMap(o => {
+          const { score, fuzzy } = searchScore(o, tokens)
+          if (score === 0) return []
+          textScores!.set(o.id, score)
+          if (fuzzy) fuzzySearch!.add(o.id)
+          return [o]
+        })
+      }
     }
 
     if (filters.domaine.length > 0) {
@@ -1060,11 +1313,18 @@ export default function OffresPage() {
 
     if (filters.lieu) {
       if (lieuCoords) {
-        const maxKm = filters.rayon === '0' ? 0 : parseInt(filters.rayon, 10) || 25
+        const maxKm    = filters.rayon === '0' ? 0 : parseInt(filters.rayon, 10) || 25
+        const normLieu = normalizeText(filters.lieu)
+        geoFallback    = new Set()
         list = list.filter(o => {
-          if (o.latitude == null || o.longitude == null) return false
-          const km = haversineKm(lieuCoords, { lat: o.latitude, lng: o.longitude })
-          return km <= maxKm
+          if (o.latitude == null || o.longitude == null) {
+            if (normalizeText(o.ville ?? '').includes(normLieu)) {
+              geoFallback!.add(o.id)
+              return true
+            }
+            return false
+          }
+          return haversineKm(lieuCoords, { lat: o.latitude, lng: o.longitude }) <= maxKm
         })
       } else {
         list = list.filter(o => (o.ville ?? '').toLowerCase().includes(filters.lieu.toLowerCase()))
@@ -1102,8 +1362,20 @@ export default function OffresPage() {
       list = list.filter(o => o.type_contrat === 'CDD' && o.duree_contrat === filters.duree_contrat)
     }
 
+    if (filters.score_min) {
+      const threshold = parseInt(filters.score_min, 10) / 100
+      list = list.filter(o => o.score != null && o.score >= threshold)
+    }
+
     switch (filters.tri) {
-      case 'match':        list.sort((a, b) => b.score - a.score); break
+      case 'match':
+        list.sort((a, b) => {
+          if (a.score == null && b.score == null) return 0
+          if (a.score == null) return 1
+          if (b.score == null) return -1
+          return b.score - a.score
+        })
+        break
       case 'recent':       list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()); break
       case 'salaire_asc':  list.sort((a, b) => (a.salaire_min ?? 0) - (b.salaire_min ?? 0)); break
       case 'salaire_desc': list.sort((a, b) => {
@@ -1119,6 +1391,26 @@ export default function OffresPage() {
           return da - db
         })
         break
+    }
+
+    if (textScores) {
+      list.sort((a, b) => (textScores!.get(b.id) ?? 0) - (textScores!.get(a.id) ?? 0))
+    }
+
+    if (fuzzySearch && fuzzySearch.size > 0 && fuzzySearch.size < list.length) {
+      list.sort((a, b) => {
+        const af = fuzzySearch!.has(a.id) ? 1 : 0
+        const bf = fuzzySearch!.has(b.id) ? 1 : 0
+        return af - bf
+      })
+    }
+
+    if (geoFallback && geoFallback.size > 0) {
+      list.sort((a, b) => {
+        const af = geoFallback!.has(a.id) ? 1 : 0
+        const bf = geoFallback!.has(b.id) ? 1 : 0
+        return af - bf
+      })
     }
 
     return list
@@ -1257,9 +1549,8 @@ export default function OffresPage() {
   return (
     <div style={{
       backgroundColor: C.creme,
-      marginLeft: 64,
       ...(isSplit
-        ? { height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
+        ? { height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
         : { minHeight: '100vh' }),
     }}>
       <style suppressHydrationWarning>{`
@@ -1271,195 +1562,174 @@ export default function OffresPage() {
         select { appearance: none; -webkit-appearance: none; }
         select.kapolia-tri { appearance: auto; -webkit-appearance: auto; }
         ::-webkit-scrollbar { display: none; }
+        .kap-container-anim { transition: height 260ms ease; }
+        .kap-layer-anim { transition: opacity 260ms ease, transform 260ms ease; }
+        .kap-pill-btn { transition: transform 260ms ease; }
+        @media (prefers-reduced-motion: reduce) { .kap-container-anim, .kap-layer-anim, .kap-pill-btn { transition: none !important; } }
       `}</style>
 
-      {/* ── BANDEAU VERT ────────────────────────────────────────────────────── */}
-      <div style={{
-        backgroundColor: C.vert,
-        position: isSplit ? 'relative' : 'sticky',
-        top: 0,
-        zIndex: isSplit ? undefined : 100,
-        flexShrink: 0,
-      }}>
+      {/* ── CONTENEUR ANIMÉ — carte verte + pastille ─────────────────────────── */}
+      <div
+        className="kap-container-anim"
+        style={{
+          flexShrink: 0,
+          position: 'relative',
+          overflow: 'hidden',
+          ...(isSplit && cardHeight > 0 ? { height: cardHidden ? 44 : cardHeight } : {}),
+        }}
+      >
 
-        {/* Contenu complet — se rétracte via grid-template-rows */}
-        <div style={{
-          display: 'grid',
-          gridTemplateRows: bandeauCollapsed ? '0fr' : '1fr',
-          transition: 'grid-template-rows 220ms cubic-bezier(.4,0,.2,1)',
-        }}>
-          <div style={{ overflow: 'hidden' }}>
-            <div style={{
-              maxWidth: 800, margin: '0 auto', padding: '14px 20px 12px',
-              opacity: bandeauCollapsed ? 0 : 1,
-              transition: 'opacity 120ms ease',
+        {/* Couche 1 — carte verte */}
+        <div
+          ref={cardWrapperRef}
+          className={isSplit ? 'kap-layer-anim' : undefined}
+          style={isSplit ? {
+            position: 'absolute', top: 0, left: 0, right: 0,
+            padding: '20px 24px 16px',
+            opacity: cardHidden ? 0 : 1,
+            transform: `scale(${cardHidden ? 0.82 : 1})`,
+            transformOrigin: 'center 50%',
+            pointerEvents: cardHidden ? 'none' : 'auto',
+          } : {
+            padding: '20px 24px 16px',
+          }}
+        >
+          <div style={{
+            backgroundColor: C.vert,
+            borderRadius: CARD_RADIUS,
+            boxShadow: '0 1px 2px rgba(27, 48, 38, .10), 0 6px 16px rgba(27, 48, 38, .14)',
+            padding: '20px 24px 18px',
+          }}>
+
+            {/* Titre */}
+            <p style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 21, color: C.creme, fontWeight: 600,
+              margin: '0 0 12px', lineHeight: 1.2,
             }}>
+              Offres d&apos;emploi
+            </p>
 
-              {/* Titre */}
-              <p style={{
-                fontFamily: FONT_SERIF, fontStyle: 'italic',
-                fontSize: 21, color: C.creme, fontWeight: 400,
-                margin: '0 0 12px', lineHeight: 1.2,
-              }}>
-                Offres d&apos;emploi
-              </p>
-
-              {/* Ligne 1 — recherche + lieu */}
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-                <div style={{ position: 'relative', flex: 2, minWidth: 180 }}>
-                  <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.lightGrey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </div>
-                  <input
-                    type="text"
-                    value={filters.search}
-                    onChange={e => update({ search: e.target.value })}
-                    placeholder="Poste, compétence, entreprise…"
-                    style={{
-                      width: '100%', padding: '13px 36px 13px 36px', fontSize: 15, borderRadius: 10,
-                      border: `1.5px solid ${filters.search ? C.terracotta : 'rgba(255,255,255,0.18)'}`,
-                      backgroundColor: 'rgba(255,255,255,0.97)', color: C.dark,
-                      outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s',
-                    }}
-                  />
-                  {filters.search && (
-                    <button onClick={() => update({ search: '' })} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
-                  )}
-                </div>
-                <LieuRadiusPopover
-                  lieu={filters.lieu}
-                  rayon={parseInt(filters.rayon, 10) || 25}
-                  coords={lieuCoords}
-                  onConfirm={(v, r, c) => {
-                    update({ lieu: v, rayon: String(r), ...(c && filters.tri === 'match' ? { tri: 'distance' } : {}) })
-                    setLieuCoords(c)
-                  }}
-                  dark
-                  compact
-                />
-                <button
-                  style={{
-                    padding: '13px 22px', borderRadius: 10, border: 'none',
-                    backgroundColor: C.terracotta, color: C.white,
-                    fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
-                  }}
-                >
-                  Rechercher
-                </button>
-              </div>
-
-              {/* Ligne 2 — pills */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2,
-              }}>
-                <MultiPillDropdown dark label="Contrat"  value={filters.contrat}  options={CONTRAT_OPTS}  onChange={v => update({ contrat: v })} />
-                <MultiPillDropdown dark label="Domaine"  value={filters.domaine}  options={DOMAINE_OPTS}  onChange={v => update({ domaine: v })} />
-                <MultiPillDropdown dark label="Mode"     value={filters.mode}     options={MODE_OPTS}          onChange={v => update({ mode: v })} />
-                <SalairePillDropdown value={filters.salaire} onChange={v => update({ salaire: v })} />
-                <PillDropdown      dark label="Date"     value={filters.date_pub} options={DATE_PUB_OPTS}      onChange={v => update({ date_pub: v })} />
-                <LangPillDropdown  dark value={filters.langue} onChange={v => update({ langue: v })} />
-
-                <button
-                  onClick={() => setDrawerOpen(true)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '7px 12px', borderRadius: 20, fontSize: 14,
-                    fontWeight: drawerActiveCount > 0 ? 600 : 400,
-                    border: `1.5px solid ${drawerActiveCount > 0 ? C.creme : 'rgba(255,255,255,0.30)'}`,
-                    backgroundColor: drawerActiveCount > 0 ? C.creme : 'transparent',
-                    color: drawerActiveCount > 0 ? C.vert : C.creme,
-                    cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0, transition: 'all 0.12s',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
+            {/* Ligne 1 — recherche + lieu */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <div style={{ position: 'relative', flex: 2, minWidth: 180 }}>
+                <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.lightGrey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
-                  Filtres
-                  {drawerActiveCount > 0 && (
-                    <span style={{
-                      backgroundColor: C.vert, color: C.creme, borderRadius: '50%',
-                      width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 10, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {drawerActiveCount}
-                    </span>
-                  )}
-                </button>
-
-                {hasActiveFilters && (
-                  <button
-                    onClick={resetFilters}
-                    style={{
-                      fontSize: 13, color: C.creme, background: 'none', border: 'none',
-                      cursor: 'pointer', fontFamily: 'inherit', fontWeight: 400,
-                      flexShrink: 0, padding: '4px 4px',
-                      textDecoration: 'underline', textDecorationColor: `${C.creme}70`,
-                    }}
-                  >
-                    Tout effacer
-                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={e => update({ search: e.target.value })}
+                  placeholder="Poste, compétence, entreprise…"
+                  style={{
+                    width: '100%', padding: '13px 36px 13px 36px', fontSize: 15, borderRadius: 10,
+                    border: `1.5px solid ${filters.search ? C.terracotta : C.sable}`,
+                    backgroundColor: C.white, color: C.dark,
+                    outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s',
+                  }}
+                />
+                {filters.search && (
+                  <button onClick={() => update({ search: '' })} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
                 )}
               </div>
+              <LieuRadiusPopover
+                lieu={filters.lieu}
+                rayon={parseInt(filters.rayon, 10) || 25}
+                coords={lieuCoords}
+                onConfirm={(v, r, c) => {
+                  update({ lieu: v, rayon: String(r), ...(c && filters.tri === 'match' ? { tri: 'distance' } : {}) })
+                  setLieuCoords(c)
+                }}
+                dark
+                compact
+              />
+              <button
+                style={{
+                  padding: '13px 22px', borderRadius: 10, border: 'none',
+                  backgroundColor: C.terracotta, color: C.white,
+                  fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                }}
+              >
+                Rechercher
+              </button>
+            </div>
+
+            {/* Ligne 2 — pills */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: 2,
+            }}>
+              <CorrespondancePill value={filters.score_min} onChange={v => update({ score_min: v })} profil={profil} isConnected={isConnected} />
+              <MultiPillDropdown dark label="Contrat"       value={filters.contrat}        options={CONTRAT_OPTS}      onChange={v => update({ contrat: v })} />
+              <MultiPillDropdown dark label="Domaine"       value={filters.domaine}        options={DOMAINE_OPTS}      onChange={v => update({ domaine: v })} />
+              <MultiPillDropdown dark label="Mode"          value={filters.mode}           options={MODE_OPTS}         onChange={v => update({ mode: v })} />
+              <SalairePillDropdown value={filters.salaire} onChange={v => update({ salaire: v })} />
+              <PillDropdown      dark label="Date"          value={filters.date_pub}       options={DATE_PUB_OPTS}     onChange={v => update({ date_pub: v })} />
+              <LangPillDropdown  dark value={filters.langue} onChange={v => update({ langue: v })} />
+              <PillDropdown      dark label="Expérience"    value={filters.exp}            options={EXP_OPTS}          onChange={v => update({ exp: v })} />
+              <PillDropdown      dark label="Prise de poste" value={filters.prise_de_poste} options={PRISE_POSTE_OPTS} onChange={v => update({ prise_de_poste: v })} />
+              {filters.contrat.includes('CDD') && (
+                <PillDropdown    dark label="Durée CDD"     value={filters.duree_contrat}  options={DUREE_OPTS}        onChange={v => update({ duree_contrat: v })} />
+              )}
+
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  style={{
+                    fontSize: 13, color: 'rgba(246,247,246,0.75)', background: 'none', border: 'none',
+                    cursor: 'pointer', fontFamily: 'inherit', fontWeight: 400,
+                    flexShrink: 0, padding: '4px 4px',
+                    textDecoration: 'underline', textDecorationColor: 'rgba(246,247,246,0.40)',
+                  }}
+                >
+                  Tout effacer
+                </button>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Barre compacte — s'affiche au scroll */}
-        <div style={{
-          display: 'grid',
-          gridTemplateRows: bandeauCollapsed ? '1fr' : '0fr',
-          transition: 'grid-template-rows 220ms cubic-bezier(.4,0,.2,1)',
-        }}>
-          <div style={{ overflow: 'hidden' }}>
+        {/* Couche 2 — pastille (split uniquement) */}
+        {isSplit && (
+          <div
+            className="kap-layer-anim"
+            aria-hidden={!cardHidden}
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: cardHidden ? 1 : 0,
+              transform: `scale(${cardHidden ? 1 : 0.1})`,
+              transformOrigin: 'center center',
+              pointerEvents: cardHidden ? 'auto' : 'none',
+            }}
+          >
             <button
-              onClick={() => setBandeauCollapsed(false)}
+              className="kap-pill-btn"
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                width: '100%', padding: '0 20px', height: 54,
-                background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                opacity: bandeauCollapsed ? 1 : 0,
-                transition: 'opacity 160ms ease 60ms',
+                width: 36, height: 36,
+                borderRadius: '50%', border: 'none', padding: 0,
+                backgroundColor: '#2C4A3E', lineHeight: 0, cursor: 'pointer',
+                outline: 'none',
+                boxShadow: '0 2px 8px rgba(44, 74, 62, 0.32)',
+                transform: cardHidden ? 'rotate(0deg)' : 'rotate(180deg)',
               }}
+              onClick={() => setCardHidden(false)}
+              title="Afficher la recherche et les filtres"
+              aria-label="Afficher la recherche et les filtres"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.70)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <span style={{
-                flex: 1, textAlign: 'left', fontSize: 15, fontWeight: 600,
-                color: C.creme, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {searchSummary || 'Toutes les offres'}
-              </span>
-              {activeFilterCount > 0 && (
-                <span style={{
-                  fontSize: 12, color: C.creme,
-                  backgroundColor: 'rgba(255,255,255,0.15)',
-                  padding: '3px 10px', borderRadius: 20, whiteSpace: 'nowrap', flexShrink: 0,
-                }}>
-                  {activeFilterCount} filtre{activeFilterCount > 1 ? 's' : ''}
-                </span>
-              )}
-              <svg width="13" height="13" viewBox="0 0 10 10" fill="none">
-                <path d="M2 3.5l3 3 3-3" stroke="rgba(255,255,255,0.70)" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <LogoKapolia
+                avecTexte={false}
+                taille={36}
+                variante="sombre"
+              />
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Vague maritime */}
-        <svg
-          viewBox="0 0 1440 28"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-          style={{ display: 'block', width: '100%', height: 28, marginBottom: -1 }}
-        >
-          <path d="M0,14 C320,28 640,0 960,14 C1120,21 1300,6 1440,14 L1440,28 L0,28 Z" fill={C.creme} />
-        </svg>
       </div>
+
 
       {/* ── SPLIT VIEW (desktop ≥ 900px) ─────────────────────────────────────── */}
       {isSplit ? (
@@ -1471,14 +1741,16 @@ export default function OffresPage() {
               width: '32%', minWidth: 280,
               overflowY: 'auto',
               borderRight: `1px solid ${C.sable}`,
-              padding: '20px 20px 60px 16px',
+              padding: '24px 24px 60px 20px',
               backgroundColor: C.creme,
+              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
+              maskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
             }}>
               {listContent}
             </div>
 
-            {/* Colonne droite — carte flottante sur fond sable */}
-            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#F0EBE3', padding: '20px 20px 24px 16px', display: 'flex', flexDirection: 'column' }}>
+            {/* Colonne droite */}
+            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: C.creme, padding: '0 20px 24px 16px', display: 'flex', flexDirection: 'column' }}>
               {selectedOffre ? (
                 <OffreDetail
                   offre={selectedOffre}
@@ -1493,6 +1765,8 @@ export default function OffresPage() {
                   onToggleSave={() => toggleFav(selectedOffre.id)}
                   onSelectSimilaire={id => setSelectedId(id)}
                   mode="panel"
+                  score={selectedOffre.score ?? null}
+                  breakdown={selectedOffre.breakdown ?? null}
                 />
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: C.grey, fontSize: 14 }}>
@@ -1510,54 +1784,6 @@ export default function OffresPage() {
         </div>
       )}
 
-      {/* ── DRAWER FILTRES AVANCÉS ──────────────────────────────────────────── */}
-      {drawerOpen && (
-        <>
-          <div
-            onClick={() => setDrawerOpen(false)}
-            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26,26,26,0.48)', zIndex: 299, backdropFilter: 'blur(1px)' }}
-          />
-          <div style={{
-            position: 'fixed', top: 0, right: 0, height: '100dvh',
-            width: 'min(420px, 100vw)', backgroundColor: C.white,
-            zIndex: 300, display: 'flex', flexDirection: 'column',
-            boxShadow: '-6px 0 32px rgba(0,0,0,0.13)',
-            animation: 'kapolia-slidein 0.22s ease',
-          }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '18px 24px', borderBottom: `1px solid ${C.sable}`,
-              flexShrink: 0,
-            }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: C.dark }}>Filtres avancés</span>
-              <button onClick={() => setDrawerOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 22, lineHeight: 1, padding: 4 }}>×</button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-              <DrawerSelect label="Expérience"       value={filters.exp}            onChange={v => update({ exp: v })}            options={EXP_OPTS} />
-              <DrawerSelect label="Prise de poste"    value={filters.prise_de_poste} onChange={v => update({ prise_de_poste: v })} options={PRISE_POSTE_OPTS} />
-              {filters.contrat.includes('CDD') && (
-                <DrawerSelect label="Durée de contrat" value={filters.duree_contrat} onChange={v => update({ duree_contrat: v })} options={DUREE_OPTS} />
-              )}
-            </div>
-
-            <div style={{ padding: '16px 24px', borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, flexShrink: 0 }}>
-              <button
-                onClick={() => update({ exp: '', prise_de_poste: '', duree_contrat: '' })}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Réinitialiser
-              </button>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Voir {filtered.length} offre{filtered.length !== 1 ? 's' : ''}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

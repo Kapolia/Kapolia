@@ -28,10 +28,14 @@ export function FavorisProvider({ children }: { children: React.ReactNode }) {
   const userIdRef = useRef<string | null>(null)
 
   async function loadFavs(uid: string) {
+    const now = new Date().toISOString()
     const { data } = await supabase
       .from('offres_favorites')
-      .select('offre_id')
+      .select('offre_id, offres!inner(active, statut_publication, expire_at)')
       .eq('candidat_id', uid)
+      .eq('offres.active', true)
+      .eq('offres.statut_publication', 'publiée')
+      .gt('offres.expire_at', now)
     setFavIds(new Set((data ?? []).map((r: { offre_id: string }) => r.offre_id)))
     setLoaded(true)
   }
@@ -63,7 +67,7 @@ export function FavorisProvider({ children }: { children: React.ReactNode }) {
   const toggleFav = useCallback(async (offreId: string) => {
     const uid = userIdRef.current
     if (!uid) {
-      router.push('/connexion')
+      router.push('/connexion?next=' + encodeURIComponent(window.location.pathname))
       return
     }
 

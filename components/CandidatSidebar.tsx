@@ -1,37 +1,48 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Avatar from '@/components/Avatar'
-import { useFavoris } from '@/lib/favoris-context'
 import LogoKapolia from '@/components/LogoKapolia'
+import { FONT_SERIF } from '@/lib/typography'
+import { CARD_SHADOW } from '@/lib/colors'
+import { fetchRdvEnAttenteCount } from '@/lib/rdv-en-attente'
+
+const LS_KEY = 'kapolia-sidebar-repliee'
 
 const C = {
-  terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  terracotta: '#C4673A',
+  dark:       '#15201B',
+  sable:      '#E7EAE8',
   white:      '#FFFFFF',
 }
 
-export const SIDEBAR_WIDTH = 64
+// ─── NAV ──────────────────────────────────────────────────────────────────────
 
-const NAV = [
-  { id: 'dashboard',    label: 'Dashboard',     href: '/dashboard',          exact: true  },
-  { id: 'offres',       label: 'Offres',         href: '/offres',             exact: false },
-  { id: 'favoris',      label: 'Favoris',        href: '/favoris',            exact: true  },
-  { id: 'candidatures', label: 'Candidatures',   href: '/candidatures',       exact: false },
-  { id: 'messages',      label: 'Messages',       href: '/dashboard/messages',    exact: true  },
-  { id: 'rendez-vous',  label: 'Rendez-vous',    href: '/dashboard/rendez-vous', exact: false },
-  { id: 'profil',       label: 'Profil',         href: '/profil',                exact: false },
-  { id: 'parametres',   label: 'Paramètres',     href: '/parametres',         exact: false },
+type NavItem    = { kind: 'item'; id: string; label: string; href: string; exact: boolean }
+type NavGroup   = { kind: 'group'; title: string }
+type NavDivider = { kind: 'divider' }
+type NavEntry   = NavItem | NavGroup | NavDivider
+
+const NAV: NavEntry[] = [
+  { kind: 'item',    id: 'dashboard',    label: 'Tableau de bord',    href: '/dashboard',               exact: true  },
+  { kind: 'group',   title: 'Ma recherche' },
+  { kind: 'item',    id: 'offres',       label: 'Offres',             href: '/offres',                  exact: false },
+  { kind: 'item',    id: 'favoris',      label: 'Favoris',            href: '/favoris',                 exact: true  },
+  { kind: 'item',    id: 'candidatures', label: 'Candidatures',       href: '/candidatures',            exact: false },
+  { kind: 'group',   title: 'Mes échanges' },
+  { kind: 'item',    id: 'messages',     label: 'Messages',           href: '/dashboard/messages',      exact: true  },
+  { kind: 'item',    id: 'rendez-vous',  label: 'Rendez-vous',        href: '/dashboard/rendez-vous',   exact: false },
+  { kind: 'divider' },
+  { kind: 'item',    id: 'profil',       label: 'Mon profil',         href: '/profil',                  exact: false },
 ]
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
 function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const s = active ? C.terracotta : C.grey
+  const s = active ? C.terracotta : 'rgba(255,255,255,0.65)'
   const p = {
     width: 20, height: 20, viewBox: '0 0 24 24',
     fill: 'none' as const, stroke: s,
@@ -52,14 +63,92 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       return <svg {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
     case 'rendez-vous':
       return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-    case 'parametres':
-      return <svg {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>
-    default: return null
+    default:
+      return null
   }
 }
 
-function SidebarNavItem({ item, active, badge }: { item: typeof NAV[number]; active: boolean; badge?: number }) {
-  const router  = useRouter()
+// ─── Badge ────────────────────────────────────────────────────────────────────
+
+function Badge({ count, corner }: { count: number; corner?: boolean }) {
+  if (count <= 0) return null
+  return (
+    <span style={{
+      ...(corner ? {
+        position: 'absolute' as const,
+        top: 6, right: 6,
+      } : {
+        marginLeft: 'auto',
+      }),
+      minWidth: 16, height: 16, padding: '0 3px',
+      backgroundColor: C.terracotta, color: C.white,
+      borderRadius: 8, fontSize: 9, fontWeight: 700,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      lineHeight: 1, boxSizing: 'border-box' as const,
+      flexShrink: 0,
+      animation: 'kapolia-motion-badge-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both',
+    }}>
+      {count > 9 ? '9+' : count}
+    </span>
+  )
+}
+
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+
+function Tooltip({ label, visible }: { label: string; visible: boolean }) {
+  if (!visible) return null
+  return (
+    <div style={{
+      position: 'absolute',
+      left: 52, top: '50%', transform: 'translateY(-50%)',
+      backgroundColor: C.dark, color: C.white,
+      fontSize: 12, fontWeight: 500,
+      padding: '5px 10px', borderRadius: 8,
+      whiteSpace: 'nowrap' as const, zIndex: 200,
+      pointerEvents: 'none' as const,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+    }}>
+      {label}
+    </div>
+  )
+}
+
+// ─── Menu button ──────────────────────────────────────────────────────────────
+
+function MenuBtn({ label, onClick, danger = false, notif = false }: {
+  label: string; onClick: () => void; danger?: boolean; notif?: boolean
+}) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        width: '100%', textAlign: 'left',
+        padding: '9px 12px', border: 'none', borderRadius: 8,
+        backgroundColor: hov ? (danger ? '#FDECEA' : '#F6F7F6') : 'transparent',
+        color: danger ? '#C0392B' : C.dark,
+        fontSize: 13, fontWeight: notif ? 600 : 500,
+        cursor: 'pointer', transition: 'background-color 0.12s', fontFamily: 'inherit',
+      }}
+    >
+      {notif && (
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%',
+          backgroundColor: C.terracotta, flexShrink: 0,
+        }} />
+      )}
+      {label}
+    </button>
+  )
+}
+
+// ─── Nav item (collapsed) ─────────────────────────────────────────────────────
+
+function CollapsedItem({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
+  const router = useRouter()
   const [hov, setHov] = useState(false)
 
   return (
@@ -72,212 +161,159 @@ function SidebarNavItem({ item, active, badge }: { item: typeof NAV[number]; act
           width: 44, height: 44,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: 12,
-          backgroundColor: active ? `${C.terracotta}18` : hov ? `${C.dark}07` : 'transparent',
+          backgroundColor: active ? 'rgba(196,103,58,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
           border: 'none', cursor: 'pointer',
           transition: 'background-color 0.15s',
           position: 'relative',
+          flexShrink: 0,
         }}
       >
         <NavIcon id={item.id} active={active} />
-        {badge !== undefined && badge > 0 && (
-          <span style={{
-            position: 'absolute', top: 6, right: 6,
-            minWidth: 16, height: 16, padding: '0 3px',
-            backgroundColor: C.terracotta, color: C.white,
-            borderRadius: 8, fontSize: 9, fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            lineHeight: 1, boxSizing: 'border-box',
-          }}>
-            {badge > 9 ? '9+' : badge}
-          </span>
-        )}
+        {badge !== undefined && badge > 0 && <Badge count={badge} corner />}
       </button>
-
-      {hov && (
-        <div style={{
-          position: 'absolute',
-          left: 52, top: '50%', transform: 'translateY(-50%)',
-          backgroundColor: C.dark, color: C.white,
-          fontSize: 12, fontWeight: 500,
-          padding: '5px 10px', borderRadius: 8,
-          whiteSpace: 'nowrap', zIndex: 200,
-          pointerEvents: 'none',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-        }}>
-          {item.label}
-        </div>
-      )}
+      <Tooltip label={item.label} visible={hov} />
     </div>
   )
 }
 
-function AvatarMenu({ initials, prenom, nom, avatarUrl, avatarType, hasNotif, onNotifRead }: { initials: string; prenom: string; nom?: string; avatarUrl?: string; avatarType?: string; hasNotif: boolean; onNotifRead: () => void }) {
-  const router  = useRouter()
-  const [open, setOpen] = useState(false)
-  const [hov, setHov]   = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+// ─── Nav item (expanded) ──────────────────────────────────────────────────────
 
-  useEffect(() => {
-    function onOut(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onOut)
-    return () => document.removeEventListener('mousedown', onOut)
-  }, [])
-
-  async function signOut() {
-    setOpen(false)
-    await supabase.auth.signOut()
-    router.replace('/')
-  }
-
-  return (
-    <div ref={ref} style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        onMouseEnter={() => setHov(true)}
-        onMouseLeave={() => setHov(false)}
-        title={prenom || 'Mon compte'}
-        style={{
-          background: 'none',
-          border: open ? `2px solid ${C.dark}` : '2px solid transparent',
-          borderRadius: '50%', cursor: 'pointer', outline: 'none', padding: 0,
-          transition: 'border-color 0.15s', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <Avatar
-          profil={{ prenom, nom, avatar_url: avatarUrl, avatar_type: avatarType }}
-          size="sm"
-        />
-      </button>
-
-      {!open && hov && (
-        <div style={{
-          position: 'absolute',
-          left: 48, top: '50%', transform: 'translateY(-50%)',
-          backgroundColor: C.dark, color: C.white,
-          fontSize: 12, fontWeight: 500,
-          padding: '5px 10px', borderRadius: 8,
-          whiteSpace: 'nowrap', zIndex: 200,
-          pointerEvents: 'none',
-        }}>
-          {prenom || 'Mon compte'}
-        </div>
-      )}
-
-      {open && (
-        <div style={{
-          position: 'absolute',
-          bottom: 'calc(100% + 10px)', left: 0,
-          backgroundColor: C.white,
-          border: `1px solid ${C.sable}`,
-          borderRadius: 14, padding: 6,
-          minWidth: 200,
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
-          zIndex: 200,
-          animation: 'kapolia-up 0.13s ease',
-        }}>
-          <style suppressHydrationWarning>{`
-            @keyframes kapolia-up {
-              from { opacity: 0; transform: translateY(6px); }
-              to   { opacity: 1; transform: translateY(0); }
-            }
-          `}</style>
-          <div style={{ padding: '10px 12px', borderBottom: `1px solid ${C.sable}`, marginBottom: 4 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>{prenom || 'Mon compte'}</div>
-            <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>Candidat</div>
-          </div>
-          {hasNotif && (
-            <MenuBtn label="Qualités reçues" onClick={() => { onNotifRead(); setOpen(false); router.push('/profil?edit=true') }} notif />
-          )}
-          <MenuBtn label="Mon profil"      onClick={() => { setOpen(false); router.push('/profil') }} />
-          <MenuBtn label="Paramètres"      onClick={() => { setOpen(false); router.push('/parametres') }} />
-          <div style={{ height: 1, backgroundColor: C.sable, margin: '4px 0' }} />
-          <MenuBtn label="Se déconnecter" onClick={signOut} danger />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function MenuBtn({ label, onClick, danger = false, notif = false }: { label: string; onClick: () => void; danger?: boolean; notif?: boolean }) {
+function ExpandedItem({ item, active, badge, btnRef }: {
+  item: NavItem; active: boolean; badge?: number;
+  btnRef?: (el: HTMLButtonElement | null) => void
+}) {
+  const router = useRouter()
   const [hov, setHov] = useState(false)
+
   return (
     <button
-      onClick={onClick}
+      ref={btnRef}
+      onClick={() => router.push(item.href)}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        width: '100%', textAlign: 'left',
-        padding: '9px 12px', border: 'none', borderRadius: 8,
-        backgroundColor: hov ? (danger ? '#FDECEA' : C.creme) : 'transparent',
-        color: danger ? '#C0392B' : C.dark,
-        fontSize: 13, fontWeight: notif ? 600 : 500, cursor: 'pointer',
-        transition: 'background-color 0.12s', fontFamily: 'inherit',
+        width: '100%', height: 40,
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '0 12px', borderRadius: 12, border: 'none',
+        backgroundColor: active ? 'rgba(196,103,58,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
+        cursor: 'pointer',
+        transition: 'background-color 0.15s',
+        fontFamily: 'inherit',
+        flexShrink: 0,
+        position: 'relative', zIndex: 1,
       }}
     >
-      {notif && (
-        <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.terracotta, flexShrink: 0 }} />
-      )}
-      {label}
+      <NavIcon id={item.id} active={active} />
+      <span style={{
+        fontSize: 13.5, fontWeight: 500,
+        color: active ? C.terracotta : 'rgba(255,255,255,0.75)',
+        flex: 1, textAlign: 'left', whiteSpace: 'nowrap' as const,
+        overflow: 'hidden', textOverflow: 'ellipsis',
+        transition: 'color 200ms ease',
+      }}>
+        {item.label}
+      </span>
+      {badge !== undefined && badge > 0 && <Badge count={badge} />}
     </button>
   )
 }
 
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function CandidatSidebar({
-  initials,
   prenom,
   nom,
   avatarUrl,
   avatarType,
 }: {
-  initials: string
+  initials: string  // reçu de Navigation.tsx, non utilisé ici
   prenom: string
   nom?: string
   avatarUrl?: string
   avatarType?: string
 }) {
   const pathname = usePathname()
+  const router   = useRouter()
 
-  const [liveAvatar, setLiveAvatar] = useState<{
-    avatar_url?: string; avatar_type?: string; prenom?: string; nom?: string
-  }>({ prenom, nom, avatar_url: avatarUrl, avatar_type: avatarType })
-
-  const { favIds, loaded: favsLoaded } = useFavoris()
-  const favCount = favsLoaded ? favIds.size : undefined
-
+  const [repliee,   setRepliee]   = useState(false)
+  const [liveAvatar, setLiveAvatar] = useState({
+    avatar_url: avatarUrl, avatar_type: avatarType, prenom, nom,
+  })
   const [msgCount, setMsgCount] = useState<number | undefined>(undefined)
+  const [rdvCount, setRdvCount] = useState<number | undefined>(undefined)
   const [hasNotif, setHasNotif] = useState(false)
+  const [menuOpen,     setMenuOpen]     = useState(false)
+  const [menuHov,      setMenuHov]      = useState(false)
+  const [asideHovered, setAsideHovered] = useState(false)
+  const [toggleHovered, setToggleHovered] = useState(false)
+  const menuRef     = useRef<HTMLDivElement>(null)
+  const navRef      = useRef<HTMLElement>(null)
+  const navItemRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
+  const [pillStyle, setPillStyle] = useState<{ top: number; height: number } | null>(null)
 
+  // ── Init collapsed state ───────────────────────────────────────────────────
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(LS_KEY) === 'true'
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRepliee(v)
+    } catch {}
+  }, [])
+
+  // ── Close menu on outside click ────────────────────────────────────────────
+  useEffect(() => {
+    function onOut(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onOut)
+    return () => document.removeEventListener('mousedown', onOut)
+  }, [])
+
+  // ── Messages non lus (realtime) ────────────────────────────────────────────
   useEffect(() => {
     let ch: ReturnType<typeof supabase.channel> | null = null
 
-    async function fetchMsgTotal(uid: string) {
+    async function fetchMsgs(uid: string) {
       const { data } = await supabase
         .from('conversations')
         .select('non_lu_candidat')
         .eq('candidat_id', uid)
         .eq('masquee_candidat', false)
-      const total = (data ?? []).reduce((s: number, r: { non_lu_candidat: number | null }) => s + (r.non_lu_candidat ?? 0), 0)
+      const total = (data ?? []).reduce(
+        (s: number, r: { non_lu_candidat: number | null }) => s + (r.non_lu_candidat ?? 0),
+        0
+      )
       setMsgCount(total)
     }
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       const uid = user.id
-      fetchMsgTotal(uid)
+      fetchMsgs(uid)
       ch = supabase
         .channel(`sidebar-cand-convs-${uid}-${Date.now()}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${uid}` },
-          () => fetchMsgTotal(uid))
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${uid}` },
+          () => fetchMsgs(uid)
+        )
         .subscribe()
     })
 
     return () => { if (ch) supabase.removeChannel(ch) }
   }, [])
 
+  // ── Rendez-vous en attente — recalcul à chaque page ────────────────────────
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      fetchRdvEnAttenteCount(user.id).then(setRdvCount)
+    })
+  }, [pathname])
+
+  // ── Notifications proche ──────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
@@ -288,85 +324,357 @@ export default function CandidatSidebar({
         .eq('type', 'reponse_proche')
         .is('read_at', null)
         .then(({ count, error }) => {
-          if (error) { console.error('[notif] count error:', error); return }
-          setHasNotif((count ?? 0) > 0)
+          if (!error) setHasNotif((count ?? 0) > 0)
         })
     })
   }, [])
 
   useEffect(() => {
-    function onNotifRead() { setHasNotif(false) }
-    window.addEventListener('kapolia:notif-read', onNotifRead)
-    return () => window.removeEventListener('kapolia:notif-read', onNotifRead)
+    function onRead() { setHasNotif(false) }
+    window.addEventListener('kapolia:notif-read', onRead)
+    return () => window.removeEventListener('kapolia:notif-read', onRead)
   }, [])
 
+  // ── Profil live (rafraîchi à chaque navigation) ───────────────────────────
   useEffect(() => {
-    async function fetchProfile() {
-      const { data: { user } } = await supabase.auth.getUser()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       const { data } = await supabase
         .from('profils')
         .select('avatar_url, avatar_type, prenom, nom')
         .eq('user_id', user.id)
         .single()
-      if (data) setLiveAvatar({
-        avatar_url:  data.avatar_url  ?? undefined,
-        avatar_type: data.avatar_type ?? undefined,
-        prenom:      data.prenom      ?? prenom,
-        nom:         data.nom         ?? nom,
-      })
-    }
-    fetchProfile()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (data) {
+        setLiveAvatar({
+          avatar_url:  data.avatar_url  ?? undefined,
+          avatar_type: data.avatar_type ?? undefined,
+          prenom:      data.prenom      ?? prenom,
+          nom:         data.nom         ?? nom,
+        })
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
-  function isActive(item: typeof NAV[number]) {
+  // ── Sliding active-nav pill ───────────────────────────────────────────────
+  useEffect(() => {
+    const activeItem = repliee
+      ? null
+      : (NAV.find(e => e.kind === 'item' && isActive(e as NavItem)) as NavItem | undefined) ?? null
+    if (!activeItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPillStyle(null)
+      return
+    }
+    const btn = navItemRefs.current.get(activeItem.id)
+    const nav = navRef.current
+    if (!btn || !nav) {
+      setPillStyle(null)
+      return
+    }
+    const navRect = nav.getBoundingClientRect()
+    const btnRect = btn.getBoundingClientRect()
+    setPillStyle({ top: btnRect.top - navRect.top + nav.scrollTop, height: btnRect.height })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, repliee])
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function isActive(item: NavItem): boolean {
     if (item.exact) return pathname === item.href
     return pathname === item.href || pathname.startsWith(item.href + '/')
   }
 
-  return (
-    <aside style={{
-      position: 'fixed', left: 0, top: 0,
-      width: SIDEBAR_WIDTH, height: '100vh',
+  function getBadge(id: string): number | undefined {
+    if (id === 'messages')    return msgCount
+    if (id === 'rendez-vous') return rdvCount
+    return undefined
+  }
+
+  function toggle() {
+    const next = !repliee
+    setRepliee(next)
+    setMenuOpen(false)
+    try {
+      localStorage.setItem(LS_KEY, String(next))
+      document.documentElement.style.setProperty('--kapolia-sidebar-w', next ? '64px' : '228px')
+      document.documentElement.style.setProperty('--kapolia-sidebar-aside-w', next ? '70px' : '228px')
+    } catch {}
+  }
+
+  async function signOut() {
+    setMenuOpen(false)
+    await supabase.auth.signOut()
+    router.replace('/')
+  }
+
+  // ── Avatar profil actif ───────────────────────────────────────────────────
+  const avatarProfil = {
+    prenom:     liveAvatar.prenom      ?? prenom,
+    nom:        liveAvatar.nom         ?? nom,
+    avatar_url: liveAvatar.avatar_url  ?? avatarUrl,
+    avatar_type: liveAvatar.avatar_type ?? avatarType,
+  }
+
+  const displayName = [avatarProfil.prenom, avatarProfil.nom].filter(Boolean).join(' ') || 'Mon compte'
+
+  // ── Menu dropdown ─────────────────────────────────────────────────────────
+  const menuDropdown = menuOpen ? (
+    <div style={{
+      position: 'absolute',
+      bottom: 'calc(100% + 10px)', left: 0,
       backgroundColor: C.white,
-      borderRight: `1px solid ${C.sable}`,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center',
-      zIndex: 40,
+      border: `1px solid ${C.sable}`,
+      borderRadius: 14, padding: 6,
+      minWidth: 200,
+      boxShadow: '0 -4px 24px rgba(0,0,0,0.12)',
+      zIndex: 200,
+      animation: 'kapolia-up 0.13s ease',
     }}>
-      {/* Logo */}
-      <div style={{
-        height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderBottom: `1px solid ${C.sable}`, width: '100%', flexShrink: 0,
-      }}>
-        <LogoKapolia variante="sombre" avecTexte={false} taille={36} />
-      </div>
-
-      {/* Nav items */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0', width: '100%', alignItems: 'center' }}>
-        {NAV.map(item => (
-          <SidebarNavItem
-            key={item.id}
-            item={item}
-            active={isActive(item)}
-            badge={item.id === 'favoris' ? favCount : item.id === 'messages' ? msgCount : item.id === 'profil' ? (hasNotif ? 1 : undefined) : undefined}
-          />
-        ))}
-      </nav>
-
-      {/* Avatar bottom */}
-      <div style={{ padding: '12px 0 16px', borderTop: `1px solid ${C.sable}`, width: '100%', display: 'flex', justifyContent: 'center' }}>
-        <AvatarMenu
-          initials={initials}
-          prenom={liveAvatar.prenom ?? prenom}
-          nom={liveAvatar.nom ?? nom}
-          avatarUrl={liveAvatar.avatar_url ?? avatarUrl}
-          avatarType={liveAvatar.avatar_type ?? avatarType}
-          hasNotif={hasNotif}
-          onNotifRead={() => setHasNotif(false)}
+      <style suppressHydrationWarning>{`
+        @keyframes kapolia-up {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      {hasNotif && (
+        <MenuBtn
+          label="Qualités reçues"
+          notif
+          onClick={() => {
+            window.dispatchEvent(new Event('kapolia:notif-read'))
+            setMenuOpen(false)
+            router.push('/profil?edit=true')
+          }}
         />
-      </div>
-    </aside>
+      )}
+      <MenuBtn label="Paramètres" onClick={() => { setMenuOpen(false); router.push('/parametres') }} />
+      <div style={{ height: 1, backgroundColor: C.sable, margin: '4px 0' }} />
+      <MenuBtn label="Se déconnecter" onClick={signOut} danger />
+    </div>
+  ) : null
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <>
+      <aside
+        onMouseEnter={() => setAsideHovered(true)}
+        onMouseLeave={() => setAsideHovered(false)}
+        style={{
+          position: 'fixed', left: 0, top: 0,
+          width: 'var(--kapolia-sidebar-aside-w)',
+          height: '100vh',
+          backgroundColor: C.vert,
+          display: 'flex', flexDirection: 'column',
+          zIndex: 40,
+          overflow: 'hidden',
+          padding: repliee ? '0' : '0 14px',
+          transition: 'width 320ms cubic-bezier(0.2, 0.8, 0.2, 1), padding 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
+
+        {/* ── Header (logo) ──────────────────────────────────────────────── */}
+        <div
+          onClick={() => router.push('/dashboard')}
+          style={{
+            height: 64,
+            display: 'flex', alignItems: 'center',
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+            flexShrink: 0,
+            paddingLeft: repliee ? 0 : 6,
+            justifyContent: repliee ? 'center' : 'flex-start',
+            gap: 10,
+            cursor: 'pointer',
+          }}
+        >
+          <LogoKapolia variante="contour" avecTexte={false} taille={36} />
+          {!repliee && (
+            <span style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 22, fontWeight: 600,
+              color: '#E7EAE8',
+              whiteSpace: 'nowrap' as const,
+              userSelect: 'none' as const,
+            }}>
+              Kapolia
+            </span>
+          )}
+        </div>
+
+        {/* ── Nav ──────────────────────────────────────────────────────────── */}
+        <nav ref={navRef} style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '12px 0',
+          display: 'flex', flexDirection: 'column',
+          gap: repliee ? 4 : 2,
+          alignItems: repliee ? 'center' : 'stretch',
+          position: 'relative',
+        }}>
+          {/* Sliding active indicator pill */}
+          {pillStyle && !repliee && (
+            <div style={{
+              position: 'absolute',
+              left: 0, right: 0,
+              top: pillStyle.top,
+              height: pillStyle.height,
+              borderRadius: 12,
+              backgroundColor: 'rgba(196,103,58,0.18)',
+              transition: 'top 340ms cubic-bezier(0.2, 0.8, 0.2, 1), height 340ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }} />
+          )}
+          {NAV.map((entry, i) => {
+            if (entry.kind === 'group') {
+              if (repliee) {
+                return (
+                  <div key={i} style={{
+                    width: 28, height: 1,
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                    margin: '6px 0',
+                  }} />
+                )
+              }
+              return (
+                <div key={i} style={{
+                  fontSize: 11.5, fontWeight: 400,
+                  color: 'rgba(255,255,255,0.45)',
+                  padding: '14px 12px 6px',
+                }}>
+                  {entry.title}
+                </div>
+              )
+            }
+            if (entry.kind === 'divider') {
+              return (
+                <div key={i} style={{
+                  height: 1,
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  margin: repliee ? '6px 0' : '6px 12px',
+                }} />
+              )
+            }
+            const active = isActive(entry)
+            const badge  = getBadge(entry.id)
+            if (repliee) {
+              return <CollapsedItem key={entry.id} item={entry} active={active} badge={badge} />
+            }
+            return (
+              <ExpandedItem
+                key={entry.id}
+                item={entry}
+                active={active}
+                badge={badge}
+                btnRef={el => {
+                  if (el) navItemRefs.current.set(entry.id, el)
+                  else navItemRefs.current.delete(entry.id)
+                }}
+              />
+            )
+          })}
+        </nav>
+
+        {/* ── Footer (avatar) ───────────────────────────────────────────────── */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          padding: '12px 0 16px',
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: repliee ? 'center' : 'stretch',
+        }}>
+          <div ref={menuRef} style={{ position: 'relative', width: repliee ? 'auto' : '100%' }}>
+            {repliee ? (
+              <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setMenuOpen(o => !o)}
+                  onMouseEnter={() => setMenuHov(true)}
+                  onMouseLeave={() => setMenuHov(false)}
+                  style={{
+                    background: 'none',
+                    border: menuOpen ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent',
+                    borderRadius: '50%', cursor: 'pointer', padding: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'border-color 0.15s',
+                  }}
+                >
+                  <Avatar profil={avatarProfil} size="sm" />
+                </button>
+                {menuHov && !menuOpen && (
+                  <div style={{
+                    position: 'absolute', left: 48, top: '50%', transform: 'translateY(-50%)',
+                    backgroundColor: C.dark, color: C.white,
+                    fontSize: 12, fontWeight: 500, padding: '5px 10px', borderRadius: 8,
+                    whiteSpace: 'nowrap' as const, zIndex: 200, pointerEvents: 'none' as const,
+                  }}>
+                    {displayName}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                onMouseEnter={() => setMenuHov(true)}
+                onMouseLeave={() => setMenuHov(false)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  width: '100%', background: 'none', border: 'none',
+                  padding: '8px 10px', cursor: 'pointer', borderRadius: 12,
+                  backgroundColor: menuHov ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  transition: 'background-color 0.12s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <Avatar profil={avatarProfil} size="sm" />
+                <span style={{
+                  fontSize: 13, fontWeight: 600, color: C.white,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
+                  flex: 1, textAlign: 'left',
+                }}>
+                  {displayName}
+                </span>
+              </button>
+            )}
+            {menuDropdown}
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Bouton de repli — posé à cheval sur le bord droit ─────────────── */}
+      <style suppressHydrationWarning>{`#kapolia-toggle-btn:focus-visible { opacity: 1 !important; }`}</style>
+      <button
+        id="kapolia-toggle-btn"
+        onClick={toggle}
+        onMouseEnter={() => setToggleHovered(true)}
+        onMouseLeave={() => setToggleHovered(false)}
+        style={{
+          position: 'fixed',
+          left: 'calc(var(--kapolia-sidebar-aside-w) - 13px)',
+          top: 20,
+          width: 26, height: 26, borderRadius: '50%',
+          backgroundColor: C.white,
+          boxShadow: CARD_SHADOW,
+          border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 50,
+          opacity: asideHovered || toggleHovered ? 1 : 0,
+          transform: toggleHovered ? 'scale(1.08)' : 'scale(1)',
+          transition: 'left 320ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease, transform 150ms ease',
+        }}
+        aria-label={repliee ? 'Déplier la barre latérale' : 'Replier la barre latérale'}
+      >
+        <svg
+          width="12" height="12" viewBox="0 0 12 12"
+          fill="none" stroke={C.vert} strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round"
+          style={{
+            transform: repliee ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+          }}
+        >
+          <path d="M8 2L4 6l4 4" />
+        </svg>
+      </button>
+    </>
   )
 }

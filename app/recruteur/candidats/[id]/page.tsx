@@ -4,19 +4,15 @@ import { useParams, useRouter } from 'next/navigation'
 import ProfilView from '@/components/ProfilView'
 import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
 
-const C = { sable: '#E8D5B7', creme: '#F7F2EB', dark: '#1A1A1A', white: '#FFFFFF' }
+const C = { sable: '#E7EAE8', creme: '#F6F7F6', dark: '#15201B', white: '#FFFFFF' }
 
 export default function CandidatProfilPage() {
   const params = useParams()
   const router = useRouter()
 
   function retour() {
-    const vientDeLApp = document.referrer && document.referrer.startsWith(window.location.origin)
-    if (vientDeLApp) {
-      router.back()
-    } else {
-      router.replace('/recruteur/candidatheque')
-    }
+    if (window.history.length > 1) router.back()
+    else router.replace('/recruteur/candidatheque')
   }
 
   return (

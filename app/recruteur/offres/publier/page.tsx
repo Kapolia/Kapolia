@@ -27,16 +27,17 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
+import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF } from '@/lib/referentiels'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
   error:      '#C0392B',
@@ -44,9 +45,8 @@ const C = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CONTRATS    = ['CDI', 'CDD', 'Freelance', 'Alternance', 'Stage', 'Intérim']
-const DOMAINES    = ['Tech', 'Design', 'Marketing', 'Finance', 'Commerce', 'RH', 'Santé', 'Droit', 'Éducation', 'Autre']
-const NIVEAUX     = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
+const CONTRATS = TYPES_CONTRAT
+const NIVEAUX  = EXPERIENCES
 const MODES       = ['100% présentiel', 'Hybride', '100% remote']
 const DEPLACS     = ['Jamais', 'Occasionnels', 'Fréquents']
 const AVANTAGES   = ['Mutuelle', 'RTT', 'Tickets restaurant', 'Intéressement', 'Stock options', 'Formation', 'Véhicule de fonction', 'Remboursement transport', 'Télétravail', 'Salle de sport']
@@ -56,17 +56,6 @@ const DESC_MIN    = 200
 const DESC_MAX    = 2000
 
 // F3 — Suggestions de compétences par domaine
-const COMP_SUGGESTIONS: Record<string, string[]> = {
-  'Tech':      ['JavaScript', 'React', 'Node.js', 'Python', 'SQL', 'Git', 'AWS', 'Docker', 'TypeScript', 'Next.js'],
-  'Design':    ['Figma', 'Adobe XD', 'Sketch', 'Photoshop', 'Illustrator', 'UX Research', 'Prototypage', 'CSS'],
-  'Marketing': ['SEO', 'Google Ads', 'Meta Ads', 'Analytics', 'Content Marketing', 'CRM', 'Email Marketing'],
-  'Finance':   ['Excel', 'Comptabilité', 'Analyse financière', 'ERP', 'Reporting', 'Contrôle de gestion'],
-  'Commerce':  ['Prospection', 'CRM', 'Négociation', 'Salesforce', 'Account Management', 'B2B'],
-  'RH':        ['Recrutement', 'SIRH', 'Paie', 'Formation', 'Droit du travail', 'ATS'],
-  'Santé':     ['Soins infirmiers', 'Médecine générale', 'Pharmacologie', 'Bloc opératoire', 'Urgences'],
-  'Droit':     ['Droit des affaires', 'Contrats', 'Droit social', 'Contentieux', 'LegalTech'],
-  'Éducation': ['Pédagogie', 'E-learning', 'Formation adultes', 'Curriculum', 'Évaluation'],
-}
 
 // F1 — Icônes d'avantages pour la modale
 const AVANTAGE_ICONS: Record<string, string> = {
@@ -523,7 +512,12 @@ function PublierOffrePageInner() {
         setDebutImmediat(false)
         setDateDebut(data.date_debut ?? '')
       }
-      setVille(data.ville ?? ''); setVilleCoords(null)
+      setVille(data.ville ?? '')
+      setVilleCoords(
+        data.latitude != null && data.longitude != null
+          ? { lat: parseFloat(String(data.latitude)), lng: parseFloat(String(data.longitude)) }
+          : null
+      )
       setPays(data.pays ?? 'France')
       setModeTravail(data.mode_travail ?? '')
       setJoursRemote(data.jours_remote ?? 2)
@@ -674,7 +668,7 @@ function PublierOffrePageInner() {
   const previewData: PreviewData = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, ville, pays, modeTravail, joursRemote, dateDebut, debutImmediat, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement }
   const descLen    = description.trim().length
   const descColor  = descLen > DESC_MAX ? C.error : descLen >= DESC_MIN ? C.vert : C.grey
-  const suggestions = (COMP_SUGGESTIONS[domaine] ?? []).filter(s => !competences.includes(s))
+  const suggestions = (COMP_REF[domaine] ?? []).filter(s => !competences.includes(s))
   const hasData    = titre.trim().length > 0
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -847,7 +841,7 @@ function PublierOffrePageInner() {
                     Suggestions pour «&nbsp;{domaine}&nbsp;»
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(COMP_SUGGESTIONS[domaine] ?? []).map(s => {
+                    {(COMP_REF[domaine] ?? []).map(s => {
                       const added = competences.includes(s)
                       return (
                         <button key={s} type="button" onClick={() => !added && addSuggestion(s)} disabled={added || competences.length >= 10}
@@ -962,7 +956,7 @@ function PublierOffrePageInner() {
 
 export default function PublierOffrePage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#F7F2EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style><div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E8D5B7', borderTopColor: '#C4673A', animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#F6F7F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style><div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E7EAE8', borderTopColor: '#C4673A', animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}>
       <PublierOffrePageInner />
     </Suspense>
   )

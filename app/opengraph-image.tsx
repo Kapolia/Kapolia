@@ -28,7 +28,7 @@ export default async function Image() {
       >
         {/* Symbole Kapolia — variante clair */}
         <svg viewBox="0 0 42 42" width={110} height={110}>
-          <circle cx="21" cy="21" r="18" fill="#F7F2EB" />
+          <circle cx="21" cy="21" r="18" fill="#F6F7F6" />
           <path
             d="M14 29 L21 12 L28 29"
             fill="none"
@@ -69,7 +69,7 @@ export default async function Image() {
           style={{
             fontFamily: 'Inter',
             fontSize:   '30px',
-            color:      '#E8D5B7',
+            color:      '#E7EAE8',
             display:    'flex',
           }}
         >

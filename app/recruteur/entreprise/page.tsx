@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 import { PROFIL_SELECT, OFFRES_PREVIEW } from '@/components/EntrepriseVitrine'
+import { sanitizeFilename } from '@/lib/storage-utils'
 
 const C = {
-  terracotta: '#C4673A', sable: '#E8D5B7', creme: '#F7F2EB',
-  vert: '#2C4A3E', dark: '#1A1A1A', grey: '#6B6B6B',
+  terracotta: '#C4673A', sable: '#E7EAE8', creme: '#F6F7F6',
+  vert: '#2C4A3E', dark: '#15201B', grey: '#687069',
   lightGrey: '#E8E2D9', white: '#FFFFFF', amber: '#C88A2A', errorRed: '#C0392B',
 }
 
@@ -182,6 +183,7 @@ export default function RecruteurEntreprisePage() {
   const [isEditing, setEditing] = useState(false)
   const [profil, setProfil]     = useState<EntrepriseProfil>(EMPTY_PROFIL)
   const [offres, setOffres]     = useState<OffreActive[]>([])
+  const [offresExpanded, setOffresExpanded] = useState(false)
 
   // Edit fields
   const [editNom, setEditNom]               = useState('')
@@ -291,7 +293,8 @@ export default function RecruteurEntreprisePage() {
     if (file.size > 2 * 1024 * 1024) { setSaveError('Logo trop lourd (max 2 Mo)'); return }
     setUploadingLogo(true); setSaveError(null)
     setLogoPreview(URL.createObjectURL(file))
-    const ext = file.name.split('.').pop() ?? 'jpg'
+    const safeName = sanitizeFilename(file.name)
+    const ext = safeName.includes('.') ? safeName.split('.').pop()! : 'jpg'
     const { error: upErr } = await supabase.storage.from('avatars').upload(`${userId}/logo.${ext}`, file, { upsert: true, contentType: file.type })
     if (upErr) { setSaveError('Erreur upload : ' + upErr.message); setUploadingLogo(false); return }
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(`${userId}/logo.${ext}`)
@@ -857,7 +860,7 @@ export default function RecruteurEntreprisePage() {
                 <div key={i} style={{ position: 'relative', marginBottom: i < histoire.length - 1 ? 32 : 0 }}>
                   <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.creme}`, boxSizing: 'border-box' }} />
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.terracotta, letterSpacing: '0.07em', marginBottom: 4 }}>{etape.annee}</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
+                  <div style={{ fontFamily: FONT_SERIF, fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
                   {etape.description && <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>{etape.description}</div>}
                 </div>
               ))}
@@ -918,7 +921,7 @@ export default function RecruteurEntreprisePage() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {offres.slice(0, OFFRES_PREVIEW).map(o => (
+              {(offresExpanded ? offres : offres.slice(0, OFFRES_PREVIEW)).map(o => (
                 <div key={o.id} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 150 }}>
                     <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
@@ -932,8 +935,8 @@ export default function RecruteurEntreprisePage() {
                 </div>
               ))}
               {offres.length > OFFRES_PREVIEW && (
-                <button onClick={() => router.push('/recruteur/offres')} style={{ width: '100%', marginTop: 4, padding: '11px 16px', backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 12, fontSize: 13, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Voir les {offres.length} offres →
+                <button onClick={() => setOffresExpanded(e => !e)} style={{ width: '100%', marginTop: 4, padding: '11px 16px', backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 12, fontSize: 13, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {offresExpanded ? 'Réduire' : `Voir les ${offres.length} offres →`}
                 </button>
               )}
             </div>

@@ -1,26 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { calculerScore } from '@/lib/matching'
+import { scoreBreakdownCandidat, profilSuffisantPourScoreCandidat, type ScoreBreakdown } from '@/lib/matching'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import Avatar from '@/components/Avatar'
 import { FONT_SERIF } from '@/lib/typography'
+import { OffreCard, type OffreCardData } from '@/components/OffreCard'
+import { useFavoris } from '@/lib/favoris-context'
+import { C as PALETTE, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { countRdvEnAttente } from '@/lib/rdv-en-attente'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
-  vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
-  lightGrey:  '#E0D8CC',
-  white:      '#FFFFFF',
-}
+const C = { ...PALETTE, lightGrey: '#E4E7E5' }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,8 +32,8 @@ type Profil = {
   qualites?: string[]
   passions?: string[]
   type_poste?: string[]
-  structure?: string
-  mode_travail?: string[]
+  mode_travail?: string
+  type_entreprise?: string[]
   projet_phare?: string
   projet_titre?: string
   projet_impact?: string
@@ -68,11 +63,19 @@ type Offre = {
   domaine?: string
   experience?: string
   valeurs?: string[]
+  mode_travail?: string
+  langues?: string[] | null
   teletravail?: boolean
   active?: boolean
   statut_publication?: string
   created_at?: string
+  salaire_min?: number
+  salaire_max?: number
+  periode_salaire?: string
+  latitude?: number
+  longitude?: number
   score?: number
+  breakdown?: ScoreBreakdown | null
 }
 
 type OffresMode = 'match' | 'recent'
@@ -104,11 +107,47 @@ type ConvRaw = {
   non_lu_candidat: number; offres?: { titre?: string } | null
 }
 
+type ActivityKind = 'vue' | 'message' | 'candidature'
 type ActivityItem = {
   date: string
-  icon: string
+  kind: ActivityKind
   text: string
   href: string
+}
+
+function ActivityIcon({ kind }: { kind: ActivityKind }) {
+  const p = {
+    width: 15, height: 15, viewBox: '0 0 24 24',
+    fill: 'none' as const, stroke: '#2C4A3E',
+    strokeWidth: '1.8', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+  }
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      width: 30, height: 30, borderRadius: '50%',
+      backgroundColor: '#F1F3F2', flexShrink: 0,
+    }}>
+      {kind === 'vue' && (
+        <svg {...p}>
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+      {kind === 'message' && (
+        <svg {...p}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      )}
+      {kind === 'candidature' && (
+        <svg {...p}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      )}
+    </span>
+  )
 }
 
 type VueProfil = {
@@ -126,13 +165,24 @@ type MessageActivite = {
   conversation_id?: string
 }
 
+type ActionItem = { label: string; href: string }
+
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
-  { value: 'maintenant',      label: 'En recherche active',      dot: '🟢' },
-  { value: 'a_partir_de',    label: 'Ouvert aux opportunités',  dot: '🟡' },
-  { value: 'non_disponible', label: 'Pas disponible',           dot: '🔴' },
+  { value: 'maintenant',      label: 'En recherche active',      dot: '#3E8E5E' },
+  { value: 'a_partir_de',    label: 'Ouvert aux opportunités',  dot: '#C88A2A' },
+  { value: 'non_disponible', label: 'Pas disponible',           dot: '#C0392B' },
 ]
+
+function StatusDot({ color }: { color: string }) {
+  return (
+    <span style={{
+      display: 'inline-block', width: 8, height: 8,
+      borderRadius: '50%', backgroundColor: color, flexShrink: 0,
+    }} />
+  )
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -157,8 +207,8 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
     label: 'Ma recherche', weight: 0.20,
     fields: [
       { key: 'type_poste',    label: 'Type de poste',         suggestion: 'Précisez le type de poste recherché' },
-      { key: 'mode_travail',  label: 'Environnement',         suggestion: 'Ajoutez votre environnement préféré' },
-      { key: 'structure',     label: 'Mode de travail',       suggestion: 'Précisez votre mode de travail préféré' },
+      { key: 'type_entreprise', label: 'Type d\'entreprise',   suggestion: 'Précisez le type d\'entreprise qui vous correspond' },
+      { key: 'mode_travail',   label: 'Mode de travail',      suggestion: 'Précisez votre mode de travail préféré' },
       { key: 'disponibilite', label: 'Disponibilité',         suggestion: 'Confirmez votre disponibilité' },
       { key: 'langues',       label: 'Langues',               suggestion: 'Renseignez vos langues' },
     ],
@@ -195,7 +245,7 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
 const SUGGESTION_PRIORITY: (keyof Profil)[] = [
   'video_presentation_url',
   'signature', 'valeur', 'projet_titre', 'projet_phare', 'projet_impact',
-  'type_poste', 'disponibilite', 'langues', 'mode_travail', 'structure',
+  'type_poste', 'disponibilite', 'langues', 'type_entreprise', 'mode_travail',
   'experiences', 'qualites', 'competences_acquises', 'passions', 'diplomes',
   'ville', 'avatar_url',
 ]
@@ -217,12 +267,6 @@ function calcCompletion(p: Profil): number {
   return Math.round(score * 100)
 }
 
-function getContextPhrase(unread: number, nbCandidatures: number, completion: number): string {
-  if (unread > 0) return `Vous avez ${unread} message${unread > 1 ? 's' : ''} non lu${unread > 1 ? 's' : ''}.`
-  if (nbCandidatures > 0) return `${nbCandidatures} candidature${nbCandidatures > 1 ? 's' : ''} en cours — bonne chance !`
-  if (completion < 60) return 'Complétez votre profil pour être mieux repéré.'
-  return 'Bienvenue — de nouvelles opportunités vous attendent.'
-}
 
 function daysSince(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
@@ -245,7 +289,9 @@ function timeAgo(iso: string): string {
 
 function truncate(s: string | undefined, n: number): string {
   if (!s) return ''
-  return s.length > n ? s.slice(0, n) + '…' : s
+  if (s.length <= n) return s
+  const cut = s.slice(0, n).trimEnd()
+  return (/[.,;:!?…]$/.test(cut) ? cut.slice(0, -1) : cut) + '…'
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -254,7 +300,7 @@ function Spinner() {
   return (
     <div style={{
       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      minHeight: '100vh', backgroundColor: C.creme,
+      minHeight: '100vh', backgroundColor: C.bg,
     }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
@@ -266,14 +312,14 @@ function Spinner() {
   )
 }
 
+
 function Card({ children, style = {} }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div style={{
       backgroundColor: C.white,
-      border: `1px solid ${C.sable}`,
-      borderRadius: 20,
+      borderRadius: CARD_RADIUS,
       padding: 28,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      boxShadow: CARD_SHADOW,
       ...style,
     }}>
       {children}
@@ -285,7 +331,7 @@ function SectionTitle({ title, link, href, onClick }: { title: string; link?: st
   const router = useRouter()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: 0 }}>
+      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: 0 }}>
         {title}
       </h2>
       {link && (
@@ -314,7 +360,7 @@ const STATUT_COLORS: Record<string, { bg: string; color: string }> = {
 
 function StatusBadge({ statut }: { statut: string }) {
   const key = statut?.toLowerCase() ?? ''
-  const style = STATUT_COLORS[key] ?? { bg: C.creme, color: C.grey }
+  const style = STATUT_COLORS[key] ?? { bg: C.chip, color: C.grey }
   const labels: Record<string, string> = {
     'envoyée': 'Envoyée', 'vue': 'Vue', 'en cours': 'En cours',
     'acceptée': 'Acceptée', 'refusée': 'Refusée',
@@ -330,67 +376,7 @@ function StatusBadge({ statut }: { statut: string }) {
   )
 }
 
-function OffreCard({ offre, onPostuler }: { offre: Offre; onPostuler: (id: string) => void }) {
-  const [hov, setHov] = useState(false)
-  return (
-    <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        border: `1px solid ${hov ? C.terracotta : C.sable}`,
-        borderRadius: 16,
-        padding: '18px 20px',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
-        boxShadow: hov ? '0 4px 16px rgba(196,103,58,0.1)' : 'none',
-        display: 'flex', flexDirection: 'column', gap: 12,
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 4 }}>
-          {offre.titre}
-        </div>
-        <div style={{ fontSize: 13, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-          {offre.recruteur_id ? (
-            <Link
-              href={`/entreprise/${offre.recruteur_id}`}
-              onClick={e => e.stopPropagation()}
-              style={{ color: C.terracotta, fontWeight: 600, textDecoration: 'none' }}
-            >
-              {offre.entreprise_nom}
-            </Link>
-          ) : offre.entreprise_nom ? (
-            <span>{offre.entreprise_nom}</span>
-          ) : null}
-          {offre.entreprise_nom && offre.ville && <span>·</span>}
-          {offre.ville && <span>{offre.ville}</span>}
-        </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        {offre.type_contrat && (
-          <span style={{
-            fontSize: 11, backgroundColor: C.creme, color: C.grey,
-            padding: '3px 10px', borderRadius: 20, fontWeight: 500,
-          }}>
-            {offre.type_contrat}
-          </span>
-        )}
-        <button
-          onClick={() => onPostuler(offre.id)}
-          style={{
-            marginLeft: 'auto',
-            backgroundColor: C.terracotta, color: C.white,
-            border: 'none', borderRadius: 10,
-            padding: '7px 16px', fontSize: 12, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          Postuler en 1 clic
-        </button>
-      </div>
-    </div>
-  )
-}
 
 function StatusToggle({
   value,
@@ -408,24 +394,23 @@ function StatusToggle({
         onClick={() => setOpen(o => !o)}
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          backgroundColor: 'rgba(255,255,255,0.15)',
-          border: '1px solid rgba(255,255,255,0.25)',
+          backgroundColor: 'rgba(44,74,62,0.07)',
+          border: `1px solid ${C.sable}`,
           borderRadius: 10, padding: '7px 14px',
-          color: C.white, fontSize: 13, fontWeight: 500,
+          color: C.dark, fontSize: 13, fontWeight: 500,
           cursor: 'pointer', fontFamily: 'inherit',
-          backdropFilter: 'blur(8px)',
         }}
       >
-        <span>{current.dot}</span>
+        <StatusDot color={current.dot} />
         <span>{current.label}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-          <path d="M2 4l4 4 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M2 4l4 4 4-4" stroke={C.dark} strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </button>
 
       {open && (
         <div style={{
-          position: 'absolute', top: 'calc(100% + 8px)', left: 0,
+          position: 'absolute', top: 'calc(100% + 8px)', right: 0,
           backgroundColor: C.white, border: `1px solid ${C.sable}`,
           borderRadius: 12, padding: 6, minWidth: 220,
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 50,
@@ -438,13 +423,13 @@ function StatusToggle({
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', textAlign: 'left',
                 padding: '9px 12px', border: 'none', borderRadius: 8,
-                backgroundColor: opt.value === value ? C.creme : 'transparent',
+                backgroundColor: opt.value === value ? C.chip : 'transparent',
                 color: C.dark, fontSize: 13, fontWeight: 500,
                 cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'background-color 0.1s',
               }}
             >
-              <span>{opt.dot}</span>
+              <StatusDot color={opt.dot} />
               <span>{opt.label}</span>
             </button>
           ))}
@@ -473,11 +458,28 @@ export default function DashboardPage() {
   const [vueTotal, setVueTotal]         = useState(0)
   const [vuesRecentes, setVuesRecentes] = useState<VueRecente[]>([])
   const [favOffres, setFavOffres]       = useState<FavOffre[]>([])
+  const [searchQuery, setSearchQuery]   = useState('')
+  const [totalOffresCount, setTotalOffresCount] = useState(0)
+  const [actionItems, setActionItems]   = useState<ActionItem[]>([])
+  const [winSize, setWinSize] = useState({ w: 1200, h: 900 })
+  const [applied, setApplied]           = useState<Set<string>>(new Set())
+  const [mounted, setMounted]           = useState(false)
+  const userIdRef = useRef<string | null>(null)
+
+  const { favIds, toggleFav } = useFavoris()
+
+  useEffect(() => {
+    function onResize() { setWinSize({ w: window.innerWidth, h: window.innerHeight }) }
+    setWinSize({ w: window.innerWidth, h: window.innerHeight })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.replace('/inscription'); return }
+      userIdRef.current = user.id
 
       const [
         { data: profilData },
@@ -486,10 +488,12 @@ export default function DashboardPage() {
         { data: convsRaw },
         { data: vuesData },
         { data: favData },
+        { count: offresCount },
+        { data: rdvData },
       ] = await Promise.all([
         supabase.from('profils').select('*').eq('user_id', user.id).single(),
         supabase.from('candidatures')
-          .select('*, offres(titre, entreprise_nom, ville, type_contrat, recruteur_id)')
+          .select('*, offres(titre, ville, type_contrat, recruteur_id)')
           .eq('candidat_id', user.id)
           .order('created_at', { ascending: false })
           .limit(3),
@@ -509,10 +513,19 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(30),
         supabase.from('offres_favorites')
-          .select('created_at, offres(id, titre, entreprise_nom, ville, recruteur_id)')
+          .select('created_at, offres(id, titre, ville, recruteur_id, expire_at)')
           .eq('candidat_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(3),
+          .limit(5),
+        supabase.from('offres')
+          .select('id', { count: 'exact', head: true })
+          .eq('active', true)
+          .eq('statut_publication', 'publiée')
+          .gt('expire_at', new Date().toISOString()),
+        supabase.from('rendez_vous')
+          .select('id, creneaux_rdv(id, debut_utc)')
+          .eq('candidat_id', user.id)
+          .eq('statut', 'proposee'),
       ])
 
       if (!(profilData as { onboarding_completed?: boolean } | null)?.onboarding_completed) {
@@ -523,21 +536,47 @@ export default function DashboardPage() {
       const p: Profil = (profilData as Profil) ?? {}
       setProfil(p)
 
-      // Two-step enrichissement entreprise (offres, candidatures, favoris)
+      // ── Aller 1 → IDs pour l'aller 2 ─────────────────────────────────────────
       const allOffreRids = [
         ...((offresData as Offre[] | null) ?? []).map(o => o.recruteur_id),
         ...((candidaturesData as Candidature[] | null) ?? []).map(c => c.offres?.recruteur_id),
         ...((favData as unknown as { offres: { recruteur_id?: string | null } | null }[] | null) ?? [])
           .map(f => f?.offres?.recruteur_id),
       ].filter((id): id is string => Boolean(id))
-      const { map: epMap, error: epErr } = await fetchProfilsEntreprise([...new Set(allOffreRids)])
+
+      const convList     = (convsRaw ?? []) as ConvRaw[]
+      const recruteurIds = [...new Set(convList.map(c => c.recruteur_id).filter(Boolean))]
+      const convIds      = convList.map(c => c.id)
+
+      // ── Aller 2 : profils entreprise + profils recruteurs convs + messages non lus — en parallèle
+      const [epResult, rResult, mResult] = await Promise.all([
+        fetchProfilsEntreprise([...new Set(allOffreRids)]),
+        recruteurIds.length
+          ? supabase.from('profils').select('user_id, prenom, nom').in('user_id', recruteurIds)
+          : Promise.resolve({ data: null as null, error: null }),
+        convIds.length
+          ? supabase.from('messages')
+              .select('created_at, contenu, conversation_id')
+              .in('conversation_id', convIds)
+              .neq('expediteur_id', user.id)
+              .eq('lu', false)
+              .order('created_at', { ascending: false })
+              .limit(3)
+          : Promise.resolve({ data: null as null, error: null }),
+      ])
+      const { map: epMap, error: epErr } = epResult
       if (epErr) console.error('[dashboard profils entreprise]', epErr)
+
+      const profilMap: Record<string, { prenom?: string; nom?: string }> = {}
+      for (const r of (rResult.data ?? [])) profilMap[r.user_id] = r
+
+      const activeMsgs = (mResult.data ?? []) as MessageActivite[]
 
       const enrichedCands = ((candidaturesData as Candidature[]) ?? []).map(c => {
         const rid = c.offres?.recruteur_id
         const ep  = rid ? epMap[rid] : undefined
         if (!ep || !c.offres) return c
-        return { ...c, offres: { ...c.offres, entreprise_nom: ep.entreprise_nom ?? c.offres.entreprise_nom } }
+        return { ...c, offres: { ...c.offres, entreprise_nom: ep.entreprise_nom ?? undefined } }
       })
       setCandidatures(enrichedCands)
 
@@ -545,7 +584,9 @@ export default function DashboardPage() {
         const MATCH_THRESHOLD = 50
         const scored = (offresData as Offre[]).map(o => {
           const ep = o.recruteur_id ? epMap[o.recruteur_id] : undefined
-          return { ...o, entreprise_nom: ep?.entreprise_nom ?? o.entreprise_nom, score: calculerScore(p, o) }
+          const om = { ...o }
+          const bd = scoreBreakdownCandidat(p, om)
+          return { ...o, entreprise_nom: ep?.entreprise_nom ?? undefined, score: bd.total ?? undefined, breakdown: bd }
         })
         const matching = scored
           .filter(o => (o.score ?? 0) >= MATCH_THRESHOLD)
@@ -563,31 +604,6 @@ export default function DashboardPage() {
         }
       }
 
-      // Two-step : récupère les profils recruteurs + messages non-lus reçus
-      const convList = (convsRaw ?? []) as ConvRaw[]
-      const recruteurIds = [...new Set(convList.map(c => c.recruteur_id).filter(Boolean))]
-      const convIds      = convList.map(c => c.id)
-
-      const profilMap: Record<string, { prenom?: string; nom?: string }> = {}
-      if (recruteurIds.length) {
-        const { data: rData } = await supabase
-          .from('profils').select('user_id, prenom, nom').in('user_id', recruteurIds)
-        for (const r of (rData ?? [])) profilMap[r.user_id] = r
-      }
-
-      let activeMsgs: MessageActivite[] = []
-      if (convIds.length) {
-        const { data: mData } = await supabase
-          .from('messages')
-          .select('created_at, contenu, conversation_id')
-          .in('conversation_id', convIds)
-          .neq('expediteur_id', user.id)
-          .eq('lu', false)
-          .order('created_at', { ascending: false })
-          .limit(3)
-        activeMsgs = (mData ?? []) as MessageActivite[]
-      }
-
       setUnreadCount(convList.reduce((sum, c) => sum + (c.non_lu_candidat ?? 0), 0))
       setConversations(convList.slice(0, 3).map(c => ({
         id:             c.id,
@@ -603,7 +619,7 @@ export default function DashboardPage() {
       for (const v of (vuesData ?? []) as VueProfil[]) {
         items.push({
           date: v.created_at,
-          icon: '👁',
+          kind: 'vue' as ActivityKind,
           text: `Votre profil a été consulté par un recruteur`,
           href: '/profil',
         })
@@ -614,7 +630,7 @@ export default function DashboardPage() {
         const titre = convById[m.conversation_id ?? '']?.offres?.titre
         items.push({
           date: m.created_at,
-          icon: '💬',
+          kind: 'message' as ActivityKind,
           text: titre ? `Nouveau message concernant « ${titre} »` : 'Nouveau message reçu',
           href: '/dashboard/messages',
         })
@@ -624,8 +640,8 @@ export default function DashboardPage() {
         const entreprise = c.offres?.entreprise_nom ?? c.offres?.titre ?? 'une entreprise'
         items.push({
           date: c.created_at,
-          icon: '📋',
-          text: `Candidature chez ${entreprise} — statut : ${c.statut}`,
+          kind: 'candidature' as ActivityKind,
+          text: `Votre candidature chez ${entreprise} est ${c.statut}`,
           href: '/candidatures',
         })
       }
@@ -655,7 +671,7 @@ export default function DashboardPage() {
       // Favoris récents
       type FavRaw = {
         created_at: string
-        offres: { id: string; titre: string; entreprise_nom: string | null; ville: string | null; recruteur_id?: string | null } | null
+        offres: { id: string; titre: string; ville: string | null; recruteur_id?: string | null; expire_at?: string | null } | null
       }
       const favList: FavOffre[] = ((favData ?? []) as unknown as FavRaw[])
         .filter(f => f.offres != null)
@@ -666,16 +682,80 @@ export default function DashboardPage() {
             id:            f.offres!.id,
             titre:         f.offres!.titre,
             recruteur_id:  rid ?? undefined,
-            entreprise_nom: ep?.entreprise_nom ?? f.offres!.entreprise_nom ?? undefined,
+            entreprise_nom: ep?.entreprise_nom ?? undefined,
             ville:         f.offres!.ville ?? undefined,
           }
         })
       setFavOffres(favList)
+      setTotalOffresCount(offresCount ?? 0)
+
+      // ── Bloc « À traiter » ────────────────────────────────────────────────────
+      const actionList: ActionItem[] = []
+
+      // Cas 1 : rendez-vous proposé en attente de réponse
+      type RdvRaw = { id: string; creneaux_rdv: { debut_utc: string }[] }
+      const rdvCount = countRdvEnAttente((rdvData ?? []) as RdvRaw[])
+      if (rdvCount === 1) {
+        actionList.push({ label: 'Un recruteur vous propose un rendez-vous', href: '/dashboard/rendez-vous' })
+      } else if (rdvCount > 1) {
+        actionList.push({ label: `${rdvCount} propositions de rendez-vous en attente`, href: '/dashboard/rendez-vous' })
+      }
+
+      // Cas 2 : messages non lus
+      const unreadTotal = convList.reduce((s, c) => s + (c.non_lu_candidat ?? 0), 0)
+      if (unreadTotal === 1) {
+        actionList.push({ label: 'Vous avez un message non lu', href: '/dashboard/messages' })
+      } else if (unreadTotal > 1) {
+        actionList.push({ label: `Vous avez ${unreadTotal} messages non lus`, href: '/dashboard/messages' })
+      }
+
+      // Cas 3 : favoris expirant dans moins de 3 jours
+      const nowIso      = new Date().toISOString()
+      const threeDaysIso = new Date(Date.now() + 3 * 86400000).toISOString()
+      const favExpirantCount = ((favData ?? []) as unknown as FavRaw[])
+        .filter(f => {
+          const exp = f.offres?.expire_at
+          return exp && exp > nowIso && exp < threeDaysIso
+        }).length
+      if (favExpirantCount === 1) {
+        actionList.push({ label: 'Une offre en favori expire dans moins de trois jours', href: '/favoris' })
+      } else if (favExpirantCount > 1) {
+        actionList.push({ label: `${favExpirantCount} offres en favori expirent dans moins de trois jours`, href: '/favoris' })
+      }
+
+      // Cas 4 : profil incomplet (< 80 %)
+      if (calcCompletion(p) < 80) {
+        actionList.push({ label: 'Complétez votre profil pour apparaître dans plus de recherches', href: '/profil' })
+      }
+
+      setActionItems(actionList.slice(0, 3))
 
       setLoading(false)
     }
     load()
   }, [router])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!loading) setMounted(true)
+  }, [loading])
+
+  async function handleApply(offreId: string) {
+    const uid = userIdRef.current
+    if (!uid) return
+    const { error } = await supabase.from('candidatures').insert({ candidat_id: uid, offre_id: offreId, statut: 'envoyée' })
+    if (!error) setApplied(prev => new Set([...prev, offreId]))
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    const q = searchQuery.trim()
+    router.push(q ? `/offres?q=${encodeURIComponent(q)}` : '/offres')
+  }
+
+  function handleSuggestion(tag: string) {
+    router.push(`/offres?q=${encodeURIComponent(tag)}`)
+  }
 
   async function handleStatusChange(newStatus: string) {
     if (!profil) return
@@ -686,44 +766,37 @@ export default function DashboardPage() {
     setStatusLoading(false)
   }
 
-  async function handlePostuler(offreId: string) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { error } = await supabase.from('candidatures').insert({
-      candidat_id: user.id,
-      offre_id:    offreId,
-      statut:      'envoyée',
-    })
-    if (!error) {
-      const { data, error: refetchErr } = await supabase.from('candidatures')
-        .select('*, offres(titre, entreprise_nom, ville, type_contrat, recruteur_id)')
-        .eq('candidat_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(3)
-      if (refetchErr) console.error('[dashboard handlePostuler refetch]', refetchErr)
-      const rids = ((data as Candidature[]) ?? []).map(c => c.offres?.recruteur_id).filter((id): id is string => Boolean(id))
-      const { map: pm, error: pmErr } = await fetchProfilsEntreprise([...new Set(rids)])
-      if (pmErr) console.error('[dashboard handlePostuler profils]', pmErr)
-      const enriched = ((data as Candidature[]) ?? []).map(c => {
-        const ep = c.offres?.recruteur_id ? pm[c.offres.recruteur_id] : undefined
-        if (!ep || !c.offres) return c
-        return { ...c, offres: { ...c.offres, entreprise_nom: ep.entreprise_nom ?? c.offres.entreprise_nom } }
-      })
-      setCandidatures(enriched)
-    }
-  }
-
   if (loading) return <Spinner />
 
-  const p             = profil ?? {}
-  const prenom        = p.prenom ?? 'vous'
+  const p               = profil ?? {}
+  const profilSuffisant = profilSuffisantPourScoreCandidat(p)
+  const prenom          = p.prenom ?? 'vous'
   const initials      = `${p.prenom?.[0] ?? ''}${p.nom?.[0] ?? ''}`.toUpperCase() || 'K'
   const completion    = calcCompletion(p)
   const statusValue   = p.disponibilite ?? 'maintenant'
-  const phrase        = getContextPhrase(unreadCount, candidatures.length, completion)
   const offresBlocTitle = offresMode === 'match'
     ? 'Offres qui correspondent à votre profil'
     : 'Offres récentes'
+
+  const LABELS_TYPE_POSTE: Record<string, string> = {
+    cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance', alternance: 'Alternance',
+  }
+  const LABELS_MODE_TRAVAIL: Record<string, string> = {
+    remote: '100 % Remote', hybride: 'Hybride', presentiel: 'Présentiel',
+  }
+  const searchSuggestions: string[] = (() => {
+    const tags: string[] = []
+    if (p.domaine) tags.push(p.domaine)
+    if (p.ville) tags.push(p.ville)
+    if (Array.isArray(p.type_poste)) {
+      const valid = p.type_poste.filter((k: string) => k !== 'ouvert')
+      if (valid.length > 0) tags.push(LABELS_TYPE_POSTE[valid[0]] ?? valid[0])
+    }
+    if (p.mode_travail && p.mode_travail !== 'flexible') {
+      tags.push(LABELS_MODE_TRAVAIL[p.mode_travail] ?? p.mode_travail)
+    }
+    return tags.slice(0, 4)
+  })()
 
   const missingSuggestions = COMPLETION_SECTIONS
     .flatMap(s => s.fields)
@@ -732,91 +805,120 @@ export default function DashboardPage() {
     .slice(0, 3)
     .map(f => ({ key: f.key, label: f.suggestion! }))
 
+  const winWidth    = winSize.w
+  const winHeight   = winSize.h
+  const offresLimit = winHeight >= 900 ? 3 : 2
+  const itemsLimit  = winHeight >= 900 ? 3 : 2
+  const gridCols    = winWidth >= 1000 ? '1.4fr 1fr' : '1fr'
+
+  const animStyle = (delay: number): React.CSSProperties =>
+    mounted
+      ? { animation: `kapolia-motion-fadein-up 450ms ease ${delay}ms both` }
+      : { opacity: 0 }
+
   return (
-    <div style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <div style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
-      <header style={{
-        background: `linear-gradient(135deg, ${C.vert} 0%, #3d5c50 60%, #7a4a32 100%)`,
-        padding: '40px 40px 36px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        {/* Decorative blobs */}
-        <div style={{
-          position: 'absolute', top: -40, right: -40,
-          width: 200, height: 200, borderRadius: '50%',
-          backgroundColor: `${C.terracotta}20`,
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: -60, right: 120,
-          width: 140, height: 140, borderRadius: '50%',
-          backgroundColor: 'rgba(255,255,255,0.04)',
-          pointerEvents: 'none',
-        }} />
-
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Top row: greeting + status */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <h1 style={{
-                fontFamily: FONT_SERIF,
-                fontSize: 'clamp(28px, 4vw, 44px)',
-                color: C.white, margin: '0 0 8px',
-                lineHeight: 1.15,
-              }}>
-                Bonjour {prenom} 👋
-              </h1>
-              <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.72)', margin: 0, fontWeight: 300 }}>
-                {phrase}
-              </p>
-            </div>
-
-            <StatusToggle
-              value={statusValue}
-              onChange={handleStatusChange}
-            />
-          </div>
-
-          {/* 3 inline stats */}
-          <div style={{
-            marginTop: 28, display: 'flex', gap: 24, flexWrap: 'wrap',
+      <header style={{ padding: '28px 32px 0', ...animStyle(0) }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <h1 style={{
+            fontFamily: FONT_SERIF,
+            fontSize: 34, fontWeight: 600,
+            color: C.dark, margin: 0,
+            lineHeight: 1.2,
           }}>
-            {[
-              { label: matchCount > 0 ? `${matchCount} offre${matchCount !== 1 ? 's' : ''} correspond${matchCount !== 1 ? 'ent' : ''} à votre profil` : 'Aucune offre ne correspond encore', icon: '✦' },
-              { label: `${candidatures.length} candidature${candidatures.length !== 1 ? 's' : ''} en cours`, icon: '📋' },
-              { label: `${unreadCount} message${unreadCount !== 1 ? 's' : ''} non lu${unreadCount !== 1 ? 's' : ''}`, icon: '💬' },
-            ].map(({ label, icon }) => (
-              <div
-                key={label}
-                style={{
-                  fontSize: 13, color: 'rgba(255,255,255,0.85)',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                <span style={{ opacity: 0.7 }}>{icon}</span>
-                {label}
-              </div>
-            ))}
+            Bonjour {prenom}
+          </h1>
+          <StatusToggle value={statusValue} onChange={handleStatusChange} />
+        </div>
+        <div style={{ maxWidth: 530, margin: '0 auto 28px' }}>
+          <div style={{ fontFamily: FONT_SERIF, fontSize: 18, fontWeight: 600, color: C.dark, marginBottom: 4, textAlign: 'center' }}>
+            Chercher un poste
           </div>
+          <div style={{ fontSize: 12.5, color: C.grey, marginBottom: 12, textAlign: 'center' }}>
+            Lancez une recherche parmi les {totalOffresCount} offres publiées sur Kapolia
+          </div>
+          <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <svg
+                width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="#9B9B9B" strokeWidth="2" strokeLinecap="round"
+                style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              >
+                <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Poste, compétence, entreprise…"
+                style={{
+                  width: '100%', height: 42, boxSizing: 'border-box',
+                  paddingLeft: 36, paddingRight: 14,
+                  fontSize: 14, borderRadius: 9,
+                  border: `1.5px solid ${C.sable}`,
+                  backgroundColor: C.white, color: C.dark,
+                  outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(0.93)')}
+              onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+              style={{
+                height: 42, padding: '0 18px',
+                borderRadius: 9, border: 'none',
+                backgroundColor: C.terracotta, color: C.chip,
+                fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+                whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'filter 150ms ease',
+              }}
+            >
+              Rechercher
+            </button>
+          </form>
+          {searchSuggestions.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11.5, color: C.grey, flexShrink: 0 }}>Suggestions</span>
+              {searchSuggestions.map((tag, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestion(tag)}
+                  style={{
+                    fontSize: 11.5, color: C.dark,
+                    backgroundColor: C.white, border: `1px solid ${C.sable}`,
+                    borderRadius: 20, padding: '4px 12px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'border-color 0.12s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = C.terracotta)}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = C.sable)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
       {/* ── BODY GRID ────────────────────────────────────────────────────────── */}
       <div style={{
         maxWidth: 1200, margin: '0 auto',
-        padding: '32px 32px 48px',
+        padding: '24px 32px 48px',
         display: 'grid',
-        gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)',
-        gap: 24,
+        gridTemplateColumns: gridCols,
+        gap: 20,
       }}>
 
         {/* ══ LEFT COLUMN ═══════════════════════════════════════════════════ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           {/* BLOC 1 — Offres recommandées */}
-          <Card>
+          <Card style={animStyle(50)}>
             <SectionTitle
               title={offresBlocTitle}
               link="Voir toutes les offres →"
@@ -827,16 +929,27 @@ export default function DashboardPage() {
                 Aucune offre disponible pour le moment.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {offres.map(o => (
-                  <OffreCard key={o.id} offre={o} onPostuler={handlePostuler} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {offres.slice(0, offresLimit).map(o => (
+                  <OffreCard
+                    key={o.id}
+                    offre={o as OffreCardData}
+                    applied={applied.has(o.id)}
+                    saved={favIds.has(o.id)}
+                    onApply={handleApply}
+                    onToggleSave={toggleFav}
+                    isConnected={true}
+                    showDescription={false}
+                    showApply={false}
+                    showSave={false}
+                  />
                 ))}
               </div>
             )}
           </Card>
 
           {/* BLOC 2 — Candidatures récentes */}
-          <Card>
+          <Card style={animStyle(100)}>
             <SectionTitle
               title="Mes candidatures"
               link="Voir tout →"
@@ -861,19 +974,19 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {candidatures.map((c, i) => (
+                {candidatures.slice(0, itemsLimit).map((c, i, arr) => (
                   <div
                     key={c.id}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '14px 0',
-                      borderBottom: i < candidatures.length - 1 ? `1px solid ${C.sable}` : 'none',
+                      borderBottom: i < arr.length - 1 ? `1px solid ${C.sable}` : 'none',
                       gap: 12,
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
-                        {c.offres?.titre ?? '—'}
+                      <div style={{ fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
+                        {c.offres?.titre ?? 'Offre indisponible'}
                       </div>
                       <div style={{ fontSize: 12, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
                         {c.offres?.recruteur_id ? (
@@ -899,14 +1012,14 @@ export default function DashboardPage() {
           </Card>
 
           {/* BLOC 3 — Activité récente */}
-          <Card>
+          <Card style={animStyle(150)}>
             <SectionTitle title="Activité récente" />
             {activites.length === 0 ? (
               <div style={{
                 padding: '20px 0', textAlign: 'center',
                 color: C.grey, fontSize: 13, lineHeight: 1.6,
               }}>
-                Aucune activité récente — complétez votre profil pour être visible
+                Aucune activité récente. Complétez votre profil pour être visible.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -921,10 +1034,10 @@ export default function DashboardPage() {
                       textAlign: 'left', width: '100%', fontFamily: 'inherit',
                       transition: 'background-color 0.12s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.chip)}
                     onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                   >
-                    <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{a.icon}</span>
+                    <ActivityIcon kind={a.kind} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.4 }}>{a.text}</div>
                       <div style={{ fontSize: 11, color: C.grey, marginTop: 3 }}>{timeAgo(a.date)}</div>
@@ -937,22 +1050,60 @@ export default function DashboardPage() {
         </div>
 
         {/* ══ RIGHT COLUMN ══════════════════════════════════════════════════ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* BLOC À TRAITER */}
+          {actionItems.length > 0 && (
+            <Card style={animStyle(200)}>
+              <SectionTitle title="À traiter" />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {actionItems.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={() => router.push(item.href)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      gap: 12, padding: '10px 0',
+                      borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                      borderBottom: i < actionItems.length - 1 ? `1px solid ${C.sable}` : 'none',
+                      backgroundColor: 'transparent', cursor: 'pointer',
+                      textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={e => {
+                      const arr = e.currentTarget.lastElementChild as HTMLElement
+                      if (arr) arr.style.transform = 'translateX(4px)'
+                    }}
+                    onMouseLeave={e => {
+                      const arr = e.currentTarget.lastElementChild as HTMLElement
+                      if (arr) arr.style.transform = 'translateX(0)'
+                    }}
+                  >
+                    <span style={{ fontSize: 13, color: C.dark, lineHeight: 1.4, flex: 1 }}>{item.label}</span>
+                    <span style={{ fontSize: 13, color: C.terracotta, flexShrink: 0, transition: 'transform 180ms ease' }}>→</span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* BLOC 4 — Mon profil miniature */}
-          <Card>
+          <Card style={animStyle(actionItems.length > 0 ? 250 : 200)}>
             <SectionTitle title="Mon profil" />
 
             {/* Avatar + info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
               <Avatar profil={p} size="md" />
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>
-                  {p.prenom} {p.nom}
+                <div style={{ fontSize: 15, fontWeight: 700, color: p.prenom || p.nom ? C.dark : C.grey }}>
+                  {p.prenom || p.nom
+                    ? [p.prenom, p.nom].filter(Boolean).join(' ')
+                    : 'Profil à compléter'}
                 </div>
-                <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
-                  {p.domaine ?? '—'} · {p.ville ?? '—'}
-                </div>
+                {(p.domaine || p.ville) && (
+                  <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
+                    {[p.domaine, p.ville].filter(Boolean).join(' · ')}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -963,7 +1114,7 @@ export default function DashboardPage() {
                 borderLeft: `3px solid ${C.sable}`,
                 paddingLeft: 12,
               }}>
-                "{truncate(p.signature, 80)}"
+                {`« ${truncate(p.signature, 80)} »`}
               </p>
             )}
 
@@ -975,12 +1126,14 @@ export default function DashboardPage() {
                   {completion}%
                 </span>
               </div>
-              <div style={{ height: 6, backgroundColor: C.sable, borderRadius: 3 }}>
+              <div style={{ height: 6, backgroundColor: C.sable, borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{
                   height: '100%', borderRadius: 3,
-                  width: `${completion}%`,
+                  width: '100%',
                   backgroundColor: completion >= 80 ? C.vert : C.terracotta,
-                  transition: 'width 0.4s ease',
+                  transform: mounted ? `scaleX(${completion / 100})` : 'scaleX(0)',
+                  transformOrigin: 'left',
+                  transition: 'transform 0.8s ease 0.45s',
                 }} />
               </div>
             </div>
@@ -988,8 +1141,8 @@ export default function DashboardPage() {
             {/* Priority suggestions */}
             {missingSuggestions.length > 0 && (
               <div style={{
-                backgroundColor: `${C.terracotta}0D`,
-                border: `1px solid ${C.terracotta}30`,
+                backgroundColor: '#F1F3F2',
+                border: '1px solid #E7EAE8',
                 borderRadius: 10, padding: '10px 14px',
                 marginBottom: 16,
               }}>
@@ -1014,37 +1167,27 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => router.push('/profil')}
-                style={{
-                  flex: 1, backgroundColor: C.vert, color: C.white,
-                  border: 'none', borderRadius: 10,
-                  padding: '9px 14px', fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                Voir mon profil
-              </button>
-              <button
-                onClick={() => router.push('/profil?edit=true')}
-                style={{
-                  flex: 1, backgroundColor: 'transparent',
-                  border: `1px solid ${C.sable}`, borderRadius: 10,
-                  padding: '9px 14px', fontSize: 12, fontWeight: 600,
-                  color: C.dark, cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                Modifier
-              </button>
-            </div>
+            <button
+              onClick={() => router.push('/profil')}
+              onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(0.93)')}
+              onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+              style={{
+                width: '100%', backgroundColor: C.vert, color: C.white,
+                border: 'none', borderRadius: 10,
+                padding: '9px 14px', fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'filter 150ms ease',
+              }}
+            >
+              Voir mon profil
+            </button>
           </Card>
 
           {/* BLOC 5 — Messages */}
-          <Card>
+          <Card style={animStyle(actionItems.length > 0 ? 300 : 250)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h2 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, margin: 0 }}>
+                <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: 0 }}>
                   Messages
                 </h2>
                 {unreadCount > 0 && (
@@ -1075,7 +1218,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {conversations.map(conv => {
+                {conversations.slice(0, itemsLimit).map(conv => {
                   const recruteur = conv.profils
                   const nom = (recruteur
                     ? `${recruteur.prenom ?? ''} ${recruteur.nom ?? ''}`.trim()
@@ -1091,7 +1234,7 @@ export default function DashboardPage() {
                         textAlign: 'left', width: '100%', fontFamily: 'inherit',
                         transition: 'background-color 0.12s',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.chip)}
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       <div style={{
@@ -1131,7 +1274,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* BLOC 6 — Vues du profil */}
-          <Card>
+          <Card style={animStyle(actionItems.length > 0 ? 350 : 300)}>
             <SectionTitle title="Qui a consulté votre profil" />
 
             <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
@@ -1187,54 +1330,6 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          {/* BLOC 7 — Favoris récents */}
-          <Card>
-            <SectionTitle title="Vos favoris" link="Voir tous mes favoris →" href="/favoris" />
-
-            {favOffres.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '8px 0 4px' }}>
-                <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px', lineHeight: 1.6 }}>
-                  Aucune offre sauvegardée pour le moment.
-                </p>
-                <button
-                  onClick={() => router.push('/offres')}
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${C.sable}`, borderRadius: 10,
-                    padding: '8px 18px', fontSize: 12, fontWeight: 600,
-                    color: C.dark, cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Parcourir les offres
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {favOffres.map(o => (
-                  <button
-                    key={o.id}
-                    onClick={() => router.push(`/offres/${o.id}`)}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                      padding: '10px 12px', borderRadius: 10, border: 'none',
-                      backgroundColor: 'transparent', cursor: 'pointer',
-                      textAlign: 'left', width: '100%', fontFamily: 'inherit',
-                      transition: 'background-color 0.12s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                  >
-                    <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, lineHeight: 1.3 }}>
-                      {o.titre}
-                    </div>
-                    <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>
-                      {[o.entreprise_nom, o.ville].filter(Boolean).join(' · ')}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
 
         </div>
       </div>

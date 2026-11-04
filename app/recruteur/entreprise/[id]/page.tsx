@@ -12,8 +12,8 @@ import {
 import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
 
 const C = {
-  creme: '#F7F2EB', sable: '#E8D5B7', terracotta: '#C4673A',
-  dark: '#1A1A1A', grey: '#6B6B6B', white: '#FFFFFF',
+  creme: '#F6F7F6', sable: '#E7EAE8', terracotta: '#C4673A',
+  dark: '#15201B', grey: '#687069', white: '#FFFFFF',
 }
 
 function Spinner() {
@@ -40,7 +40,7 @@ export default function RecruteurEntreprisePage() {
 
     async function load() {
       const { data: rawData, error } = await supabase
-        .from('profils').select(PROFIL_SELECT).eq('user_id', id).single()
+        .from('profils_vue_publique').select(PROFIL_SELECT).eq('user_id', id).single()
 
       if (error) {
         if (!annule) { setNotFound(true); setLoading(false) }
@@ -72,8 +72,7 @@ export default function RecruteurEntreprisePage() {
   }, [id])
 
   function retour() {
-    const vientDeLApp = document.referrer && document.referrer.startsWith(window.location.origin)
-    if (vientDeLApp) router.back()
+    if (window.history.length > 1) router.back()
     else router.replace('/recruteur/offres')
   }
 

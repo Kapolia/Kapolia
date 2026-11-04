@@ -13,11 +13,11 @@ import { trouverConversation } from '@/lib/conversations'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   white:      '#FFFFFF',
   amber:      '#C88A2A',
   red:        '#C0392B',
@@ -43,7 +43,7 @@ type Profil = {
   disponibilite:        string | null
   avatar_url:           string | null
   avatar_type:          string | null
-  mode_travail:         string[] | null
+  mode_travail:         string | null
   experiences:          ProfilExp[] | null
   diplomes:             ProfilDip[] | null
   projet_phare:         string | null
@@ -283,7 +283,7 @@ function RightPanel({
   const qualites = profil.qualites ?? []
   const comps    = profil.competences_acquises ?? []
 
-  const mobilite = (profil.mode_travail ?? []).filter(k => k !== 'sans_pref').map(k => LIEU_MAP[k] ?? k).join(', ')
+  const mobilite = profil.mode_travail ? (LIEU_MAP[profil.mode_travail] ?? profil.mode_travail) : ''
   const recherche = [poste, dp.label, profil.ville, mobilite].filter(Boolean).join('  ·  ')
 
   const latestExp = (profil.experiences ?? [])[0] ?? null
@@ -308,7 +308,7 @@ function RightPanel({
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Avatar profil={profil} size="md" />
           <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.white, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
+            <h3 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.white, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
               {nom}
             </h3>
             {headerMeta && (
@@ -655,7 +655,7 @@ export default function RecruteurPage() {
           padding: '14px 22px', display: 'flex', alignItems: 'center', gap: '10px',
           borderBottom: `1px solid ${C.sable}`,
         }}>
-          <h1 style={{ fontFamily: FONT_SERIF, fontSize: '19px', color: C.dark, fontWeight: '400', margin: '0 auto 0 0' }}>
+          <h1 style={{ fontFamily: FONT_SERIF, fontSize: '21px', color: C.dark, fontWeight: '400', margin: '0 auto 0 0' }}>
             Repérer des profils
           </h1>
           <div style={{ position: 'relative' }}>

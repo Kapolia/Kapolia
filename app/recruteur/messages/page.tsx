@@ -34,16 +34,17 @@ import { FONT_SERIF } from '@/lib/typography'
 import { ouvrirConversation, trouverConversation } from '@/lib/conversations'
 import RdvBubble from '@/components/RdvBubble'
 import { notifRdvPropose } from '@/lib/actions/email-notifs'
+import { sanitizeFilename } from '@/lib/storage-utils'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#C8C8C8',
   white:      '#FFFFFF',
 }
@@ -938,7 +939,7 @@ function MessagesPageInner() {
 
     if (pf && userIdRef.current && convId) {
       setUploading(true)
-      const path = `${convId}/${Date.now()}-${pf.nom}`
+      const path = `${convId}/${Date.now()}-${sanitizeFilename(pf.nom)}`
       const { data: up, error } = await supabase.storage.from('pieces-jointes').upload(path, pf.file)
       if (error) {
         alert(`Impossible d'envoyer le fichier : ${error.message}`)

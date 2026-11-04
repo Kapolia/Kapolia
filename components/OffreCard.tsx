@@ -1,19 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { FONT_SERIF } from '@/lib/typography'
 import { haversineKm } from '@/lib/geo'
+import { type ScoreBreakdown } from '@/lib/matching'
+import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
 const C = {
   terracotta: '#C4673A',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   vert:       '#2C4A3E',
-  dark:       '#1A1A1A',
-  grey:       '#6B6B6B',
+  dark:       '#15201B',
+  grey:       '#687069',
   lightGrey:  '#D0D0D0',
   white:      '#FFFFFF',
 }
@@ -34,6 +36,8 @@ export type OffreCardData = {
   created_at?: string
   latitude?: number
   longitude?: number
+  score?: number | null
+  breakdown?: ScoreBreakdown | null
 }
 
 function daysSince(iso: string): string {
@@ -50,6 +54,13 @@ function formatSalaire(min?: number, max?: number, periode?: string): string | n
   return range + (periode === 'mensuel' ? '/mois' : '/an')
 }
 
+export function scoreLabel(score: number): string {
+  if (score >= 80) return 'Très bonne correspondance avec votre profil'
+  if (score >= 60) return 'Bonne correspondance avec votre profil'
+  if (score >= 40) return 'Correspondance partielle avec votre profil'
+  return 'Correspondance limitée avec votre profil'
+}
+
 function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.MouseEvent) => void }) {
   const [hov, setHov] = useState(false)
   return (
@@ -59,10 +70,11 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
       onMouseLeave={() => setHov(false)}
       title={saved ? 'Retirer des favoris' : 'Sauvegarder'}
       style={{
-        width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 8, border: `1px solid ${saved ? '#F59E0B50' : C.sable}`,
-        backgroundColor: saved ? '#FEF3C730' : hov ? C.creme : 'transparent',
-        cursor: 'pointer', fontSize: 16, transition: 'all 0.15s', flexShrink: 0,
+        width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        borderRadius: 7, border: `1px solid ${C.sable}`,
+        backgroundColor: saved ? `${C.vert}10` : hov ? C.creme : 'transparent',
+        cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', flexShrink: 0,
+        color: '#9AA49E',
       }}
     >
       {saved ? '★' : '☆'}
@@ -70,9 +82,22 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
   )
 }
 
+// Shared pill styles — also imported by OffreDetail
+export const PILL: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 500,
+  backgroundColor: '#F1F3F2', color: '#3E4F46',
+  padding: '3px 9px', borderRadius: 20,
+}
+export const PILL_SALARY: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 600,
+  backgroundColor: '#EAF1EC', color: '#2C4A3E',
+  padding: '3px 9px', borderRadius: 20,
+}
+
 export function OffreCard({
   offre, applied, saved, onApply, onToggleSave, isConnected,
   isSelected = false, onSelect, searchCoords, dateLabel,
+  showDescription = true, showApply = true, showSave = true,
 }: {
   offre: OffreCardData
   applied: boolean
@@ -84,11 +109,20 @@ export function OffreCard({
   onSelect?: (id: string) => void   // presence triggers compact (split-view) mode
   searchCoords?: GeoCoords | null
   dateLabel?: string                // replaces auto-computed "publié il y a X jours"
+  showDescription?: boolean
+  showApply?: boolean
+  showSave?: boolean
 }) {
   const [hov, setHov]           = useState(false)
   const [applying, setApplying] = useState(false)
+  const [barMounted, setBarMounted] = useState(false)
   const router = useRouter()
   const compact = !!onSelect
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBarMounted(true)
+  }, [])
 
   const entreprise = offre.entreprise_nom || 'Entreprise'
   const salaire    = formatSalaire(offre.salaire_min, offre.salaire_max, offre.periode_salaire)
@@ -114,12 +148,13 @@ export function OffreCard({
         onMouseLeave={() => setHov(false)}
         style={{
           backgroundColor: isSelected ? `${C.terracotta}07` : C.white,
-          border: `1px solid ${isSelected ? `${C.terracotta}55` : hov ? '#D4C4B0' : '#EDE7DB'}`,
           borderLeft: `3px solid ${isSelected ? C.terracotta : hov ? `${C.terracotta}70` : 'transparent'}`,
-          borderRadius: 10,
-          padding: '14px 16px 12px 13px',
+          borderRadius: CARD_RADIUS,
+          padding: offre.score != null ? '14px 16px 0 13px' : '14px 16px 12px 13px',
           cursor: 'pointer',
-          transition: 'border-color 0.15s, background-color 0.15s',
+          boxShadow: (isSelected || hov) ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
+          transition: 'box-shadow 0.15s, border-left-color 0.15s, background-color 0.15s',
+          overflow: 'hidden',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
@@ -148,37 +183,33 @@ export function OffreCard({
           {offre.ville && <span style={{ color: C.lightGrey }}> · {offre.ville}</span>}
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {salaire && (
-            <span style={{ fontSize: 12, fontWeight: 700, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '3px 10px', borderRadius: 20 }}>
-              {salaire}
-            </span>
-          )}
-          {offre.type_contrat && (
-            <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '3px 10px', borderRadius: 20 }}>
-              {offre.type_contrat}
-            </span>
-          )}
-          {offre.mode_travail && (
-            <span style={{
-              fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
-              backgroundColor: offre.mode_travail === '100% remote' ? `${C.vert}14` : offre.mode_travail === 'Hybride' ? '#7B5EA714' : `${C.dark}0A`,
-              color: offre.mode_travail === '100% remote' ? C.vert : offre.mode_travail === 'Hybride' ? '#7B5EA7' : C.grey,
-            }}>
-              {offre.mode_travail}
-            </span>
-          )}
-          {applied && (
-            <span style={{ fontSize: 12, fontWeight: 600, backgroundColor: `${C.vert}15`, color: C.vert, padding: '3px 10px', borderRadius: 20 }}>
-              ✓ Candidature envoyée
-            </span>
-          )}
-          {distanceKm != null && (
-            <span style={{ fontSize: 12, fontWeight: 500, backgroundColor: '#EEF2FF', color: '#4338CA', padding: '3px 10px', borderRadius: 20 }}>
-              à {distanceKm} km
-            </span>
-          )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: offre.score != null ? 10 : 0 }}>
+          {salaire && <span style={PILL_SALARY}>{salaire}</span>}
+          {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
+          {offre.mode_travail && <span style={PILL}>{offre.mode_travail}</span>}
+          {applied && <span style={PILL}>✓ Candidature envoyée</span>}
+          {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
         </div>
+
+        {offre.score != null ? (
+          <div style={{ margin: '0 -16px 0 -13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 4px 13px', fontSize: 10 }}>
+              <span style={{ color: C.grey }}>{scoreLabel(offre.score)}</span>
+              <span style={{ color: C.vert, fontWeight: 600 }}>{offre.score} %</span>
+            </div>
+            <div style={{ height: 3, backgroundColor: '#EEF0EF' }}>
+              <div style={{ height: 3, width: `${Math.min(100, offre.score)}%`, backgroundColor: C.vert }} />
+            </div>
+          </div>
+        ) : isConnected ? (
+          <Link
+            href="/profil"
+            onClick={e => e.stopPropagation()}
+            style={{ display: 'block', marginTop: 6, fontSize: 11, color: C.vert, opacity: 0.55, textDecoration: 'underline', textDecorationColor: `${C.vert}40` }}
+          >
+            Complétez votre profil pour voir votre correspondance
+          </Link>
+        ) : null}
       </div>
     )
   }
@@ -193,14 +224,15 @@ export function OffreCard({
       onMouseLeave={() => setHov(false)}
       style={{
         backgroundColor: C.white,
-        border: `1px solid ${hov ? '#D4C4B0' : '#EDE7DB'}`,
         borderLeft: `3px solid ${hov ? C.terracotta : 'transparent'}`,
-        borderRadius: 14,
-        padding: '16px 22px 14px 21px',
+        borderRadius: CARD_RADIUS,
+        padding: offre.score != null ? '16px 22px 0 21px' : '16px 22px 14px 21px',
         display: 'flex', flexDirection: 'column', gap: 9,
-        boxShadow: hov ? '0 4px 18px rgba(44,74,62,0.09)' : '0 1px 3px rgba(0,0,0,0.04)',
-        transition: 'box-shadow 0.18s, border-color 0.18s, border-left-color 0.18s',
+        boxShadow: hov ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
+        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
+        transition: 'box-shadow 0.18s, border-left-color 0.18s, transform 0.18s',
         cursor: 'pointer',
+        overflow: 'hidden',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -228,42 +260,18 @@ export function OffreCard({
             {pubLabel && <><span style={{ color: C.lightGrey }}>·</span><span style={{ fontSize: 11, color: C.lightGrey }}>{pubLabel}</span></>}
           </div>
         </div>
-        <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />
+        {showSave && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-        {offre.type_contrat && (
-          <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: `${C.terracotta}14`, color: C.terracotta, padding: '3px 9px', borderRadius: 20 }}>
-            {offre.type_contrat}
-          </span>
-        )}
-        {offre.mode_travail && (
-          <span style={{
-            fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20,
-            backgroundColor: offre.mode_travail === '100% remote' ? `${C.vert}14` : offre.mode_travail === 'Hybride' ? '#7B5EA714' : `${C.dark}0A`,
-            color: offre.mode_travail === '100% remote' ? C.vert : offre.mode_travail === 'Hybride' ? '#7B5EA7' : C.grey,
-          }}>
-            {offre.mode_travail}
-          </span>
-        )}
-        {offre.experience && (
-          <span style={{ fontSize: 11, fontWeight: 500, backgroundColor: C.creme, color: C.grey, padding: '3px 9px', borderRadius: 20, border: `1px solid ${C.sable}` }}>
-            {offre.experience}
-          </span>
-        )}
-        {salaire && (
-          <span style={{ fontSize: 11, fontWeight: 600, backgroundColor: '#F0FDF4', color: '#16A34A', padding: '3px 9px', borderRadius: 20 }}>
-            {salaire}
-          </span>
-        )}
-        {distanceKm != null && (
-          <span style={{ fontSize: 11, fontWeight: 500, backgroundColor: '#EEF2FF', color: '#4338CA', padding: '3px 9px', borderRadius: 20 }}>
-            à {distanceKm} km
-          </span>
-        )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
+        {offre.mode_travail && <span style={PILL}>{offre.mode_travail}</span>}
+        {offre.experience  && <span style={PILL}>{offre.experience}</span>}
+        {salaire           && <span style={PILL_SALARY}>{salaire}</span>}
+        {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
       </div>
 
-      {offre.description && (
+      {showDescription && offre.description && (
         <p style={{
           fontSize: 13, color: C.grey, margin: 0, lineHeight: 1.6,
           display: '-webkit-box', WebkitLineClamp: 2,
@@ -273,43 +281,68 @@ export function OffreCard({
         </p>
       )}
 
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-      }}>
-        {applied ? (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            backgroundColor: `${C.vert}10`, color: C.vert,
-            border: `1px solid ${C.vert}30`, padding: '6px 14px',
-            borderRadius: 8, fontSize: 12, fontWeight: 600,
-          }}>
-            <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
-              <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Candidature envoyée
+      {showApply && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          {applied ? (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              backgroundColor: `${C.vert}10`, color: C.vert,
+              border: `1px solid ${C.vert}30`, padding: '6px 14px',
+              borderRadius: 8, fontSize: 12, fontWeight: 600,
+            }}>
+              <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
+                <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Candidature envoyée
+            </div>
+          ) : (
+            <button
+              onClick={e => { e.stopPropagation(); handleApply() }}
+              disabled={applying}
+              style={{
+                color: applying ? C.grey : C.terracotta,
+                backgroundColor: 'transparent',
+                border: `1.5px solid ${applying ? C.sable : `${C.terracotta}40`}`,
+                borderRadius: 8, padding: '6px 16px', fontSize: 12, fontWeight: 600,
+                cursor: applying ? 'default' : 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 5,
+              }}
+            >
+              {applying ? (
+                <>
+                  <div style={{ width: 11, height: 11, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />
+                  Envoi…
+                </>
+              ) : 'Postuler en 1 clic'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {offre.score != null ? (
+        <div style={{ margin: '0 -22px 0 -21px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 22px 5px 21px', fontSize: 10 }}>
+            <span style={{ color: C.grey }}>{scoreLabel(offre.score)}</span>
+            <span style={{ color: C.vert, fontWeight: 600 }}>{offre.score} %</span>
           </div>
-        ) : (
-          <button
-            onClick={e => { e.stopPropagation(); handleApply() }}
-            disabled={applying}
-            style={{
-              color: applying ? C.grey : C.terracotta,
-              backgroundColor: 'transparent',
-              border: `1.5px solid ${applying ? C.sable : `${C.terracotta}40`}`,
-              borderRadius: 8, padding: '6px 16px', fontSize: 12, fontWeight: 600,
-              cursor: applying ? 'default' : 'pointer', fontFamily: 'inherit',
-              transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 5,
-            }}
-          >
-            {applying ? (
-              <>
-                <div style={{ width: 11, height: 11, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />
-                Envoi…
-              </>
-            ) : 'Postuler en 1 clic'}
-          </button>
-        )}
-      </div>
+          <div style={{ height: 3, backgroundColor: '#EEF0EF', overflow: 'hidden' }}>
+            <div style={{
+              height: 3, width: '100%', backgroundColor: C.vert,
+              transform: barMounted ? `scaleX(${Math.min(100, offre.score) / 100})` : 'scaleX(0)',
+              transformOrigin: 'left',
+              transition: 'transform 0.8s ease 0.45s',
+            }} />
+          </div>
+        </div>
+      ) : isConnected ? (
+        <Link
+          href="/profil"
+          onClick={e => e.stopPropagation()}
+          style={{ fontSize: 11, color: C.vert, opacity: 0.55, textDecoration: 'underline', textDecorationColor: `${C.vert}40` }}
+        >
+          Complétez votre profil pour voir votre correspondance
+        </Link>
+      ) : null}
     </div>
   )
 }

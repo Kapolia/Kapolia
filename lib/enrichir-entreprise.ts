@@ -11,7 +11,7 @@ export async function fetchProfilsEntreprise(
   if (!recruteurIds.length) return { map: {}, error: null }
 
   const { data, error } = await supabase
-    .from('profils')
+    .from('profils_vue_publique')
     .select('user_id, entreprise_nom, entreprise_logo_url')
     .in('user_id', recruteurIds)
 

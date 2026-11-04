@@ -11,8 +11,8 @@ const INTER = "'Inter', system-ui, sans-serif"
 
 const C = {
   vert:       '#2C4A3E',
-  sable:      '#E8D5B7',
-  creme:      '#F7F2EB',
+  sable:      '#E7EAE8',
+  creme:      '#F6F7F6',
   terracotta: '#C4673A',
   dark:       '#22312B',
   grey:       '#8A9A92',

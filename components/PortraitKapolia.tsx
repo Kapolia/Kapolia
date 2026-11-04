@@ -253,7 +253,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
     <Document>
       <Page
         size="A4"
-        style={{ fontFamily: 'Inter', color: '#22312B', backgroundColor: '#F7F2EB', display: 'flex', flexDirection: 'column' }}
+        style={{ fontFamily: 'Inter', color: '#22312B', backgroundColor: '#F6F7F6', display: 'flex', flexDirection: 'column' }}
       >
         {/* ── Bandeau ─────────────────────────────────────────────────────── */}
         <View style={{ backgroundColor: '#2C4A3E', paddingHorizontal: 29, paddingVertical: 12 }}>
@@ -265,7 +265,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                 {profil.prenom} {profil.nom}
               </Text>
 
-              {/* Intitulé : Inter 700, 10pt, #E8D5B7, marginTop 4pt */}
+              {/* Intitulé : Inter 700, 10pt, #E7EAE8, marginTop 4pt */}
               {displayTitle ? (
                 <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 11.5, color: '#F2E4CC', marginTop: 4 }}>
                   {displayTitle}
@@ -296,7 +296,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
             </View>
             {/* Photo — lisere dessiné par le fond sable du wrapper (react-pdf peint la bordure sous l'image) */}
             {showPhoto ? (
-              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E8D5B7', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E7EAE8', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
                 <Image
                   src={avatarData!}
                   style={{ width: 62, height: 62, borderRadius: 31 }}
@@ -310,7 +310,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
         {/* Chemin crème concave : le vert reste visible au centre (arche), crème aux bords */}
         <View style={{ marginTop: -1 }}>
           <Svg width={595.28} height={14} viewBox="0 0 400 14" preserveAspectRatio="none">
-            <Path d="M0,0 C110,15 290,15 400,0 L400,14 L0,14 Z" fill="#F7F2EB" />
+            <Path d="M0,0 C110,15 290,15 400,0 L400,14 L0,14 Z" fill="#F6F7F6" />
           </Svg>
         </View>
 
@@ -416,7 +416,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               <CardTitle label="Compétences" s={s} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {comps.map((c, i) => (
-                  <View key={i} style={{ backgroundColor: '#F7F2EB', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 1.7, marginRight: 3, marginBottom: 4 }}>
+                  <View key={i} style={{ backgroundColor: '#F6F7F6', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 1.7, marginRight: 3, marginBottom: 4 }}>
                     <Text style={{ fontSize: FS.badge, color: '#22312B' }}>{c}</Text>
                   </View>
                 ))}

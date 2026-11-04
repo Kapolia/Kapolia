@@ -68,12 +68,12 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#F7F2EB',
+        backgroundColor: '#F6F7F6',
       }}>
         <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
         <div style={{
           width: '36px', height: '36px', borderRadius: '50%',
-          border: '3px solid #E8D5B7', borderTopColor: '#C4673A',
+          border: '3px solid #E7EAE8', borderTopColor: '#C4673A',
           animation: 'kapolia-spin 0.8s linear infinite',
         }} />
       </div>
@@ -87,7 +87,7 @@ export default function RecruteurLayout({ children }: { children: React.ReactNod
       display: 'flex',
       height: isFullHeight ? '100vh' : 'auto',
       overflow: isFullHeight ? 'hidden' : 'visible',
-      backgroundColor: '#F7F2EB',
+      backgroundColor: '#F6F7F6',
     }}>
       <RecruiterSidebar
         entrepriseNom={entrepriseNom}
