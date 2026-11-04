@@ -5,15 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { OffreDetail, type OffreData } from '@/components/OffreDetail'
 import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
+import { C } from '@/lib/colors'
 
 // OffreData n'expose pas statut — on l'etend localement
 type OffreAvecStatut = OffreData & { statut?: string | null }
@@ -160,7 +152,7 @@ export default function OffreRecruteurPage() {
             fontFamily: 'inherit', whiteSpace: 'nowrap' as const,
             transition: 'background-color 0.12s',
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.creme }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.bg }}
           onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.white }}
         >
           {nbCandidatures} candidature{nbCandidatures !== 1 ? 's' : ''}
@@ -203,7 +195,7 @@ export default function OffreRecruteurPage() {
           fontFamily: 'inherit', boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
           transition: 'background-color 0.12s',
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.creme }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.bg }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.white }}
       >
         Retour

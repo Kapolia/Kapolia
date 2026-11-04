@@ -5,12 +5,8 @@ import { useRouter } from 'next/navigation'
 import { type ProfilMatch, type ScoreBreakdown } from '@/lib/matching'
 import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 import { ScoreRingInteractive } from '@/components/ScoreRingInteractive'
-
-const C = {
-  terracotta: '#C4673A', sable: '#E7EAE8', creme: '#F6F7F6',
-  vert: '#2C4A3E', dark: '#15201B', grey: '#687069',
-  lightGrey: '#D0D0D0', white: '#FFFFFF', amber: '#C88A2A',
-}
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 export type PresseItem    = { titre: string; source: string; url: string; annee: string }
 export type EtapeHistoire = { annee: string; titre: string; description: string }
@@ -92,13 +88,13 @@ function LogoBlock({ ep, size = 80 }: { ep: EntrepriseProfil; size?: number }) {
   )
   return (
     <div style={{ width: size, height: size, borderRadius: Math.round(size / 5), backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.2)' }}>
-      <span style={{ fontFamily: FONT_SERIF, fontSize: Math.round(size * 0.42), fontWeight: 700, color: C.white }}>{nom.charAt(0).toUpperCase()}</span>
+      <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: Math.round(size * 0.42), fontWeight: 600, color: C.white }}>{nom.charAt(0).toUpperCase()}</span>
     </div>
   )
 }
 
 function STitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>{children}</h2>
+  return <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>{children}</h2>
 }
 
 function PresseRow({ item }: { item: PresseItem }) {
@@ -150,7 +146,7 @@ export function EntrepriseVitrineContenu({
 
   return (
     <main style={{
-      backgroundColor: C.creme,
+      backgroundColor: C.bg,
       minHeight: '100vh',
       marginLeft: contexteRecruteur ? 0 : (isConnected ? 64 : 0),
     }}>
@@ -159,7 +155,7 @@ export function EntrepriseVitrineContenu({
       {/* Navbar minimaliste pour les visiteurs non connectés (mode public uniquement) */}
       {!isConnected && !contexteRecruteur && (
         <nav style={{ backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, padding: '0 40px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-          <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, cursor: 'pointer', letterSpacing: '-0.02em' }}>Kapolia</div>
+          <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, cursor: 'pointer', letterSpacing: '-0.005em' }}>Kapolia</div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => router.push('/offres')} style={{ padding: '7px 16px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Toutes les offres</button>
             <button onClick={() => router.push('/connexion')} style={{ padding: '7px 16px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Se connecter</button>
@@ -189,7 +185,7 @@ export function EntrepriseVitrineContenu({
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
             <LogoBlock ep={ep} size={80} />
             <div style={{ flex: 1, minWidth: 220 }}>
-              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(28px, 5vw, 44px)', color: C.white, margin: '0 0 8px', lineHeight: 1.1 }}>{nom}</h1>
+              <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(28px, 5vw, 44px)', color: C.white, margin: '0 0 8px', lineHeight: 1.1 }}>{nom}</h1>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', marginBottom: 28 }}>
                 {ep.entreprise_secteur && <span style={{ fontSize: 14, color: C.sable }}>⬡ {ep.entreprise_secteur}</span>}
                 {ep.entreprise_ville   && <span style={{ fontSize: 14, color: C.sable }}>◎ {ep.entreprise_ville}</span>}
@@ -217,7 +213,7 @@ export function EntrepriseVitrineContenu({
         {ep.entreprise_mission && (
           <section style={{ marginBottom: 56, textAlign: 'center', padding: '0 32px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.terracotta, marginBottom: 16 }}>Notre mission</div>
-            <p style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(18px, 2.5vw, 26px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
+            <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(18px, 2.5vw, 26px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>
               « {ep.entreprise_mission} »
             </p>
           </section>
@@ -256,7 +252,7 @@ export function EntrepriseVitrineContenu({
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(chiffres.length, 3)}, 1fr)`, gap: 14 }}>
               {chiffres.map(c => (
                 <div key={c.key} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 4vw, 34px)', color: C.vert, fontWeight: 700, marginBottom: 8, lineHeight: 1 }}>{ep[c.key] as string}</div>
+                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 34px)', color: C.vert, fontWeight: 600, marginBottom: 8, lineHeight: 1 }}>{ep[c.key] as string}</div>
                   <div style={{ fontSize: 11, color: C.grey, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{c.label}</div>
                 </div>
               ))}
@@ -271,7 +267,7 @@ export function EntrepriseVitrineContenu({
               <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
               {histoire.map((etape, i) => (
                 <div key={i} style={{ position: 'relative', marginBottom: i < histoire.length - 1 ? 32 : 0 }}>
-                  <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.creme}`, boxSizing: 'border-box' }} />
+                  <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.bg}`, boxSizing: 'border-box' }} />
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.terracotta, letterSpacing: '0.07em', marginBottom: 4 }}>{etape.annee}</div>
                   <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
                   {etape.description && <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>{etape.description}</div>}
@@ -285,7 +281,7 @@ export function EntrepriseVitrineContenu({
           <section style={{ marginBottom: 56 }}>
             <STitle>Nos valeurs</STitle>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.creme }}>{v}</div>)}
+              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.bg }}>{v}</div>)}
             </div>
           </section>
         )}
@@ -310,7 +306,7 @@ export function EntrepriseVitrineContenu({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {temoignages.map((t, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF }}>"</div>
+                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF, letterSpacing: '-0.005em' }}>"</div>
                   <p style={{ fontSize: 14, color: '#3A3A3A', lineHeight: 1.7, fontStyle: 'italic', margin: 0, flex: 1 }}>{t.citation}</p>
                   <div style={{ fontSize: 12, color: C.grey, fontWeight: 500 }}>{t.poste}</div>
                 </div>
@@ -326,7 +322,7 @@ export function EntrepriseVitrineContenu({
           </p>
           {offres.length === 0 ? (
             <div style={{ backgroundColor: C.white, borderRadius: 16, border: `1px solid ${C.sable}`, padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, marginBottom: 6 }}>Aucune offre active en ce moment</div>
+              <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, marginBottom: 6 }}>Aucune offre active en ce moment</div>
               <div style={{ fontSize: 13, color: C.grey }}>Revenez bientôt ou suivez cette entreprise pour être notifié.</div>
             </div>
           ) : (
@@ -344,7 +340,7 @@ export function EntrepriseVitrineContenu({
                       <ScoreRingInteractive score={offre.score} breakdown={offre.breakdown} delay={i * 120} />
                     )}
                     <div style={{ flex: 1, minWidth: 180 }}>
-                      <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, fontWeight: 600, marginBottom: 7 }}>{offre.titre}</div>
+                      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, fontWeight: 600, marginBottom: 7 }}>{offre.titre}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                         {offre.type_contrat && <span style={{ fontSize: 12, fontWeight: 700, color: C.vert, backgroundColor: `${C.vert}15`, padding: '3px 10px', borderRadius: 20 }}>{offre.type_contrat}</span>}
                         {sal && <span style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>💰 {sal}</span>}
@@ -405,7 +401,7 @@ export function EntrepriseVitrineContenu({
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {ep.entreprise_linkedin && (
                 <a href={ep.entreprise_linkedin.startsWith('http') ? ep.entreprise_linkedin : `https://${ep.entreprise_linkedin}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, fontSize: 13, color: C.dark, textDecoration: 'none', fontWeight: 500 }}>
-                  <span style={{ fontWeight: 800, fontSize: 14, fontFamily: 'serif' }}>in</span> LinkedIn
+                  <span style={{ fontWeight: 700, fontSize: 14, fontFamily: 'serif' }}>in</span> LinkedIn
                 </a>
               )}
               {ep.entreprise_instagram && (
@@ -426,7 +422,7 @@ export function EntrepriseVitrineContenu({
       {/* FOOTER */}
       <footer style={{ backgroundColor: C.dark, padding: '32px 40px' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.white }}>{nom}</div>
+          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.white }}>{nom}</div>
           <div style={{ fontSize: 12, color: C.sable, opacity: 0.5 }}>{offres.length} offre{offres.length !== 1 ? 's' : ''} sur Kapolia</div>
         </div>
       </footer>

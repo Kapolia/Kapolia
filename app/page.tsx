@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import LogoKapolia from '@/components/LogoKapolia'
+import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 
 const C = {
-  vert:       '#2C4A3E',
+  vert:       '#24453A',
   vertFonce:  '#1A2E24',
-  terracotta: '#C4673A',
+  terracotta: '#C2611F',
   sable:      '#E8D5B7',
   creme:      '#F7F2EB',
   texte:      '#22312B',
@@ -17,9 +18,6 @@ const C = {
   bordure:    '#E2D9CC',
   erreur:     '#C0392B',
 }
-
-import { FONT_SERIF } from '@/lib/typography'
-const INTER = 'Inter, system-ui, sans-serif'
 
 // ── WaitlistForm ──────────────────────────────────────────────────────────────
 
@@ -54,10 +52,10 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
   if (statut === 'succes') {
     return (
       <div role="status" aria-live="polite" style={{ padding: '8px 0', textAlign: 'center' }}>
-        <p style={{ fontFamily: FONT_SERIF, fontSize: '20px', fontWeight: 600, color: sombre ? C.blanc : C.vert, margin: '0 0 8px' }}>
+        <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '20px', fontWeight: 600, color: sombre ? C.blanc : C.vert, margin: '0 0 8px' }}>
           Votre inscription est confirmée.
         </p>
-        <p style={{ fontFamily: INTER, fontSize: '14px', color: sombre ? C.sable : C.gris, margin: 0, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: FONT_SANS, fontSize: '14px', color: sombre ? C.sable : C.gris, margin: 0, lineHeight: 1.6 }}>
           Nous vous écrirons à l'ouverture de Kapolia. Une seule fois.
         </p>
       </div>
@@ -73,7 +71,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
     backgroundColor: C.blanc,
     color:           C.texte,
     outline:         'none',
-    fontFamily:      INTER,
+    fontFamily:      FONT_SANS,
     boxSizing:       'border-box',
   }
 
@@ -114,7 +112,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
                   color:           actif ? C.terracotta : C.texte,
                   fontSize:        '14px',
                   fontWeight:      actif ? 700 : 400,
-                  fontFamily:      INTER,
+                  fontFamily:      FONT_SANS,
                   cursor:          'pointer',
                   transition:      'all 0.15s',
                 }}
@@ -133,7 +131,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
           onChange={e => setConsent(e.target.checked)}
           style={{ marginTop: '2px', accentColor: C.terracotta, width: '15px', height: '15px', flexShrink: 0 }}
         />
-        <span style={{ fontFamily: INTER, fontSize: '12px', color: C.gris, lineHeight: 1.6 }}>
+        <span style={{ fontFamily: FONT_SANS, fontSize: '12px', color: C.gris, lineHeight: 1.6 }}>
           J'accepte de recevoir un message lors de l'ouverture de Kapolia. Mon adresse ne sera
           utilisée que pour cela et je peux me désinscrire à tout moment.
         </span>
@@ -151,7 +149,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
           color:           valide ? C.blanc : '#9CA3AF',
           fontSize:        '15px',
           fontWeight:      600,
-          fontFamily:      INTER,
+          fontFamily:      FONT_SANS,
           cursor:          valide ? 'pointer' : 'default',
           transition:      'background-color 0.2s',
           display:         'flex',
@@ -176,7 +174,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
       </button>
 
       {statut === 'erreur' && (
-        <p role="alert" style={{ margin: 0, fontSize: '13px', color: C.erreur, fontFamily: INTER }}>
+        <p role="alert" style={{ margin: 0, fontSize: '13px', color: C.erreur, fontFamily: FONT_SANS }}>
           Une erreur est survenue. Merci de réessayer dans quelques instants.
         </p>
       )}
@@ -194,10 +192,10 @@ function ChiffreCle({ valeur, texte }: { valeur: string; texte: string }) {
       padding:         '28px 24px',
       flex:            '1 1 200px',
     }}>
-      <div style={{ fontFamily: FONT_SERIF, fontSize: '38px', fontWeight: 700, color: C.terracotta, marginBottom: '10px' }}>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '38px', fontWeight: 600, color: C.terracotta, marginBottom: '10px' }}>
         {valeur}
       </div>
-      <p style={{ fontFamily: INTER, fontSize: '14px', color: C.texte, lineHeight: 1.6, margin: 0 }}>
+      <p style={{ fontFamily: FONT_SANS, fontSize: '14px', color: C.texte, lineHeight: 1.6, margin: 0 }}>
         {texte}
       </p>
     </div>
@@ -218,7 +216,7 @@ function Puce({ texte }: { texte: string }) {
         flexShrink:      0,
         marginTop:       '10px',
       }} />
-      <p style={{ fontFamily: INTER, fontSize: '16px', color: C.texte, lineHeight: 1.75, margin: 0 }}>
+      <p style={{ fontFamily: FONT_SANS, fontSize: '16px', color: C.texte, lineHeight: 1.75, margin: 0 }}>
         {texte}
       </p>
     </div>
@@ -253,7 +251,7 @@ export default function Home() {
       <div style={{ backgroundColor: C.vert }}>
         <div className="kap-wrap" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0' }}>
           <LogoKapolia variante="contour" taille={28} />
-          <span style={{ fontFamily: INTER, fontSize: '13px', color: C.sable, letterSpacing: '0.02em' }}>
+          <span style={{ fontFamily: FONT_SANS, fontSize: '13px', color: C.sable, letterSpacing: '0.02em' }}>
             Bientôt disponible
           </span>
         </div>
@@ -268,16 +266,16 @@ export default function Home() {
             {/* Texte */}
             <div>
               <h1 style={{
-                fontFamily:   FONT_SERIF,
+                fontFamily:   FONT_SERIF, letterSpacing: '-0.005em',
                 fontSize:     'clamp(30px, 3.8vw, 52px)',
-                fontWeight:   700,
+                fontWeight: 600,
                 color:        C.blanc,
                 lineHeight:   1.2,
                 margin:       '0 0 28px',
               }}>
                 Et si votre prochain poste ne dépendait plus de votre CV&nbsp;?
               </h1>
-              <p style={{ fontFamily: INTER, fontSize: '18px', color: C.sable, lineHeight: 1.75, margin: 0 }}>
+              <p style={{ fontFamily: FONT_SANS, fontSize: '18px', color: C.sable, lineHeight: 1.75, margin: 0 }}>
                 Kapolia propose aux candidats de se présenter tels qu'ils sont&nbsp;: leurs valeurs, leur façon
                 de travailler, leurs aspirations. Les recruteurs repèrent les profils qui correspondent
                 vraiment à leur équipe. L'application ouvre prochainement en France.
@@ -291,10 +289,10 @@ export default function Home() {
               padding:         '36px',
               boxShadow:       '0 8px 40px rgba(0,0,0,0.2)',
             }}>
-              <h2 style={{ fontFamily: FONT_SERIF, fontSize: '20px', fontWeight: 600, color: C.texte, margin: '0 0 6px' }}>
+              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '20px', fontWeight: 600, color: C.texte, margin: '0 0 6px' }}>
                 Être prévenu en premier
               </h2>
-              <p style={{ fontFamily: INTER, fontSize: '13px', color: C.gris, margin: '0 0 24px', lineHeight: 1.5 }}>
+              <p style={{ fontFamily: FONT_SANS, fontSize: '13px', color: C.gris, margin: '0 0 24px', lineHeight: 1.5 }}>
                 Un seul message, à l'ouverture.
               </p>
               <WaitlistForm />
@@ -309,9 +307,9 @@ export default function Home() {
       <section style={{ backgroundColor: C.creme, padding: '96px 0' }}>
         <div className="kap-wrap">
           <h2 style={{
-            fontFamily:   FONT_SERIF,
+            fontFamily:   FONT_SERIF, letterSpacing: '-0.005em',
             fontSize:     'clamp(24px, 3vw, 38px)',
-            fontWeight:   700,
+            fontWeight: 600,
             color:        C.texte,
             maxWidth:     '640px',
             lineHeight:   1.3,
@@ -335,7 +333,7 @@ export default function Home() {
             />
           </div>
 
-          <p style={{ fontFamily: INTER, fontSize: '12px', color: C.gris, marginTop: '28px', lineHeight: 1.5 }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '12px', color: C.gris, marginTop: '28px', lineHeight: 1.5 }}>
             Source&nbsp;: enquête Besoins en main-d'œuvre 2026, France Travail.
           </p>
         </div>
@@ -345,10 +343,10 @@ export default function Home() {
       {/* ── 4. COTE CANDIDAT ─────────────────────────────────────────────────── */}
       <section style={{ backgroundColor: C.blanc, padding: '112px 0' }}>
         <div className="kap-wrap" style={{ maxWidth: '640px' }}>
-          <p style={{ fontFamily: INTER, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Pour les candidats
           </p>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 40px' }}>
+          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 600, color: C.texte, lineHeight: 1.3, margin: '0 0 40px' }}>
             Un profil vivant, pas une liste de dates.
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -364,13 +362,13 @@ export default function Home() {
       {/* ── 5. COTE RECRUTEUR ────────────────────────────────────────────────── */}
       <section style={{ backgroundColor: C.creme, padding: '112px 0' }}>
         <div className="kap-wrap" style={{ maxWidth: '640px' }}>
-          <p style={{ fontFamily: INTER, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Pour les recruteurs
           </p>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 24px' }}>
+          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 600, color: C.texte, lineHeight: 1.3, margin: '0 0 24px' }}>
             Repérez les bons profils, pas les bons CV.
           </h2>
-          <p style={{ fontFamily: INTER, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: '0 0 40px' }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: '0 0 40px' }}>
             Les candidats Kapolia se présentent au-delà de leur parcours&nbsp;: leurs valeurs,
             leur façon de travailler, ce qui les motive. Vous identifiez ceux qui
             correspondent à votre équipe sur des critères concrets, avant même un entretien.
@@ -388,13 +386,13 @@ export default function Home() {
       {/* ── 6. LE PORTRAIT KAPOLIA ───────────────────────────────────────────── */}
       <section style={{ backgroundColor: C.blanc, padding: '112px 0' }}>
         <div className="kap-wrap" style={{ maxWidth: '640px' }}>
-          <p style={{ fontFamily: INTER, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Le Portrait Kapolia
           </p>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 28px' }}>
+          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 600, color: C.texte, lineHeight: 1.3, margin: '0 0 28px' }}>
             Votre profil, en une page, quand un document reste attendu.
           </h2>
-          <p style={{ fontFamily: INTER, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: 0 }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: 0 }}>
             En entretien ou pour postuler ailleurs, on vous demandera toujours un support écrit.
             Kapolia le génère à partir de votre profil, en quelques secondes. Une page soignée,
             qui contient vos qualités et ce qui compte pour vous, et pas seulement la liste de
@@ -408,10 +406,10 @@ export default function Home() {
       {/* ── 8. RAPPEL DU FORMULAIRE ──────────────────────────────────────────── */}
       <section style={{ backgroundColor: C.vert, padding: '96px 0' }}>
         <div className="kap-wrap" style={{ maxWidth: '520px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 700, color: C.blanc, lineHeight: 1.3, margin: '0 0 12px' }}>
+          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 600, color: C.blanc, lineHeight: 1.3, margin: '0 0 12px' }}>
             Rejoindre la liste d'attente
           </h2>
-          <p style={{ fontFamily: INTER, fontSize: '16px', color: C.sable, lineHeight: 1.7, margin: '0 0 40px' }}>
+          <p style={{ fontFamily: FONT_SANS, fontSize: '16px', color: C.sable, lineHeight: 1.7, margin: '0 0 40px' }}>
             Un seul message, à l'ouverture. Pas de relance, pas de newsletter.
           </p>
           <div style={{
@@ -431,7 +429,7 @@ export default function Home() {
         <div className="kap-wrap" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
             <LogoKapolia variante="clair" taille={24} />
-            <span style={{ fontFamily: INTER, fontSize: '13px', color: C.sable }}>· 2026</span>
+            <span style={{ fontFamily: FONT_SANS, fontSize: '13px', color: C.sable }}>· 2026</span>
           </span>
           <div style={{ display: 'flex', gap: '28px' }}>
             {[
@@ -442,7 +440,7 @@ export default function Home() {
               <a
                 key={href}
                 href={href}
-                style={{ fontFamily: INTER, fontSize: '13px', color: C.sable, textDecoration: 'none', opacity: 0.7 }}
+                style={{ fontFamily: FONT_SANS, fontSize: '13px', color: C.sable, textDecoration: 'none', opacity: 0.7 }}
               >
                 {label}
               </a>

@@ -165,7 +165,7 @@ function Card({ children, s }: { children: React.ReactNode; s: ScaleCfg }) {
 function CardTitle({ label, s }: { label: string; s: ScaleCfg }) {
   return (
     <View style={{ borderBottomWidth: 0.6, borderBottomColor: '#EDE4D4', borderBottomStyle: 'solid', paddingBottom: 5, marginBottom: s.cardPadV }}>
-      <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: FS.cardTitle, color: '#2C4A3E' }}>
+      <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: FS.cardTitle, color: '#24453A' }}>
         {label}
       </Text>
     </View>
@@ -183,7 +183,7 @@ function LangInlineText({ langs, lineH }: { langs: string[]; lineH: number }) {
         return (
           <Text key={i}>
             {i > 0 ? <Text>{' · '}</Text> : null}
-            <Text style={{ fontWeight: 700, color: '#2C4A3E' }}>{name}</Text>
+            <Text style={{ fontWeight: 700, color: '#24453A' }}>{name}</Text>
             {level ? <Text style={{ fontWeight: 400, color: '#22312B' }}>{' '}{level}</Text> : null}
           </Text>
         )
@@ -253,10 +253,10 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
     <Document>
       <Page
         size="A4"
-        style={{ fontFamily: 'Inter', color: '#22312B', backgroundColor: '#F6F7F6', display: 'flex', flexDirection: 'column' }}
+        style={{ fontFamily: 'Inter', color: '#22312B', backgroundColor: '#F6F7F5', display: 'flex', flexDirection: 'column' }}
       >
         {/* ── Bandeau ─────────────────────────────────────────────────────── */}
-        <View style={{ backgroundColor: '#2C4A3E', paddingHorizontal: 29, paddingVertical: 12 }}>
+        <View style={{ backgroundColor: '#24453A', paddingHorizontal: 29, paddingVertical: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', minHeight: 64 }}>
             <View style={{ flex: 1, paddingRight: showPhoto ? 14 : 0 }}>
 
@@ -265,7 +265,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                 {profil.prenom} {profil.nom}
               </Text>
 
-              {/* Intitulé : Inter 700, 10pt, #E7EAE8, marginTop 4pt */}
+              {/* Intitulé : Inter 700, 10pt, #E5E8E5, marginTop 4pt */}
               {displayTitle ? (
                 <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 11.5, color: '#F2E4CC', marginTop: 4 }}>
                   {displayTitle}
@@ -296,7 +296,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
             </View>
             {/* Photo — lisere dessiné par le fond sable du wrapper (react-pdf peint la bordure sous l'image) */}
             {showPhoto ? (
-              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E7EAE8', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#E5E8E5', flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
                 <Image
                   src={avatarData!}
                   style={{ width: 62, height: 62, borderRadius: 31 }}
@@ -310,7 +310,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
         {/* Chemin crème concave : le vert reste visible au centre (arche), crème aux bords */}
         <View style={{ marginTop: -1 }}>
           <Svg width={595.28} height={14} viewBox="0 0 400 14" preserveAspectRatio="none">
-            <Path d="M0,0 C110,15 290,15 400,0 L400,14 L0,14 Z" fill="#F6F7F6" />
+            <Path d="M0,0 C110,15 290,15 400,0 L400,14 L0,14 Z" fill="#F6F7F5" />
           </Svg>
         </View>
 
@@ -338,7 +338,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                 return (
                   <View key={i} style={{ marginBottom: i < exps.length - 1 ? ENTRY_GAP : 0 }} wrap={false}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#2C4A3E', flex: 1, paddingRight: 8 }}>
+                      <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', flex: 1, paddingRight: 8 }}>
                         {exp.poste || ''}
                       </Text>
                       {datesStr ? (
@@ -348,7 +348,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                       ) : null}
                     </View>
                     {exp.entreprise ? (
-                      <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C4673A', marginTop: s.companyMt }}>
+                      <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C2611F', marginTop: s.companyMt }}>
                         {exp.entreprise}
                       </Text>
                     ) : null}
@@ -373,10 +373,10 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               {dips.map((d, i) => (
                 <View key={i} style={{ marginBottom: i < dips.length - 1 ? (dips.length > 1 ? 5 : ENTRY_GAP) : 0 }} wrap={false}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#2C4A3E', flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', flex: 1, paddingRight: 8 }}>
                       {d.intitule || ''}
                       {d.ecole ? (
-                        <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C4673A' }}>
+                        <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C2611F' }}>
                           {' · '}{d.ecole}
                         </Text>
                       ) : null}
@@ -401,7 +401,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           {SECTIONS_ACTIVES.includes('Projet phare') && profil.projet_phare ? (
             <Card s={s}>
               <CardTitle label="Projet phare" s={s} />
-              <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#2C4A3E', lineHeight: s.lineH }}>
+              <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', lineHeight: s.lineH }}>
                 {profil.projet_titre || 'Projet phare'}
               </Text>
               <Text style={{ fontFamily: 'Inter', fontStyle: 'italic', fontSize: FS.italic, color: '#6B7A73', marginTop: 4, lineHeight: 1.45 }}>
@@ -416,7 +416,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               <CardTitle label="Compétences" s={s} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {comps.map((c, i) => (
-                  <View key={i} style={{ backgroundColor: '#F6F7F6', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 1.7, marginRight: 3, marginBottom: 4 }}>
+                  <View key={i} style={{ backgroundColor: '#F6F7F5', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 1.7, marginRight: 3, marginBottom: 4 }}>
                     <Text style={{ fontSize: FS.badge, color: '#22312B' }}>{c}</Text>
                   </View>
                 ))}
@@ -430,18 +430,18 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               <CardTitle label="Qualités naturelles" s={s} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {qualites.map((q, i) => (
-                  <View key={i} style={{ backgroundColor: '#FBF0E9', borderRadius: 8, borderWidth: 1, borderColor: '#C4673A', borderStyle: 'solid', paddingHorizontal: 9, paddingVertical: 1.5, marginRight: 3.5, marginBottom: 4 }}>
-                    <Text style={{ fontSize: FS.badge, color: '#C4673A', fontWeight: 700 }}>{q}</Text>
+                  <View key={i} style={{ backgroundColor: '#FBF0E9', borderRadius: 8, borderWidth: 1, borderColor: '#C2611F', borderStyle: 'solid', paddingHorizontal: 9, paddingVertical: 1.5, marginRight: 3.5, marginBottom: 4 }}>
+                    <Text style={{ fontSize: FS.badge, color: '#C2611F', fontWeight: 700 }}>{q}</Text>
                   </View>
                 ))}
                 {qualitesProches.map((q, i) => (
-                  <View key={`p${i}`} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FBF0E9', borderRadius: 8, borderWidth: 1, borderColor: '#C4673A', borderStyle: 'solid', paddingHorizontal: 9, paddingVertical: 1.5, marginRight: 3.5, marginBottom: 4 }}>
+                  <View key={`p${i}`} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FBF0E9', borderRadius: 8, borderWidth: 1, borderColor: '#C2611F', borderStyle: 'solid', paddingHorizontal: 9, paddingVertical: 1.5, marginRight: 3.5, marginBottom: 4 }}>
                     <Svg width={9} height={9} viewBox="0 0 42 42" style={{ marginRight: 3 }}>
-                      <Circle cx="21" cy="21" r="21" fill="#2C4A3E" />
+                      <Circle cx="21" cy="21" r="21" fill="#24453A" />
                       <Path d="M14 29 L21 12 L28 29" stroke="#FFFFFF" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
-                      <Path d="M14 29 L21 25 L28 29" stroke="#C4673A" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+                      <Path d="M14 29 L21 25 L28 29" stroke="#C2611F" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
                     </Svg>
-                    <Text style={{ fontSize: FS.badge, color: '#C4673A', fontWeight: 700 }}>{q}</Text>
+                    <Text style={{ fontSize: FS.badge, color: '#C2611F', fontWeight: 700 }}>{q}</Text>
                   </View>
                 ))}
               </View>
@@ -496,11 +496,11 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
         <View style={{ paddingHorizontal: MARGIN_H, paddingBottom: 16, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Svg width={9} height={9} viewBox="0 0 42 42" style={{ marginRight: 4 }}>
-              <Circle cx="21" cy="21" r="21" fill="#2C4A3E" />
+              <Circle cx="21" cy="21" r="21" fill="#24453A" />
               <Path d="M14 29 L21 12 L28 29" stroke="#FFFFFF" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
-              <Path d="M14 29 L21 25 L28 29" stroke="#C4673A" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M14 29 L21 25 L28 29" stroke="#C2611F" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
-            <Text style={{ fontFamily: 'Lora', fontSize: FS.footer, color: '#2C4A3E' }}>
+            <Text style={{ fontFamily: 'Lora', fontSize: FS.footer, color: '#24453A' }}>
               Portrait Kapolia
             </Text>
           </View>

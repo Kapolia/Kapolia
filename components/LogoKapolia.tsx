@@ -1,4 +1,5 @@
 import { FONT_SERIF } from '@/lib/typography'
+import { C } from '@/lib/colors'
 
 export type Variante = 'sombre' | 'clair' | 'contour' | 'terracotta' | 'monochrome'
 
@@ -23,15 +24,15 @@ type Cfg = {
 function getConfig(variante: Variante, couleur: string): Cfg {
   switch (variante) {
     case 'sombre':
-      return { disque: '#2C4A3E', bordure: null, pointe: '#FFFFFF', base: '#C4673A', texte: '#2C4A3E'  }
+      return { disque: C.vert,  bordure: null,    pointe: C.white,  base: C.orange, texte: C.vert   }
     case 'clair':
-      return { disque: '#F6F7F6', bordure: null, pointe: '#2C4A3E', base: '#C4673A', texte: '#FFFFFF'  }
+      return { disque: C.bg,    bordure: null,    pointe: C.vert,   base: C.orange, texte: C.white  }
     case 'contour':
-      return { disque: null,      bordure: '#E7EAE8', pointe: '#FFFFFF', base: '#C4673A', texte: '#E7EAE8' }
+      return { disque: null,    bordure: C.sable, pointe: C.white,  base: C.orange, texte: C.sable  }
     case 'terracotta':
-      return { disque: '#2C4A3E', bordure: null, pointe: '#FFFFFF', base: '#E7EAE8', texte: '#E7EAE8'  }
+      return { disque: C.vert,  bordure: null,    pointe: C.white,  base: C.sable,  texte: C.sable  }
     case 'monochrome':
-      return { disque: couleur,   bordure: null, pointe: couleur,   base: couleur,   texte: couleur    }
+      return { disque: couleur, bordure: null,    pointe: couleur,  base: couleur,  texte: couleur  }
   }
 }
 
@@ -39,7 +40,7 @@ export default function LogoKapolia({
   variante  = 'sombre',
   avecTexte = true,
   taille    = 36,
-  couleur   = '#2C4A3E',
+  couleur   = C.vert,
   className,
   style,
   needleClassName,
@@ -104,7 +105,7 @@ export default function LogoKapolia({
       {symbol}
       <span
         style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontWeight: 600,
           fontSize:   typeof taille === 'number' ? `${Math.round(taille * 0.56)}px` : undefined,
           color:      c.texte,

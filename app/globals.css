@@ -1,59 +1,113 @@
 @import "tailwindcss";
 
-/* ─── EB Garamond (serif — titres) ──────────────────────────────────────────── */
+/* ─── Lora 600 droit (titres) ────────────────────────────────────────────────── */
 @font-face {
-  font-family: 'EB Garamond';
-  src: url('/fonts/EBGaramond-latin-ext.woff2') format('woff2'),
-       url('/fonts/EBGaramond-latin.woff2') format('woff2');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0000-00FF, U+0100-02BA, U+0131, U+0152-0153, U+02BB-02BC,
-                 U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-                 U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
-                 U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'EB Garamond';
-  src: url('/fonts/EBGaramond-latin-ext.woff2') format('woff2'),
-       url('/fonts/EBGaramond-latin.woff2') format('woff2');
+  font-family: 'Lora';
+  src: url('/fonts/Lora-600-latin-ext.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+0000-00FF, U+0100-02BA, U+0131, U+0152-0153, U+02BB-02BC,
-                 U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-                 U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
-                 U+FEFF, U+FFFD;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/Lora-600-latin.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* ─── Inter (sans-serif — corps et interface) ────────────────────────────────── */
+/* ─── Lora 400 droit (corps de citation) ────────────────────────────────────── */
 @font-face {
-  font-family: 'Inter';
-  src: url('/fonts/Inter-Regular.ttf') format('truetype');
+  font-family: 'Lora';
+  src: url('/fonts/Lora-400-latin-ext.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Inter';
-  src: url('/fonts/Inter-Italic.ttf') format('truetype');
+  font-family: 'Lora';
+  src: url('/fonts/Lora-400-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ─── Lora 400 italique (citations) ─────────────────────────────────────────── */
+@font-face {
+  font-family: 'Lora';
+  src: url('/fonts/Lora-400italic-latin-ext.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Inter';
-  src: url('/fonts/Inter-Medium.ttf') format('truetype');
-  font-weight: 500;
+  font-family: 'Lora';
+  src: url('/fonts/Lora-400italic-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ─── Source Sans 3 droit variable 400-700 ──────────────────────────────────── */
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/SourceSans3-latin-ext.woff2') format('woff2');
+  font-weight: 400 700;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
-  font-family: 'Inter';
-  src: url('/fonts/Inter-Bold.ttf') format('truetype');
-  font-weight: 700;
+  font-family: 'Source Sans 3';
+  src: url('/fonts/SourceSans3-latin.woff2') format('woff2');
+  font-weight: 400 700;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ─── Source Sans 3 italique variable 400-700 ───────────────────────────────── */
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/SourceSans3-italic-latin-ext.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+                 U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF,
+                 U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/SourceSans3-italic-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+                 U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 :root {
@@ -64,8 +118,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans:  'Inter', system-ui, sans-serif;
-  --font-serif: 'EB Garamond', Garamond, Georgia, serif;
+  --font-sans:  'Source Sans 3', system-ui, sans-serif;
+  --font-serif: 'Lora', Georgia, serif;
   --font-mono:  ui-monospace, SFMono-Regular, monospace;
 }
 
@@ -74,7 +128,16 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Source Sans 3', system-ui, sans-serif;
+}
+
+/* Charte typographique : tous les titres en Lora 600, letter-spacing serré */
+@layer base {
+  h1, h2, h3 { font-weight: 600; }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.005em;
 }
 
 /* ─── Animations Kapolia ────────────────────────────────────────────────────── */

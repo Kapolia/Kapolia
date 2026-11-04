@@ -4,21 +4,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  amber:      '#C88A2A',
-  red:        '#C0392B',
-}
 
 const AVANTAGE_ICONS: Record<string, string> = {
   'Mutuelle': '🏥', 'RTT': '🏖️', 'Tickets restaurant': '🍽️',
@@ -102,7 +91,7 @@ function offreStatut(o: OffreRow): 'publiée' | 'brouillon' | 'archivée' {
 
 function statutInfo(s: string) {
   if (s === 'brouillon') return { label: 'Brouillon', bg: `${C.grey}18`,   color: C.grey }
-  if (s === 'archivée')  return { label: 'Archivée',  bg: `${C.amber}18`,  color: C.amber }
+  if (s === 'archivée')  return { label: 'Archivée',  bg: `${C.attente}18`,  color: C.attente }
   return                        { label: 'Active',    bg: `${C.vert}14`,   color: C.vert }
 }
 
@@ -147,11 +136,11 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 400, backgroundColor: 'rgba(26,26,26,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
       <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '28px 32px', maxWidth: 380, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.16)', animation: 'kapolia-modal 0.18s ease' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, marginBottom: 10 }}>Confirmer la suppression</div>
+        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, marginBottom: 10 }}>Confirmer la suppression</div>
         <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.65, margin: '0 0 22px' }}>{message}</p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onCancel} style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
-          <button onClick={onConfirm} style={{ flex: 1, padding: '11px', borderRadius: 10, border: 'none', backgroundColor: C.red, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Supprimer</button>
+          <button onClick={onConfirm} style={{ flex: 1, padding: '11px', borderRadius: 10, border: 'none', backgroundColor: C.erreur, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Supprimer</button>
         </div>
       </div>
     </div>
@@ -181,9 +170,9 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
       <div style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 800, boxShadow: '0 8px 48px rgba(0,0,0,0.20)', overflow: 'hidden', animation: 'kapolia-modal 0.2s ease' }}>
 
         {/* Top bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.creme, gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.bg, gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark }}>{offre.titre}</span>
+            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark }}>{offre.titre}</span>
             <span style={{ padding: '2px 10px', borderRadius: 20, backgroundColor: `${C.grey}14`, fontSize: 11, color: C.grey, fontWeight: 600 }}>Aperçu</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -199,7 +188,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
         <div style={{ padding: '28px 32px', borderBottom: `1px solid ${C.sable}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
             <div>
-              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 26, color: C.dark, margin: '0 0 6px', fontWeight: 700 }}>{offre.titre}</h2>
+              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 6px', fontWeight: 600 }}>{offre.titre}</h2>
               <div style={{ fontSize: 14, color: C.grey }}>
                 {[offre.ville].filter(Boolean).join(', ')}
                 {offre.mode_travail && <span style={{ color: modeColor, fontWeight: 500 }}> · {offre.mode_travail}</span>}
@@ -250,7 +239,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
           )}
 
           {validMissions.length > 0 && (
-            <div style={{ backgroundColor: C.creme, borderRadius: 14, padding: '18px 22px' }}>
+            <div style={{ backgroundColor: C.bg, borderRadius: 14, padding: '18px 22px' }}>
               <div style={ST}>Missions principales</div>
               <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {validMissions.map((m, i) => <li key={i} style={{ fontSize: 14, color: C.dark, lineHeight: 1.5 }}>{m}</li>)}
@@ -269,7 +258,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
             <div>
               <div style={ST}>Compétences</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {comps.map(c => <span key={c} style={{ padding: '5px 14px', borderRadius: 12, backgroundColor: C.creme, border: `1.5px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>{c}</span>)}
+                {comps.map(c => <span key={c} style={{ padding: '5px 14px', borderRadius: 12, backgroundColor: C.bg, border: `1.5px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>{c}</span>)}
                 {compsBonus.map(c => <span key={c} style={{ padding: '5px 14px', borderRadius: 12, backgroundColor: C.white, border: `1.5px dashed ${C.sable}`, fontSize: 13, color: C.grey }}>{c} <span style={{ fontSize: 10 }}>BONUS</span></span>)}
               </div>
             </div>
@@ -308,7 +297,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
         </div>
 
         {/* CTA footer */}
-        <div style={{ padding: '18px 32px', borderTop: `1px solid ${C.sable}`, backgroundColor: C.creme, display: 'flex', gap: 10 }}>
+        <div style={{ padding: '18px 32px', borderTop: `1px solid ${C.sable}`, backgroundColor: C.bg, display: 'flex', gap: 10 }}>
           <button onClick={() => { onClose(); /* navigate handled by parent */ }} style={{ flex: 1, padding: '13px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             Voir les {count} candidature{count !== 1 ? 's' : ''} →
           </button>
@@ -354,7 +343,7 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Clickable title */}
-            <button onClick={e => { e.stopPropagation(); onDetail() }} style={{ fontFamily: FONT_SERIF, fontSize: 17, fontWeight: 700, color: C.dark, lineHeight: 1.2, marginBottom: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textDecorationColor: 'transparent', textUnderlineOffset: 3, transition: 'text-decoration-color 0.15s', fontStyle: 'normal' }}
+            <button onClick={e => { e.stopPropagation(); onDetail() }} style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, lineHeight: 1.2, marginBottom: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textDecorationColor: 'transparent', textUnderlineOffset: 3, transition: 'text-decoration-color 0.15s', fontStyle: 'normal' }}
               onMouseEnter={e => (e.currentTarget.style.textDecorationColor = C.terracotta)}
               onMouseLeave={e => (e.currentTarget.style.textDecorationColor = 'transparent')}
             >
@@ -363,7 +352,7 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {offre.type_contrat && <span style={{ padding: '2px 9px', borderRadius: 20, backgroundColor: `${C.terracotta}15`, color: C.terracotta, fontSize: 11, fontWeight: 700 }}>{offre.type_contrat}</span>}
               {offre.domaine     && <span style={{ padding: '2px 9px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, fontSize: 11, fontWeight: 700 }}>{offre.domaine}</span>}
-              {offre.ville       && <span style={{ padding: '2px 9px', borderRadius: 20, backgroundColor: C.creme, border: `1px solid ${C.sable}`, color: C.grey, fontSize: 11 }}>◎ {offre.ville}</span>}
+              {offre.ville       && <span style={{ padding: '2px 9px', borderRadius: 20, backgroundColor: C.bg, border: `1px solid ${C.sable}`, color: C.grey, fontSize: 11 }}>◎ {offre.ville}</span>}
               {offre.mode_travail && <span style={{ padding: '2px 9px', borderRadius: 20, backgroundColor: `${modeColor}12`, color: modeColor, fontSize: 11, fontWeight: 500 }}>{offre.mode_travail}</span>}
             </div>
           </div>
@@ -385,13 +374,13 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
             {dateLabel(offre.created_at)}
           </div>
           {missingExpiry && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.red, padding: '2px 8px', borderRadius: 20, backgroundColor: `${C.red}15` }}>Expiration manquante</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.erreur, padding: '2px 8px', borderRadius: 20, backgroundColor: `${C.erreur}15` }}>Expiration manquante</span>
           )}
           {!missingExpiry && offre.expire_at && expired && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.red, padding: '2px 8px', borderRadius: 20, backgroundColor: `${C.red}15` }}>Expirée le {expireDateLabel(offre.expire_at)}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.erreur, padding: '2px 8px', borderRadius: 20, backgroundColor: `${C.erreur}15` }}>Expirée le {expireDateLabel(offre.expire_at)}</span>
           )}
           {!missingExpiry && offre.expire_at && !expired && daysLeft !== null && daysLeft <= 7 && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.amber, padding: '2px 8px', borderRadius: 20, backgroundColor: `${C.amber}18` }}>Expire dans {daysLeft} j</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.attente, padding: '2px 8px', borderRadius: 20, backgroundColor: `${C.attente}18` }}>Expire dans {daysLeft} j</span>
           )}
           {!missingExpiry && offre.expire_at && !expired && daysLeft !== null && daysLeft > 7 && (
             <span style={{ fontSize: 11, color: C.grey }}>Expire le {expireDateLabel(offre.expire_at)}</span>
@@ -409,7 +398,7 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
             <span style={{ fontSize: 11, color: C.grey }}>Progression des candidatures</span>
             <span style={{ fontSize: 11, color: pct >= 80 ? C.vert : C.grey, fontWeight: 600 }}>{count} / {CAND_TARGET}</span>
           </div>
-          <div style={{ height: 5, borderRadius: 10, backgroundColor: C.creme, overflow: 'hidden' }}>
+          <div style={{ height: 5, borderRadius: 10, backgroundColor: C.bg, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${pct}%`, borderRadius: 10, backgroundColor: pct >= 80 ? C.vert : C.terracotta, transition: 'width 0.5s ease' }} />
           </div>
         </div>
@@ -436,7 +425,7 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
             : expired
               ? (republishOpen
                   ? <>
-                      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', zIndex: 11, backgroundColor: C.creme, border: `1.5px solid ${C.sable}`, borderRadius: 12, padding: '12px 14px', width: '100%' }}>
+                      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', zIndex: 11, backgroundColor: C.bg, border: `1.5px solid ${C.sable}`, borderRadius: 12, padding: '12px 14px', width: '100%' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                           <span style={{ fontSize: 12, color: C.grey }}>Republier pour combien de temps ?</span>
                           <button onClick={() => setRepublishOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 18, padding: '0 2px', lineHeight: 1 }}>×</button>
@@ -456,12 +445,12 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                       Republier
                     </button>)
-              : <button onClick={e => { e.stopPropagation(); onArchive() }} style={actionBtn(C.amber)}>
+              : <button onClick={e => { e.stopPropagation(); onArchive() }} style={actionBtn(C.attente)}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
                   Archiver
                 </button>
           }
-          <button onClick={e => { e.stopPropagation(); onDelete() }} style={{ ...actionBtn(C.red), marginLeft: 'auto' }}>
+          <button onClick={e => { e.stopPropagation(); onDelete() }} style={{ ...actionBtn(C.erreur), marginLeft: 'auto' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             Supprimer
           </button>
@@ -482,7 +471,7 @@ function BulkBar({ count, offres, onArchiveAll, onDeleteAll, onClear }: {
       <div style={{ width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.2)' }} />
       <button onClick={onArchiveAll} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', backgroundColor: 'transparent', color: C.white, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Archiver tout</button>
       <button onClick={() => exportCSV(offres)} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', backgroundColor: 'transparent', color: C.white, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Exporter CSV</button>
-      <button onClick={onDeleteAll} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: C.red, color: C.white, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Supprimer tout</button>
+      <button onClick={onDeleteAll} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: C.erreur, color: C.white, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Supprimer tout</button>
       <button onClick={onClear} style={{ padding: '4px 8px', borderRadius: 6, border: 'none', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer', lineHeight: 1 }}>✕</button>
     </div>
   )
@@ -496,7 +485,7 @@ function EmptyState({ onPublish }: { onPublish: () => void }) {
       <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: `${C.terracotta}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.terracotta} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
       </div>
-      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark, margin: '0 0 10px' }}>Aucune offre publiée</h2>
+      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark, margin: '0 0 10px' }}>Aucune offre publiée</h2>
       <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.7, margin: '0 0 28px' }}>Commencez à attirer les meilleurs talents en publiant votre première offre. C'est rapide et gratuit.</p>
       <button onClick={onPublish} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
         Publier ma première offre →
@@ -647,7 +636,7 @@ export default function MesOffresPage() {
   ]
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin       { to { transform: rotate(360deg); } }
         @keyframes kapolia-modal      { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -685,12 +674,12 @@ export default function MesOffresPage() {
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
             <div>
-              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(24px, 3.5vw, 32px)', color: C.dark, margin: '0 0 6px', lineHeight: 1.15 }}>Mes offres</h1>
+              <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 3.5vw, 32px)', fontWeight: 600, color: C.dark, margin: '0 0 6px', lineHeight: 1.15 }}>Mes offres</h1>
               {!loading && (
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, color: C.vert, fontWeight: 600 }}>● {stats.actives} active{stats.actives !== 1 ? 's' : ''}</span>
                   {stats.brouillons > 0 && <span style={{ fontSize: 13, color: C.grey }}>○ {stats.brouillons} brouillon{stats.brouillons !== 1 ? 's' : ''}</span>}
-                  {stats.archivees  > 0 && <span style={{ fontSize: 13, color: C.amber }}>◐ {stats.archivees} archivée{stats.archivees !== 1 ? 's' : ''}</span>}
+                  {stats.archivees  > 0 && <span style={{ fontSize: 13, color: C.attente }}>◐ {stats.archivees} archivée{stats.archivees !== 1 ? 's' : ''}</span>}
                 </div>
               )}
             </div>
@@ -705,7 +694,7 @@ export default function MesOffresPage() {
               return (
                 <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '10px 16px', border: 'none', borderBottom: `2px solid ${active ? C.terracotta : 'transparent'}`, backgroundColor: 'transparent', color: active ? C.terracotta : C.grey, fontSize: 13, fontWeight: active ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {t.label}
-                  <span style={{ padding: '1px 7px', borderRadius: 20, backgroundColor: active ? `${C.terracotta}15` : C.creme, color: active ? C.terracotta : C.grey, fontSize: 11, fontWeight: 600 }}>{t.count}</span>
+                  <span style={{ padding: '1px 7px', borderRadius: 20, backgroundColor: active ? `${C.terracotta}15` : C.bg, color: active ? C.terracotta : C.grey, fontSize: 11, fontWeight: 600 }}>{t.count}</span>
                 </button>
               )
             })}
@@ -740,7 +729,7 @@ export default function MesOffresPage() {
         ) : displayed.length === 0 ? (
           <div style={{ backgroundColor: C.white, borderRadius: 18, border: `1px solid ${C.sable}`, padding: '60px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>◎</div>
-            <div style={{ fontFamily: FONT_SERIF, fontSize: 18, color: C.dark, marginBottom: 6 }}>Aucune offre dans cette catégorie</div>
+            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, marginBottom: 6 }}>Aucune offre dans cette catégorie</div>
             <div style={{ fontSize: 13, color: C.grey }}>Essayez un autre filtre ou modifiez votre recherche.</div>
           </div>
         ) : (

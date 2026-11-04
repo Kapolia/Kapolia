@@ -4,13 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import CandidatPanneauLayout, { preloadSidebarCache } from '@/components/CandidatPanneauLayout'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  dark:       '#15201B',
-  grey:       '#9B9B9B',
-}
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, grey: '#9B9B9B' as const }
 
 function BandeauEmailNonVerifie() {
   const [cooldown, setCooldown] = useState(0)
@@ -120,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
           <div style={{
             width: 36, height: 36, borderRadius: '50%',
-            border: '3px solid #E7EAE8', borderTopColor: '#C4673A',
+            border: `3px solid `, borderTopColor: C.orange,
             animation: 'kapolia-spin 0.8s linear infinite',
           }} />
         </div>

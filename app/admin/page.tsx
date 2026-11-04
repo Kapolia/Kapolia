@@ -4,26 +4,10 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const, blue: '#2563EB' as const, sidebar: '#18211F' as const, sidebarHov: '#243330' as const, redBg: '#FDECEA' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  bg:         '#F5F5F5',
-  sidebar:    '#18211F',
-  sidebarHov: '#243330',
-  red:        '#C0392B',
-  redBg:      '#FDECEA',
-  blue:       '#2563EB',
-  amber:      '#C88A2A',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,9 +62,9 @@ const STATUTS: Statut[] = ['envoyée', 'vue', 'en_cours', 'acceptée', 'refusée
 const STATUT_STYLE: Record<Statut, { color: string; bg: string; label: string }> = {
   envoyée:  { color: C.grey,       bg: '#F0F0F0', label: 'Envoyée' },
   vue:      { color: C.blue,       bg: '#EBF0FF', label: 'Vue' },
-  en_cours: { color: C.amber,      bg: `${C.amber}20`, label: 'En cours' },
+  en_cours: { color: C.attente,      bg: `${C.attente}20`, label: 'En cours' },
   acceptée: { color: C.vert,       bg: `${C.vert}18`, label: 'Acceptée' },
-  refusée:  { color: C.red,        bg: C.redBg,   label: 'Refusée' },
+  refusée:  { color: C.erreur,        bg: C.redBg,   label: 'Refusée' },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -132,8 +116,8 @@ function StatCard({ label, value, icon, accent }: {
     }}>
       <div style={{ fontSize: '18px', marginBottom: '10px' }}>{icon}</div>
       <div style={{
-        fontFamily: FONT_SERIF,
-        fontSize: '34px', fontWeight: '700',
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+        fontSize: '34px', fontWeight: 600,
         color: accent, lineHeight: 1, marginBottom: '6px',
       }}>
         {value}
@@ -149,7 +133,7 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
       display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '16px',
     }}>
       <h2 style={{
-        fontFamily: FONT_SERIF, fontSize: '18px',
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '18px',
         color: C.dark, margin: 0,
       }}>
         {title}
@@ -201,8 +185,8 @@ function BtnDanger({ label, onClick, loading }: {
       onClick={onClick}
       disabled={loading}
       style={{
-        backgroundColor: 'transparent', color: C.red,
-        border: `1px solid ${C.red}40`, borderRadius: '8px',
+        backgroundColor: 'transparent', color: C.erreur,
+        border: `1px solid ${C.erreur}40`, borderRadius: '8px',
         padding: '5px 12px', fontSize: '12px', fontWeight: '600',
         cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.5 : 1,
       }}
@@ -341,7 +325,7 @@ export default function AdminPage() {
           marginBottom: '8px',
         }}>
           <div style={{
-            fontFamily: FONT_SERIF, fontSize: '18px',
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '18px',
             color: C.white, marginBottom: '4px',
           }}>
             Kapolia
@@ -408,7 +392,7 @@ export default function AdminPage() {
           <StatCard icon="◎" label="Utilisateurs"   value={stats.total}        accent={C.dark} />
           <StatCard icon="👤" label="Candidats"     value={stats.candidats}    accent={C.terracotta} />
           <StatCard icon="🔍" label="Recruteurs"    value={stats.recruteurs}   accent={C.vert} />
-          <StatCard icon="⬡" label="Offres"         value={stats.offres}       accent={C.amber} />
+          <StatCard icon="⬡" label="Offres"         value={stats.offres}       accent={C.attente} />
           <StatCard icon="✦" label="Candidatures"   value={stats.candidatures} accent={C.blue} />
         </div>
 
@@ -550,8 +534,8 @@ export default function AdminPage() {
                         onClick={() => toggleOffre(o.id, o.active)}
                         disabled={busy === o.id}
                         style={{
-                          backgroundColor: o.active ? `${C.vert}15` : `${C.amber}20`,
-                          color: o.active ? C.vert : C.amber,
+                          backgroundColor: o.active ? `${C.vert}15` : `${C.attente}20`,
+                          color: o.active ? C.vert : C.attente,
                           border: 'none', borderRadius: '8px',
                           padding: '5px 10px', fontSize: '12px', fontWeight: '600',
                           cursor: busy === o.id ? 'default' : 'pointer',

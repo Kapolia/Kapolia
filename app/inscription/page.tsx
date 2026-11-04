@@ -6,20 +6,10 @@ import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
 import { FONT_SERIF } from '@/lib/typography'
 import { safeNext, storeNext, OAUTH_TYPE_KEY, OAUTH_NEXT_KEY } from '@/lib/auth-redirect'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable: '#E7EAE8',
-  creme: '#F6F7F6',
-  vert: '#2C4A3E',
-  dark: '#15201B',
-  grey: '#687069',
-  lightGrey: '#D0D0D0',
-  white: '#FFFFFF',
-  error: '#C0392B',
-}
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
@@ -58,7 +48,7 @@ function Field({
             padding: suffix ? '12px 44px 12px 14px' : '12px 14px',
             fontSize: '15px',
             borderRadius: '12px',
-            border: `1.5px solid ${hasError ? C.error : value ? C.sable : C.lightGrey}`,
+            border: `1.5px solid ${hasError ? C.erreur : value ? C.sable : C.lightGrey}`,
             backgroundColor: C.white,
             color: C.dark,
             outline: 'none',
@@ -76,7 +66,7 @@ function Field({
         )}
       </div>
       {hasError && (
-        <span style={{ fontSize: '12px', color: C.error }}>{error}</span>
+        <span style={{ fontSize: '12px', color: C.erreur }}>{error}</span>
       )}
       {hint && !hasError && (
         <span style={{ fontSize: '12px', color: C.grey }}>{hint}</span>
@@ -194,7 +184,7 @@ export default function InscriptionPage() {
   return (
     <main style={{
       minHeight: '100vh',
-      backgroundColor: C.creme,
+      backgroundColor: C.bg,
       display: 'flex',
       flexDirection: 'column',
       padding: 'clamp(20px, 4%, 40px) clamp(20px, 5%, 40px)',
@@ -219,10 +209,10 @@ export default function InscriptionPage() {
 
         {/* Header */}
         <h1 style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontSize: 'clamp(22px, 4vw, 28px)',
           color: C.dark,
-          fontWeight: '400',
+          fontWeight: 600,
           margin: '0 0 28px',
         }}>
           Créez votre profil
@@ -365,8 +355,8 @@ export default function InscriptionPage() {
               padding: '10px 14px',
               borderRadius: '10px',
               backgroundColor: '#fdf2f2',
-              border: `1px solid ${C.error}30`,
-              color: C.error,
+              border: `1px solid ${C.erreur}30`,
+              color: C.erreur,
               fontSize: '13px',
               lineHeight: '1.5',
             }}>

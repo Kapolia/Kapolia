@@ -4,25 +4,33 @@
 // C'est une page éditoriale, pas une interface — ne pas l'uniformiser.
 export const C = {
   // Marque
-  terracotta: '#C4673A',
-  vert:       '#2C4A3E',
+  vert:          '#24453A',
+  orange:        '#C2611F',              // bouton principal, entrée active, badges
+  orangeTexte:   '#A9541A',              // orange utilisé en texte (liens, « Voir tout »)
+  orangeDoux:    'rgba(194, 97, 31, 0.2)', // fond de l'entrée active
+  terracotta:    '#C2611F',              // alias historique de orange
 
-  // Fonds de page
-  bg:         '#F6F7F6',   // fond général (gris-vert froid)
-  creme:      '#F7F2EB',   // accent chaud — zones mises en avant uniquement
-
-  // Surfaces
-  white:      '#FFFFFF',   // fond de carte
-  chip:       '#F1F3F2',   // pastilles neutres
+  // Fonds
+  bg:            '#F6F7F5',
+  creme:         '#F7F2EB',              // landing uniquement
+  white:         '#FFFFFF',
+  chip:          '#F0F2F0',
+  salaire:       '#E6EFE9',
 
   // Bordures
-  sable:      '#E7EAE8',
+  sable:         '#E5E8E5',              // nom historique : c'est la couleur des bordures
 
   // Texte
-  dark:       '#15201B',
-  grey:       '#687069',
+  dark:          '#15201B',
+  grey:          '#646D67',
+  chipTexte:     '#3B4A42',
+  surVert:       'rgba(255, 255, 255, 0.72)',
+
+  // États (inchangés)
+  succes:        '#3E8E5E',
+  attente:       '#C88A2A',
+  erreur:        '#C0392B',
 } as const
 
-// Cartes de premier niveau — ombre teintée vert, deux couches
 export const CARD_SHADOW = '0 1px 2px rgba(27, 48, 38, .06), 0 6px 16px rgba(27, 48, 38, .07)' as const
 export const CARD_RADIUS = 12 as const

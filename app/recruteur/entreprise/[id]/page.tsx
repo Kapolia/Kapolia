@@ -10,11 +10,7 @@ import {
   PROFIL_SELECT,
 } from '@/components/EntrepriseVitrine'
 import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
-
-const C = {
-  creme: '#F6F7F6', sable: '#E7EAE8', terracotta: '#C4673A',
-  dark: '#15201B', grey: '#687069', white: '#FFFFFF',
-}
+import { C } from '@/lib/colors'
 
 function Spinner() {
   return (
@@ -103,7 +99,7 @@ export default function RecruteurEntreprisePage() {
           fontFamily: 'inherit', boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
           transition: 'background-color 0.12s',
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.creme }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.bg }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.white }}
       >
         Retour

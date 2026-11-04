@@ -1,3 +1,5 @@
+import { C as _BK } from '@/lib/colors'
+
 interface BoussoleKapoliaProps {
   size?: number | string
   ringColor?: string
@@ -13,10 +15,10 @@ interface BoussoleKapoliaProps {
 
 export default function BoussoleKapolia({
   size = 48,
-  ringColor = '#2C4A3E',
+  ringColor = _BK.vert,
   ringFill = 'white',
-  northColor = '#C4673A',
-  southColor = '#2C4A3E',
+  northColor = _BK.orange,
+  southColor = _BK.vert,
   centerColor = 'white',
   rotation = 35,
   needleClassName,

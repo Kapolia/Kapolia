@@ -5,22 +5,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import Avatar from '@/components/Avatar'
-import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+
+const C = { ..._C, lightGrey: '#D0D0D0' as const, redBg: '#FDECEA' as const }
+
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  red:        '#C0392B',
-  redBg:      '#FDECEA',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,7 +31,7 @@ function initiales(prenom: string, nom: string) {
 
 function Spinner() {
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <main style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </main>
@@ -56,7 +46,7 @@ function Toast({ msg, visible }: { msg: string; visible: boolean }) {
       transform: `translateX(-50%) translateY(${visible ? '0' : '14px'})`,
       opacity: visible ? 1 : 0, transition: 'opacity 0.22s ease, transform 0.22s ease',
       pointerEvents: 'none', zIndex: 100,
-      backgroundColor: isError ? C.red : C.vert, color: C.white,
+      backgroundColor: isError ? C.erreur : C.vert, color: C.white,
       padding: '11px 22px', borderRadius: 28, fontSize: 14, fontWeight: 600,
       boxShadow: '0 4px 20px rgba(0,0,0,0.16)',
       display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' as const,
@@ -72,7 +62,7 @@ function Toast({ msg, visible }: { msg: string; visible: boolean }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 400 }}>{children}</h2>
+  return <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 600 }}>{children}</h2>
 }
 
 function SectionSub({ children }: { children: React.ReactNode }) {
@@ -363,7 +353,7 @@ export default function ParametresPage() {
   ]
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: C.creme }}>
+    <main style={{ minHeight: '100vh', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <Toast msg={toastMsg} visible={toastVisible} />
 
@@ -374,7 +364,7 @@ export default function ParametresPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 20,
       }}>
-        <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, cursor: 'pointer' }}>
+        <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, cursor: 'pointer' }}>
           Kapolia
         </div>
         <button onClick={() => router.push('/profil')} style={{
@@ -413,7 +403,7 @@ export default function ParametresPage() {
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 width: '100%', textAlign: 'left' as const, padding: '10px 14px', borderRadius: 12,
                 marginBottom: 2, border: 'none',
-                backgroundColor: tab === t.id ? C.creme : 'transparent',
+                backgroundColor: tab === t.id ? C.bg : 'transparent',
                 color: tab === t.id ? C.terracotta : C.grey,
                 fontSize: 13, fontWeight: tab === t.id ? 700 : 400, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.15s',
@@ -456,7 +446,7 @@ export default function ParametresPage() {
                     Facultatif. Visible uniquement sur votre Portrait Kapolia, jamais dans la candidathèque.
                   </div>
                   {contactError && (
-                    <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.red}30`, color: C.red, fontSize: 13, marginTop: 10 }}>
+                    <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.erreur}30`, color: C.erreur, fontSize: 13, marginTop: 10 }}>
                       {contactError}
                     </div>
                   )}
@@ -468,7 +458,7 @@ export default function ParametresPage() {
                 <Divider />
 
                 <div>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, marginBottom: 16 }}>
+                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, marginBottom: 16 }}>
                     Changer le mot de passe
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -485,7 +475,7 @@ export default function ParametresPage() {
                       <TextInput type="password" value={pwdConfirm} onChange={setPwdConfirm} placeholder="••••••••" />
                     </div>
                     {pwdError && (
-                      <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.red}30`, color: C.red, fontSize: 13 }}>
+                      <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.erreur}30`, color: C.erreur, fontSize: 13 }}>
                         {pwdError}
                       </div>
                     )}
@@ -495,8 +485,8 @@ export default function ParametresPage() {
 
                 <Divider />
 
-                <div style={{ padding: '20px 22px', borderRadius: 14, backgroundColor: C.redBg, border: `1px solid ${C.red}25` }}>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.red, marginBottom: 6 }}>Zone de danger</div>
+                <div style={{ padding: '20px 22px', borderRadius: 14, backgroundColor: C.redBg, border: `1px solid ${C.erreur}25` }}>
+                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.erreur, marginBottom: 6 }}>Zone de danger</div>
                   <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px', lineHeight: 1.5 }}>
                     La suppression est permanente et irréversible. Vos messages, fichiers, candidatures et profil seront effacés.
                     Pour confirmer, tapez&nbsp;<strong style={{ color: C.dark }}>{DELETE_PHRASE}</strong> ci-dessous.
@@ -509,7 +499,7 @@ export default function ParametresPage() {
                     disabled={deleting}
                     style={{
                       width: '100%', padding: '10px 14px', fontSize: 13, borderRadius: 10,
-                      border: `1.5px solid ${deletePhrase === DELETE_PHRASE ? C.red : C.sable}`,
+                      border: `1.5px solid ${deletePhrase === DELETE_PHRASE ? C.erreur : C.sable}`,
                       backgroundColor: C.white, color: C.dark,
                       outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit',
                       marginBottom: 12, transition: 'border-color 0.15s',
@@ -519,8 +509,8 @@ export default function ParametresPage() {
                   {deleteError && (
                     <div style={{
                       padding: '10px 14px', borderRadius: 10,
-                      backgroundColor: C.redBg, border: `1px solid ${C.red}30`,
-                      color: C.red, fontSize: 13, marginBottom: 12,
+                      backgroundColor: C.redBg, border: `1px solid ${C.erreur}30`,
+                      color: C.erreur, fontSize: 13, marginBottom: 12,
                     }}>
                       {deleteError}
                     </div>
@@ -529,7 +519,7 @@ export default function ParametresPage() {
                     onClick={deleteAccount}
                     disabled={deleting || deletePhrase !== DELETE_PHRASE}
                     style={{
-                      backgroundColor: C.red, color: C.white, border: 'none', borderRadius: 10,
+                      backgroundColor: C.erreur, color: C.white, border: 'none', borderRadius: 10,
                       padding: '10px 20px', fontSize: 13, fontWeight: 600,
                       cursor: (deleting || deletePhrase !== DELETE_PHRASE) ? 'default' : 'pointer',
                       opacity: (deleting || deletePhrase !== DELETE_PHRASE) ? 0.45 : 1,

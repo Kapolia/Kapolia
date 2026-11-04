@@ -9,19 +9,11 @@ import { OffreDetail, type OffreData } from '@/components/OffreDetail'
 import { useFavoris } from '@/lib/favoris-context'
 import { getStatut } from '@/lib/statuts'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
-import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
-// ─── Palette ──────────────────────────────────────────────────────────────────
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-}
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,7 +79,7 @@ function Spinner({ fullPage = false }: { fullPage?: boolean }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      ...(fullPage ? { minHeight: '100vh', backgroundColor: C.creme } : { flex: 1 }),
+      ...(fullPage ? { minHeight: '100vh', backgroundColor: C.bg } : { flex: 1 }),
     }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
       <div style={{
@@ -109,8 +101,8 @@ function StatCard({ icon, value, label, accent }: {
     }}>
       <div style={{ fontSize: 20, marginBottom: 10 }}>{icon}</div>
       <div style={{
-        fontFamily: FONT_SERIF, fontSize: 32,
-        color: accent, fontWeight: 700, lineHeight: 1, marginBottom: 6,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 32,
+        color: accent, fontWeight: 600, lineHeight: 1, marginBottom: 6,
       }}>
         {value}
       </div>
@@ -164,8 +156,8 @@ function ConfirmModal({ title, body, confirmLabel, onConfirm, onDismiss }: {
         }}
       >
         <h3 style={{
-          fontFamily: FONT_SERIF, fontSize: 18,
-          color: C.dark, margin: '0 0 10px', fontWeight: 400,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18,
+          color: C.dark, margin: '0 0 10px', fontWeight: 600,
         }}>
           {title}
         </h3>
@@ -258,7 +250,7 @@ function CandidatureCardFull({ cand, onViewOffre, onSupprimer }: {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: FONT_SERIF, fontSize: 15,
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15,
             color: C.dark, fontWeight: 600, marginBottom: 4, lineHeight: 1.2,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
@@ -569,7 +561,7 @@ export default function CandidaturesPage() {
   if (selectedCandId) {
     return (
       <main style={{
-        backgroundColor: C.creme,
+        backgroundColor: C.bg,
         height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
@@ -584,8 +576,8 @@ export default function CandidaturesPage() {
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <h1 style={{
-            fontFamily: FONT_SERIF, fontSize: 17,
-            color: C.creme, margin: 0, fontWeight: 400,
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17,
+            color: C.bg, margin: 0, fontWeight: 600,
           }}>
             Mes candidatures
           </h1>
@@ -602,7 +594,7 @@ export default function CandidaturesPage() {
           <div style={{
             width: 340, flexShrink: 0, overflowY: 'auto',
             padding: '24px 20px', borderRight: `1px solid ${C.sable}`,
-            backgroundColor: C.creme,
+            backgroundColor: C.bg,
             display: 'flex', flexDirection: 'column', gap: 6,
           }}>
             {sorted.map(cand => (
@@ -617,7 +609,7 @@ export default function CandidaturesPage() {
 
           {/* Droite — détail offre */}
           <div style={{
-            flex: 1, overflow: 'hidden', backgroundColor: C.creme,
+            flex: 1, overflow: 'hidden', backgroundColor: C.bg,
             display: 'flex', flexDirection: 'column',
           }}>
             {offreLoading ? (
@@ -658,7 +650,7 @@ export default function CandidaturesPage() {
   // ── Vue liste pleine largeur ──────────────────────────────────────────────
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
       {renderModal()}
@@ -668,8 +660,8 @@ export default function CandidaturesPage() {
         {/* Header */}
         <div style={{ marginBottom: 36 }}>
           <h1 style={{
-            fontFamily: FONT_SERIF,
-            fontSize: 'clamp(26px, 4vw, 36px)',
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+            fontSize: 'clamp(26px, 4vw, 36px)', fontWeight: 600,
             color: C.dark, margin: '0 0 6px', lineHeight: 1.15,
           }}>
             Mes candidatures
@@ -699,8 +691,8 @@ export default function CandidaturesPage() {
           }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>◎</div>
             <h2 style={{
-              fontFamily: FONT_SERIF, fontSize: 22, color: C.dark,
-              margin: '0 0 8px', fontWeight: 400,
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark,
+              margin: '0 0 8px', fontWeight: 600,
             }}>
               Vous n&apos;avez pas encore postulé.
             </h2>

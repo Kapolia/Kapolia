@@ -13,20 +13,10 @@ import {
 } from '@/lib/auth-redirect'
 import LogoKapolia from '@/components/LogoKapolia'
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  error:      '#C0392B',
-}
 
 // ─── Shell ────────────────────────────────────────────────────────────────────
 
@@ -34,7 +24,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main style={{
       minHeight: '100vh',
-      backgroundColor: C.creme,
+      backgroundColor: C.bg,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -60,7 +50,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         marginTop: '32px',
         fontSize: '12px',
         color: C.lightGrey,
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontStyle: 'italic',
         textAlign: 'center',
       }}>
@@ -295,16 +285,16 @@ export default function AuthCallbackPage() {
           marginBottom: '20px',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke={C.error} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            stroke={C.erreur} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="9" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
         <h1 style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: '400',
+          color: C.dark, fontWeight: 600,
           margin: '0 0 12px',
         }}>
           Connexion impossible
@@ -340,9 +330,9 @@ export default function AuthCallbackPage() {
   return (
     <Shell>
       <h1 style={{
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontSize: 'clamp(22px, 4vw, 28px)',
-        color: C.dark, fontWeight: '400',
+        color: C.dark, fontWeight: 600,
         margin: '0 0 10px',
       }}>
         Bienvenue sur Kapolia

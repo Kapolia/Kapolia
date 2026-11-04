@@ -28,20 +28,10 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
 import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF } from '@/lib/referentiels'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  error:      '#C0392B',
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -83,14 +73,14 @@ type PreviewData = {
 function SLabel({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 600, color: C.dark }}>{children}</div>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>{children}</div>
       {sub && <div style={{ fontSize: 12, color: C.grey, marginTop: 3 }}>{sub}</div>}
     </div>
   )
 }
 function FieldErr({ msg }: { msg?: string }) {
   if (!msg) return null
-  return <div style={{ fontSize: 12, color: C.error, marginTop: 5 }}>{msg}</div>
+  return <div style={{ fontSize: 12, color: C.erreur, marginTop: 5 }}>{msg}</div>
 }
 function Divider() { return <div style={{ height: 1, backgroundColor: C.sable }} /> }
 function Card({ children }: { children: React.ReactNode }) {
@@ -144,7 +134,7 @@ function TagInput({ tags, onAdd, onRemove, placeholder, max, inputVal, onInputCh
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); onAdd() } }}
             placeholder={placeholder}
             style={{ flex: 1, padding: '10px 14px', fontSize: 13, borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
-          <button type="button" onClick={onAdd} style={{ padding: '0 16px', borderRadius: 12, border: 'none', backgroundColor: C.creme, color: C.dark, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Ajouter</button>
+          <button type="button" onClick={onAdd} style={{ padding: '0 16px', borderRadius: 12, border: 'none', backgroundColor: C.bg, color: C.dark, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Ajouter</button>
         </div>
       )}
       <div style={{ fontSize: 11, color: C.grey, marginTop: 5 }}>{tags.length}/{max} compétences</div>
@@ -159,9 +149,9 @@ function DynList({ items, onChange, placeholder, addLabel = 'Ajouter une étape'
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {items.map((it, i) => (
         <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: it.trim() ? `${C.terracotta}18` : C.creme, border: `1.5px solid ${it.trim() ? C.terracotta : C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: it.trim() ? C.terracotta : C.lightGrey, flexShrink: 0, transition: 'all 0.15s' }}>{i + 1}</div>
+          <div style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: it.trim() ? `${C.terracotta}18` : C.bg, border: `1.5px solid ${it.trim() ? C.terracotta : C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: it.trim() ? C.terracotta : C.lightGrey, flexShrink: 0, transition: 'all 0.15s' }}>{i + 1}</div>
           <input value={it} onChange={e => onChange(items.map((x, j) => j === i ? e.target.value : x))} placeholder={placeholder} style={{ flex: 1, padding: '10px 14px', fontSize: 13, borderRadius: 10, border: `1.5px solid ${it ? C.sable : C.lightGrey}`, backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit', transition: 'border-color 0.15s' }} />
-          {items.length > 1 && <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', backgroundColor: '#FEF2F2', color: C.error, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>}
+          {items.length > 1 && <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', backgroundColor: '#FEF2F2', color: C.erreur, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>}
         </div>
       ))}
       <button type="button" onClick={() => onChange([...items, ''])} style={{ alignSelf: 'flex-start', padding: '8px 16px', borderRadius: 10, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>+ {addLabel}</button>
@@ -173,7 +163,7 @@ function DynList({ items, onChange, placeholder, addLabel = 'Ajouter une étape'
 
 function Stepper({ step }: { step: number }) {
   return (
-    <div style={{ backgroundColor: C.creme, borderBottom: `1px solid ${C.sable}`, padding: '18px 0', position: 'sticky', top: 0, zIndex: 15 }}>
+    <div style={{ backgroundColor: C.bg, borderBottom: `1px solid ${C.sable}`, padding: '18px 0', position: 'sticky', top: 0, zIndex: 15 }}>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'flex-start' }}>
         {STEP_LABELS.map((label, i) => {
           const n = i + 1; const done = step > n; const active = step === n
@@ -222,10 +212,10 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
       <div style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 780, boxShadow: '0 8px 48px rgba(0,0,0,0.20)', overflow: 'hidden', animation: 'kapolia-modal 0.2s ease' }}>
 
         {/* Modal top bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.creme }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.bg }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16 }}>👁</span>
-            <span style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark }}>Aperçu candidat</span>
+            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark }}>Aperçu candidat</span>
             <span style={{ padding: '2px 10px', borderRadius: 20, backgroundColor: `${C.grey}18`, fontSize: 11, color: C.grey, fontWeight: 600 }}>Vue simulée</span>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.grey, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -235,7 +225,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
         <div style={{ padding: '28px 32px', borderBottom: `1px solid ${C.sable}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
             <div>
-              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 24, color: C.dark, margin: '0 0 6px', fontWeight: 700 }}>
+              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 24, color: C.dark, margin: '0 0 6px', fontWeight: 600 }}>
                 {d.titre || <span style={{ color: C.lightGrey }}>Titre du poste</span>}
               </h2>
               <div style={{ fontSize: 14, color: C.grey }}>
@@ -277,7 +267,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
           )}
 
           {validMissions.length > 0 && (
-            <div style={{ backgroundColor: C.creme, borderRadius: 14, padding: '18px 22px' }}>
+            <div style={{ backgroundColor: C.bg, borderRadius: 14, padding: '18px 22px' }}>
               <div style={ST}>Missions principales</div>
               <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {validMissions.map((m, i) => <li key={i} style={{ fontSize: 14, color: C.dark, lineHeight: 1.5 }}>{m}</li>)}
@@ -296,7 +286,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
             <div>
               <div style={ST}>Compétences</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {d.competences.map(c => <span key={c} style={{ padding: '5px 14px', borderRadius: 12, backgroundColor: C.creme, border: `1.5px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>{c}</span>)}
+                {d.competences.map(c => <span key={c} style={{ padding: '5px 14px', borderRadius: 12, backgroundColor: C.bg, border: `1.5px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>{c}</span>)}
                 {d.competencesBonus.map(c => <span key={c} style={{ padding: '5px 14px', borderRadius: 12, backgroundColor: C.white, border: `1.5px dashed ${C.sable}`, fontSize: 13, color: C.grey }}>{c} <span style={{ fontSize: 10 }}>BONUS</span></span>)}
               </div>
             </div>
@@ -326,7 +316,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
                       <div style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</div>
                       <span style={{ fontSize: 13, color: C.dark }}>{p}</span>
                     </div>
-                    {i < validProcess.length - 1 && <span style={{ color: C.lightGrey, fontSize: 14, fontWeight: 300 }}>→</span>}
+                    {i < validProcess.length - 1 && <span style={{ color: C.lightGrey, fontSize: 14, fontWeight: 400 }}>→</span>}
                   </React.Fragment>
                 ))}
               </div>
@@ -335,7 +325,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
         </div>
 
         {/* CTA */}
-        <div style={{ padding: '20px 32px', borderTop: `1px solid ${C.sable}`, backgroundColor: C.creme, display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ padding: '20px 32px', borderTop: `1px solid ${C.sable}`, backgroundColor: C.bg, display: 'flex', gap: 12, alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <button disabled style={{ width: '100%', padding: '14px', borderRadius: 12, border: 'none', backgroundColor: `${C.terracotta}50`, color: C.white, fontSize: 14, fontWeight: 700, cursor: 'not-allowed', fontFamily: 'inherit' }}>
               Postuler en 1 clic
@@ -355,7 +345,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
 
 function SuccessScreen({ titre, isDraft, isEdit, router, onReset }: { titre: string; isDraft: boolean; isEdit: boolean; router: ReturnType<typeof useRouter>; onReset: () => void }) {
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+    <main style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
       <div style={{ backgroundColor: C.white, borderRadius: 24, padding: '52px 44px', maxWidth: 460, width: '100%', textAlign: 'center', boxShadow: '0 4px 32px rgba(26,26,26,0.08)' }}>
         <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: isDraft ? `${C.vert}14` : `${C.terracotta}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
           {isDraft
@@ -363,7 +353,7 @@ function SuccessScreen({ titre, isDraft, isEdit, router, onReset }: { titre: str
             : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.terracotta} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           }
         </div>
-        <h2 style={{ fontFamily: FONT_SERIF, fontSize: 26, color: C.dark, margin: '0 0 10px' }}>
+        <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px' }}>
           {isDraft ? 'Brouillon sauvegardé !' : isEdit ? 'Offre mise à jour !' : 'Offre publiée !'}
         </h2>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 8px', lineHeight: 1.65 }}>
@@ -399,7 +389,7 @@ function OffrePreviewCard({ d }: { d: PreviewData }) {
       <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.sable}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
           <div>
-            <div style={{ fontFamily: FONT_SERIF, fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 3 }}>{d.titre || <span style={{ color: C.lightGrey }}>Titre du poste</span>}</div>
+            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, fontWeight: 600, color: C.dark, marginBottom: 3 }}>{d.titre || <span style={{ color: C.lightGrey }}>Titre du poste</span>}</div>
             <div style={{ fontSize: 12, color: C.grey }}>{[d.ville, d.pays].filter(Boolean).join(', ')}{d.modeTravail && <span style={{ color: modeColor, fontWeight: 500 }}> · {d.modeTravail}</span>}</div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
@@ -417,8 +407,8 @@ function OffrePreviewCard({ d }: { d: PreviewData }) {
         {d.description && <p style={{ fontSize: 13, color: C.grey, lineHeight: 1.6, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{d.description}</p>}
         {d.competences.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {d.competences.slice(0, 6).map(c => <span key={c} style={{ padding: '2px 9px', borderRadius: 8, backgroundColor: C.creme, border: `1px solid ${C.sable}`, fontSize: 11, color: C.dark }}>{c}</span>)}
-            {d.competences.length > 6 && <span style={{ padding: '2px 9px', borderRadius: 8, backgroundColor: C.creme, border: `1px solid ${C.sable}`, fontSize: 11, color: C.grey }}>+{d.competences.length - 6}</span>}
+            {d.competences.slice(0, 6).map(c => <span key={c} style={{ padding: '2px 9px', borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 11, color: C.dark }}>{c}</span>)}
+            {d.competences.length > 6 && <span style={{ padding: '2px 9px', borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 11, color: C.grey }}>+{d.competences.length - 6}</span>}
           </div>
         )}
         {d.avantages.length > 0 && <div style={{ fontSize: 11, color: C.grey }}>{d.avantages.slice(0, 5).map(a => `${AVANTAGE_ICONS[a] ?? '✓'} ${a}`).join(' · ')}{d.avantages.length > 5 ? ` · +${d.avantages.length - 5}` : ''}</div>}
@@ -667,7 +657,7 @@ function PublierOffrePageInner() {
 
   const previewData: PreviewData = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, ville, pays, modeTravail, joursRemote, dateDebut, debutImmediat, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement }
   const descLen    = description.trim().length
-  const descColor  = descLen > DESC_MAX ? C.error : descLen >= DESC_MIN ? C.vert : C.grey
+  const descColor  = descLen > DESC_MAX ? C.erreur : descLen >= DESC_MIN ? C.vert : C.grey
   const suggestions = (COMP_REF[domaine] ?? []).filter(s => !competences.includes(s))
   const hasData    = titre.trim().length > 0
 
@@ -676,7 +666,7 @@ function PublierOffrePageInner() {
   if (published) return <SuccessScreen titre={titre} isDraft={isDraft} isEdit={!!editId} router={router} onReset={resetForm} />
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin    { to { transform: rotate(360deg); } }
         @keyframes kapolia-fadein  { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
@@ -695,7 +685,7 @@ function PublierOffrePageInner() {
 
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 6 }}>{editId ? 'Modifier l\'offre' : `Étape ${step} / ${STEP_LABELS.length}`}</div>
-          <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 3.5vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 3.5vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2 }}>
             {['Informations générales', 'Localisation & mode de travail', 'Description du poste', 'Avantages & publication'][step - 1]}
           </h1>
           <p style={{ fontSize: 14, color: C.grey, margin: '6px 0 0', lineHeight: 1.5 }}>
@@ -785,10 +775,10 @@ function PublierOffrePageInner() {
               <Pills options={MODES} value={modeTravail} onChange={v => setModeTravail(v as string)} />
               <FieldErr msg={errors.modeTravail} />
               {modeTravail === 'Hybride' && (
-                <div style={{ marginTop: 20, backgroundColor: C.creme, borderRadius: 12, padding: '16px 20px' }}>
+                <div style={{ marginTop: 20, backgroundColor: C.bg, borderRadius: 12, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>Jours de télétravail par semaine</span>
-                    <span style={{ fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 700, color: C.terracotta }}>{joursRemote}</span>
+                    <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 600, color: C.terracotta }}>{joursRemote}</span>
                   </div>
                   <input type="range" min={1} max={4} step={1} value={joursRemote} onChange={e => setJoursRemote(Number(e.target.value))} style={{ width: '100%', cursor: 'pointer' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
@@ -845,7 +835,7 @@ function PublierOffrePageInner() {
                       const added = competences.includes(s)
                       return (
                         <button key={s} type="button" onClick={() => !added && addSuggestion(s)} disabled={added || competences.length >= 10}
-                          style={{ padding: '5px 13px', borderRadius: 20, border: `1px solid ${added ? C.lightGrey : C.sable}`, backgroundColor: added ? C.creme : C.white, color: added ? C.lightGrey : C.grey, fontSize: 12, cursor: added ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', textDecoration: added ? 'line-through' : 'none' }}>
+                          style={{ padding: '5px 13px', borderRadius: 20, border: `1px solid ${added ? C.lightGrey : C.sable}`, backgroundColor: added ? C.bg : C.white, color: added ? C.lightGrey : C.grey, fontSize: 12, cursor: added ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', textDecoration: added ? 'line-through' : 'none' }}>
                           {added ? `✓ ${s}` : `+ ${s}`}
                         </button>
                       )
@@ -904,7 +894,7 @@ function PublierOffrePageInner() {
             {/* F1 — Aperçu + compact preview */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark }}>Aperçu de votre annonce</div>
+                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark }}>Aperçu de votre annonce</div>
                 <button type="button" onClick={() => setPreviewOpen(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10, border: `1.5px solid ${C.terracotta}`, backgroundColor: `${C.terracotta}0D`, color: C.terracotta, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                   👁 Aperçu de l'annonce
@@ -914,7 +904,7 @@ function PublierOffrePageInner() {
             </div>
 
             {serverError && (
-              <div style={{ padding: '12px 16px', borderRadius: 10, backgroundColor: '#FEF2F2', border: `1px solid ${C.error}30`, color: C.error, fontSize: 13 }}>{serverError}</div>
+              <div style={{ padding: '12px 16px', borderRadius: 10, backgroundColor: '#FEF2F2', border: `1px solid ${C.erreur}30`, color: C.erreur, fontSize: 13 }}>{serverError}</div>
             )}
 
             {/* Actions */}
@@ -956,7 +946,7 @@ function PublierOffrePageInner() {
 
 export default function PublierOffrePage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: '#F6F7F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style><div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #E7EAE8', borderTopColor: '#C4673A', animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style><div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.orange, animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}>
       <PublierOffrePageInner />
     </Suspense>
   )

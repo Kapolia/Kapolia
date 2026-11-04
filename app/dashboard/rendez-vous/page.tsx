@@ -6,17 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import RdvBubble from '@/components/RdvBubble'
 import AssistantPrepEntretien from '@/components/AssistantPrepEntretien'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-}
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 type Creneau = { id: string; debut_utc: string; selectionne: boolean }
 type RdvRow  = {
@@ -79,7 +70,7 @@ function urgenceBadge(u: string): { bg: string; color: string } {
 function SectionTitle({ label, count }: { label: string; count: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-      <span style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark }}>{label}</span>
+      <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark }}>{label}</span>
       <span style={{ fontSize: 11, color: C.grey, fontWeight: 400 }}>{count}</span>
     </div>
   )
@@ -98,7 +89,7 @@ function RdvListCard({ rdv, past, onPreparer }: { rdv: RdvRow; past: boolean; on
 
   return (
     <div style={{
-      backgroundColor: past ? C.creme : C.white,
+      backgroundColor: past ? C.bg : C.white,
       border:          `1.5px solid ${C.sable}`,
       borderRadius:    12,
       opacity:         past ? 0.75 : 1,
@@ -264,7 +255,7 @@ function AttenteCard({ rdv }: { rdv: RdvRow }) {
 function EmptyState() {
   return (
     <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 19, fontFamily: FONT_SERIF, color: C.dark, marginBottom: 8 }}>
+      <div style={{ fontSize: 19, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', color: C.dark, marginBottom: 8 }}>
         Aucun rendez-vous pour le moment
       </div>
       <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>
@@ -363,7 +354,7 @@ export default function RendezVousPage() {
   const isEmpty = !loading && attente.length === 0 && avenir.length === 0 && passes.length === 0
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
         @keyframes rdv-sp { to { transform: rotate(360deg) } }
       `}</style>
@@ -372,7 +363,7 @@ export default function RendezVousPage() {
 
         {/* ── En-tête ──────────────────────────────────────────────────── */}
         <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(26px, 4vw, 36px)', color: C.dark, margin: '0 0 6px', lineHeight: 1.15 }}>
+          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(26px, 4vw, 36px)', color: C.dark, margin: '0 0 6px', lineHeight: 1.15 }}>
             Mes rendez-vous
           </h1>
         </div>

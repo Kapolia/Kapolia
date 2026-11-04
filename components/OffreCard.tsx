@@ -7,18 +7,10 @@ import { type GeoCoords } from '@/components/GeoVilleInput'
 import { FONT_SERIF } from '@/lib/typography'
 import { haversineKm } from '@/lib/geo'
 import { type ScoreBreakdown } from '@/lib/matching'
-import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-}
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
+
 
 export type OffreCardData = {
   id: string
@@ -72,7 +64,7 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
       style={{
         width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
         borderRadius: 7, border: `1px solid ${C.sable}`,
-        backgroundColor: saved ? `${C.vert}10` : hov ? C.creme : 'transparent',
+        backgroundColor: saved ? `${C.vert}10` : hov ? C.bg : 'transparent',
         cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', flexShrink: 0,
         color: '#9AA49E',
       }}
@@ -85,12 +77,12 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
 // Shared pill styles — also imported by OffreDetail
 export const PILL: React.CSSProperties = {
   fontSize: 11.5, fontWeight: 500,
-  backgroundColor: '#F1F3F2', color: '#3E4F46',
+  backgroundColor: C.chip, color: '#3E4F46',
   padding: '3px 9px', borderRadius: 20,
 }
 export const PILL_SALARY: React.CSSProperties = {
   fontSize: 11.5, fontWeight: 600,
-  backgroundColor: '#EAF1EC', color: '#2C4A3E',
+  backgroundColor: '#EAF1EC', color: C.vert,
   padding: '3px 9px', borderRadius: 20,
 }
 
@@ -159,7 +151,7 @@ export function OffreCard({
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
           <span style={{
-            flex: 1, fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 700, lineHeight: 1.35,
+            flex: 1, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.35,
             color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
             transition: 'color 0.15s',
           }}>
@@ -238,7 +230,7 @@ export function OffreCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{
-            fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 700,
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600,
             color: hov ? C.terracotta : C.dark,
             margin: '0 0 4px', lineHeight: 1.3, transition: 'color 0.15s',
           }}>

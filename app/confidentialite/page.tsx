@@ -7,22 +7,15 @@ export const metadata: Metadata = {
 }
 
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, texte: '#22312B' as const, gris: '#6B7280' as const, bordure: '#E2D9CC' as const }
 const INTER = 'Inter, system-ui, sans-serif'
-
-const C = {
-  vert:    '#2C4A3E',
-  sable:   '#E7EAE8',
-  creme:   '#F6F7F6',
-  texte:   '#22312B',
-  gris:    '#6B7280',
-  bordure: '#E2D9CC',
-}
 
 function Section({ titre, children }: { titre: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: '48px' }}>
       <h2 style={{
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontSize:   '20px',
         fontWeight: 600,
         color:      C.vert,
@@ -52,7 +45,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 export default function Confidentialite() {
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', padding: '0 0 96px' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', padding: '0 0 96px' }}>
 
       {/* Barre supérieure */}
       <div style={{ backgroundColor: C.vert }}>
@@ -91,9 +84,9 @@ export default function Confidentialite() {
       <div style={{ maxWidth: '720px', margin: '0 auto', padding: '64px 32px 0' }}>
 
         <h1 style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontSize:   'clamp(28px, 4vw, 40px)',
-          fontWeight: 700,
+          fontWeight: 600,
           color:      C.vert,
           lineHeight: 1.2,
           margin:     '0 0 56px',

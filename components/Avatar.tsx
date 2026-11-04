@@ -1,8 +1,9 @@
 'use client'
 
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _AVC } from '@/lib/colors'
 
-const DEFAULT_COLOR = '#C4673A'
+const DEFAULT_COLOR = _AVC.orange
 
 const SIZES: Record<'sm' | 'md' | 'lg', { px: number; fontSize: number }> = {
   sm: { px: 36, fontSize: 13 },
@@ -56,7 +57,7 @@ export default function Avatar({
 
   return (
     <div style={{ ...base, backgroundColor: bgColor }}>
-      <span style={{ fontSize, fontWeight: 700, color: '#FFFFFF', fontFamily: FONT_SERIF, lineHeight: 1 }}>
+      <span style={{ fontSize, fontWeight: 600, color: '#FFFFFF', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', lineHeight: 1 }}>
         {initials}
       </span>
     </div>

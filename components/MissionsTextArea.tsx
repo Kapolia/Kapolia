@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { MAX_MISSIONS } from '@/lib/onboarding-utils'
+import { C as _MC } from '@/lib/colors'
 
 interface Props {
   value: string
@@ -63,7 +64,7 @@ export default function MissionsTextArea({ value, onChange, rows = 3, textareaSt
       />
       <div style={{ marginTop: 4 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span style={{ fontSize: 11, color: isOver ? '#C4673A' : '#9CA3AF' }}>
+          <span style={{ fontSize: 11, color: isOver ? _MC.orange : '#9CA3AF' }}>
             {nonEmptyCount} / {MAX_MISSIONS}
           </span>
           {pasteNote && (

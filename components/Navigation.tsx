@@ -5,17 +5,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import CandidatSidebar from '@/components/CandidatSidebar'
 import LogoKapolia from '@/components/LogoKapolia'
+import { C } from '@/lib/colors'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

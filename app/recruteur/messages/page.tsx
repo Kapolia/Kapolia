@@ -35,19 +35,10 @@ import { ouvrirConversation, trouverConversation } from '@/lib/conversations'
 import RdvBubble from '@/components/RdvBubble'
 import { notifRdvPropose } from '@/lib/actions/email-notifs'
 import { sanitizeFilename } from '@/lib/storage-utils'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-}
 
 const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
 const MAX_BYTES  = 10 * 1024 * 1024
@@ -163,7 +154,7 @@ function sortedConvs(c: LocalConv[]) {
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
-  return <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>{i}</div>
+  return <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>{i}</div>
 }
 
 // ─── Checkmarks ───────────────────────────────────────────────────────────────
@@ -208,7 +199,7 @@ function ActionBtn({ children, title, onClick }: { children: React.ReactNode; ti
   const [h, setH] = useState(false)
   return (
     <button onClick={onClick} title={title} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.creme, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
+      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
       {children}
     </button>
   )
@@ -306,7 +297,7 @@ function RdvPanel({ nomCandidat, onCancel, onSubmit }: {
         </div>
         <input type="text" value={contact} onChange={e => setContact(e.target.value)}
           placeholder={type === 'telephonique' ? '+33 6 00 00 00 00' : 'Adresse, salle ou lien visio'}
-          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
       </div>
 
       <div style={{ marginBottom: 14 }}>
@@ -315,9 +306,9 @@ function RdvPanel({ nomCandidat, onCancel, onSubmit }: {
           {creneaux.map((c, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="date" value={c.date} onChange={e => updateCreneau(i, 'date', e.target.value)}
-                style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
+                style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
               <input type="time" value={c.heure} onChange={e => updateCreneau(i, 'heure', e.target.value)}
-                style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
+                style={{ width: 90, padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit' }} />
               {creneaux.length > 1 && (
                 <button onClick={() => removeCreneau(i)} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 16, padding: 2, lineHeight: 1, flexShrink: 0 }}>✕</button>
               )}
@@ -361,7 +352,7 @@ function ReactionPicker({ pos, onPick, onClose }: { pos: { top: number; left: nu
         const [h, setH] = useState(false)
         return (
           <button key={e} onClick={() => { onPick(e); onClose() }} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-            style={{ border: 'none', backgroundColor: h ? C.creme : 'transparent', fontSize: 20, cursor: 'pointer', padding: '4px 5px', borderRadius: 8, transition: 'background-color 0.1s' }}>
+            style={{ border: 'none', backgroundColor: h ? C.bg : 'transparent', fontSize: 20, cursor: 'pointer', padding: '4px 5px', borderRadius: 8, transition: 'background-color 0.1s' }}>
             {e}
           </button>
         )
@@ -415,7 +406,7 @@ function ContextMenu({ pos, pinned, otherGroups, onPin, onMove, onDelete, onClos
 }
 function CMI({ label, onClick, danger = false, muted = false }: { label: string; onClick: () => void; danger?: boolean; muted?: boolean }) {
   const [h, setH] = useState(false)
-  return <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', borderRadius: 8, backgroundColor: h ? (danger ? '#FDECEA' : C.creme) : 'transparent', color: danger ? '#C0392B' : muted ? C.grey : C.dark, fontSize: 13, fontWeight: muted ? 400 : 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background-color 0.1s', whiteSpace: 'nowrap' }}>{label}</button>
+  return <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', borderRadius: 8, backgroundColor: h ? (danger ? '#FDECEA' : C.bg) : 'transparent', color: danger ? C.erreur : muted ? C.grey : C.dark, fontSize: 13, fontWeight: muted ? 400 : 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background-color 0.1s', whiteSpace: 'nowrap' }}>{label}</button>
 }
 
 // ─── Profile panel ────────────────────────────────────────────────────────────
@@ -429,21 +420,21 @@ function ProfilePanel({ profil, onClose }: { profil: CandidatProfil; onClose: ()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ fontFamily: FONT_SERIF, fontSize: 14, color: C.dark }}>Profil candidat</span>
-        <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', backgroundColor: C.creme, color: C.grey, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+        <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 14, color: C.dark }}>Profil candidat</span>
+        <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', backgroundColor: C.bg, color: C.grey, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px' }}>
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: profil.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, fontSize: 20, color: C.white, margin: '0 auto 10px' }}>{profil.initiales}</div>
+          <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: profil.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.white, margin: '0 auto 10px' }}>{profil.initiales}</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>{profil.nom}</div>
           <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>{profil.domaine}</div>
           <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>{profil.ville} · {profil.experienceAns}</div>
           {profil.score > 0 && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 10, padding: '4px 12px', borderRadius: 20, backgroundColor: `${sc}12`, border: `1px solid ${sc}30` }}><span style={{ fontSize: 17, fontWeight: 700, color: sc }}>{profil.score}%</span><span style={{ fontSize: 11, color: sc }}>compatibilité</span></div>}
         </div>
-        {profil.signature && <div style={{ backgroundColor: C.creme, borderRadius: 10, padding: '11px 13px', marginBottom: 18 }}><p style={{ fontSize: 13, color: C.dark, lineHeight: '1.55', margin: 0, fontStyle: 'italic' }}>"{profil.signature}"</p></div>}
+        {profil.signature && <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '11px 13px', marginBottom: 18 }}><p style={{ fontSize: 13, color: C.dark, lineHeight: '1.55', margin: 0, fontStyle: 'italic' }}>"{profil.signature}"</p></div>}
         {profil.competences.length > 0 && <PSection title="Compétences"><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{profil.competences.map(c => <span key={c} style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, backgroundColor: C.white }}>{c}</span>)}</div></PSection>}
         {profil.projetPhare && <PSection title="Projet phare"><p style={{ fontSize: 13, color: C.dark, lineHeight: '1.5', margin: 0 }}>{profil.projetPhare}</p></PSection>}
-        {profil.hobbies.length > 0 && <PSection title="Centres d'intérêt"><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{profil.hobbies.map(h => <span key={h} style={{ padding: '3px 10px', borderRadius: 20, backgroundColor: C.creme, fontSize: 12, color: C.grey }}>{h}</span>)}</div></PSection>}
+        {profil.hobbies.length > 0 && <PSection title="Centres d'intérêt"><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{profil.hobbies.map(h => <span key={h} style={{ padding: '3px 10px', borderRadius: 20, backgroundColor: C.bg, fontSize: 12, color: C.grey }}>{h}</span>)}</div></PSection>}
       </div>
       <div style={{ padding: '12px 16px', borderTop: `1px solid ${C.sable}`, flexShrink: 0 }}>
         <button style={{ width: '100%', padding: 9, borderRadius: 10, border: `1.5px solid ${C.vert}`, backgroundColor: 'transparent', color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Voir profil complet →</button>
@@ -1144,7 +1135,7 @@ function MessagesPageInner() {
   const otherGroups = menuConv ? groups.filter(g => g.id !== menuConv.offreId).map(g => ({ id: g.id, titre: g.titre })) : []
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.creme }}>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
         @keyframes kapolia-si     { from{opacity:0;transform:translateX(16px)}  to{opacity:1;transform:translateX(0)} }
@@ -1161,11 +1152,11 @@ function MessagesPageInner() {
       <div style={{ width: 280, flexShrink: 0, height: '100%', backgroundColor: C.white, borderRight: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.sable}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark }}>Messages</span>
+            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark }}>Messages</span>
             {totalUnread > 0 && <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>{totalUnread}</span>}
           </div>
           <div style={{ position: 'relative' }}>
-            <input type="text" placeholder="Rechercher…" style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="Rechercher…" style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
           </div>
         </div>
@@ -1175,7 +1166,7 @@ function MessagesPageInner() {
             const open = expanded.has(group.id)
             return (
               <div key={group.id}>
-                <button onClick={() => toggleGroup(group.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: 'none', backgroundColor: C.creme, cursor: 'pointer', borderBottom: `1px solid ${C.sable}`, textAlign: 'left' }}>
+                <button onClick={() => toggleGroup(group.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', border: 'none', backgroundColor: C.bg, cursor: 'pointer', borderBottom: `1px solid ${C.sable}`, textAlign: 'left' }}>
                   <span style={{ fontSize: 10, color: C.grey, display: 'inline-block', transition: 'transform 0.15s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.vert, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>{group.titre}</span>
                   {(() => { const n = group.convs.filter(c => c.nonLu > 0).length; return n > 0 ? <span style={{ minWidth: 18, height: 18, borderRadius: 9, flexShrink: 0, backgroundColor: C.terracotta, color: C.white, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>{n}</span> : null })()}
@@ -1198,7 +1189,7 @@ function MessagesPageInner() {
                           </div>
                         </div>
                       </button>
-                      <button className="cmb" onClick={e => openMenu(e, conv.id)} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.creme : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }} title="Options">···</button>
+                      <button className="cmb" onClick={e => openMenu(e, conv.id)} style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.bg : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }} title="Options">···</button>
                     </div>
                   )
                 })}
@@ -1322,11 +1313,11 @@ function MessagesPageInner() {
 
           {!activeConv?.candidatSupprime && (
           <div style={{ padding: '10px 18px', backgroundColor: C.white, borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
-            <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre" style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.creme, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
+            <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre" style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
               {uploading ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} /> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>}
             </button>
             <button onClick={() => setRdvPanelOpen(o => !o)} title="Proposer un rendez-vous"
-              style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: rdvPanelOpen ? `${C.terracotta}15` : C.creme, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.15s' }}>
+              style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: rdvPanelOpen ? `${C.terracotta}15` : C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.15s' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={rdvPanelOpen ? C.terracotta : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
@@ -1335,7 +1326,7 @@ function MessagesPageInner() {
               </svg>
             </button>
             <textarea ref={textaRef} value={input} onChange={e => { setInput(e.target.value); adjustTA(); sendTyping() }} onKeyDown={handleKey} placeholder={`Écrire à ${displayConv.nom.split(' ')[0]}…`} rows={1}
-              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }} />
+              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.bg, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }} />
             <button onClick={() => send(input)} disabled={(!input.trim() && !pendingFile) || sending}
               style={{ height: 38, padding: '0 18px', borderRadius: 12, border: 'none', backgroundColor: (input.trim() || pendingFile) && !sending ? C.terracotta : C.sable, color: (input.trim() || pendingFile) && !sending ? C.white : C.grey, fontSize: 14, fontWeight: 600, cursor: (input.trim() || pendingFile) && !sending ? 'pointer' : 'default', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
               {sending || uploading ? 'Envoi…' : <>Envoyer <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></>}
@@ -1344,10 +1335,10 @@ function MessagesPageInner() {
           )}
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
           <div style={{ textAlign: 'center', maxWidth: 300 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
-            <div style={{ fontFamily: FONT_SERIF, fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
+            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
             <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
           </div>
         </div>

@@ -3,16 +3,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
+import { C } from '@/lib/colors'
 
 type LienType = 'ami' | 'collegue' | 'ancien_manager' | 'famille' | 'autre'
 
@@ -150,8 +141,8 @@ export default function InvitationModal({
         }}
       >
         <h2 style={{
-          fontFamily: FONT_SERIF, fontSize: 20,
-          color: C.dark, margin: '0 0 16px', fontWeight: 'normal',
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20,
+          color: C.dark, margin: '0 0 16px', fontWeight: 600,
         }}>
           Inviter un proche
         </h2>
@@ -165,7 +156,7 @@ export default function InvitationModal({
             </p>
 
             <div style={{
-              backgroundColor: C.creme, border: `1px solid ${C.sable}`,
+              backgroundColor: C.bg, border: `1px solid ${C.sable}`,
               borderRadius: 10, padding: '12px 14px', marginBottom: 10,
               wordBreak: 'break-all', fontSize: 13, color: C.dark, lineHeight: 1.5,
               userSelect: 'text',
@@ -201,7 +192,7 @@ export default function InvitationModal({
               <p style={{
                 fontSize: 13, color: C.grey, lineHeight: 1.6, margin: '0 0 20px',
                 padding: '12px 14px', borderRadius: 8,
-                backgroundColor: C.creme, border: `1px solid ${C.sable}`,
+                backgroundColor: C.bg, border: `1px solid ${C.sable}`,
               }}>
                 Vous avez déjà quatre invitations en attente. Supprimez-en une ou attendez qu'une expire avant d'en envoyer une nouvelle.
               </p>

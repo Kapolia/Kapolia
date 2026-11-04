@@ -6,12 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 import { PROFIL_SELECT, OFFRES_PREVIEW } from '@/components/EntrepriseVitrine'
 import { sanitizeFilename } from '@/lib/storage-utils'
-
-const C = {
-  terracotta: '#C4673A', sable: '#E7EAE8', creme: '#F6F7F6',
-  vert: '#2C4A3E', dark: '#15201B', grey: '#687069',
-  lightGrey: '#E8E2D9', white: '#FFFFFF', amber: '#C88A2A', errorRed: '#C0392B',
-}
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#E8E2D9' as const }
 
 const TAILLE_OPTIONS = ['1–10 salariés', '11–50 salariés', '50–200 salariés', '200–500 salariés', '500+ salariés']
 const SECTEUR_OPTIONS = [
@@ -91,7 +87,7 @@ function LogoBlock({ url, nom, size = 76 }: { url: string | null; nom: string; s
   )
   return (
     <div style={{ width: size, height: size, borderRadius: Math.round(size / 5), backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.2)' }}>
-      <span style={{ fontFamily: FONT_SERIF, fontSize: Math.round(size * 0.42), fontWeight: 700, color: C.white }}>{(nom || 'E').charAt(0).toUpperCase()}</span>
+      <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: Math.round(size * 0.42), fontWeight: 600, color: C.white }}>{(nom || 'E').charAt(0).toUpperCase()}</span>
     </div>
   )
 }
@@ -99,7 +95,7 @@ function LogoBlock({ url, nom, size = 76 }: { url: string | null; nom: string; s
 function SCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 18, border: `1px solid ${C.sable}`, padding: '24px 28px', marginBottom: 16 }}>
-      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, margin: '0 0 18px' }}>{title}</h2>
+      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, margin: '0 0 18px' }}>{title}</h2>
       {children}
     </div>
   )
@@ -146,7 +142,7 @@ function TagInput({ tags, onAdd, onRemove, input, onInput, placeholder, max }: {
           <button onClick={onAdd} disabled={!input.trim()} style={{ backgroundColor: C.vert, color: C.white, border: 'none', borderRadius: 10, padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: input.trim() ? 1 : 0.4 }}>+ Ajouter</button>
         </div>
       ) : (
-        <div style={{ fontSize: 12, color: C.amber, fontWeight: 500 }}>Limite atteinte ({max} maximum)</div>
+        <div style={{ fontSize: 12, color: C.attente, fontWeight: 500 }}>Limite atteinte ({max} maximum)</div>
       )}
     </div>
   )
@@ -407,13 +403,13 @@ export default function RecruteurEntreprisePage() {
   // ── EDIT MODE ──────────────────────────────────────────────────────────────
 
   if (isEditing) return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', padding: '36px 40px 100px' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', padding: '36px 40px 100px' }}>
       <style suppressHydrationWarning>{`input:focus,textarea:focus,select:focus{border-color:${C.terracotta}!important;box-shadow:0 0 0 3px ${C.terracotta}15}*{box-sizing:border-box}@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ maxWidth: 720, margin: '0 auto' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(20px, 4vw, 28px)', color: C.dark, margin: '0 0 3px' }}>Modifier mon entreprise</h1>
+            <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(20px, 4vw, 28px)', color: C.dark, margin: '0 0 3px' }}>Modifier mon entreprise</h1>
             <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Ces informations s'affichent sur votre vitrine publique et vos offres.</p>
           </div>
           <button onClick={() => setEditing(false)} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 10, padding: '8px 18px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
@@ -422,7 +418,7 @@ export default function RecruteurEntreprisePage() {
         {/* ── Logo ── */}
         <SCard title="Logo">
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-            <div onClick={() => fileRef.current?.click()} style={{ width: 82, height: 82, borderRadius: 14, border: `2px dashed ${C.sable}`, backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+            <div onClick={() => fileRef.current?.click()} style={{ width: 82, height: 82, borderRadius: 14, border: `2px dashed ${C.sable}`, backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
               {logoPreview ? <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 8 }} />
                 : <div style={{ textAlign: 'center' }}><div style={{ fontSize: 22 }}>🏢</div><div style={{ fontSize: 10, color: C.grey }}>Ajouter</div></div>}
               {uploadingLogo && <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(247,242,235,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} /></div>}
@@ -495,7 +491,7 @@ export default function RecruteurEntreprisePage() {
           <p style={{ fontSize: 13, color: C.grey, margin: '0 0 12px' }}>Lien YouTube ou Vimeo. Laissez vide pour ne pas afficher.</p>
           <input value={editVideo} onChange={e => setEditVideo(e.target.value)} placeholder="https://youtube.com/watch?v=… ou https://vimeo.com/…" style={iStyle} />
           {editVideo.trim() && !videoEmbedUrl(editVideo.trim()) && (
-            <div style={{ fontSize: 12, color: C.amber, marginTop: 6 }}>URL non reconnue — seuls YouTube et Vimeo sont supportés pour l'intégration.</div>
+            <div style={{ fontSize: 12, color: C.attente, marginTop: 6 }}>URL non reconnue — seuls YouTube et Vimeo sont supportés pour l'intégration.</div>
           )}
         </SCard>
 
@@ -505,7 +501,7 @@ export default function RecruteurEntreprisePage() {
           {editHistoire.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
               {editHistoire.map((etape, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.bg, borderRadius: 10 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: C.terracotta, flexShrink: 0, minWidth: 40 }}>{etape.annee}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{etape.titre}</div>
@@ -519,7 +515,7 @@ export default function RecruteurEntreprisePage() {
           {!addingHistoire ? (
             <button onClick={() => setAddingHistoire(true)} style={{ backgroundColor: 'transparent', border: `1.5px dashed ${C.sable}`, borderRadius: 10, padding: '10px 20px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>+ Ajouter une étape</button>
           ) : (
-            <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ backgroundColor: C.bg, borderRadius: 12, padding: '16px 18px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, marginBottom: 12 }}>
                 <div><FLabel>Année *</FLabel><input value={histoireForm.annee} onChange={e => setHistoireForm(f => ({ ...f, annee: e.target.value }))} placeholder="2019" style={iStyle} /></div>
                 <div><FLabel>Titre *</FLabel><input value={histoireForm.titre} onChange={e => setHistoireForm(f => ({ ...f, titre: e.target.value }))} placeholder="Fondation de l'entreprise" style={iStyle} /></div>
@@ -538,7 +534,7 @@ export default function RecruteurEntreprisePage() {
           {editPresse.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
               {editPresse.map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.bg, borderRadius: 10 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.titre}</div>
                     <div style={{ fontSize: 12, color: C.grey }}>{item.source}{item.annee ? ` · ${item.annee}` : ''}</div>
@@ -551,7 +547,7 @@ export default function RecruteurEntreprisePage() {
           {!addingPresse ? (
             <button onClick={() => setAddingPresse(true)} style={{ backgroundColor: 'transparent', border: `1.5px dashed ${C.sable}`, borderRadius: 10, padding: '10px 20px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}>+ Ajouter un article</button>
           ) : (
-            <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ backgroundColor: C.bg, borderRadius: 12, padding: '16px 18px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div><FLabel>Titre de l'article *</FLabel><input value={presseForm.titre} onChange={e => setPresseForm(f => ({ ...f, titre: e.target.value }))} placeholder="Meridian lève 8 M€…" style={iStyle} /></div>
                 <div><FLabel>Source *</FLabel><input value={presseForm.source} onChange={e => setPresseForm(f => ({ ...f, source: e.target.value }))} placeholder="Le Monde" style={iStyle} /></div>
@@ -575,7 +571,7 @@ export default function RecruteurEntreprisePage() {
               Inviter un salarié
             </div>
             {invitations.length >= 8 ? (
-              <div style={{ fontSize: 13, color: C.amber, backgroundColor: `${C.amber}10`, borderRadius: 10, padding: '11px 14px' }}>
+              <div style={{ fontSize: 13, color: C.attente, backgroundColor: `${C.attente}10`, borderRadius: 10, padding: '11px 14px' }}>
                 Vous avez 8 invitations en attente. Supprimez-en une ou attendez qu'une expire avant d'en créer une nouvelle.
               </div>
             ) : etatInvit === 'idle' ? (
@@ -586,7 +582,7 @@ export default function RecruteurEntreprisePage() {
                 + Créer un lien d'invitation
               </button>
             ) : (etatInvit === 'form' || etatInvit === 'erreur' || etatInvit === 'envoi') ? (
-              <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ backgroundColor: C.bg, borderRadius: 12, padding: '16px 18px' }}>
                 <FWrap>
                   <FLabel>Pour qui créez-vous ce lien ?</FLabel>
                   <input
@@ -599,7 +595,7 @@ export default function RecruteurEntreprisePage() {
                   />
                 </FWrap>
                 {etatInvit === 'erreur' && (
-                  <div style={{ fontSize: 13, color: C.errorRed, marginBottom: 12 }}>Le lien n'a pas pu être créé. Veuillez réessayer.</div>
+                  <div style={{ fontSize: 13, color: C.erreur, marginBottom: 12 }}>Le lien n'a pas pu être créé. Veuillez réessayer.</div>
                 )}
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
@@ -618,7 +614,7 @@ export default function RecruteurEntreprisePage() {
                 </div>
               </div>
             ) : (etatInvit === 'lien' && lienCree) ? (
-              <div style={{ backgroundColor: C.creme, borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ backgroundColor: C.bg, borderRadius: 12, padding: '16px 18px' }}>
                 <div style={{ fontSize: 13, color: C.dark, marginBottom: 12 }}>
                   Lien créé pour <strong>{labelSalarie.trim()}</strong>. Transmettez-le par le moyen de votre choix.
                 </div>
@@ -654,7 +650,7 @@ export default function RecruteurEntreprisePage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {invitations.map(inv => (
-                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.creme, borderRadius: 10 }}>
+                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', backgroundColor: C.bg, borderRadius: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.label}</div>
                       <div style={{ fontSize: 11, color: C.grey }}>Expire le {new Date(inv.expire_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</div>
@@ -681,7 +677,7 @@ export default function RecruteurEntreprisePage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {temoignagesRecus.map(t => (
-                  <div key={t.id} style={{ backgroundColor: C.creme, borderRadius: 10, padding: '14px 16px', border: t.affiche ? `1px solid ${C.vert}30` : `1px solid ${C.sable}` }}>
+                  <div key={t.id} style={{ backgroundColor: C.bg, borderRadius: 10, padding: '14px 16px', border: t.affiche ? `1px solid ${C.vert}30` : `1px solid ${C.sable}` }}>
                     {confirmSuppTemo === t.id ? (
                       <div>
                         <div style={{ fontSize: 13, color: C.dark, marginBottom: 14 }}>Supprimer ce témoignage définitivement ? Cette action est irréversible.</div>
@@ -694,7 +690,7 @@ export default function RecruteurEntreprisePage() {
                           </button>
                           <button
                             onClick={() => supprimerTemoignage(t.id)}
-                            style={{ backgroundColor: C.errorRed, color: C.white, border: 'none', borderRadius: 9, padding: '7px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                            style={{ backgroundColor: C.erreur, color: C.white, border: 'none', borderRadius: 9, padding: '7px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
                           >
                             Supprimer définitivement
                           </button>
@@ -729,7 +725,7 @@ export default function RecruteurEntreprisePage() {
 
         </SCard>
 
-        {saveError && <div style={{ backgroundColor: `${C.errorRed}10`, border: `1px solid ${C.errorRed}40`, borderRadius: 12, padding: '11px 16px', marginBottom: 14, fontSize: 13, color: C.errorRed }}>{saveError}</div>}
+        {saveError && <div style={{ backgroundColor: `${C.erreur}10`, border: `1px solid ${C.erreur}40`, borderRadius: 12, padding: '11px 16px', marginBottom: 14, fontSize: 13, color: C.erreur }}>{saveError}</div>}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
           <button onClick={() => setEditing(false)} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 12, padding: '12px 28px', fontSize: 14, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
           <button onClick={handleSave} disabled={saving || uploadingLogo} style={{ backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 12, padding: '12px 32px', fontSize: 15, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: saving ? 0.7 : 1 }}>
@@ -751,10 +747,10 @@ export default function RecruteurEntreprisePage() {
   const chiffres    = CHIFFRES.filter(c => { const v = profil[c.key] as string | null; return !!v && v.trim() !== '' })
 
   if (!nom) return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', padding: '60px 24px', textAlign: 'center' }}>
         <div style={{ width: 88, height: 88, borderRadius: 22, backgroundColor: C.sable, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, marginBottom: 28 }}>🏢</div>
-        <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 4vw, 30px)', color: C.dark, margin: '0 0 10px' }}>Votre vitrine entreprise</h1>
+        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 30px)', color: C.dark, margin: '0 0 10px' }}>Votre vitrine entreprise</h1>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 32px', lineHeight: 1.7, maxWidth: 420 }}>Renseignez le profil de votre entreprise pour qu'il s'affiche sur vos offres et votre page publique.</p>
         <button onClick={startEdit} style={{ backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 14, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Créer mon profil entreprise →</button>
       </div>
@@ -762,7 +758,7 @@ export default function RecruteurEntreprisePage() {
   )
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', paddingBottom: 80 }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', paddingBottom: 80 }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style>
 
       <div style={{ position: 'fixed', bottom: 28, left: '50%', transform: `translateX(-50%) translateY(${toastVisible ? '0' : '12px'})`, opacity: toastVisible ? 1 : 0, transition: 'opacity 0.2s, transform 0.2s', pointerEvents: 'none', zIndex: 300, backgroundColor: C.vert, color: C.white, padding: '11px 22px', borderRadius: 28, fontSize: 14, fontWeight: 600, boxShadow: '0 4px 20px rgba(0,0,0,0.16)', whiteSpace: 'nowrap' }}>
@@ -771,7 +767,7 @@ export default function RecruteurEntreprisePage() {
 
       {/* HEADER */}
       <header style={{ backgroundColor: C.vert, padding: '48px 40px 44px', position: 'relative' }}>
-        <button onClick={startEdit} style={{ position: 'absolute', top: 20, right: 24, backgroundColor: C.creme, color: C.vert, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 7 }}>
+        <button onClick={startEdit} style={{ position: 'absolute', top: 20, right: 24, backgroundColor: C.bg, color: C.vert, border: 'none', borderRadius: 10, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 7 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
           Modifier
         </button>
@@ -784,7 +780,7 @@ export default function RecruteurEntreprisePage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 22, flexWrap: 'wrap' }}>
             <LogoBlock url={profil.entreprise_logo_url} nom={nom} size={76} />
             <div style={{ flex: 1, minWidth: 200 }}>
-              <h1 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(26px, 5vw, 42px)', color: C.white, margin: '0 0 10px', lineHeight: 1.1 }}>{nom}</h1>
+              <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(26px, 5vw, 42px)', color: C.white, margin: '0 0 10px', lineHeight: 1.1 }}>{nom}</h1>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 26 }}>
                 {profil.entreprise_secteur && <span style={{ fontSize: 13, color: C.sable }}>⬡ {profil.entreprise_secteur}</span>}
                 {profil.entreprise_ville   && <span style={{ fontSize: 13, color: C.sable }}>◎ {profil.entreprise_ville}</span>}
@@ -802,14 +798,14 @@ export default function RecruteurEntreprisePage() {
         {profil.entreprise_mission && (
           <section style={{ marginBottom: 52, textAlign: 'center', padding: '0 24px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.terracotta, marginBottom: 14 }}>Notre mission</div>
-            <p style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(18px, 2.5vw, 24px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>« {profil.entreprise_mission} »</p>
+            <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(18px, 2.5vw, 24px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>« {profil.entreprise_mission} »</p>
           </section>
         )}
 
         {/* Description */}
         {profil.entreprise_description && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Qui sommes-nous</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Qui sommes-nous</h2>
             {profil.entreprise_description.split('\n\n').filter(Boolean).map((para, i) => (
               <p key={i} style={{ fontSize: 15, color: '#3A3A3A', lineHeight: 1.75, margin: '0 0 14px' }}>{para}</p>
             ))}
@@ -821,7 +817,7 @@ export default function RecruteurEntreprisePage() {
           const embed = videoEmbedUrl(profil.entreprise_video_url!)
           return (
             <section style={{ marginBottom: 52 }}>
-              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
+              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
               {embed ? (
                 <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 16, overflow: 'hidden', backgroundColor: C.dark }}>
                   <iframe src={embed} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
@@ -838,11 +834,11 @@ export default function RecruteurEntreprisePage() {
         {/* Chiffres clés */}
         {chiffres.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 20px' }}>En chiffres</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 20px' }}>En chiffres</h2>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(chiffres.length, 3)}, 1fr)`, gap: 14 }}>
               {chiffres.map(c => (
                 <div key={c.key} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 700, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
+                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 600, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
                   <div style={{ fontSize: 11, color: C.grey, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{c.label}</div>
                 </div>
               ))}
@@ -853,14 +849,14 @@ export default function RecruteurEntreprisePage() {
         {/* Histoire */}
         {histoire.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
             <div style={{ position: 'relative', paddingLeft: 28 }}>
               <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
               {histoire.map((etape, i) => (
                 <div key={i} style={{ position: 'relative', marginBottom: i < histoire.length - 1 ? 32 : 0 }}>
-                  <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.creme}`, boxSizing: 'border-box' }} />
+                  <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.bg}`, boxSizing: 'border-box' }} />
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.terracotta, letterSpacing: '0.07em', marginBottom: 4 }}>{etape.annee}</div>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
+                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
                   {etape.description && <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>{etape.description}</div>}
                 </div>
               ))}
@@ -871,9 +867,9 @@ export default function RecruteurEntreprisePage() {
         {/* Valeurs */}
         {valeurs.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nos valeurs</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nos valeurs</h2>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.creme }}>{v}</div>)}
+              {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.bg }}>{v}</div>)}
             </div>
           </section>
         )}
@@ -881,7 +877,7 @@ export default function RecruteurEntreprisePage() {
         {/* Avantages */}
         {avantages.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {avantages.map(a => (
                 <div key={a} style={{ backgroundColor: C.white, border: '1px solid #E3D9C6', borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -896,11 +892,11 @@ export default function RecruteurEntreprisePage() {
         {/* Témoignages */}
         {temoignages.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {temoignages.map((t, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF }}>"</div>
+                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF, letterSpacing: '-0.005em' }}>"</div>
                   <p style={{ fontSize: 14, color: '#3A3A3A', lineHeight: 1.7, fontStyle: 'italic', margin: 0, flex: 1 }}>{t.citation}</p>
                   <div style={{ fontSize: 12, color: C.grey, fontWeight: 500 }}>{t.poste}</div>
                 </div>
@@ -911,7 +907,7 @@ export default function RecruteurEntreprisePage() {
 
         {/* Offres */}
         <section style={{ marginBottom: 52 }}>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>
+          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>
             Offres actives {offres.length > 0 && <span style={{ fontSize: 16, color: C.grey, fontWeight: 400 }}>({offres.length})</span>}
           </h2>
           {offres.length === 0 ? (
@@ -924,7 +920,7 @@ export default function RecruteurEntreprisePage() {
               {(offresExpanded ? offres : offres.slice(0, OFFRES_PREVIEW)).map(o => (
                 <div key={o.id} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 150 }}>
-                    <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
+                    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {o.type_contrat && <span style={{ fontSize: 11, fontWeight: 700, color: C.vert, backgroundColor: `${C.vert}12`, padding: '2px 9px', borderRadius: 20 }}>{o.type_contrat}</span>}
                       {o.ville && <span style={{ fontSize: 12, color: C.grey }}>◎ {o.ville}{o.mode_travail ? ` · ${o.mode_travail}` : ''}</span>}
@@ -946,7 +942,7 @@ export default function RecruteurEntreprisePage() {
         {/* Presse */}
         {presse.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Dans la presse</h2>
+            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Dans la presse</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {presse.map((item, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13 }}>
@@ -969,7 +965,7 @@ export default function RecruteurEntreprisePage() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {profil.entreprise_linkedin && (
                 <a href={profil.entreprise_linkedin.startsWith('http') ? profil.entreprise_linkedin : `https://${profil.entreprise_linkedin}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, fontSize: 13, color: C.dark, textDecoration: 'none', fontWeight: 500 }}>
-                  <span style={{ fontWeight: 800, fontSize: 14, fontFamily: 'serif' }}>in</span> LinkedIn
+                  <span style={{ fontWeight: 700, fontSize: 14, fontFamily: 'serif' }}>in</span> LinkedIn
                 </a>
               )}
               {profil.entreprise_instagram && (

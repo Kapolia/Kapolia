@@ -19,22 +19,10 @@ import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matchin
 import { ScoreRing } from '@/components/ScoreRing'
 import { getStatut } from '@/lib/statuts'
 import { notifStatutCandidature } from '@/lib/actions/email-notifs'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const, blue: '#2563EB' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  amber:      '#C88A2A',
-  blue:       '#2563EB',
-  red:        '#C0392B',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,8 +188,8 @@ function StatBar({ cands }: { cands: Candidature[] }) {
       {/* Stat pills */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         {statCards.map(s => (
-          <div key={s.label} style={{ display: 'flex', flex: '1 1 90px', flexDirection: 'column', alignItems: 'center', padding: '12px 10px', borderRadius: 12, backgroundColor: s.label === 'Total' ? C.creme : `${s.color}0A`, border: `1px solid ${s.label === 'Total' ? C.sable : `${s.color}25`}` }}>
-            <div style={{ fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.count}</div>
+          <div key={s.label} style={{ display: 'flex', flex: '1 1 90px', flexDirection: 'column', alignItems: 'center', padding: '12px 10px', borderRadius: 12, backgroundColor: s.label === 'Total' ? C.bg : `${s.color}0A`, border: `1px solid ${s.label === 'Total' ? C.sable : `${s.color}25`}` }}>
+            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 600, color: s.color, lineHeight: 1 }}>{s.count}</div>
             <div style={{ fontSize: 11, color: C.grey, marginTop: 4, textAlign: 'center', fontWeight: 500 }}>{s.label}</div>
           </div>
         ))}
@@ -217,7 +205,7 @@ function StatBar({ cands }: { cands: Candidature[] }) {
             return (
               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 70, fontSize: 11, color: C.grey, fontWeight: 500, flexShrink: 0 }}>{info.label}</div>
-                <div style={{ flex: 1, height: 7, borderRadius: 10, backgroundColor: C.creme, overflow: 'hidden' }}>
+                <div style={{ flex: 1, height: 7, borderRadius: 10, backgroundColor: C.bg, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${pct}%`, borderRadius: 10, backgroundColor: info.color, transition: 'width 0.6s ease', opacity: 0.8 }} />
                 </div>
                 <div style={{ width: 32, fontSize: 11, color: C.grey, textAlign: 'right', flexShrink: 0 }}>{n}</div>
@@ -282,7 +270,7 @@ function CandidateCard({ cand, offre, index, selected, isActive, onSelect, onCli
               {candComps.map((c: string) => {
                 const matched = offreComps.some((oc: string) => oc.toLowerCase() === c.toLowerCase())
                 return (
-                  <span key={c} style={{ padding: '3px 9px', borderRadius: 8, fontSize: 11, fontWeight: matched ? 600 : 400, backgroundColor: matched ? `${C.vert}14` : C.creme, color: matched ? C.vert : C.grey, border: `1px solid ${matched ? `${C.vert}30` : C.sable}` }}>
+                  <span key={c} style={{ padding: '3px 9px', borderRadius: 8, fontSize: 11, fontWeight: matched ? 600 : 400, backgroundColor: matched ? `${C.vert}14` : C.bg, color: matched ? C.vert : C.grey, border: `1px solid ${matched ? `${C.vert}30` : C.sable}` }}>
                     {matched && <span style={{ marginRight: 3 }}>✓</span>}{c}
                   </span>
                 )
@@ -381,7 +369,7 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {(p!.competences_acquises ?? []).map((c: string) => {
                 const matched = (offre?.competences ?? []).some((oc: string) => oc.toLowerCase() === c.toLowerCase())
-                return <span key={c} style={{ padding: '3px 9px', borderRadius: 8, fontSize: 11, backgroundColor: matched ? `${C.vert}14` : C.creme, color: matched ? C.vert : C.grey, fontWeight: matched ? 600 : 400, border: `1px solid ${matched ? `${C.vert}25` : C.sable}` }}>{matched && '✓ '}{c}</span>
+                return <span key={c} style={{ padding: '3px 9px', borderRadius: 8, fontSize: 11, backgroundColor: matched ? `${C.vert}14` : C.bg, color: matched ? C.vert : C.grey, fontWeight: matched ? 600 : 400, border: `1px solid ${matched ? `${C.vert}25` : C.sable}` }}>{matched && '✓ '}{c}</span>
               })}
             </div>
           </div>
@@ -390,7 +378,7 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
         {p?.projet_phare && (
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Projet phare</div>
-            <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, backgroundColor: C.creme, borderRadius: 8, padding: '10px 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.projet_phare}</div>
+            <div style={{ fontSize: 12, color: C.dark, lineHeight: 1.6, backgroundColor: C.bg, borderRadius: 8, padding: '10px 12px', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.projet_phare}</div>
           </div>
         )}
 
@@ -413,7 +401,7 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
       <div style={{ padding: '14px 18px', borderTop: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => onStatusChange(cand.id, 'acceptée')} style={{ flex: 1, padding: '9px', borderRadius: 10, border: 'none', backgroundColor: `${C.vert}14`, color: C.vert, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✓ Accepter</button>
-          <button onClick={() => onStatusChange(cand.id, 'refusée')} style={{ flex: 1, padding: '9px', borderRadius: 10, border: 'none', backgroundColor: '#FDECEA', color: C.red, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✕ Refuser</button>
+          <button onClick={() => onStatusChange(cand.id, 'refusée')} style={{ flex: 1, padding: '9px', borderRadius: 10, border: 'none', backgroundColor: '#FDECEA', color: C.erreur, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>✕ Refuser</button>
         </div>
         <button onClick={() => onStatusChange(cand.id, 'en cours')} style={{ width: '100%', padding: '9px', borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>⏸ Mettre en attente</button>
         <button onClick={onMessage} style={{ width: '100%', padding: '9px', borderRadius: 10, border: `1.5px solid ${C.terracotta}`, backgroundColor: `${C.terracotta}0D`, color: C.terracotta, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -544,7 +532,7 @@ export default function CandidaturesPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.creme }}>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin { to { transform: rotate(360deg); } }
       `}</style>
@@ -566,7 +554,7 @@ export default function CandidaturesPage() {
               <span style={{ color: C.lightGrey, fontSize: 13 }}>/</span>
               <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  {offre && <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, fontWeight: 600 }}>{offre.titre}</div>}
+                  {offre && <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, fontWeight: 600 }}>{offre.titre}</div>}
                   <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
                     {cands.length} candidature{cands.length !== 1 ? 's' : ''} reçue{cands.length !== 1 ? 's' : ''}
                   </div>
@@ -588,7 +576,7 @@ export default function CandidaturesPage() {
                 return (
                   <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '10px 14px', border: 'none', borderBottom: `2px solid ${active ? (info?.color ?? C.dark) : 'transparent'}`, backgroundColor: 'transparent', color: active ? (info?.color ?? C.dark) : C.grey, fontSize: 12, fontWeight: active ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
                     {t.label}
-                    <span style={{ padding: '1px 6px', borderRadius: 20, backgroundColor: active ? `${info?.color ?? C.dark}14` : C.creme, color: active ? (info?.color ?? C.dark) : C.grey, fontSize: 10, fontWeight: 600 }}>{cnt}</span>
+                    <span style={{ padding: '1px 6px', borderRadius: 20, backgroundColor: active ? `${info?.color ?? C.dark}14` : C.bg, color: active ? (info?.color ?? C.dark) : C.grey, fontSize: 10, fontWeight: 600 }}>{cnt}</span>
                   </button>
                 )
               })}
@@ -604,7 +592,7 @@ export default function CandidaturesPage() {
                 {displayed.length === 0 ? (
                   <div style={{ backgroundColor: C.white, borderRadius: 16, border: `1px solid ${C.sable}`, padding: '60px 24px', textAlign: 'center' }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>◎</div>
-                    <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, marginBottom: 6 }}>
+                    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, marginBottom: 6 }}>
                       {tab === 'toutes' ? 'Aucune candidature reçue' : `Aucune candidature « ${statutInfo(tab).label} »`}
                     </div>
                     <div style={{ fontSize: 13, color: C.grey }}>

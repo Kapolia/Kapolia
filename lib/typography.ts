@@ -9,11 +9,11 @@
  *   lineHeight: LH.relaxed
  */
 
-/** Police sans-serif — corps de texte, interface, formulaires */
-export const FONT_SANS  = "'Inter', system-ui, sans-serif" as const
+/** Police sans-serif — corps de texte, interface, formulaires (variable 400–700) */
+export const FONT_SANS  = "'Source Sans 3', system-ui, sans-serif" as const
 
-/** Police serif — titres, accents éditoriaux */
-export const FONT_SERIF = "'EB Garamond', Garamond, Georgia, serif" as const
+/** Police serif — titres, accents éditoriaux (poids 600 uniquement, letter-spacing -0.005em) */
+export const FONT_SERIF = "'Lora', Georgia, serif" as const
 
 /**
  * Échelle de tailles en px.

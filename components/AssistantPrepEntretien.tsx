@@ -3,16 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
+import { C } from '@/lib/colors'
 
 type Phase = 'idle' | 'loading' | 'done' | 'error' | 'quota_atteint'
 
@@ -161,7 +152,7 @@ export default function AssistantPrepEntretien({
           }}>
             Assistant Kapolia
           </div>
-          <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, lineHeight: 1.3 }}>
+          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, lineHeight: 1.3 }}>
             {question}
           </div>
           {dateLabel && (
@@ -273,7 +264,7 @@ export default function AssistantPrepEntretien({
 
         {phase === 'error' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p style={{ fontSize: 13, color: '#C0392B', lineHeight: 1.6, margin: 0 }}>
+            <p style={{ fontSize: 13, color: C.erreur, lineHeight: 1.6, margin: 0 }}>
               {erreur || 'Une erreur est survenue.'}
             </p>
             <button

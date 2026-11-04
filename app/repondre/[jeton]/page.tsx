@@ -6,20 +6,9 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
 
-import { FONT_SERIF } from '@/lib/typography'
-const INTER = "'Inter', system-ui, sans-serif"
-
-const C = {
-  vert:       '#2C4A3E',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  terracotta: '#C4673A',
-  dark:       '#22312B',
-  grey:       '#8A9A92',
-  border:     '#D4C4A8',
-  white:      '#FFFFFF',
-  red:        '#C0392B',
-}
+import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, dark: '#22312B' as const, grey: '#8A9A92' as const, border: '#D4C4A8' as const }
 
 type Etat = 'chargement' | 'invalide' | 'formulaire' | 'envoi' | 'erreur' | 'succes'
 
@@ -30,7 +19,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 8,
   border:       `1px solid ${C.border}`,
   fontSize:     16,
-  fontFamily:   INTER,
+  fontFamily:   FONT_SANS,
   color:        C.dark,
   background:   C.white,
   outline:      'none',
@@ -103,8 +92,8 @@ export default function RepondrePage() {
   return (
     <div style={{
       minHeight:     '100vh',
-      background:    C.creme,
-      fontFamily:    INTER,
+      background:    C.bg,
+      fontFamily:    FONT_SANS,
       display:       'flex',
       flexDirection: 'column',
       alignItems:    'center',
@@ -129,7 +118,7 @@ export default function RepondrePage() {
         {(actif || etat === 'envoi') && (
           <div>
             <h1 style={{
-              fontFamily: FONT_SERIF,
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
               fontSize:   'clamp(20px, 5vw, 26px)',
               fontWeight: 600,
               color:      C.vert,
@@ -264,7 +253,7 @@ export default function RepondrePage() {
             {etat === 'erreur' && (
               <p role="alert" style={{
                 fontSize:   13,
-                color:      C.red,
+                color:      C.erreur,
                 margin:     '0 0 12px',
                 lineHeight: 1.4,
               }}>
@@ -285,7 +274,7 @@ export default function RepondrePage() {
                 color:        boutonActif ? C.white : C.grey,
                 fontSize:     16,
                 fontWeight:   600,
-                fontFamily:   INTER,
+                fontFamily:   FONT_SANS,
                 cursor:       boutonActif ? 'pointer' : 'default',
                 transition:   'background 0.15s, color 0.15s',
               }}
@@ -299,7 +288,7 @@ export default function RepondrePage() {
         {etat === 'succes' && (
           <div>
             <h1 style={{
-              fontFamily: FONT_SERIF,
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
               fontSize:   32,
               fontWeight: 600,
               color:      C.vert,

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { C } from '@/lib/colors'
 
 let sidebarCache: boolean | null = null
 
@@ -54,9 +55,9 @@ export default function CandidatPanneauLayout({ children }: { children: React.Re
   if (!hasSidebar) return <>{children}</>
 
   return (
-    <div style={{ paddingLeft: 'var(--kapolia-sidebar-w)', boxSizing: 'border-box', backgroundColor: '#2C4A3E', height: '100dvh', transition: 'padding-left 320ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
+    <div style={{ paddingLeft: 'var(--kapolia-sidebar-w)', boxSizing: 'border-box', backgroundColor: C.vert, height: '100dvh', transition: 'padding-left 320ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
       <div style={{ marginLeft: 6, height: '100%', borderRadius: '20px 0 0 20px', overflow: 'hidden' }}>
-        <div ref={scrollRef} style={{ height: '100%', overflowY: 'auto', backgroundColor: '#F6F7F6' }}>
+        <div ref={scrollRef} style={{ height: '100%', overflowY: 'auto', backgroundColor: C.bg }}>
           {children}
         </div>
       </div>

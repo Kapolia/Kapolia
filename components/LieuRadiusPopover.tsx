@@ -5,18 +5,9 @@ import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
 import { FONT_SERIF } from '@/lib/typography'
+import { C } from '@/lib/colors'
 
 const RadiusMap = dynamic(() => import('@/components/RadiusMap'), { ssr: false })
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
 
 const STEPS = [0, 10, 25, 50, 100]
 
@@ -107,8 +98,8 @@ export function LieuRadiusPopover({
   const displayText = summary(lieu, rayon)
   const hasFilter   = !!lieu
 
-  const triggerBg     = dark ? (hasFilter ? C.creme   : 'transparent')            : (hasFilter ? C.vert  : C.white)
-  const triggerBorder = dark ? (hasFilter ? C.creme   : 'rgba(255,255,255,0.30)') : (hasFilter ? C.vert  : C.sable)
+  const triggerBg     = dark ? (hasFilter ? C.bg   : 'transparent')            : (hasFilter ? C.vert  : C.white)
+  const triggerBorder = dark ? (hasFilter ? C.bg   : 'rgba(255,255,255,0.30)') : (hasFilter ? C.vert  : C.sable)
   const triggerColor  = dark ? (hasFilter ? C.vert    : 'rgba(255,255,255,0.90)') : (hasFilter ? C.white : C.dark)
 
   const pct = `${(sliderIdx / (STEPS.length - 1)) * 100}%`
@@ -164,7 +155,7 @@ export function LieuRadiusPopover({
           border-radius: 50%;
           background: ${C.terracotta};
           margin-top: -6.5px;
-          box-shadow: 0 2px 8px rgba(196,103,58,0.40);
+          box-shadow: 0 2px 8px rgba(194, 97, 31,0.40);
           cursor: pointer;
           transition: transform 0.12s;
         }
@@ -177,7 +168,7 @@ export function LieuRadiusPopover({
           border-radius: 50%;
           background: ${C.terracotta};
           border: none;
-          box-shadow: 0 2px 8px rgba(196,103,58,0.40);
+          box-shadow: 0 2px 8px rgba(194, 97, 31,0.40);
           cursor: pointer;
         }
       `}</style>
@@ -189,7 +180,7 @@ export function LieuRadiusPopover({
       )}
 
       {/* Title */}
-      <div style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 700, color: C.dark }}>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>
         Zone de recherche
       </div>
 
@@ -259,7 +250,7 @@ export function LieuRadiusPopover({
               color: C.grey, cursor: 'pointer', fontFamily: 'inherit',
               transition: 'background-color 0.12s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.bg)}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = C.white)}
           >
             Effacer

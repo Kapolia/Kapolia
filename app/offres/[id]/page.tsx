@@ -8,16 +8,8 @@ import { OffreDetail, type OffreData, type OffreSimilaire } from '@/components/O
 import { haversineKm } from '@/lib/geo'
 import { useFavoris } from '@/lib/favoris-context'
 import { scoreBreakdownCandidat, type ProfilMatch, type OffreMatch, type ScoreBreakdown } from '@/lib/matching'
+import { C } from '@/lib/colors'
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -214,7 +206,7 @@ export default function OffreDetailPage() {
 
   if (loading) {
     return (
-      <div style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+      <div style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
         <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
         <Spinner />
       </div>
@@ -226,12 +218,12 @@ export default function OffreDetailPage() {
   if (notFound || !offre) {
     return (
       <div style={{
-        backgroundColor: C.creme, minHeight: '100vh',
+        backgroundColor: C.bg, minHeight: '100vh',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center', padding: '60px 24px' }}>
           <div style={{ fontSize: 52, marginBottom: 20 }}>📭</div>
-          <h1 style={{ fontFamily: FONT_SERIF, fontSize: 26, color: C.dark, margin: '0 0 10px', fontWeight: 600 }}>
+          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px', fontWeight: 600 }}>
             Offre indisponible
           </h1>
           <p style={{ fontSize: 14, color: C.grey, margin: '0 0 28px', lineHeight: 1.65 }}>
@@ -255,7 +247,7 @@ export default function OffreDetailPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ backgroundColor: C.creme, minHeight: '100vh' }}>
+    <div style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }

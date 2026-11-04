@@ -26,6 +26,7 @@ import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 import { COMP_REF } from '@/lib/referentiels'
+import { C } from '@/lib/colors'
 
 // ─── Post-signup redirect ─────────────────────────────────────────────────────
 
@@ -131,16 +132,6 @@ const NIVEAUX_LANGUE = ['Natif', 'Courant', 'Intermédiaire', 'Débutant']
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-}
-
 // ─── Écran d'accueil ──────────────────────────────────────────────────────────
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
@@ -196,10 +187,10 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
         <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
         <span style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontWeight: 600,
           fontSize: 14,
-          color: '#2C4A3E',
+          color: C.vert,
           lineHeight: 1,
         }}>
           Kapolia
@@ -227,7 +218,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         <div className="kv-bloc-a" style={{
           gridRow: '1 / 3',
           gridColumn: 1,
-          backgroundColor: '#F6F7F6',
+          backgroundColor: C.bg,
           borderRadius: 16,
           padding: 32,
           display: 'flex',
@@ -239,17 +230,16 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
             fontSize: 12,
             letterSpacing: '0.2em',
             textTransform: 'uppercase',
-            color: '#C4673A',
+            color: C.orange,
             margin: '0 0 16px',
           }}>
             Trouvez votre cap{' '}!
           </p>
           <h1 className="kv-title" style={{
-            fontFamily: FONT_SERIF,
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
             fontWeight: 600,
             fontSize: 48,
             lineHeight: 1.06,
-            letterSpacing: '-0.015em',
             color: '#22312B',
             margin: '0 0 24px',
           }}>
@@ -277,8 +267,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 10,
-                backgroundColor: '#C4673A',
-                color: '#F6F7F6',
+                backgroundColor: C.orange,
+                color: C.bg,
                 border: 'none',
                 borderRadius: 100,
                 padding: '14px 28px',
@@ -299,7 +289,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
               >
                 <path
                   d="M3 2 L11 8 L3 14"
-                  stroke="#F6F7F6"
+                  stroke={C.bg}
                   strokeWidth={2.4}
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -313,7 +303,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         <div className="kv-bloc-b" style={{
           gridRow: 1,
           gridColumn: 2,
-          backgroundColor: '#2C4A3E',
+          backgroundColor: C.vert,
           borderRadius: 16,
           minHeight: 150,
           overflow: 'hidden',
@@ -340,16 +330,16 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         <div className="kv-bloc-c" style={{
           gridRow: 2,
           gridColumn: 2,
-          backgroundColor: '#E7EAE8',
+          backgroundColor: C.sable,
           borderRadius: 16,
           padding: '22px 24px',
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 10 }}>
             <span style={{
-              fontFamily: FONT_SERIF,
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
               fontWeight: 600,
               fontSize: 34,
-              color: '#2C4A3E',
+              color: C.vert,
               lineHeight: 1,
             }}>
               10
@@ -497,8 +487,8 @@ function QualitesCarousel({
     return (
       <div>
         <p style={{
-          fontFamily: FONT_SERIF, fontSize: 22, color: C.dark,
-          margin: '0 0 10px', fontWeight: 'normal', lineHeight: 1.3,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark,
+          margin: '0 0 10px', fontWeight: 600, lineHeight: 1.3,
         }}>
           Votre profil de qualités est prêt.
         </p>
@@ -517,7 +507,7 @@ function QualitesCarousel({
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 14px', borderRadius: 24,
                 border: `1.5px solid ${C.terracotta}`,
-                backgroundColor: 'rgba(196,103,58,0.06)',
+                backgroundColor: 'rgba(194, 97, 31,0.06)',
               }}>
                 <span style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
                   {QUALITE_LABELS[r.qualite] ?? r.qualite}
@@ -577,8 +567,8 @@ function QualitesCarousel({
 
       {/* Texte de la situation */}
       <p style={{
-        fontFamily: FONT_SERIF, fontSize: 18, color: C.dark,
-        margin: '0 0 20px', lineHeight: 1.5, fontWeight: 'normal',
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark,
+        margin: '0 0 20px', lineHeight: 1.5, fontWeight: 600,
       }}>
         {situation.texte}
       </p>
@@ -700,7 +690,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
   return (
     <main style={{
-      backgroundColor: '#2C4A3E',
+      backgroundColor: C.vert,
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -728,10 +718,10 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
       {/* Titre */}
       <h1 className="final-title" style={{
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontWeight: 600,
         lineHeight: 1.1,
-        color: '#F6F7F6',
+        color: C.bg,
         textAlign: 'center',
         marginBottom: 20,
         marginTop: 0,
@@ -741,7 +731,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
       {/* Accroche */}
       <p style={{
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: FONT_SANS,
         fontSize: 14,
         lineHeight: 1.6,
         color: '#A9BDB2',
@@ -757,13 +747,13 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
       {chosen === null ? (
         /* Carte de visibilité */
         <div className="final-card" style={{
-          backgroundColor: '#F6F7F6',
+          backgroundColor: C.bg,
           borderRadius: 14,
           padding: '24px 26px',
           textAlign: 'left',
         }}>
           <p style={{
-            fontFamily: FONT_SERIF,
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
             fontWeight: 600,
             fontSize: 17,
             color: '#22312B',
@@ -773,7 +763,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
             Souhaitez-vous être visible par les recruteurs ?
           </p>
           <p style={{
-            fontFamily: 'Inter, sans-serif',
+            fontFamily: FONT_SANS,
             fontSize: 13,
             color: '#5A6B62',
             lineHeight: 1.6,
@@ -794,8 +784,8 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
               onClick={() => handleChoice(true)}
               disabled={saving || !emailConfirme}
               style={{
-                backgroundColor: '#C4673A',
-                color: '#F6F7F6',
+                backgroundColor: C.orange,
+                color: C.bg,
                 border: 'none',
                 borderRadius: 100,
                 padding: '12px 20px',
@@ -836,8 +826,8 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
             onClick={onGoToProfile}
             style={{
               width: '100%',
-              backgroundColor: '#C4673A',
-              color: '#F6F7F6',
+              backgroundColor: C.orange,
+              color: C.bg,
               border: 'none',
               borderRadius: 100,
               padding: '14px 36px',
@@ -858,9 +848,9 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
                 background: 'none',
                 border: 'none',
                 padding: 0,
-                fontFamily: 'Inter, sans-serif',
+                fontFamily: FONT_SANS,
                 fontSize: 13,
-                color: invitHover ? '#F6F7F6' : '#A9BDB2',
+                color: invitHover ? C.bg : '#A9BDB2',
                 textDecoration: 'underline',
                 cursor: 'pointer',
                 transition: 'color 0.15s',
@@ -895,7 +885,7 @@ function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: st
         Étape {num} sur {TOTAL}
       </p>
       <h2 style={{
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontSize: 'clamp(22px, 3.5vw, 32px)',
         color: C.dark, lineHeight: '1.35',
         marginBottom: sub ? '10px' : '28px',
@@ -923,7 +913,7 @@ function ChoiceCard({ label, desc, selected, onClick, disabled = false }: {
         width: '100%', textAlign: 'left', padding: '14px 18px',
         borderRadius: '14px',
         border: `2px solid ${selected ? C.terracotta : C.sable}`,
-        backgroundColor: selected ? 'rgba(196,103,58,0.07)' : C.white,
+        backgroundColor: selected ? 'rgba(194, 97, 31,0.07)' : C.white,
         cursor: disabled ? 'default' : 'pointer', transition: 'all 0.15s',
         marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '14px',
         opacity: disabled ? 0.45 : 1,
@@ -1105,7 +1095,7 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
         </button>
       )}
       {permError && (
-        <p style={{ fontSize: '12px', color: '#C0392B', marginTop: '6px' }}>
+        <p style={{ fontSize: '12px', color: C.erreur, marginTop: '6px' }}>
           Accès au microphone refusé. Vérifiez les permissions dans votre navigateur.
         </p>
       )}
@@ -1527,7 +1517,7 @@ export default function OnboardingPage() {
                 <button key={d} onClick={() => set('domaine', d)} style={{
                   padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
                   border: `2px solid ${data.domaine === d ? C.terracotta : C.sable}`,
-                  backgroundColor: data.domaine === d ? 'rgba(196,103,58,0.08)' : C.white,
+                  backgroundColor: data.domaine === d ? 'rgba(194, 97, 31,0.08)' : C.white,
                   color: data.domaine === d ? C.terracotta : C.dark,
                   fontSize: '14px', fontWeight: data.domaine === d ? '600' : '400',
                   cursor: 'pointer', transition: 'all 0.15s',
@@ -1681,7 +1671,7 @@ export default function OnboardingPage() {
                   }} style={{
                     padding: '11px 22px', borderRadius: '24px', fontFamily: 'inherit',
                     border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                    backgroundColor: selected ? 'rgba(196,103,58,0.08)' : C.white,
+                    backgroundColor: selected ? 'rgba(194, 97, 31,0.08)' : C.white,
                     color: selected ? C.terracotta : C.dark,
                     fontSize: '14px', fontWeight: selected ? '600' : '400',
                     cursor: 'pointer', transition: 'all 0.15s',
@@ -1739,7 +1729,7 @@ export default function OnboardingPage() {
                   }} style={{
                     padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
                     border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                    backgroundColor: selected ? 'rgba(196,103,58,0.09)' : C.white,
+                    backgroundColor: selected ? 'rgba(194, 97, 31,0.09)' : C.white,
                     color: selected ? C.terracotta : C.dark,
                     fontSize: '14px', fontWeight: selected ? '600' : '400',
                     cursor: disabled ? 'default' : 'pointer',
@@ -1837,7 +1827,7 @@ export default function OnboardingPage() {
                 />
                 <button onClick={() => removeExp(i)} style={{
                   marginTop: '10px', background: 'none', border: 'none',
-                  color: '#C0392B', fontSize: '13px', cursor: 'pointer',
+                  color: C.erreur, fontSize: '13px', cursor: 'pointer',
                   padding: 0, fontFamily: 'inherit',
                 }}>
                   Supprimer cette expérience
@@ -1885,7 +1875,7 @@ export default function OnboardingPage() {
                   placeholder="Mention (optionnel : Bien, Très Bien…)" />
                 <button onClick={() => removeDiplome(i)} style={{
                   marginTop: '10px', background: 'none', border: 'none',
-                  color: '#C0392B', fontSize: '13px', cursor: 'pointer',
+                  color: C.erreur, fontSize: '13px', cursor: 'pointer',
                   padding: 0, fontFamily: 'inherit',
                 }}>
                   Supprimer ce diplôme
@@ -1935,7 +1925,7 @@ export default function OnboardingPage() {
                   }} style={{
                     padding: '8px 16px', borderRadius: '24px', fontFamily: 'inherit',
                     border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                    backgroundColor: selected ? 'rgba(196,103,58,0.08)' : C.white,
+                    backgroundColor: selected ? 'rgba(194, 97, 31,0.08)' : C.white,
                     color: selected ? C.terracotta : C.dark,
                     fontSize: '14px', fontWeight: selected ? '600' : '400',
                     cursor: 'pointer', transition: 'all 0.15s',
@@ -1967,7 +1957,7 @@ export default function OnboardingPage() {
                         ))}
                         style={{
                           padding: '6px 10px', borderRadius: '8px', fontFamily: 'inherit',
-                          border: `1px solid ${C.sable}`, backgroundColor: C.creme,
+                          border: `1px solid ${C.sable}`, backgroundColor: C.bg,
                           color: C.dark, fontSize: '13px', cursor: 'pointer', outline: 'none',
                         }}
                       >
@@ -1987,7 +1977,7 @@ export default function OnboardingPage() {
   }
 
   if (loadingResume) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'spin 0.8s linear infinite' }} />
     </div>
@@ -2001,12 +1991,12 @@ export default function OnboardingPage() {
   const transition = TRANSITIONS[step]
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <style suppressHydrationWarning>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes kapolia-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(196,103,58,0.45); }
-          50%       { box-shadow: 0 0 0 7px rgba(196,103,58,0); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(194, 97, 31,0.45); }
+          50%       { box-shadow: 0 0 0 7px rgba(194, 97, 31,0); }
         }
       `}</style>
 
@@ -2016,7 +2006,7 @@ export default function OnboardingPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${C.sable}`,
       }}>
-        <span style={{ fontFamily: FONT_SERIF, fontSize: '20px', color: C.dark }}>Kapolia</span>
+        <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
         <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
           {step} / {TOTAL}
         </span>
@@ -2031,7 +2021,7 @@ export default function OnboardingPage() {
             return (
               <span key={b.label} style={{
                 fontSize: '11px', padding: '3px 10px', borderRadius: '20px',
-                backgroundColor: isCurrent ? C.terracotta : isPast ? 'rgba(196,103,58,0.1)' : 'transparent',
+                backgroundColor: isCurrent ? C.terracotta : isPast ? 'rgba(194, 97, 31,0.1)' : 'transparent',
                 border: `1px solid ${isCurrent || isPast ? C.terracotta : C.sable}`,
                 color: isCurrent ? 'white' : isPast ? C.terracotta : C.grey,
                 fontWeight: isCurrent ? '600' : '400',
@@ -2073,10 +2063,10 @@ export default function OnboardingPage() {
       <footer style={{
         padding: '16px clamp(20px, 5%, 48px)',
         borderTop: `1px solid ${C.sable}`,
-        backgroundColor: C.creme,
+        backgroundColor: C.bg,
       }}>
         {saveError && (
-          <p style={{ color: '#C0392B', fontSize: '14px', marginBottom: '12px', textAlign: 'center', fontWeight: '500' }}>
+          <p style={{ color: C.erreur, fontSize: '14px', marginBottom: '12px', textAlign: 'center', fontWeight: '500' }}>
             {saveError}
           </p>
         )}

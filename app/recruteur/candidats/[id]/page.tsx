@@ -3,8 +3,7 @@
 import { useParams, useRouter } from 'next/navigation'
 import ProfilView from '@/components/ProfilView'
 import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
-
-const C = { sable: '#E7EAE8', creme: '#F6F7F6', dark: '#15201B', white: '#FFFFFF' }
+import { C } from '@/lib/colors'
 
 export default function CandidatProfilPage() {
   const params = useParams()
@@ -29,7 +28,7 @@ export default function CandidatProfilPage() {
           fontFamily: 'inherit', boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
           transition: 'background-color 0.12s',
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.creme }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.bg }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.white }}
       >
         Retour

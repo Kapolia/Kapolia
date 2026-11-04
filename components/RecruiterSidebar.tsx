@@ -4,17 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  vert:       '#2C4A3E',
-  sable:      '#E7EAE8',
-  white:      '#FFFFFF',
-  grey:       '#687069',
-  dark:       '#15201B',
-}
+import { C } from '@/lib/colors'
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
@@ -139,7 +129,7 @@ function DropItem({ label, onClick, danger = false }: { label: string; onClick: 
       style={{
         display: 'block', width: '100%', textAlign: 'left',
         padding: '9px 12px', border: 'none', borderRadius: 8,
-        backgroundColor: hov ? (danger ? '#FDECEA' : '#F6F7F6') : 'transparent',
+        backgroundColor: hov ? (danger ? '#FDECEA' : C.bg) : 'transparent',
         color: danger ? '#C0392B' : C.dark,
         fontSize: 13, fontWeight: 500, cursor: 'pointer',
         transition: 'background-color 0.12s', fontFamily: 'inherit',
@@ -241,7 +231,7 @@ export default function RecruiterSidebar({
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
                 padding: '9px 12px', borderRadius: '10px', border: 'none',
-                backgroundColor: active ? 'rgba(196,103,58,0.18)' : 'transparent',
+                backgroundColor: active ? C.orangeDoux : 'transparent',
                 color: active ? C.terracotta : 'rgba(255,255,255,0.62)',
                 fontSize: '13px', fontWeight: active ? '600' : '400',
                 cursor: 'pointer', textAlign: 'left', marginBottom: '2px',

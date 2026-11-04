@@ -22,17 +22,17 @@ export default async function Image() {
           flexDirection:   'column',
           alignItems:      'center',
           justifyContent:  'center',
-          backgroundColor: '#2C4A3E',
+          backgroundColor: '#24453A',
           gap:             '0px',
         }}
       >
         {/* Symbole Kapolia — variante clair */}
         <svg viewBox="0 0 42 42" width={110} height={110}>
-          <circle cx="21" cy="21" r="18" fill="#F6F7F6" />
+          <circle cx="21" cy="21" r="18" fill="#F6F7F5" />
           <path
             d="M14 29 L21 12 L28 29"
             fill="none"
-            stroke="#2C4A3E"
+            stroke="#24453A"
             strokeWidth="2.6"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -40,7 +40,7 @@ export default async function Image() {
           <path
             d="M14 29 L21 25 L28 29"
             fill="none"
-            stroke="#C4673A"
+            stroke="#C2611F"
             strokeWidth="2.6"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -69,7 +69,7 @@ export default async function Image() {
           style={{
             fontFamily: 'Inter',
             fontSize:   '30px',
-            color:      '#E7EAE8',
+            color:      '#E5E8E5',
             display:    'flex',
           }}
         >

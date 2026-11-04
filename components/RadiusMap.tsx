@@ -4,8 +4,9 @@ import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Circle, useMap } from 'react-leaflet'
 
-const VERT       = '#2C4A3E'
-const TERRACOTTA = '#C4673A'
+import { C as _RC } from '@/lib/colors'
+const VERT       = _RC.vert
+const TERRACOTTA = _RC.orange
 
 const STEPS = [0, 10, 25, 50, 100]
 

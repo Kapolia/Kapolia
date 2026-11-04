@@ -6,18 +6,10 @@ import { supabase } from '@/lib/supabase'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
 import { FONT_SERIF } from '@/lib/typography'
-import { CARD_SHADOW } from '@/lib/colors'
+import { C, CARD_SHADOW } from '@/lib/colors'
 import { fetchRdvEnAttenteCount } from '@/lib/rdv-en-attente'
 
 const LS_KEY = 'kapolia-sidebar-repliee'
-
-const C = {
-  vert:       '#2C4A3E',
-  terracotta: '#C4673A',
-  dark:       '#15201B',
-  sable:      '#E7EAE8',
-  white:      '#FFFFFF',
-}
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
 
@@ -128,8 +120,8 @@ function MenuBtn({ label, onClick, danger = false, notif = false }: {
         display: 'flex', alignItems: 'center', gap: 8,
         width: '100%', textAlign: 'left',
         padding: '9px 12px', border: 'none', borderRadius: 8,
-        backgroundColor: hov ? (danger ? '#FDECEA' : '#F6F7F6') : 'transparent',
-        color: danger ? '#C0392B' : C.dark,
+        backgroundColor: hov ? (danger ? '#FDECEA' : C.bg) : 'transparent',
+        color: danger ? C.erreur : C.dark,
         fontSize: 13, fontWeight: notif ? 600 : 500,
         cursor: 'pointer', transition: 'background-color 0.12s', fontFamily: 'inherit',
       }}
@@ -161,7 +153,7 @@ function CollapsedItem({ item, active, badge }: { item: NavItem; active: boolean
           width: 44, height: 44,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: 12,
-          backgroundColor: active ? 'rgba(196,103,58,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
+          backgroundColor: active ? 'rgba(194, 97, 31,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
           border: 'none', cursor: 'pointer',
           transition: 'background-color 0.15s',
           position: 'relative',
@@ -195,7 +187,7 @@ function ExpandedItem({ item, active, badge, btnRef }: {
         width: '100%', height: 40,
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '0 12px', borderRadius: 12, border: 'none',
-        backgroundColor: active ? 'rgba(196,103,58,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
+        backgroundColor: active ? 'rgba(194, 97, 31,0.18)' : hov ? 'rgba(255,255,255,0.07)' : 'transparent',
         cursor: 'pointer',
         transition: 'background-color 0.15s',
         fontFamily: 'inherit',
@@ -489,9 +481,9 @@ export default function CandidatSidebar({
           <LogoKapolia variante="contour" avecTexte={false} taille={36} />
           {!repliee && (
             <span style={{
-              fontFamily: FONT_SERIF,
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
               fontSize: 22, fontWeight: 600,
-              color: '#E7EAE8',
+              color: C.sable,
               whiteSpace: 'nowrap' as const,
               userSelect: 'none' as const,
             }}>
@@ -519,7 +511,7 @@ export default function CandidatSidebar({
               top: pillStyle.top,
               height: pillStyle.height,
               borderRadius: 12,
-              backgroundColor: 'rgba(196,103,58,0.18)',
+              backgroundColor: 'rgba(194, 97, 31,0.18)',
               transition: 'top 340ms cubic-bezier(0.2, 0.8, 0.2, 1), height 340ms cubic-bezier(0.2, 0.8, 0.2, 1)',
               pointerEvents: 'none',
               zIndex: 0,

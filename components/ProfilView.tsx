@@ -15,25 +15,17 @@ import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 import InvitationModal, { type ActiveInvitation } from '@/components/InvitationModal'
 import AssistantProfilPanel from '@/components/AssistantProfilPanel'
-import { CARD_RADIUS, CARD_SHADOW } from '@/lib/colors'
+import { C as _C, CARD_RADIUS, CARD_SHADOW } from '@/lib/colors'
 import { sanitizeFilename } from '@/lib/storage-utils'
+
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
+
 
 function isFromRef(comp: string): boolean {
   return Object.values(COMP_REF).some(list => list.includes(comp))
 }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,7 +138,7 @@ const PRIORITES = [
 const DISPO_OPTIONS = [
   { key: 'maintenant',      label: 'Disponible maintenant', color: '#27AE60' },
   { key: 'a_partir_de',    label: 'À partir de…',          color: '#E67E22' },
-  { key: 'non_disponible', label: 'Non disponible',         color: '#C0392B' },
+  { key: 'non_disponible', label: 'Non disponible',         color: C.erreur },
 ]
 
 const MOIS_FR = [
@@ -170,7 +162,7 @@ function getInitials(prenom: string, nom: string) {
 }
 
 function getDispoStatus(dispo?: string | null, dispoDate?: string | null): { color: string; label: string } {
-  if (dispo === 'non_disponible') return { color: '#C0392B', label: 'Non disponible' }
+  if (dispo === 'non_disponible') return { color: C.erreur, label: 'Non disponible' }
   if (dispo === 'a_partir_de') {
     if (dispoDate) {
       const d = new Date(dispoDate + 'T00:00:00')
@@ -491,7 +483,7 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
         />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-        <div style={{ fontFamily: FONT_SERIF, fontSize: Math.min(17, size * 0.38), color: C.white, fontWeight: 600, lineHeight: 1 }}>{score}%</div>
+        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: Math.min(17, size * 0.38), color: C.white, fontWeight: 600, lineHeight: 1 }}>{score}%</div>
         <div style={{ fontSize: Math.min(9.5, size * 0.21), color: 'rgba(255,255,255,0.55)', lineHeight: 1 }}>match</div>
       </div>
     </div>
@@ -500,7 +492,7 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
 
 function SLabel({ children }: { children: string }) {
   return (
-    <div style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
       {children}
     </div>
   )
@@ -595,7 +587,7 @@ export default function ProfilView({
   const [avatarTab, setAvatarTab]                   = useState<'photo' | 'avatar' | 'initiales'>('photo')
   const [avatarFile, setAvatarFile]                 = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview]           = useState<string | null>(null)
-  const [selectedColor, setSelectedColor]           = useState('#C4673A')
+  const [selectedColor, setSelectedColor]           = useState<string>(C.orange)
   const [selectedEmoji, setSelectedEmoji]           = useState<string | null>(null)
   const [uploadingAvatar, setUploadingAvatar]       = useState(false)
   const [newQualite, setNewQualite]                 = useState('')
@@ -671,7 +663,7 @@ export default function ProfilView({
         return
       }
 
-      const profil = data as Profil
+      const profil = data as unknown as Profil
       setProfil(profil)
 
       // Qualités proches sélectionnées : visible en lecture pour tous les visiteurs autorisés
@@ -835,15 +827,15 @@ export default function ProfilView({
   }, [isEditing, isOwner, unreadNotifCount, userId])
 
   if (loading) return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </main>
   )
 
   if (fetchError) return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark }}>Erreur de chargement</div>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark }}>Erreur de chargement</div>
       <div style={{ fontSize: 14, color: C.grey, textAlign: 'center', maxWidth: 320 }}>{fetchError}</div>
       <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
         Réessayer
@@ -852,9 +844,9 @@ export default function ProfilView({
   )
 
   if (notFound) return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 40 }}>◎</div>
-      <div style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark }}>Profil introuvable</div>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark }}>Profil introuvable</div>
       <div style={{ fontSize: 14, color: C.grey }}>Ce profil n'existe pas ou n'est plus accessible.</div>
       <button onClick={() => router.back()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
         ← Retour
@@ -944,7 +936,7 @@ export default function ProfilView({
   function openAvatarModal() {
     const type = p.avatar_type ?? 'initiales'
     setAvatarTab(type === 'photo' ? 'photo' : type === 'avatar' ? 'avatar' : 'initiales')
-    setSelectedColor(type === 'initiales' && p.avatar_url ? p.avatar_url : '#C4673A')
+    setSelectedColor(type === 'initiales' && p.avatar_url ? p.avatar_url : C.orange)
     setSelectedEmoji(type === 'avatar' ? (p.avatar_url ?? null) : null)
     setAvatarPreview(null)
     setAvatarFile(null)
@@ -1347,7 +1339,7 @@ export default function ProfilView({
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <main style={{ backgroundColor: C.creme, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: isEditing ? 72 : 0 }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: isEditing ? 72 : 0 }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin { to { transform: rotate(360deg); } }
         @keyframes kapolia-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
@@ -1368,7 +1360,7 @@ export default function ProfilView({
         transform: `translateX(-50%) translateY(${toastVisible ? '0' : '14px'})`,
         opacity: toastVisible ? 1 : 0, transition: 'opacity 0.22s, transform 0.22s',
         pointerEvents: 'none', zIndex: 300,
-        backgroundColor: toastMsg.includes('Erreur') ? '#C0392B' : C.vert,
+        backgroundColor: toastMsg.includes('Erreur') ? C.erreur : C.vert,
         color: C.white, padding: '11px 22px', borderRadius: 28, fontSize: 14, fontWeight: 600,
         boxShadow: '0 4px 20px rgba(0,0,0,0.18)', whiteSpace: 'nowrap' as const,
       }}>
@@ -1427,7 +1419,7 @@ export default function ProfilView({
 
           {/* Identité */}
           <div style={{ width: '100%', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.white, fontWeight: 400, margin: '0 0 4px', lineHeight: 1.2 }}>
+            <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.white, fontWeight: 600, margin: '0 0 4px', lineHeight: 1.2 }}>
               {p.prenom} {p.nom}
             </h1>
 
@@ -1466,7 +1458,7 @@ export default function ProfilView({
                     width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8,
                     color: C.white, fontSize: 13, padding: '8px 12px',
-                    fontFamily: FONT_SERIF, fontStyle: 'italic', lineHeight: 1.6,
+                    fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic', lineHeight: 1.6,
                     resize: 'none', outline: 'none', boxSizing: 'border-box' as const,
                     overflow: 'hidden', minHeight: 42,
                   }}
@@ -1478,7 +1470,7 @@ export default function ProfilView({
                 <div style={{ marginTop: 6 }}>
                   <p style={{
                     margin: 0, textAlign: 'left',
-                    fontFamily: FONT_SERIF, fontStyle: 'italic',
+                    fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic',
                     fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.55,
                     ...(signatureExpanded ? {} : {
                       display: '-webkit-box', WebkitLineClamp: 3,
@@ -1592,7 +1584,7 @@ export default function ProfilView({
             <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '16px 18px', marginBottom: 12 }}>
           {/* Cap header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 8px' }}>
-            <span style={{ fontFamily: FONT_SERIF, fontSize: 15, fontWeight: 600, color: C.dark }}>{isOwner ? 'Cap sur votre recherche' : 'Son cap'}</span>
+            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>{isOwner ? 'Cap sur votre recherche' : 'Son cap'}</span>
             <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
           </div>
           {/* 3 columns */}
@@ -1802,7 +1794,7 @@ export default function ProfilView({
                 {isEditing ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {editLiens.map((lien, i) => (
-                      <div key={i} style={{ backgroundColor: C.creme, borderRadius: 8, padding: '10px 12px', position: 'relative' as const }}>
+                      <div key={i} style={{ backgroundColor: C.bg, borderRadius: 8, padding: '10px 12px', position: 'relative' as const }}>
                         {editLiensErrs[i] && (
                           <p style={{ margin: '0 0 6px', fontSize: 11, color: C.terracotta, lineHeight: 1.4 }}>{editLiensErrs[i]}</p>
                         )}
@@ -1859,7 +1851,7 @@ export default function ProfilView({
                             href={lien.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 12px', borderRadius: 8, backgroundColor: C.creme, border: `1px solid ${C.sable}`, textDecoration: 'none' }}
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 12px', borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.sable}`, textDecoration: 'none' }}
                           >
                             <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{lien.intitule}</span>
                             <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{hostname} →</span>
@@ -1888,7 +1880,7 @@ export default function ProfilView({
                   miroir={videoMiroir}
                   frameStyle={{
                     borderRadius: 16, aspectRatio: '16 / 9',
-                    boxShadow: '0 8px 36px rgba(44,74,62,0.14)',
+                    boxShadow: '0 8px 36px rgba(36, 69, 58,0.14)',
                     border: `1px solid ${C.sable}`,
                     marginBottom: 16,
                   }}
@@ -1896,7 +1888,7 @@ export default function ProfilView({
                 {/* Caption + boutons owner */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
                   <div>
-                    <div style={{ fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Présentation vidéo</div>
+                    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Présentation vidéo</div>
                     <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
                   </div>
                   {isOwner && (
@@ -1951,7 +1943,7 @@ export default function ProfilView({
                 backgroundColor: C.white, borderRadius: 14, padding: '16px 20px',
                 border: `1.5px dashed ${C.sable}`,
               }}>
-                <div style={{ fontFamily: FONT_SERIF, fontSize: 15, color: C.dark, marginBottom: 6 }}>
+                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark, marginBottom: 6 }}>
                   Ajoutez votre vidéo de présentation
                 </div>
                 <p style={{ margin: '0 0 10px', fontSize: 13, color: C.grey, lineHeight: 1.55 }}>
@@ -2056,7 +2048,7 @@ export default function ProfilView({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   {experiences.map((exp, i) => (
                     <div key={i} style={{ display: 'flex', gap: 20, paddingLeft: 28, position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 5, width: 16, height: 16, borderRadius: '50%', backgroundColor: C.terracotta, border: `2.5px solid ${C.creme}`, flexShrink: 0 }} />
+                      <div style={{ position: 'absolute', left: 0, top: 5, width: 16, height: 16, borderRadius: '50%', backgroundColor: C.terracotta, border: `2.5px solid ${C.bg}`, flexShrink: 0 }} />
                       <div style={{ flex: 1, backgroundColor: C.white, borderRadius: 14, padding: '16px 20px', border: `1px solid ${C.sable}` }}>
                         <div style={{ fontWeight: 700, fontSize: 14, color: C.dark, marginBottom: 2 }}>{exp.poste}</div>
                         <div style={{ fontSize: 12, color: C.grey, marginBottom: exp.missions ? 10 : 0 }}>
@@ -2148,10 +2140,10 @@ export default function ProfilView({
                   <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
-                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(Array.from(e.dataTransfer.files)) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.creme, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
+                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(Array.from(e.dataTransfer.files)) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.bg, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
                       {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
                     </div>
-                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
+                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
                       Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
                     </button>
                     {editProjetImages.length > 0 && (
@@ -2168,13 +2160,13 @@ export default function ProfilView({
                   </div>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
-                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
+                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
                       {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>{editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
                     </button>
                     {editProjetVideo && (
                       <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
                         <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
-                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.creme, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
+                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.bg, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
                       </div>
                     )}
                   </div>
@@ -2182,7 +2174,7 @@ export default function ProfilView({
               </div>
             ) : (
               <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
-                <div style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.white, fontWeight: 400, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
+                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.white, fontWeight: 600, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
                 <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Voir les détails du projet →</div>
               </div>
@@ -2357,7 +2349,7 @@ export default function ProfilView({
                         <div key={inv.id} style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                           padding: '9px 12px', borderRadius: 8,
-                          backgroundColor: C.creme, border: `1px solid ${C.sable}`,
+                          backgroundColor: C.bg, border: `1px solid ${C.sable}`,
                         }}>
                           <span style={{ fontSize: 13, color: C.dark, flex: 1, lineHeight: 1.4 }}>
                             {inv.label_proche} · {LIEN_LABELS[inv.lien] ?? inv.lien} · expire le {formatExpiry(inv.expire_at)}
@@ -2478,7 +2470,7 @@ export default function ProfilView({
                           <span key={c} style={{
                             display: 'inline-flex', alignItems: 'center', gap: 5,
                             padding: '5px 10px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-                            backgroundColor: inRef ? `${C.vert}12` : '#F1F3F2',
+                            backgroundColor: inRef ? `${C.vert}12` : C.chip,
                             color: inRef ? C.vert : C.grey,
                             border: `1.5px ${inRef ? 'solid' : 'dashed'} ${inRef ? `${C.vert}30` : C.lightGrey}`,
                           }}>
@@ -2618,7 +2610,7 @@ export default function ProfilView({
                             onChange={e => setEditLangues(editLangues.map(l =>
                               l.startsWith(nom + ' — ') ? `${nom} — ${e.target.value}` : l
                             ))}
-                            style={{ padding: '5px 10px', borderRadius: 8, fontFamily: 'inherit', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.dark, fontSize: 13, cursor: 'pointer', outline: 'none' }}
+                            style={{ padding: '5px 10px', borderRadius: 8, fontFamily: 'inherit', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.dark, fontSize: 13, cursor: 'pointer', outline: 'none' }}
                           >
                             {NIVEAUX_LANGUE.map(n => <option key={n} value={n}>{n}</option>)}
                           </select>
@@ -2743,8 +2735,8 @@ export default function ProfilView({
         <div onClick={() => setProjetModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px, 4%, 40px)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
-              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22, color: C.dark, margin: 0, fontWeight: 400, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
-              <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.grey, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark, margin: 0, fontWeight: 600, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
+              <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
             </div>
             {projetVideoUrl && (
               <div style={{ marginBottom: 28 }}>
@@ -2769,7 +2761,7 @@ export default function ProfilView({
                   ))}
                 </div>
               ) : (
-                <div style={{ padding: 20, textAlign: 'center' as const, color: C.grey, fontSize: 13, backgroundColor: C.creme, borderRadius: 10 }}>Aucune image ajoutée</div>
+                <div style={{ padding: 20, textAlign: 'center' as const, color: C.grey, fontSize: 13, backgroundColor: C.bg, borderRadius: 10 }}>Aucune image ajoutée</div>
               )}
             </div>
             {projetLien && (
@@ -2788,10 +2780,10 @@ export default function ProfilView({
         <div onClick={() => setAvatarModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 24, width: '100%', maxWidth: 480, padding: 'clamp(24px, 4%, 36px)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: 0, fontWeight: 400 }}>Personnaliser mon avatar</h2>
-              <button onClick={() => setAvatarModal(false)} style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.creme, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>✕</button>
+              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0, fontWeight: 600 }}>Personnaliser mon avatar</h2>
+              <button onClick={() => setAvatarModal(false)} style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>✕</button>
             </div>
-            <div style={{ display: 'flex', gap: 4, marginBottom: 28, backgroundColor: C.creme, borderRadius: 12, padding: 4 }}>
+            <div style={{ display: 'flex', gap: 4, marginBottom: 28, backgroundColor: C.bg, borderRadius: 12, padding: 4 }}>
               {(['photo', 'avatar', 'initiales'] as const).map(tab => (
                 <button key={tab} onClick={() => setAvatarTab(tab)} style={{ flex: 1, padding: '8px 6px', borderRadius: 9, border: 'none', backgroundColor: avatarTab === tab ? C.white : 'transparent', boxShadow: avatarTab === tab ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', color: avatarTab === tab ? C.dark : C.grey, fontSize: 13, fontWeight: avatarTab === tab ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}>
                   {tab === 'photo' ? '📷 Photo' : tab === 'avatar' ? '🧑 Avatar' : '✦ Initiales'}
@@ -2806,7 +2798,7 @@ export default function ProfilView({
                     <img src={avatarPreview} alt="Prévisualisation" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   </div>
                 ) : (
-                  <div style={{ width: 110, height: 110, borderRadius: '50%', backgroundColor: C.creme, border: `2px dashed ${C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📷</div>
+                  <div style={{ width: 110, height: 110, borderRadius: '50%', backgroundColor: C.bg, border: `2px dashed ${C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📷</div>
                 )}
                 <button onClick={() => avatarFileRef.current?.click()} style={{ padding: '10px 24px', borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>📷 Choisir une photo</button>
                 <p style={{ fontSize: 12, color: C.grey, margin: 0, textAlign: 'center' as const }}>JPG, PNG ou WebP · Max 5 MB · Recadrage circulaire automatique</p>
@@ -2816,7 +2808,7 @@ export default function ProfilView({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center' }}>
                   {['🧑','👩','👨','🧔','👱','👩‍🦱','👨‍🦱','👩‍🦰','👨‍🦰','🧓','👴','👵'].map(emoji => (
-                    <button key={emoji} onClick={() => setSelectedEmoji(emoji)} style={{ width: 54, height: 54, borderRadius: '50%', border: `3px solid ${selectedEmoji === emoji ? C.terracotta : C.sable}`, backgroundColor: selectedEmoji === emoji ? `${C.terracotta}12` : C.creme, fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>{emoji}</button>
+                    <button key={emoji} onClick={() => setSelectedEmoji(emoji)} style={{ width: 54, height: 54, borderRadius: '50%', border: `3px solid ${selectedEmoji === emoji ? C.terracotta : C.sable}`, backgroundColor: selectedEmoji === emoji ? `${C.terracotta}12` : C.bg, fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>{emoji}</button>
                   ))}
                 </div>
                 {selectedEmoji && <p style={{ fontSize: 12, color: C.grey, textAlign: 'center' as const, margin: 0 }}>Sélectionné : <span style={{ fontSize: 20 }}>{selectedEmoji}</span></p>}
@@ -2824,9 +2816,9 @@ export default function ProfilView({
             )}
             {avatarTab === 'initiales' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20, alignItems: 'center' }}>
-                <div style={{ width: 96, height: 96, borderRadius: '50%', backgroundColor: selectedColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, fontSize: 30, color: C.white, fontWeight: 700 }}>{initials}</div>
+                <div style={{ width: 96, height: 96, borderRadius: '50%', backgroundColor: selectedColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 30, color: C.white, fontWeight: 600 }}>{initials}</div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const, justifyContent: 'center' }}>
-                  {['#C4673A','#2C4A3E','#3B82F6','#7C3AED','#EC4899','#475569'].map(color => (
+                  {[C.orange,C.vert,'#3B82F6','#7C3AED','#EC4899','#475569'].map(color => (
                     <button key={color} onClick={() => setSelectedColor(color)} style={{ width: 40, height: 40, borderRadius: '50%', border: 'none', backgroundColor: color, cursor: 'pointer', outline: selectedColor === color ? `3px solid ${C.dark}` : '3px solid transparent', outlineOffset: 2, transition: 'outline 0.15s' }} title={color} />
                   ))}
                 </div>
@@ -2895,7 +2887,7 @@ export default function ProfilView({
                   {/* Countdown overlay */}
                   {recordPhase === 'countdown' && (
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-                      <div style={{ fontFamily: FONT_SERIF, fontSize: 112, color: C.white, fontWeight: 700, lineHeight: 1, textShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>{countdown}</div>
+                      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 112, color: C.white, fontWeight: 600, lineHeight: 1, textShadow: '0 4px 24px rgba(0,0,0,0.6)' }}>{countdown}</div>
                     </div>
                   )}
 
@@ -2913,7 +2905,7 @@ export default function ProfilView({
 
                   {/* Timer */}
                   {recordPhase === 'recording' && (
-                    <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(196,103,58,0.9)', borderRadius: 20, padding: '3px 11px', fontSize: 12, fontWeight: 700, color: C.white, fontFamily: 'monospace' }}>
+                    <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(194, 97, 31,0.9)', borderRadius: 20, padding: '3px 11px', fontSize: 12, fontWeight: 700, color: C.white, fontFamily: 'monospace' }}>
                       {String(Math.floor(recordDuration / 60)).padStart(2, '0')}:{String(recordDuration % 60).padStart(2, '0')} / 01:00
                     </div>
                   )}

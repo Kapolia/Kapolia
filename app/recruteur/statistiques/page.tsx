@@ -9,22 +9,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell,
 } from 'recharts'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const, blue: '#2563EB' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  amber:      '#C88A2A',
-  blue:       '#2563EB',
-  red:        '#C0392B',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,7 +58,7 @@ const STATUT_LABELS: Record<string, string> = {
 }
 
 const PIE_COLORS = [
-  C.terracotta, C.vert, C.amber, '#5C6BC0', '#7B5EA7', '#2C6E49', '#B06000',
+  C.terracotta, C.vert, C.attente, '#5C6BC0', '#7B5EA7', '#2C6E49', '#B06000',
 ]
 
 function computeScore(cand: Candidature, offre: Offre | undefined): number | null {
@@ -108,7 +96,7 @@ function Card({ title, children, style }: { title?: string; children: React.Reac
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '24px 28px', boxShadow: '0 1px 8px rgba(0,0,0,0.04)', ...style }}>
       {title && (
-        <div style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 20 }}>
+        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 20 }}>
           {title}
         </div>
       )}
@@ -121,7 +109,7 @@ function KpiCard({ icon, value, label, sub, color }: { icon: string; value: stri
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '24px 28px', flex: '1 1 190px', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <div style={{ fontSize: 22, marginBottom: 12 }}>{icon}</div>
-      <div style={{ fontFamily: FONT_SERIF, fontSize: 36, fontWeight: 700, color: color ?? C.dark, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 36, fontWeight: 600, color: color ?? C.dark, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 13, color: C.grey, marginTop: 6, fontWeight: 500 }}>{label}</div>
       {sub && <div style={{ fontSize: 11, color: C.terracotta, marginTop: 4 }}>{sub}</div>}
     </div>
@@ -140,7 +128,7 @@ function Funnel({ rows }: { rows: FunnelRow[] }) {
           <div style={{ width: 90, textAlign: 'right', fontSize: 12, color: C.grey, fontWeight: 500, flexShrink: 0 }}>
             {row.label}
           </div>
-          <div style={{ flex: 1, height: 40, backgroundColor: C.creme, borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
+          <div style={{ flex: 1, height: 40, backgroundColor: C.bg, borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
             <div style={{
               position: 'absolute', inset: 0,
               width: `${row.count > 0 ? Math.max(row.pct, 3) : 0}%`,
@@ -334,10 +322,10 @@ export default function StatistiquesPage() {
     const cnt   = (s: string) => filteredCands.filter(c => c.statut === s).length
     return [
       { label: 'Total',     count: total,          pct: 100,              color: C.dark },
-      { label: 'Vues',      count: cnt('vue'),      pct: pct(cnt('vue')), color: C.amber },
+      { label: 'Vues',      count: cnt('vue'),      pct: pct(cnt('vue')), color: C.attente },
       { label: 'En cours',  count: cnt('en cours'), pct: pct(cnt('en cours')), color: C.blue },
       { label: 'Acceptées', count: cnt('acceptée'), pct: pct(cnt('acceptée')), color: C.vert },
-      { label: 'Refusées',  count: cnt('refusée'),  pct: pct(cnt('refusée')),  color: C.red },
+      { label: 'Refusées',  count: cnt('refusée'),  pct: pct(cnt('refusée')),  color: C.erreur },
     ]
   }, [filteredCands])
 
@@ -415,13 +403,13 @@ export default function StatistiquesPage() {
   const noData = offres.length === 0
 
   return (
-    <div style={{ backgroundColor: C.creme, minHeight: '100vh', padding: '36px 40px 80px' }}>
+    <div style={{ backgroundColor: C.bg, minHeight: '100vh', padding: '36px 40px 80px' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* ── HEADER ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontFamily: FONT_SERIF, fontSize: 28, color: C.dark, margin: '0 0 4px', fontWeight: 600 }}>
+          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, color: C.dark, margin: '0 0 4px', fontWeight: 600 }}>
             Statistiques
           </h1>
           <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Vue d'ensemble de vos recrutements</p>
@@ -468,7 +456,7 @@ export default function StatistiquesPage() {
       {noData ? (
         <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '80px 40px', textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 16 }}>◈</div>
-          <div style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucune offre publiée</div>
+          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucune offre publiée</div>
           <div style={{ fontSize: 13, color: C.grey, marginBottom: 28 }}>Créez votre première offre pour commencer à recevoir des candidatures et voir vos statistiques.</div>
           <button
             onClick={() => router.push('/recruteur/offres/publier')}
@@ -605,25 +593,25 @@ export default function StatistiquesPage() {
                       key={o.id}
                       onClick={() => router.push(`/recruteur/offres/${o.id}/candidatures`)}
                       style={{ borderBottom: `1px solid ${C.sable}`, cursor: 'pointer', transition: 'background-color 0.1s' }}
-                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
+                      onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.bg)}
                       onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
                       <td style={{ padding: '14px', color: C.dark, fontWeight: 500 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           {o.titre}
                           {i === 0 && o.candCount > 0 && (
-                            <span style={{ fontSize: 11, backgroundColor: `${C.amber}18`, color: C.amber, padding: '2px 8px', borderRadius: 20, fontWeight: 600, flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, backgroundColor: `${C.attente}18`, color: C.attente, padding: '2px 8px', borderRadius: 20, fontWeight: 600, flexShrink: 0 }}>
                               ⭐ Top
                             </span>
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '14px', fontFamily: FONT_SERIF, fontSize: 20, fontWeight: 700, color: C.terracotta }}>
+                      <td style={{ padding: '14px', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600, color: C.terracotta }}>
                         {o.candCount}
                       </td>
                       <td style={{ padding: '14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 80, height: 6, borderRadius: 3, backgroundColor: C.creme, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
+                          <div style={{ width: 80, height: 6, borderRadius: 3, backgroundColor: C.bg, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
                             <div style={{ height: '100%', width: `${o.tauxAcc}%`, backgroundColor: C.vert, borderRadius: 3 }} />
                           </div>
                           <span style={{ color: C.vert, fontWeight: 600 }}>{o.tauxAcc}%</span>
@@ -653,12 +641,12 @@ export default function StatistiquesPage() {
             <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
               {[
                 { icon: '↩', label: 'Taux de réponse',        value: '78%',     sub: 'Messages répondus / reçus',  color: C.vert },
-                { icon: '⏱', label: 'Temps de 1ère réponse',  value: '2h 34',   sub: 'Délai moyen estimé',         color: C.amber },
+                { icon: '⏱', label: 'Temps de 1ère réponse',  value: '2h 34',   sub: 'Délai moyen estimé',         color: C.attente },
                 { icon: '✉', label: 'Conversations actives',   value: '—',       sub: 'Bientôt disponible',         color: C.grey },
               ].map(m => (
-                <div key={m.label} style={{ flex: '1 1 180px', backgroundColor: C.creme, borderRadius: 14, padding: '20px 22px', border: `1px solid ${C.sable}` }}>
+                <div key={m.label} style={{ flex: '1 1 180px', backgroundColor: C.bg, borderRadius: 14, padding: '20px 22px', border: `1px solid ${C.sable}` }}>
                   <div style={{ fontSize: 20, marginBottom: 10 }}>{m.icon}</div>
-                  <div style={{ fontFamily: FONT_SERIF, fontSize: 28, fontWeight: 700, color: m.color, lineHeight: 1 }}>{m.value}</div>
+                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 600, color: m.color, lineHeight: 1 }}>{m.value}</div>
                   <div style={{ fontSize: 12, color: C.grey, marginTop: 6, fontWeight: 500 }}>{m.label}</div>
                   <div style={{ fontSize: 11, color: C.lightGrey, marginTop: 3 }}>{m.sub}</div>
                 </div>

@@ -5,19 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import PanneauRdv from '@/components/PanneauRdv'
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-}
 
 // ─── Constantes grille ────────────────────────────────────────────────────────
 
@@ -242,7 +233,7 @@ function BandeResume({
               cursor: 'pointer', textAlign: 'left' as const,
               transition: 'background-color 0.12s',
             }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.creme }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = C.bg }}
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent' }}
           >
             {/* Point de couleur */}
@@ -378,7 +369,7 @@ function ColonneJour({ evenements, weekend, onSelect }: {
 function SemaineVide() {
   return (
     <div style={{ padding: '64px 0', textAlign: 'center' }}>
-      <div style={{ fontSize: 16, fontFamily: FONT_SERIF, color: C.dark, marginBottom: 8 }}>
+      <div style={{ fontSize: 16, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', color: C.dark, marginBottom: 8 }}>
         Aucun rendez-vous cette semaine
       </div>
       <div style={{ fontSize: 13, color: C.grey, lineHeight: 1.65 }}>
@@ -555,7 +546,7 @@ export default function CalendrierPage() {
   return (
     <>
     <div style={{
-      backgroundColor: C.creme,
+      backgroundColor: C.bg,
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -574,7 +565,7 @@ export default function CalendrierPage() {
         flexShrink:      0,
       }}>
         <h1 style={{
-          fontFamily: FONT_SERIF, fontSize: 20, fontWeight: 600,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600,
           color: C.dark, margin: 0,
         }}>
           Calendrier

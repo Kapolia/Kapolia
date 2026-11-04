@@ -32,19 +32,10 @@ import { FONT_SERIF } from '@/lib/typography'
 import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
 import RdvBubble from '@/components/RdvBubble'
 import { sanitizeFilename } from '@/lib/storage-utils'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-}
 
 const IMAGE_EXTS  = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
 const MAX_BYTES   = 10 * 1024 * 1024
@@ -147,7 +138,7 @@ function initEntreprise(nom: string): string {
 
 function ConvAvatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
   return (
-    <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>
+    <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>
       {i}
     </div>
   )
@@ -208,7 +199,7 @@ function ActionBtn({ children, title, onClick }: { children: React.ReactNode; ti
   return (
     <button onClick={onClick} title={title}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.creme, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
+      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
       {children}
     </button>
   )
@@ -248,7 +239,7 @@ function ReactionPicker({ pos, onPick, onClose }: { pos: { top: number; left: nu
         return (
           <button key={emoji} onClick={() => { onPick(emoji); onClose() }}
             onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-            style={{ border: 'none', backgroundColor: h ? C.creme : 'transparent', fontSize: 20, cursor: 'pointer', padding: '4px 5px', borderRadius: 8, transition: 'background-color 0.1s' }}>
+            style={{ border: 'none', backgroundColor: h ? C.bg : 'transparent', fontSize: 20, cursor: 'pointer', padding: '4px 5px', borderRadius: 8, transition: 'background-color 0.1s' }}>
             {emoji}
           </button>
         )
@@ -299,7 +290,7 @@ function CMI({ label, onClick, danger = false }: { label: string; onClick: () =>
   const [h, setH] = useState(false)
   return (
     <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', borderRadius: 8, backgroundColor: h ? (danger ? '#FDECEA' : C.creme) : 'transparent', color: danger ? '#C0392B' : C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background-color 0.1s', whiteSpace: 'nowrap' }}>
+      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', borderRadius: 8, backgroundColor: h ? (danger ? '#FDECEA' : C.bg) : 'transparent', color: danger ? C.erreur : C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background-color 0.1s', whiteSpace: 'nowrap' }}>
       {label}
     </button>
   )
@@ -312,7 +303,7 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 280 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
-        <div style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
+        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
         <div style={{ fontSize: 14, color: C.grey, marginBottom: 24, lineHeight: 1.6 }}>Les recruteurs intéressés par votre profil vous contacteront ici.</div>
         <button onClick={onBrowse} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
           Découvrir les offres →
@@ -905,7 +896,7 @@ function CandidatMessagesPageInner() {
   const menuConv = menuId ? convs.find(c => c.id === menuId) : null
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.creme }}>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
         @keyframes kapolia-sp     { to{transform:rotate(360deg)} }
@@ -931,7 +922,7 @@ function CandidatMessagesPageInner() {
         <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.sable}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark }}>Mes messages</span>
+              <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark }}>Mes messages</span>
               {!selectMode && totalUnread > 0 && (
                 <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>
                   {totalUnread}
@@ -947,7 +938,7 @@ function CandidatMessagesPageInner() {
           </div>
           <div style={{ position: 'relative' }}>
             <input type="text" placeholder="Rechercher…"
-              style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.creme, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '7px 10px 7px 30px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round"
               style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
               <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
@@ -1006,7 +997,7 @@ function CandidatMessagesPageInner() {
                   </div>
                 ) : (
                   <button className="dk-cmb" onClick={e => openMenu(e, conv.id)}
-                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.creme : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }}
+                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.bg : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }}
                     title="Options">···</button>
                 )}
               </div>
@@ -1155,7 +1146,7 @@ function CandidatMessagesPageInner() {
               <GlobalAvatar profil={userProfil} size="sm" />
             </div>
             <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre un fichier"
-              style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.creme, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
+              style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
               {uploading
                 ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} />
                 : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
@@ -1167,7 +1158,7 @@ function CandidatMessagesPageInner() {
               onKeyDown={handleKey}
               placeholder={`Écrire à ${(activeConv.entreprise || activeConv.nom).split(' ')[0]}…`}
               rows={1}
-              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.creme, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
+              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.bg, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
             />
 
             <button onClick={() => send(input)} disabled={(!input.trim() && !pendingFile) || sending}
@@ -1179,10 +1170,10 @@ function CandidatMessagesPageInner() {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
           <div style={{ textAlign: 'center', maxWidth: 300 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
-            <div style={{ fontFamily: FONT_SERIF, fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
+            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
             <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
           </div>
         </div>

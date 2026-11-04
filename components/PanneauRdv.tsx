@@ -5,17 +5,8 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { notifRdvAnnule } from '@/lib/actions/email-notifs'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-  red:        '#C0392B',
-}
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,7 +97,7 @@ function Avatar({ profil, taille = 44 }: { profil: ProfilDetail; taille?: number
 
   if (type === 'avatar' && url) {
     return (
-      <div style={{ ...base, backgroundColor: C.creme, fontSize: Math.round(taille * 0.55) }}>
+      <div style={{ ...base, backgroundColor: C.bg, fontSize: Math.round(taille * 0.55) }}>
         {url}
       </div>
     )
@@ -149,7 +140,7 @@ function BoutonLien({ href, label }: { href: string; label: string }) {
         padding: '9px 0', borderRadius: 10, fontSize: 12, fontWeight: 600,
         border: 'none',
         backgroundColor: hov ? '#B35830' : C.terracotta,
-        color: C.creme,
+        color: C.bg,
         textDecoration: 'none', flex: 1, textAlign: 'center' as const,
         transition: 'background-color 0.15s',
       }}
@@ -336,7 +327,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
           padding: '16px 20px', borderBottom: `1px solid ${C.sable}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontFamily: FONT_SERIF, fontSize: 16, color: C.dark, fontWeight: 600 }}>
+          <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, fontWeight: 600 }}>
             Rendez-vous
           </span>
           <div style={{ flex: 1 }} />
@@ -383,7 +374,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
               {/* Bloc candidat */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '14px 16px', backgroundColor: C.creme, borderRadius: 12,
+                padding: '14px 16px', backgroundColor: C.bg, borderRadius: 12,
                 marginBottom: 20,
               }}>
                 <Avatar profil={profil} taille={44} />
@@ -486,7 +477,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
                   width: '100%', padding: '10px 0', borderRadius: 10,
                   border: '1.5px solid rgba(192, 57, 43, 0.2)',
                   backgroundColor: '#FBEAEA',
-                  color: C.red, fontSize: 13, fontWeight: 600,
+                  color: C.erreur, fontSize: 13, fontWeight: 600,
                   cursor: acting ? 'default' : 'pointer',
                   fontFamily: 'inherit', opacity: acting ? 0.5 : 1,
                   transition: 'opacity 0.15s',
@@ -518,7 +509,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
                     disabled={acting}
                     style={{
                       flex: 1, padding: '9px 0', borderRadius: 10,
-                      border: 'none', backgroundColor: C.red, color: C.white,
+                      border: 'none', backgroundColor: C.erreur, color: C.white,
                       fontSize: 13, fontWeight: 600,
                       cursor: acting ? 'default' : 'pointer',
                       fontFamily: 'inherit', opacity: acting ? 0.5 : 1,

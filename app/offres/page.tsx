@@ -14,21 +14,13 @@ import { haversineKm } from '@/lib/geo'
 import { LANGUES } from '@/lib/langues'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard } from '@/components/OffreCard'
-import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import LogoKapolia from '@/components/LogoKapolia'
 import { normalizeText } from '@/lib/storage-utils'
-// ─── Palette ──────────────────────────────────────────────────────────────────
 
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-}
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -269,7 +261,7 @@ function PillDropdown({
 
   const pillBg        = dark ? (active ? 'rgba(246,247,246,0.12)' : 'transparent')           : (active ? C.vert  : C.white)
   const pillBorder    = dark ? (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)') : (active ? C.vert  : C.sable)
-  const pillColor     = dark ? C.creme                                                         : (active ? C.white : C.dark)
+  const pillColor     = dark ? C.bg                                                         : (active ? C.white : C.dark)
   const chevronStroke = dark ? 'rgba(246,247,246,0.75)'                                        : (active ? C.white : C.grey)
 
   return (
@@ -388,7 +380,7 @@ function MultiPillDropdown({
 
   const pillBg        = dark ? (active ? 'rgba(246,247,246,0.12)' : 'transparent')           : (active ? C.vert  : C.white)
   const pillBorder    = dark ? (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)') : (active ? C.vert  : C.sable)
-  const pillColor     = dark ? C.creme                                                         : (active ? C.white : C.dark)
+  const pillColor     = dark ? C.bg                                                         : (active ? C.white : C.dark)
   const chevronStroke = dark ? 'rgba(246,247,246,0.75)'                                        : (active ? C.white : C.grey)
 
   return (
@@ -541,7 +533,7 @@ function SalairePillDropdown({
   const short          = displayLabel.length > 26 ? displayLabel.slice(0, 26) + '…' : displayLabel
   const pillBg         = active ? 'rgba(246,247,246,0.12)' : 'transparent'
   const pillBorder     = active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)'
-  const pillColor      = C.creme
+  const pillColor      = C.bg
   const chevronStroke  = 'rgba(246,247,246,0.75)'
 
   return (
@@ -713,7 +705,7 @@ function LangPillDropdown({
 
   const pillBg        = dark ? (active ? 'rgba(246,247,246,0.12)' : 'transparent')           : (active ? C.vert  : C.white)
   const pillBorder    = dark ? (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)') : (active ? C.vert  : C.sable)
-  const pillColor     = dark ? C.creme                                                         : (active ? C.white : C.dark)
+  const pillColor     = dark ? C.bg                                                         : (active ? C.white : C.dark)
   const chevronStroke = dark ? 'rgba(246,247,246,0.75)'                                        : (active ? C.white : C.grey)
 
   return (
@@ -757,7 +749,7 @@ function LangPillDropdown({
               style={{
                 width: '100%', padding: '6px 10px', borderRadius: 8, fontSize: 13,
                 border: `1.5px solid ${C.sable}`, outline: 'none', fontFamily: 'inherit',
-                backgroundColor: C.creme, color: C.dark, boxSizing: 'border-box',
+                backgroundColor: C.bg, color: C.dark, boxSizing: 'border-box',
               }}
             />
           </div>
@@ -857,7 +849,7 @@ function CorrespondancePill({ value, onChange, profil, isConnected }: {
   const displayLabel  = active ? SCORE_OPTS.find(o => o.value === value)?.label ?? 'Correspondance' : 'Correspondance'
   const pillBg        = disabled ? 'transparent' : (active ? 'rgba(246,247,246,0.12)' : 'transparent')
   const pillBorder    = disabled ? 'rgba(255,255,255,0.15)' : (active ? 'rgba(246,247,246,0.65)' : 'rgba(255,255,255,0.28)')
-  const pillColor     = disabled ? 'rgba(246,247,246,0.35)' : C.creme
+  const pillColor     = disabled ? 'rgba(246,247,246,0.35)' : C.bg
 
   return (
     <div style={{ flexShrink: 0, position: 'relative' }}>
@@ -977,13 +969,13 @@ function EmptyState({ hasFilters, onReset }: { hasFilters: boolean; onReset: () 
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '72px 24px', textAlign: 'center' }}>
       <div style={{
         width: 68, height: 68, borderRadius: '50%',
-        backgroundColor: C.creme, border: `2px solid ${C.sable}`,
+        backgroundColor: C.bg, border: `2px solid ${C.sable}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 26, marginBottom: 18,
       }}>
         {hasFilters ? '🔍' : '📭'}
       </div>
-      <h3 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
+      <h3 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
         {hasFilters ? 'Aucune offre ne correspond' : 'Aucune offre pour le moment'}
       </h3>
       <p style={{ fontSize: 14, color: C.grey, margin: '0 0 20px', maxWidth: 360, lineHeight: 1.65 }}>
@@ -1548,7 +1540,7 @@ export default function OffresPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{
-      backgroundColor: C.creme,
+      backgroundColor: C.bg,
       ...(isSplit
         ? { height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }
         : { minHeight: '100vh' }),
@@ -1602,13 +1594,13 @@ export default function OffresPage() {
           }}>
 
             {/* Titre */}
-            <p style={{
-              fontFamily: FONT_SERIF,
-              fontSize: 21, color: C.creme, fontWeight: 600,
+            <h1 style={{
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+              fontSize: 21, color: C.bg, fontWeight: 600,
               margin: '0 0 12px', lineHeight: 1.2,
             }}>
               Offres d&apos;emploi
-            </p>
+            </h1>
 
             {/* Ligne 1 — recherche + lieu */}
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -1710,9 +1702,9 @@ export default function OffresPage() {
               style={{
                 width: 36, height: 36,
                 borderRadius: '50%', border: 'none', padding: 0,
-                backgroundColor: '#2C4A3E', lineHeight: 0, cursor: 'pointer',
+                backgroundColor: C.vert, lineHeight: 0, cursor: 'pointer',
                 outline: 'none',
-                boxShadow: '0 2px 8px rgba(44, 74, 62, 0.32)',
+                boxShadow: '0 2px 8px rgba(36, 69, 58, 0.32)',
                 transform: cardHidden ? 'rotate(0deg)' : 'rotate(180deg)',
               }}
               onClick={() => setCardHidden(false)}
@@ -1742,7 +1734,7 @@ export default function OffresPage() {
               overflowY: 'auto',
               borderRight: `1px solid ${C.sable}`,
               padding: '24px 24px 60px 20px',
-              backgroundColor: C.creme,
+              backgroundColor: C.bg,
               WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
               maskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
             }}>
@@ -1750,7 +1742,7 @@ export default function OffresPage() {
             </div>
 
             {/* Colonne droite */}
-            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: C.creme, padding: '0 20px 24px 16px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1, overflowY: 'auto', backgroundColor: C.bg, padding: '0 20px 24px 16px', display: 'flex', flexDirection: 'column' }}>
               {selectedOffre ? (
                 <OffreDetail
                   offre={selectedOffre}

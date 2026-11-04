@@ -1,16 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-
-const C = {
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  terracotta: '#C4673A',
-  white:      '#FFFFFF',
-}
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 type Suggestion = { nom: string; lat: number; lng: number }
 
@@ -139,7 +131,7 @@ export function GeoVilleInput({
                 fontFamily: 'inherit', fontSize: 13, color: C.dark,
                 transition: 'background-color 0.1s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.creme)}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.bg)}
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
             >
               <span style={{ color: C.grey, fontSize: 11, flexShrink: 0 }}>◎</span>

@@ -3,17 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { ScoreRing } from '@/components/ScoreRing'
 import { type ScoreBreakdown, type CriterionResult } from '@/lib/matching'
-import { CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
-const C = {
-  vert:       '#2C4A3E',
-  terracotta: '#C4673A',
-  lightGrey:  '#D0D0D0',
-  dark:       '#15201B',
-  grey:       '#687069',
-  sable:      '#E7EAE8',
-  white:      '#FFFFFF',
-}
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
+
 
 const CRITERIA: { key: keyof Omit<ScoreBreakdown, 'total'>; label: string }[] = [
   { key: 'domaine',      label: 'Domaine'      },

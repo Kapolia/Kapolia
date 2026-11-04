@@ -5,20 +5,10 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
 import { FONT_SERIF } from '@/lib/typography'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#D0D0D0',
-  white:      '#FFFFFF',
-  error:      '#C0392B',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +43,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main style={{
       minHeight: '100vh',
-      backgroundColor: C.creme,
+      backgroundColor: C.bg,
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -79,7 +69,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         marginTop: '32px',
         fontSize: '12px',
         color: C.lightGrey,
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontStyle: 'italic',
         textAlign: 'center',
       }}>
@@ -197,16 +187,16 @@ export default function ReinitialisationPage() {
           marginBottom: '20px',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke={C.error} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            stroke={C.erreur} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="9" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
         <h1 style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: '400',
+          color: C.dark, fontWeight: 600,
           margin: '0 0 12px',
         }}>
           Lien invalide ou expiré
@@ -249,9 +239,9 @@ export default function ReinitialisationPage() {
     return (
       <Shell>
         <h1 style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: '400',
+          color: C.dark, fontWeight: 600,
           margin: '0 0 12px',
         }}>
           Vous êtes déjà connecté
@@ -300,9 +290,9 @@ export default function ReinitialisationPage() {
           </svg>
         </div>
         <h1 style={{
-          fontFamily: FONT_SERIF,
+          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
           fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: '400',
+          color: C.dark, fontWeight: 600,
           margin: '0 0 12px',
         }}>
           Mot de passe mis à jour
@@ -319,9 +309,9 @@ export default function ReinitialisationPage() {
   return (
     <Shell>
       <h1 style={{
-        fontFamily: FONT_SERIF,
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
         fontSize: 'clamp(22px, 4vw, 28px)',
-        color: C.dark, fontWeight: '400',
+        color: C.dark, fontWeight: 600,
         margin: '0 0 10px',
       }}>
         Nouveau mot de passe
@@ -350,7 +340,7 @@ export default function ReinitialisationPage() {
                 padding: '12px 44px 12px 14px',
                 fontSize: '15px',
                 borderRadius: '12px',
-                border: `1.5px solid ${password && !passwordOk ? C.error : password ? C.sable : C.lightGrey}`,
+                border: `1.5px solid ${password && !passwordOk ? C.erreur : password ? C.sable : C.lightGrey}`,
                 backgroundColor: C.white,
                 color: C.dark,
                 outline: 'none',
@@ -369,7 +359,7 @@ export default function ReinitialisationPage() {
             </button>
           </div>
           {password && !passwordOk && (
-            <span style={{ fontSize: '12px', color: C.error }}>8 caractères minimum</span>
+            <span style={{ fontSize: '12px', color: C.erreur }}>8 caractères minimum</span>
           )}
         </div>
 
@@ -390,7 +380,7 @@ export default function ReinitialisationPage() {
                 padding: '12px 44px 12px 14px',
                 fontSize: '15px',
                 borderRadius: '12px',
-                border: `1.5px solid ${confirm && confirm !== password ? C.error : confirm ? C.sable : C.lightGrey}`,
+                border: `1.5px solid ${confirm && confirm !== password ? C.erreur : confirm ? C.sable : C.lightGrey}`,
                 backgroundColor: C.white,
                 color: C.dark,
                 outline: 'none',
@@ -409,7 +399,7 @@ export default function ReinitialisationPage() {
             </button>
           </div>
           {confirm && confirm !== password && (
-            <span style={{ fontSize: '12px', color: C.error }}>Les mots de passe ne correspondent pas</span>
+            <span style={{ fontSize: '12px', color: C.erreur }}>Les mots de passe ne correspondent pas</span>
           )}
         </div>
 
@@ -418,8 +408,8 @@ export default function ReinitialisationPage() {
             padding: '11px 14px',
             borderRadius: '10px',
             backgroundColor: '#fdf2f2',
-            border: `1px solid ${C.error}30`,
-            color: C.error,
+            border: `1px solid ${C.erreur}30`,
+            color: C.erreur,
             fontSize: '13px',
             lineHeight: 1.5,
           }}>

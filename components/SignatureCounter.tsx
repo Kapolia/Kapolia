@@ -1,3 +1,5 @@
+import { C as _SC } from '@/lib/colors'
+
 interface Props {
   count:  number
   max:    number
@@ -14,7 +16,7 @@ export default function SignatureCounter({ count, max, theme = 'light' }: Props)
       textAlign:  'right',
       fontSize:   11,
       marginTop:  4,
-      color:      isAlert ? '#C4673A' : normalColor,
+      color:      isAlert ? _SC.orange : normalColor,
       transition: 'color 0.2s',
     }}>
       {count}/{max}

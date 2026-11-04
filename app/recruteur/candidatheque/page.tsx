@@ -8,20 +8,9 @@ import Avatar from '@/components/Avatar'
 import { DOMAINES, EXPERIENCES, TYPES_POSTE } from '@/lib/onboarding-utils'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import { trouverConversation } from '@/lib/conversations'
+import { C } from '@/lib/colors'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-  amber:      '#C88A2A',
-  red:        '#C0392B',
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,7 +85,7 @@ function ScoreRing({
   }, [delay])
 
   const offset = go ? circ * (1 - score / 100) : circ
-  const color = score >= 80 ? C.terracotta : score >= 65 ? C.amber : C.grey
+  const color = score >= 80 ? C.terracotta : score >= 65 ? C.attente : C.grey
   const fs = size < 64 ? '12px' : '19px'
 
   return (
@@ -174,7 +163,7 @@ function CandidateRow({
         display: 'flex', alignItems: 'center', gap: '14px',
         padding: '14px 18px', borderBottom: `1px solid ${C.sable}`,
         borderLeft: `3px solid ${isSelected ? C.terracotta : 'transparent'}`,
-        backgroundColor: isSelected ? 'rgba(196,103,58,0.03)' : hover ? 'rgba(26,26,26,0.015)' : 'transparent',
+        backgroundColor: isSelected ? 'rgba(194, 97, 31,0.03)' : hover ? 'rgba(26,26,26,0.015)' : 'transparent',
         cursor: 'pointer', transition: 'background-color 0.12s',
       }}
     >
@@ -207,7 +196,7 @@ function CandidateRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         {profil.signature && (
           <p style={{
-            fontFamily: FONT_SERIF, fontStyle: 'italic',
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic',
             fontSize: '12.5px', color: C.grey, lineHeight: '1.5',
             margin: '0 0 7px',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -238,7 +227,7 @@ function CandidateRow({
           title={saved ? 'Retirer' : 'Sauvegarder'}
           style={{
             width: '32px', height: '32px', borderRadius: '50%', border: 'none',
-            backgroundColor: saved ? 'rgba(196,103,58,0.1)' : 'rgba(26,26,26,0.05)',
+            backgroundColor: saved ? 'rgba(194, 97, 31,0.1)' : 'rgba(26,26,26,0.05)',
             color: saved ? C.terracotta : C.grey,
             cursor: 'pointer', fontSize: '14px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -308,7 +297,7 @@ function RightPanel({
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <Avatar profil={profil} size="md" />
           <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.white, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
+            <h3 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.white, fontWeight: 600, margin: 0, lineHeight: 1.2 }}>
               {nom}
             </h3>
             {headerMeta && (
@@ -333,8 +322,8 @@ function RightPanel({
               {qualites.map(q => (
                 <span key={q} style={{
                   padding: '4px 11px', borderRadius: 16,
-                  backgroundColor: 'rgba(196,103,58,0.1)', color: C.terracotta,
-                  fontSize: 12, fontWeight: 600, border: '1px solid rgba(196,103,58,0.25)',
+                  backgroundColor: 'rgba(194, 97, 31,0.1)', color: C.terracotta,
+                  fontSize: 12, fontWeight: 600, border: '1px solid rgba(194, 97, 31,0.25)',
                 }}>
                   {q}
                 </span>
@@ -350,7 +339,7 @@ function RightPanel({
               {comps.map((s, i) => (
                 <span key={s} style={{
                   padding: '4px 11px', borderRadius: 16, fontSize: 12,
-                  backgroundColor: i === 0 ? C.vert : C.creme,
+                  backgroundColor: i === 0 ? C.vert : C.bg,
                   color: i === 0 ? C.white : C.dark,
                   fontWeight: i === 0 ? 600 : 400,
                   border: i === 0 ? 'none' : `1.5px solid ${C.sable}`,
@@ -460,7 +449,7 @@ function RightPanel({
         <button onClick={onSave} style={{
           width: '100%', padding: '10px', borderRadius: 11,
           border: `1.5px solid ${saved ? C.terracotta : C.sable}`,
-          backgroundColor: saved ? 'rgba(196,103,58,0.08)' : C.white,
+          backgroundColor: saved ? 'rgba(194, 97, 31,0.08)' : C.white,
           color: saved ? C.terracotta : C.dark, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
         }}>
           {saved ? 'Retirer des favoris' : 'Sauvegarder'}
@@ -622,7 +611,7 @@ export default function RecruteurPage() {
 
   if (loading) {
     return (
-      <main style={{ height: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <main style={{ height: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg) } }`}</style>
         <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
       </main>
@@ -631,8 +620,8 @@ export default function RecruteurPage() {
 
   if (loadError) {
     return (
-      <main style={{ height: '100vh', backgroundColor: C.creme, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-        <p style={{ fontSize: 15, color: C.red, margin: 0 }}>Impossible de charger les profils.</p>
+      <main style={{ height: '100vh', backgroundColor: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <p style={{ fontSize: 15, color: C.erreur, margin: 0 }}>Impossible de charger les profils.</p>
         <button
           onClick={() => window.location.reload()}
           style={{ padding: '9px 20px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 13, cursor: 'pointer' }}
@@ -647,15 +636,15 @@ export default function RecruteurPage() {
 
   return (
     <>
-      <main style={{ height: '100vh', overflowY: 'auto', backgroundColor: C.creme }}>
+      <main style={{ height: '100vh', overflowY: 'auto', backgroundColor: C.bg }}>
 
         {/* Topbar */}
         <div style={{
-          position: 'sticky', top: 0, zIndex: 10, backgroundColor: C.creme,
+          position: 'sticky', top: 0, zIndex: 10, backgroundColor: C.bg,
           padding: '14px 22px', display: 'flex', alignItems: 'center', gap: '10px',
           borderBottom: `1px solid ${C.sable}`,
         }}>
-          <h1 style={{ fontFamily: FONT_SERIF, fontSize: '21px', color: C.dark, fontWeight: '400', margin: '0 auto 0 0' }}>
+          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '21px', color: C.dark, fontWeight: 600, margin: '0 auto 0 0' }}>
             Repérer des profils
           </h1>
           <div style={{ position: 'relative' }}>
@@ -686,13 +675,13 @@ export default function RecruteurPage() {
           {/* KPI réels */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
             <div style={{ backgroundColor: C.white, borderRadius: '13px', padding: '16px 18px', border: `1px solid ${C.sable}` }}>
-              <div style={{ fontFamily: FONT_SERIF, fontSize: '26px', fontWeight: '400', lineHeight: 1, marginBottom: '4px', color: C.vert }}>
+              <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '26px', fontWeight: 600, lineHeight: 1, marginBottom: '4px', color: C.vert }}>
                 {profils.length}
               </div>
               <div style={{ fontSize: '12.5px', fontWeight: '600', color: C.dark }}>Profils disponibles</div>
             </div>
             <div style={{ backgroundColor: C.white, borderRadius: '13px', padding: '16px 18px', border: `1px solid ${C.sable}` }}>
-              <div style={{ fontFamily: FONT_SERIF, fontSize: '26px', fontWeight: '400', lineHeight: 1, marginBottom: '4px', color: C.terracotta }}>
+              <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '26px', fontWeight: 600, lineHeight: 1, marginBottom: '4px', color: C.terracotta }}>
                 {filtered.length}
               </div>
               <div style={{ fontSize: '12.5px', fontWeight: '600', color: C.dark }}>Résultats filtrés</div>
@@ -776,7 +765,7 @@ export default function RecruteurPage() {
                   <span key={tag.key} style={{
                     display: 'inline-flex', alignItems: 'center', gap: '5px',
                     padding: '3px 9px', borderRadius: '16px', fontSize: '12px',
-                    backgroundColor: 'rgba(196,103,58,0.08)', border: '1px solid rgba(196,103,58,0.22)',
+                    backgroundColor: 'rgba(194, 97, 31,0.08)', border: '1px solid rgba(194, 97, 31,0.22)',
                     color: C.terracotta,
                   }}>
                     {tag.label} : {tag.value}

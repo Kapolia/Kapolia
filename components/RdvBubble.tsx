@@ -3,20 +3,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { notifCreneauConfirme } from '@/lib/actions/email-notifs'
+import { C as _C } from '@/lib/colors'
+const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 export type RdvRole = 'candidat' | 'recruteur'
-
-const C = {
-  terracotta: '#C4673A',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  vert:       '#2C4A3E',
-  dark:       '#15201B',
-  grey:       '#687069',
-  lightGrey:  '#C8C8C8',
-  white:      '#FFFFFF',
-  red:        '#C0392B',
-}
 
 type Creneau = { id: string; debut_utc: string; selectionne: boolean }
 type Rdv = {
@@ -139,7 +129,7 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
 
   if (loading) {
     return (
-      <div style={{ width: 260, height: 82, border: `1.5px solid ${C.sable}`, borderRadius: 14, backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 260, height: 82, border: `1.5px solid ${C.sable}`, borderRadius: 14, backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <style suppressHydrationWarning>{`@keyframes rdv-sp{to{transform:rotate(360deg)}}`}</style>
         <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'rdv-sp 0.7s linear infinite' }} />
       </div>
@@ -164,7 +154,7 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
     <div style={{ width: 260, border: `1.5px solid ${C.sable}`, borderRadius: 14, overflow: 'hidden', backgroundColor: C.white }}>
 
       {/* ── En-tête ──────────────────────────────────────────────────────── */}
-      <div style={{ padding: '9px 12px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.creme, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '9px 12px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.bg, display: 'flex', alignItems: 'center', gap: 8 }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.terracotta} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
@@ -250,7 +240,7 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
           <button
             onClick={annuler}
             disabled={acting}
-            style={{ fontSize: 11, color: C.red, background: 'none', border: 'none', cursor: acting ? 'default' : 'pointer', fontFamily: 'inherit', opacity: acting ? 0.5 : 1, padding: 0 }}>
+            style={{ fontSize: 11, color: C.erreur, background: 'none', border: 'none', cursor: acting ? 'default' : 'pointer', fontFamily: 'inherit', opacity: acting ? 0.5 : 1, padding: 0 }}>
             Annuler la proposition
           </button>
         </div>

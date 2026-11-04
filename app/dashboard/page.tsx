@@ -10,12 +10,12 @@ import Avatar from '@/components/Avatar'
 import { FONT_SERIF } from '@/lib/typography'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { useFavoris } from '@/lib/favoris-context'
-import { C as PALETTE, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { countRdvEnAttente } from '@/lib/rdv-en-attente'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
-const C = { ...PALETTE, lightGrey: '#E4E7E5' }
+const C = { ..._C, lightGrey: '#E4E7E5' as const }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,14 +118,14 @@ type ActivityItem = {
 function ActivityIcon({ kind }: { kind: ActivityKind }) {
   const p = {
     width: 15, height: 15, viewBox: '0 0 24 24',
-    fill: 'none' as const, stroke: '#2C4A3E',
+    fill: 'none' as const, stroke: C.vert,
     strokeWidth: '1.8', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
   }
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 30, height: 30, borderRadius: '50%',
-      backgroundColor: '#F1F3F2', flexShrink: 0,
+      backgroundColor: C.chip, flexShrink: 0,
     }}>
       {kind === 'vue' && (
         <svg {...p}>
@@ -170,9 +170,9 @@ type ActionItem = { label: string; href: string }
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS = [
-  { value: 'maintenant',      label: 'En recherche active',      dot: '#3E8E5E' },
-  { value: 'a_partir_de',    label: 'Ouvert aux opportunités',  dot: '#C88A2A' },
-  { value: 'non_disponible', label: 'Pas disponible',           dot: '#C0392B' },
+  { value: 'maintenant',      label: 'En recherche active',      dot: C.succes },
+  { value: 'a_partir_de',    label: 'Ouvert aux opportunités',  dot: C.attente },
+  { value: 'non_disponible', label: 'Pas disponible',           dot: C.erreur },
 ]
 
 function StatusDot({ color }: { color: string }) {
@@ -331,7 +331,7 @@ function SectionTitle({ title, link, href, onClick }: { title: string; link?: st
   const router = useRouter()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-      <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: 0 }}>
+      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0 }}>
         {title}
       </h2>
       {link && (
@@ -355,7 +355,7 @@ const STATUT_COLORS: Record<string, { bg: string; color: string }> = {
   'vue':        { bg: `${C.sable}80`, color: C.grey },
   'en cours':   { bg: `${C.terracotta}18`, color: C.terracotta },
   'acceptée':   { bg: `${C.vert}18`, color: C.vert },
-  'refusée':    { bg: '#FDECEA', color: '#C0392B' },
+  'refusée':    { bg: '#FDECEA', color: C.erreur },
 }
 
 function StatusBadge({ statut }: { statut: string }) {
@@ -394,7 +394,7 @@ function StatusToggle({
         onClick={() => setOpen(o => !o)}
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          backgroundColor: 'rgba(44,74,62,0.07)',
+          backgroundColor: 'rgba(36, 69, 58,0.07)',
           border: `1px solid ${C.sable}`,
           borderRadius: 10, padding: '7px 14px',
           color: C.dark, fontSize: 13, fontWeight: 500,
@@ -823,7 +823,7 @@ export default function DashboardPage() {
       <header style={{ padding: '28px 32px 0', ...animStyle(0) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <h1 style={{
-            fontFamily: FONT_SERIF,
+            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
             fontSize: 34, fontWeight: 600,
             color: C.dark, margin: 0,
             lineHeight: 1.2,
@@ -833,7 +833,7 @@ export default function DashboardPage() {
           <StatusToggle value={statusValue} onChange={handleStatusChange} />
         </div>
         <div style={{ maxWidth: 530, margin: '0 auto 28px' }}>
-          <div style={{ fontFamily: FONT_SERIF, fontSize: 18, fontWeight: 600, color: C.dark, marginBottom: 4, textAlign: 'center' }}>
+          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, fontWeight: 600, color: C.dark, marginBottom: 4, textAlign: 'center' }}>
             Chercher un poste
           </div>
           <div style={{ fontSize: 12.5, color: C.grey, marginBottom: 12, textAlign: 'center' }}>
@@ -985,7 +985,7 @@ export default function DashboardPage() {
                     }}
                   >
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: FONT_SERIF, fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
+                      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
                         {c.offres?.titre ?? 'Offre indisponible'}
                       </div>
                       <div style={{ fontSize: 12, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1141,8 +1141,8 @@ export default function DashboardPage() {
             {/* Priority suggestions */}
             {missingSuggestions.length > 0 && (
               <div style={{
-                backgroundColor: '#F1F3F2',
-                border: '1px solid #E7EAE8',
+                backgroundColor: C.chip,
+                border: `1px solid `,
                 borderRadius: 10, padding: '10px 14px',
                 marginBottom: 16,
               }}>
@@ -1187,7 +1187,7 @@ export default function DashboardPage() {
           <Card style={animStyle(actionItems.length > 0 ? 300 : 250)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h2 style={{ fontFamily: FONT_SERIF, fontSize: 20, color: C.dark, margin: 0 }}>
+                <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0 }}>
                   Messages
                 </h2>
                 {unreadCount > 0 && (
@@ -1279,8 +1279,8 @@ export default function DashboardPage() {
 
             <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
               <div style={{
-                fontFamily: FONT_SERIF,
-                fontSize: 40, fontWeight: 700, color: C.vert, lineHeight: 1,
+                fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+                fontSize: 40, fontWeight: 600, color: C.vert, lineHeight: 1,
               }}>
                 {vueCount}
               </div>

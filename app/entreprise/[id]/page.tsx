@@ -11,11 +11,7 @@ import {
   type Offre,
   PROFIL_SELECT,
 } from '@/components/EntrepriseVitrine'
-
-const C = {
-  creme: '#F6F7F6', sable: '#E7EAE8', terracotta: '#C4673A',
-  dark: '#15201B', grey: '#687069', white: '#FFFFFF',
-}
+import { C } from '@/lib/colors'
 
 export default function EntrepriseVitrinePage() {
   const params = useParams()
@@ -87,25 +83,25 @@ export default function EntrepriseVitrinePage() {
   }, [id])
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.creme }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
     </div>
   )
 
   if (fetchError) return (
-    <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 'var(--kapolia-sidebar-w)' : 0 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 'var(--kapolia-sidebar-w)' : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <p style={{ fontFamily: FONT_SERIF, fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
+        <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
         <p style={{ fontSize: 14, color: C.grey, margin: 0 }}>Impossible de charger cette page. Veuillez réessayer dans quelques instants.</p>
       </div>
     </div>
   )
 
   if (notFound || !ep) return (
-    <div style={{ minHeight: '100vh', backgroundColor: C.creme, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 'var(--kapolia-sidebar-w)' : 0 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 'var(--kapolia-sidebar-w)' : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <h1 style={{ fontFamily: FONT_SERIF, fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
+        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px' }}>Cette page n'existe pas ou l'entreprise n'a pas encore configuré son profil.</p>
         <a href="/offres" style={{ padding: '11px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none', display: 'inline-block' }}>Voir les offres</a>
       </div>

@@ -4,17 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
-
-const C = {
-  terracotta: '#C4673A',
-  vert:       '#2C4A3E',
-  sable:      '#E7EAE8',
-  creme:      '#F6F7F6',
-  dark:       '#15201B',
-  grey:       '#687069',
-  white:      '#FFFFFF',
-  amber:      '#C88A2A',
-}
+import { C } from '@/lib/colors'
 
 type DashData = {
   offresActives:         number
@@ -75,7 +65,7 @@ function ActionCard({ label, count, detail, color, icon, onClick }: {
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: FONT_SERIF, fontSize: 26, fontWeight: 700, color, lineHeight: 1 }}>
+        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, fontWeight: 600, color, lineHeight: 1 }}>
           {count}
         </div>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginTop: 4 }}>{label}</div>
@@ -94,7 +84,7 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
       backgroundColor: C.white, borderRadius: 16,
       border: `1px solid ${C.sable}`, padding: '22px 24px',
     }}>
-      <div style={{ fontFamily: FONT_SERIF, fontSize: 34, fontWeight: 400, color: C.dark, lineHeight: 1 }}>
+      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 34, fontWeight: 600, color: C.dark, lineHeight: 1 }}>
         {value}
       </div>
       <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginTop: 10 }}>{label}</div>
@@ -224,7 +214,7 @@ export default function RecruteurDashboard() {
       label:  `Brouillon${data.offresBrouillons > 1 ? 's' : ''} non publié${data.offresBrouillons > 1 ? 's' : ''}`,
       count:  data.offresBrouillons,
       detail: `Offre${data.offresBrouillons > 1 ? 's' : ''} en attente de publication`,
-      color:  C.amber,
+      color:  C.attente,
       href:   '/recruteur/offres',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -253,11 +243,11 @@ export default function RecruteurDashboard() {
   // ── Rendu ────────────────────────────────────────────────────────────────────
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: C.creme, padding: '48px 40px' }}>
+    <main style={{ minHeight: '100vh', backgroundColor: C.bg, padding: '48px 40px' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: FONT_SERIF, fontSize: 28, fontWeight: 400, color: C.dark, marginBottom: 40 }}>
+        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 600, color: C.dark, marginBottom: 40 }}>
           Tableau de bord
         </h1>
 
