@@ -222,7 +222,6 @@ export default function OffreDetailPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <div style={{ fontSize: 52, marginBottom: 20 }}>📭</div>
           <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px', fontWeight: 600 }}>
             Offre indisponible
           </h1>
@@ -237,7 +236,7 @@ export default function OffreDetailPage() {
               cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            ← Voir toutes les offres
+            Voir toutes les offres
           </button>
         </div>
       </div>

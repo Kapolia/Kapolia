@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { type GeoCoords } from '@/components/GeoVilleInput'
@@ -8,6 +8,8 @@ import { FONT_SERIF } from '@/lib/typography'
 import { haversineKm } from '@/lib/geo'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { EntrepriseLogo } from '@/components/EntrepriseLogo'
+import { TELETRAVAIL } from '@/lib/referentiels'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -17,6 +19,7 @@ export type OffreCardData = {
   titre: string
   recruteur_id?: string
   entreprise_nom?: string
+  entreprise_logo_url?: string
   type_contrat?: string
   ville?: string
   mode_travail?: string
@@ -54,7 +57,27 @@ export function scoreLabel(score: number): string {
 }
 
 function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.MouseEvent) => void }) {
-  const [hov, setHov] = useState(false)
+  const [hov, setHov]    = useState(false)
+  const iconRef          = useRef<SVGSVGElement>(null)
+  const prevSavedRef     = useRef(false)
+
+  useEffect(() => {
+    if (saved && !prevSavedRef.current && iconRef.current) {
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        iconRef.current.animate(
+          [
+            { transform: 'scale(1)' },
+            { transform: 'scale(0.6)' },
+            { transform: 'scale(1.2)' },
+            { transform: 'scale(1)' },
+          ],
+          { duration: 380, easing: 'ease-out' }
+        )
+      }
+    }
+    prevSavedRef.current = saved
+  }, [saved])
+
   return (
     <button
       onClick={onClick}
@@ -63,13 +86,14 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
       title={saved ? 'Retirer des favoris' : 'Sauvegarder'}
       style={{
         width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: 7, border: `1px solid ${C.sable}`,
+        borderRadius: 7, border: `1px solid ${saved ? 'rgba(194,97,31,0.35)' : C.sable}`,
         backgroundColor: saved ? `${C.vert}10` : hov ? C.bg : 'transparent',
-        cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', flexShrink: 0,
-        color: '#9AA49E',
+        cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
       }}
     >
-      {saved ? '★' : '☆'}
+      <svg ref={iconRef} width="13" height="13" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : '#9AA49E'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      </svg>
     </button>
   )
 }
@@ -144,53 +168,72 @@ export function OffreCard({
           borderRadius: CARD_RADIUS,
           padding: offre.score != null ? '14px 16px 0 13px' : '14px 16px 12px 13px',
           cursor: 'pointer',
-          boxShadow: (isSelected || hov) ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
-          transition: 'box-shadow 0.15s, border-left-color 0.15s, background-color 0.15s',
+          boxShadow: isSelected
+            ? '0 4px 10px rgba(27,48,38,.10), 0 14px 34px rgba(27,48,38,.16)'
+            : hov ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
+          transition: 'box-shadow 0.15s, border-left-color 0.15s, background-color 0.15s, scale 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+          scale: isSelected ? '1.035' : '1',
+          zIndex: isSelected ? 2 : undefined,
           overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
-          <span style={{
-            flex: 1, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.35,
-            color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
-            transition: 'color 0.15s',
-          }}>
-            {offre.titre}
-          </span>
+        {/* En-tête : logo · bloc texte · étoile */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+          <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={36} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.3,
+              color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
+              transition: 'color 0.15s',
+            }}>
+              {offre.titre}
+            </div>
+            <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
+              {offre.recruteur_id ? (
+                <Link
+                  href={`/entreprise/${offre.recruteur_id}`}
+                  onClick={e => e.stopPropagation()}
+                  style={{ fontWeight: 600, color: C.terracotta, textDecoration: 'none' }}
+                >
+                  {entreprise}
+                </Link>
+              ) : (
+                <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
+              )}
+              {offre.ville && <><span style={{ color: C.lightGrey }}> · </span><span style={{ color: C.grey }}>{offre.ville}</span></>}
+            </div>
+          </div>
           <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />
         </div>
 
-        <div style={{ fontSize: 13, color: C.grey, marginBottom: 10 }}>
-          {offre.recruteur_id ? (
-            <Link
-              href={`/entreprise/${offre.recruteur_id}`}
-              onClick={e => e.stopPropagation()}
-              style={{ fontWeight: 600, color: C.terracotta, textDecoration: 'none' }}
-            >
-              {entreprise}
-            </Link>
-          ) : (
-            <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
-          )}
-          {offre.ville && <span style={{ color: C.lightGrey }}> · {offre.ville}</span>}
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: offre.score != null ? 10 : 0 }}>
+        {/* Pastilles — pleine largeur */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: offre.score != null ? 10 : 0 }}>
           {salaire && <span style={PILL_SALARY}>{salaire}</span>}
           {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
-          {offre.mode_travail && <span style={PILL}>{offre.mode_travail}</span>}
-          {applied && <span style={PILL}>✓ Candidature envoyée</span>}
+          {offre.mode_travail && <span style={PILL}>{TELETRAVAIL[offre.mode_travail] ?? offre.mode_travail}</span>}
+          {applied && (
+            <span style={{ ...PILL, display: 'inline-flex', alignItems: 'center', gap: 4, animation: 'kapolia-motion-pill-enter 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
+              <svg width="11" height="9" viewBox="0 0 12 10" fill="none"><path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              Candidature envoyée
+            </span>
+          )}
           {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
         </div>
 
+        {/* Pied de score — pleine largeur */}
         {offre.score != null ? (
           <div style={{ margin: '0 -16px 0 -13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 4px 13px', fontSize: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 5px 13px', fontSize: 12 }}>
               <span style={{ color: C.grey }}>{scoreLabel(offre.score)}</span>
               <span style={{ color: C.vert, fontWeight: 600 }}>{offre.score} %</span>
             </div>
             <div style={{ height: 3, backgroundColor: '#EEF0EF' }}>
-              <div style={{ height: 3, width: `${Math.min(100, offre.score)}%`, backgroundColor: C.vert }} />
+              <div style={{
+                height: 3, width: '100%', backgroundColor: C.vert,
+                transform: barMounted ? `scaleX(${Math.min(100, offre.score) / 100})` : 'scaleX(0)',
+                transformOrigin: 'left',
+                transition: barMounted ? 'transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s' : 'none',
+              }} />
             </div>
           </div>
         ) : isConnected ? (
@@ -249,7 +292,7 @@ export function OffreCard({
               <span style={{ fontWeight: 600, color: C.dark }}>{entreprise}</span>
             )}
             {offre.ville && <><span style={{ color: C.lightGrey }}>·</span><span>{offre.ville}</span></>}
-            {pubLabel && <><span style={{ color: C.lightGrey }}>·</span><span style={{ fontSize: 11, color: C.lightGrey }}>{pubLabel}</span></>}
+            {pubLabel && <><span style={{ color: C.lightGrey }}>·</span><span style={{ fontSize: 11, color: C.grey }}>{pubLabel}</span></>}
           </div>
         </div>
         {showSave && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}

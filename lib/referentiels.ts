@@ -32,6 +32,54 @@ export const EXPERIENCES = [
 // Types de contrat — labels stockés dans offres.type_contrat
 export const TYPES_CONTRAT = ['CDI', 'CDD', 'Freelance', 'Alternance', 'Stage', 'Intérim']
 
+// Mapping valeurs DB mode_travail → libellés d'affichage
+export const TELETRAVAIL: Record<string, string> = {
+  '100% remote':     'Télétravail complet',
+  'Hybride':         'Télétravail partiel',
+  '100% présentiel': 'Pas de télétravail',
+}
+
+// Durées de CDD — valeur stockée en base + libellé d'affichage
+export const DUREES_CONTRAT: { value: string; label: string }[] = [
+  { value: 'moins_3', label: 'Moins de 3 mois' },
+  { value: '3_6',     label: '3 à 6 mois' },
+  { value: '6_12',    label: '6 à 12 mois' },
+  { value: 'plus_12', label: 'Plus de 12 mois' },
+]
+
+// Normalise date_debut vers un code interne pour le filtre prise de poste.
+// today est injecté en paramètre pour permettre les tests unitaires.
+export function normaliserDebut(
+  date_debut: string | null | undefined,
+  today?: Date,
+): 'immediat' | 'mois' | 'trois_mois' | 'plus_tard' | null {
+  if (!date_debut) return null
+  const val = date_debut.trim()
+
+  // 'immediat' / 'Immédiat' et variantes (sans casse ni accents)
+  const norm = val.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  if (norm === 'immediat') return 'immediat'
+
+  // Valeurs texte connues
+  if (val === 'Dans le mois') return 'mois'
+  if (val === 'Dans 3 mois')  return 'trois_mois'
+
+  // Date ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const date = new Date(val + 'T00:00:00')
+    if (isNaN(date.getTime())) return null
+    const ref = today ?? new Date()
+    ref.setHours(0, 0, 0, 0)
+    const diffDays = (date.getTime() - ref.getTime()) / 86400000
+    if (diffDays <= 0)  return 'immediat'
+    if (diffDays <= 30) return 'mois'
+    if (diffDays <= 90) return 'trois_mois'
+    return 'plus_tard'
+  }
+
+  return null
+}
+
 // Types de poste candidat — clés stockées dans profils.type_poste (text[])
 export const TYPES_POSTE: { key: string; label: string }[] = [
   { key: 'cdi',        label: 'CDI' },

@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { FONT_SERIF } from '@/lib/typography'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { PILL, PILL_SALARY } from '@/components/OffreCard'
+import { EntrepriseLogo } from '@/components/EntrepriseLogo'
+import { TELETRAVAIL } from '@/lib/referentiels'
+export { EntrepriseLogo } from '@/components/EntrepriseLogo'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -131,48 +134,6 @@ function SimilaireCard({ s, onSelect, compact = false }: { s: OffreSimilaire; on
   return <Link href={`/offres/${s.id}`} style={baseStyle}>{inner}</Link>
 }
 
-// ─── EntrepriseLogo ───────────────────────────────────────────────────────────
-
-const LOGO_COLORS = [
-  { bg: '#F5EBE5', color: C.orange },
-  { bg: '#E8EDE9', color: C.vert },
-  { bg: '#F0EBF5', color: '#7B5EA7' },
-  { bg: '#F5EDE0', color: '#9B7B48' },
-]
-
-function EntrepriseLogo({ nom, logoUrl, size = 48 }: { nom: string; logoUrl?: string; size?: number }) {
-  const [imgError, setImgError] = useState(false)
-  const initial    = nom.trim().charAt(0).toUpperCase()
-  const { bg, color } = LOGO_COLORS[nom.charCodeAt(0) % LOGO_COLORS.length]
-  const showFallback   = !logoUrl || imgError
-
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: Math.round(size / 4),
-      flexShrink: 0, overflow: 'hidden',
-      border: `1px solid ${showFallback ? 'transparent' : '#E8E8E8'}`,
-      backgroundColor: showFallback ? bg : '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      {showFallback ? (
-        <span style={{
-          fontSize: Math.round(size * 0.44),
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontWeight: 600, color,
-          lineHeight: 1, userSelect: 'none',
-        }}>
-          {initial}
-        </span>
-      ) : (
-        <img
-          src={logoUrl}
-          alt={nom}
-          onError={() => setImgError(true)}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: Math.round(size * 0.1) }}
-        />
-      )}
-    </div>
-  )
-}
 
 // ─── Apply button helpers ─────────────────────────────────────────────────────
 
@@ -213,6 +174,17 @@ function Section({ title, children, first = false }: { title: string; children: 
 function PageApplyButton({ applied, appliedDate, applying, onApply, isConnected }: {
   applied: boolean; appliedDate?: string | null; applying: boolean; onApply: () => void; isConnected: boolean
 }) {
+  const checkRef = useRef<SVGPathElement>(null)
+
+  useLayoutEffect(() => {
+    if (!applied || !checkRef.current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    checkRef.current.animate(
+      [{ strokeDashoffset: '16' }, { strokeDashoffset: '0' }],
+      { duration: 350, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+    )
+  }, [applied])
+
   if (applied) {
     return (
       <div style={{
@@ -222,7 +194,7 @@ function PageApplyButton({ applied, appliedDate, applying, onApply, isConnected 
         borderRadius: 12, fontSize: 14, fontWeight: 600,
       }}>
         <svg width="14" height="12" viewBox="0 0 12 10" fill="none">
-          <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path ref={checkRef} d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="16" />
         </svg>
         {appliedDate ? formatAppliedLabel(appliedDate) : 'Candidature envoyée'}
       </div>
@@ -272,6 +244,17 @@ function PanelSection({ title, children, last = false }: { title: string; childr
 function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected }: {
   applied: boolean; appliedDate?: string | null; applying: boolean; onApply: () => void; isConnected: boolean
 }) {
+  const checkRef = useRef<SVGPathElement>(null)
+
+  useLayoutEffect(() => {
+    if (!applied || !checkRef.current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    checkRef.current.animate(
+      [{ strokeDashoffset: '16' }, { strokeDashoffset: '0' }],
+      { duration: 350, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+    )
+  }, [applied])
+
   if (applied) {
     return (
       <div style={{
@@ -281,7 +264,7 @@ function PanelApplyButton({ applied, appliedDate, applying, onApply, isConnected
         borderRadius: 10, fontSize: 13, fontWeight: 600,
       }}>
         <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
-          <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path ref={checkRef} d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="16" />
         </svg>
         {appliedDate ? formatAppliedLabel(appliedDate) : 'Candidature envoyée'}
       </div>
@@ -376,6 +359,31 @@ export function OffreDetail({
 }: Props) {
   const [copied, setCopied] = useState(false)
 
+  const saveRef       = useRef<SVGPolygonElement>(null)
+  const prevSavedRef  = useRef(false)
+  const shareCheckRef = useRef<SVGPathElement>(null)
+
+  useEffect(() => {
+    if (saved && !prevSavedRef.current && saveRef.current) {
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        saveRef.current.animate(
+          [{ transform: 'scale(1)' }, { transform: 'scale(0.6)' }, { transform: 'scale(1.2)' }, { transform: 'scale(1)' }],
+          { duration: 380, easing: 'ease-out' }
+        )
+      }
+    }
+    prevSavedRef.current = saved
+  }, [saved])
+
+  useLayoutEffect(() => {
+    if (!copied || !shareCheckRef.current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    shareCheckRef.current.animate(
+      [{ strokeDashoffset: '16' }, { strokeDashoffset: '0' }],
+      { duration: 350, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', delay: 80 }
+    )
+  }, [copied])
+
   const salaire    = formatSalaire(offre.salaire_min, offre.salaire_max, offre.periode_salaire)
   const entreprise = offre.entreprise_nom || 'Entreprise'
 
@@ -390,7 +398,7 @@ export function OffreDetail({
 
   if (mode === 'panel') {
     const modeTravailLabel = offre.mode_travail
-      ? offre.mode_travail + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j télétravail/sem` : '')
+      ? (TELETRAVAIL[offre.mode_travail] ?? offre.mode_travail) + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j télétravail/sem` : '')
       : undefined
 
     const details: { label: string; value: string }[] = [
@@ -450,7 +458,7 @@ export function OffreDetail({
                 style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.grey : 'none'} stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
               </button>
               <button
@@ -458,16 +466,17 @@ export function OffreDetail({
                 title="Partager cette offre"
                 style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${copied ? `${C.vert}40` : C.sable}`, backgroundColor: copied ? `${C.vert}08` : 'transparent', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}
               >
-                {copied ? (
-                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                    <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div style={{ position: 'relative', width: 14, height: 14 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ position: 'absolute', top: 0, left: 0, opacity: copied ? 0 : 1, transform: copied ? 'scale(0.5)' : 'scale(1)', transition: 'opacity 250ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
                     <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
                     <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
                   </svg>
-                )}
+                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none"
+                    style={{ position: 'absolute', top: 2, left: 1, opacity: copied ? 1 : 0, transform: copied ? 'scale(1)' : 'scale(0.5)', transition: 'opacity 250ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
+                    <path ref={shareCheckRef} d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="16" />
+                  </svg>
+                </div>
               </button>
             </div>
           </div>
@@ -557,14 +566,19 @@ export function OffreDetail({
                   borderRadius: 10,
                   border: `1px solid ${C.sable}`,
                   backgroundColor: C.white,
-                  color: C.lightGrey, fontSize: 14,
+                  color: C.lightGrey,
                   cursor: 'pointer', flexShrink: 0,
                   transition: 'color 0.15s, border-color 0.15s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.grey }}
                 onMouseLeave={e => { e.currentTarget.style.color = C.lightGrey; e.currentTarget.style.borderColor = C.sable }}
               >
-                🗑
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                  <path d="M10 11v6M14 11v6" />
+                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                </svg>
               </button>
             )}
           </div>
@@ -643,7 +657,7 @@ export function OffreDetail({
                   ))}
                   {(offre.competences_bonus ?? []).map(s => (
                     <span key={s} style={{ fontSize: 13, fontWeight: 400, backgroundColor: C.white, border: `1px dashed ${C.sable}`, color: C.grey, padding: '4px 12px', borderRadius: 8 }}>
-                      {s} <span style={{ fontSize: 10, letterSpacing: '0.04em' }}>BONUS</span>
+                      {s} <span style={{ fontSize: 12, color: C.grey }}>appréciée</span>
                     </span>
                   ))}
                 </div>
@@ -680,7 +694,7 @@ export function OffreDetail({
           {/* Offres similaires */}
           {similaires && similaires.length > 0 && (
             <div style={{ padding: '20px 28px', borderTop: `1px solid ${C.sable}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.09em', marginBottom: 12 }}>
+              <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
                 {similairesTitle ?? 'Offres similaires'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -690,7 +704,7 @@ export function OffreDetail({
           )}
 
           {/* Published date */}
-          <div style={{ textAlign: 'center', padding: '16px 0 28px', fontSize: 12, color: C.lightGrey }}>
+          <div style={{ textAlign: 'center', padding: '16px 0 28px', fontSize: 12, color: C.grey }}>
             Publié {daysSince(offre.created_at)}
           </div>
         </div>
@@ -701,7 +715,7 @@ export function OffreDetail({
   // ── Page mode ──────────────────────────────────────────────────────────────
 
   const pageModeLabel = offre.mode_travail
-    ? offre.mode_travail + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j/sem` : '')
+    ? (TELETRAVAIL[offre.mode_travail] ?? offre.mode_travail) + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j/sem` : '')
     : undefined
 
   const badges = (mt: number) => (
@@ -733,7 +747,7 @@ export function OffreDetail({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px 24px' }}>
         {pageDetails.map(({ label, value }) => (
           <div key={label}>
-            <div style={{ fontSize: 11, color: C.grey, fontWeight: 500, marginBottom: 3, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: 12, color: C.grey, fontWeight: 500, marginBottom: 3 }}>
               {label}
             </div>
             <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{value}</div>
@@ -775,7 +789,7 @@ export function OffreDetail({
         ))}
         {(offre.competences_bonus ?? []).map(s => (
           <span key={s} style={{ fontSize: 13, fontWeight: 400, backgroundColor: C.white, border: `1.5px dashed ${C.sable}`, color: C.grey, padding: '5px 14px', borderRadius: 8 }}>
-            {s} <span style={{ fontSize: 10, letterSpacing: '0.04em' }}>BONUS</span>
+            {s} <span style={{ fontSize: 12, color: C.grey }}>appréciée</span>
           </span>
         ))}
       </div>
@@ -827,7 +841,7 @@ export function OffreDetail({
             </div>
             <div style={{ fontSize: 13, color: C.grey }}>
               {isConnected
-                ? 'Postulez en un clic — votre profil sera transmis au recruteur.'
+                ? 'Postulez en un clic. Votre profil sera transmis au recruteur.'
                 : 'Connectez-vous pour postuler rapidement avec votre profil Kapolia.'}
             </div>
           </div>
@@ -871,7 +885,7 @@ export function OffreDetail({
                       style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.grey : 'none'} stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                     </button>
                     <button
@@ -879,16 +893,17 @@ export function OffreDetail({
                       title="Partager cette offre"
                       style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${copied ? `${C.vert}40` : C.sable}`, backgroundColor: copied ? `${C.vert}08` : 'transparent', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }}
                     >
-                      {copied ? (
-                        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                          <path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      ) : (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div style={{ position: 'relative', width: 14, height: 14 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                          style={{ position: 'absolute', top: 0, left: 0, opacity: copied ? 0 : 1, transform: copied ? 'scale(0.5)' : 'scale(1)', transition: 'opacity 250ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
                           <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
                           <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
                         </svg>
-                      )}
+                        <svg width="12" height="10" viewBox="0 0 12 10" fill="none"
+                          style={{ position: 'absolute', top: 2, left: 1, opacity: copied ? 1 : 0, transform: copied ? 'scale(1)' : 'scale(0.5)', transition: 'opacity 250ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 250ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
+                          <path ref={shareCheckRef} d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="16" />
+                        </svg>
+                      </div>
                     </button>
                   </div>
                 )}
@@ -911,7 +926,7 @@ export function OffreDetail({
                   )}
                   <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
                     {[offre.ville, pageModeLabel].filter(Boolean).join(' · ')}
-                    <span style={{ marginLeft: 12, fontSize: 12, color: C.lightGrey }}>
+                    <span style={{ marginLeft: 12, fontSize: 12, color: C.grey }}>
                       Publié {daysSince(offre.created_at)}
                     </span>
                   </div>

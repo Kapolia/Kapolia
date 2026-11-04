@@ -10,6 +10,7 @@ import { useFavoris } from '@/lib/favoris-context'
 import { getStatut } from '@/lib/statuts'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { largeurUtile } from '@/lib/largeur-utile'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -402,7 +403,7 @@ export default function CandidaturesPage() {
   const [modal, setModal]                   = useState<ModalAction>(null)
 
   useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth < 900) }
+    function onResize() { setIsMobile(largeurUtile() < 900) }
     onResize()
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)

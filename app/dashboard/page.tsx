@@ -12,6 +12,7 @@ import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { useFavoris } from '@/lib/favoris-context'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { countRdvEnAttente } from '@/lib/rdv-en-attente'
+import { largeurUtile } from '@/lib/largeur-utile'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -461,7 +462,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery]   = useState('')
   const [totalOffresCount, setTotalOffresCount] = useState(0)
   const [actionItems, setActionItems]   = useState<ActionItem[]>([])
-  const [winSize, setWinSize] = useState({ w: 1200, h: 900 })
+  const [winSize, setWinSize] = useState({ w: 1200, h: 900, rawW: 1200 })
   const [applied, setApplied]           = useState<Set<string>>(new Set())
   const [mounted, setMounted]           = useState(false)
   const userIdRef = useRef<string | null>(null)
@@ -469,8 +470,8 @@ export default function DashboardPage() {
   const { favIds, toggleFav } = useFavoris()
 
   useEffect(() => {
-    function onResize() { setWinSize({ w: window.innerWidth, h: window.innerHeight }) }
-    setWinSize({ w: window.innerWidth, h: window.innerHeight })
+    function onResize() { setWinSize({ w: largeurUtile(), h: window.innerHeight, rawW: window.innerWidth }) }
+    setWinSize({ w: largeurUtile(), h: window.innerHeight, rawW: window.innerWidth })
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
@@ -807,14 +808,121 @@ export default function DashboardPage() {
 
   const winWidth    = winSize.w
   const winHeight   = winSize.h
+  const isXL        = winSize.rawW >= 1920
   const offresLimit = winHeight >= 900 ? 3 : 2
   const itemsLimit  = winHeight >= 900 ? 3 : 2
-  const gridCols    = winWidth >= 1000 ? '1.4fr 1fr' : '1fr'
+  const gridCols    = isXL ? '1.3fr 1fr 0.9fr' : winWidth >= 1000 ? '1.4fr 1fr' : '1fr'
+  const gridGap     = isXL ? 24 : 20
+  const gridMaxW    = isXL ? 1760 : 1200
 
   const animStyle = (delay: number): React.CSSProperties =>
     mounted
       ? { animation: `kapolia-motion-fadein-up 450ms ease ${delay}ms both` }
       : { opacity: 0 }
+
+  // ── Blocs extraits pour le réemploi en mode 3 colonnes ──────────────────────
+
+  const blocCandidatures = (
+    <Card style={animStyle(100)}>
+      <SectionTitle
+        title="Mes candidatures"
+        link="Voir tout →"
+        href="/candidatures"
+      />
+      {candidatures.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+          <p style={{ color: C.grey, fontSize: 14, marginBottom: 16 }}>
+            Vous n&apos;avez pas encore postulé.
+          </p>
+          <button
+            onClick={() => router.push('/offres')}
+            style={{
+              backgroundColor: C.terracotta, color: C.white,
+              border: 'none', borderRadius: 12,
+              padding: '10px 20px', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Découvrir les offres
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {candidatures.slice(0, itemsLimit).map((c, i, arr) => (
+            <div
+              key={c.id}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 0',
+                borderBottom: i < arr.length - 1 ? `1px solid ${C.sable}` : 'none',
+                gap: 12,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
+                  {c.offres?.titre ?? 'Offre indisponible'}
+                </div>
+                <div style={{ fontSize: 12, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {c.offres?.recruteur_id ? (
+                    <Link
+                      href={`/entreprise/${c.offres.recruteur_id}`}
+                      onClick={e => e.stopPropagation()}
+                      style={{ color: C.terracotta, fontWeight: 600, textDecoration: 'none' }}
+                    >
+                      {c.offres.entreprise_nom}
+                    </Link>
+                  ) : c.offres?.entreprise_nom ? (
+                    <span>{c.offres.entreprise_nom}</span>
+                  ) : null}
+                  {c.offres?.entreprise_nom && <span>·</span>}
+                  <span>{daysSince(c.created_at)}</span>
+                </div>
+              </div>
+              <StatusBadge statut={c.statut} />
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+
+  const blocActivite = (
+    <Card style={animStyle(150)}>
+      <SectionTitle title="Activité récente" />
+      {activites.length === 0 ? (
+        <div style={{
+          padding: '20px 0', textAlign: 'center',
+          color: C.grey, fontSize: 13, lineHeight: 1.6,
+        }}>
+          Aucune activité récente. Complétez votre profil pour être visible.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {activites.map((a, i) => (
+            <button
+              key={i}
+              onClick={() => router.push(a.href)}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 14,
+                padding: '13px 14px', borderRadius: 12, border: 'none',
+                backgroundColor: 'transparent', cursor: 'pointer',
+                textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                transition: 'background-color 0.12s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.chip)}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <ActivityIcon kind={a.kind} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.4 }}>{a.text}</div>
+                <div style={{ fontSize: 11, color: C.grey, marginTop: 3 }}>{timeAgo(a.date)}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
 
   return (
     <div style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
@@ -907,15 +1015,15 @@ export default function DashboardPage() {
 
       {/* ── BODY GRID ────────────────────────────────────────────────────────── */}
       <div style={{
-        maxWidth: 1200, margin: '0 auto',
+        maxWidth: gridMaxW, margin: '0 auto',
         padding: '24px 32px 48px',
         display: 'grid',
         gridTemplateColumns: gridCols,
-        gap: 20,
+        gap: gridGap,
       }}>
 
-        {/* ══ LEFT COLUMN ═══════════════════════════════════════════════════ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ══ COL 1 — Offres (+ candidatures/activité si non-XL) ════════════ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: gridGap }}>
 
           {/* BLOC 1 — Offres recommandées */}
           <Card style={animStyle(50)}>
@@ -948,109 +1056,21 @@ export default function DashboardPage() {
             )}
           </Card>
 
-          {/* BLOC 2 — Candidatures récentes */}
-          <Card style={animStyle(100)}>
-            <SectionTitle
-              title="Mes candidatures"
-              link="Voir tout →"
-              href="/candidatures"
-            />
-            {candidatures.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                <p style={{ color: C.grey, fontSize: 14, marginBottom: 16 }}>
-                  Vous n'avez pas encore postulé.
-                </p>
-                <button
-                  onClick={() => router.push('/offres')}
-                  style={{
-                    backgroundColor: C.terracotta, color: C.white,
-                    border: 'none', borderRadius: 12,
-                    padding: '10px 20px', fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Découvrir les offres
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {candidatures.slice(0, itemsLimit).map((c, i, arr) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '14px 0',
-                      borderBottom: i < arr.length - 1 ? `1px solid ${C.sable}` : 'none',
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
-                        {c.offres?.titre ?? 'Offre indisponible'}
-                      </div>
-                      <div style={{ fontSize: 12, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {c.offres?.recruteur_id ? (
-                          <Link
-                            href={`/entreprise/${c.offres.recruteur_id}`}
-                            onClick={e => e.stopPropagation()}
-                            style={{ color: C.terracotta, fontWeight: 600, textDecoration: 'none' }}
-                          >
-                            {c.offres.entreprise_nom}
-                          </Link>
-                        ) : c.offres?.entreprise_nom ? (
-                          <span>{c.offres.entreprise_nom}</span>
-                        ) : null}
-                        {c.offres?.entreprise_nom && <span>·</span>}
-                        <span>{daysSince(c.created_at)}</span>
-                      </div>
-                    </div>
-                    <StatusBadge statut={c.statut} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          {/* BLOC 3 — Activité récente */}
-          <Card style={animStyle(150)}>
-            <SectionTitle title="Activité récente" />
-            {activites.length === 0 ? (
-              <div style={{
-                padding: '20px 0', textAlign: 'center',
-                color: C.grey, fontSize: 13, lineHeight: 1.6,
-              }}>
-                Aucune activité récente. Complétez votre profil pour être visible.
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {activites.map((a, i) => (
-                  <button
-                    key={i}
-                    onClick={() => router.push(a.href)}
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 14,
-                      padding: '13px 14px', borderRadius: 12, border: 'none',
-                      backgroundColor: 'transparent', cursor: 'pointer',
-                      textAlign: 'left', width: '100%', fontFamily: 'inherit',
-                      transition: 'background-color 0.12s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = C.chip)}
-                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-                  >
-                    <ActivityIcon kind={a.kind} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: C.dark, lineHeight: 1.4 }}>{a.text}</div>
-                      <div style={{ fontSize: 11, color: C.grey, marginTop: 3 }}>{timeAgo(a.date)}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
+          {/* En dessous de 1920 px : candidatures et activité dans cette colonne */}
+          {!isXL && blocCandidatures}
+          {!isXL && blocActivite}
         </div>
 
-        {/* ══ RIGHT COLUMN ══════════════════════════════════════════════════ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ══ COL 2 — Candidatures + Activité (XL uniquement) ══════════════ */}
+        {isXL && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: gridGap }}>
+            {blocCandidatures}
+            {blocActivite}
+          </div>
+        )}
+
+        {/* ══ COL 3 (XL) ou COL 2 (non-XL) — Blocs de droite ══════════════ */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: gridGap }}>
 
           {/* BLOC À TRAITER */}
           {actionItems.length > 0 && (

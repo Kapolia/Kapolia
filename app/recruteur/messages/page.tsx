@@ -36,6 +36,7 @@ import RdvBubble from '@/components/RdvBubble'
 import { notifRdvPropose } from '@/lib/actions/email-notifs'
 import { sanitizeFilename } from '@/lib/storage-utils'
 import { C as _C } from '@/lib/colors'
+import { largeurUtile } from '@/lib/largeur-utile'
 const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -1085,7 +1086,7 @@ function MessagesPageInner() {
     e.stopPropagation()
     if (menuId === id) { setMenuId(null); setMenuPos(null); return }
     const r = e.currentTarget.getBoundingClientRect()
-    setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right }); setMenuId(id)
+    setMenuPos({ top: r.bottom + 4, right: largeurUtile() - r.right }); setMenuId(id)
   }
 
   const pinConv = useCallback((id: string) => {

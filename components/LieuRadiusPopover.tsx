@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
 import { FONT_SERIF } from '@/lib/typography'
 import { C } from '@/lib/colors'
+import { largeurUtile } from '@/lib/largeur-utile'
 
 const RadiusMap = dynamic(() => import('@/components/RadiusMap'), { ssr: false })
 
@@ -55,7 +56,7 @@ export function LieuRadiusPopover({
   }, [lieu, rayon, coords])
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640)
+    const check = () => setIsMobile(largeurUtile() < 640)
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
@@ -67,7 +68,7 @@ export function LieuRadiusPopover({
       const r   = triggerRef.current.getBoundingClientRect()
       const w   = 420
       // Prefer aligning to the left edge; clamp so it doesn't overflow right
-      const left = Math.min(r.left, window.innerWidth - w - 12)
+      const left = Math.min(r.left, largeurUtile() - w - 12)
       setPopPos({ top: r.bottom + 6, left: Math.max(8, left), width: w })
     }
     setOpen(true)
