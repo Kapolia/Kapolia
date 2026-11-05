@@ -1,4 +1,4 @@
-import { TEMPS_TRAVAIL } from '@/lib/referentiels'
+import { TEMPS_TRAVAIL, DATE_MIGRATION_CRITERES } from '@/lib/referentiels'
 
 export const TEMPS_TRAVAIL_VALS = new Set(TEMPS_TRAVAIL.map(t => t.value))
 
@@ -26,7 +26,9 @@ export function matchPermis(o: OffreChamps, selectedPermis: string[]): boolean {
   if (selectedPermis.length === 0) return true
   return selectedPermis.some(p => {
     if (p === 'sans_permis') {
-      return (o.permis ?? []).length === 0 && (o.published_at ?? '') > '2026-11-05T00:11:00Z'
+      return (o.permis ?? []).length === 0
+        && !!o.published_at
+        && new Date(o.published_at).getTime() > DATE_MIGRATION_CRITERES
     }
     return (o.permis ?? []).includes(p)
   })

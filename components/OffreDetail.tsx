@@ -8,7 +8,7 @@ import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { PILL, PILL_SALARY } from '@/components/OffreCard'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
-import { TELETRAVAIL_OPTIONS, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, labelDe, normaliserDebut } from '@/lib/referentiels'
+import { TELETRAVAIL_OPTIONS, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, labelDe, normaliserDebut, DATE_MIGRATION_CRITERES } from '@/lib/referentiels'
 import { LANGUES } from '@/lib/langues'
 export { EntrepriseLogo } from '@/components/EntrepriseLogo'
 
@@ -420,7 +420,7 @@ export function OffreDetail({
   const permisLabels = (offre.permis ?? []).map(p => labelDe(PERMIS, p)).filter(Boolean) as string[]
   const permisValue  = permisLabels.length > 0
     ? permisLabels.join(', ')
-    : (offre.permis != null && (offre.published_at ?? '') > '2026-11-05T00:11:00Z' ? 'Aucun permis requis' : null)
+    : (offre.permis != null && !!offre.published_at && new Date(offre.published_at).getTime() > DATE_MIGRATION_CRITERES ? 'Aucun permis requis' : null)
   const debutLabel   = labelDebut(offre.date_debut)
   const infosPills: string[] = [
     ...(offre.statut_cadre    ? ['Statut cadre'] : []),

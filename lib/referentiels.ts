@@ -102,6 +102,10 @@ export function labelDe(
   return (constante as Record<string, string>)[value] ?? null
 }
 
+// Date de la migration qui a ajouté les colonnes permis/horaires/etc.
+// Avant cette date, un tableau permis vide signifie « non renseigné ».
+export const DATE_MIGRATION_CRITERES = Date.parse('2026-11-05T00:11:00Z')
+
 // Normalise date_debut vers un code interne pour le filtre prise de poste.
 // today est injecté en paramètre pour permettre les tests unitaires.
 export function normaliserDebut(

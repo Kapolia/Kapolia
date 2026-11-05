@@ -113,6 +113,10 @@ describe('matchPermis', () => {
     expect(matchPermis(offre({ permis: [], published_at: null }), ['sans_permis'])).toBe(false)
   })
 
+  it('sans_permis → passe avec un timestamp ISO complet postérieur à la migration', () => {
+    expect(matchPermis(offre({ permis: [], published_at: '2026-11-05T00:21:54.603+00:00' }), ['sans_permis'])).toBe(true)
+  })
+
 })
 
 // ─── Règle 3 — Groupe « Autres » ─────────────────────────────────────────────
