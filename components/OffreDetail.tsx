@@ -8,7 +8,8 @@ import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { PILL, PILL_SALARY } from '@/components/OffreCard'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
-import { TELETRAVAIL } from '@/lib/referentiels'
+import { TELETRAVAIL_OPTIONS, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, labelDe, normaliserDebut } from '@/lib/referentiels'
+import { LANGUES } from '@/lib/langues'
 export { EntrepriseLogo } from '@/components/EntrepriseLogo'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
@@ -41,6 +42,14 @@ export type OffreData = {
   langues?: string[]
   duree_contrat?: string
   date_debut?: string
+  temps_travail?: string | null
+  horaires?: string[]
+  permis?: string[]
+  statut_cadre?: boolean
+  logement_fourni?: boolean
+  repas_fournis?: boolean
+  ouvert_handicap?: boolean
+  published_at?: string | null
   created_at: string
   latitude?: number
   longitude?: number
@@ -156,6 +165,19 @@ function formatSalaire(min?: number, max?: number, periode?: string): string | n
   const range = min && max ? `${fmt(min)} – ${fmt(max)} €` : `${fmt(min || max!)} €`
   const per = periode === 'mensuel' ? '/mois' : '/an'
   return range + per
+}
+
+function labelDebut(val: string | null | undefined): string | null {
+  if (!val) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const d = new Date(val + 'T00:00:00')
+    return isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  }
+  const cat = normaliserDebut(val)
+  if (cat === 'immediat')   return 'Immédiate'
+  if (cat === 'mois')       return 'Dans le mois'
+  if (cat === 'trois_mois') return 'Dans les 3 mois'
+  return null
 }
 
 // ─── Page-mode helpers ────────────────────────────────────────────────────────
@@ -386,6 +408,26 @@ export function OffreDetail({
 
   const salaire    = formatSalaire(offre.salaire_min, offre.salaire_max, offre.periode_salaire)
   const entreprise = offre.entreprise_nom || 'Entreprise'
+  const teleLabel  = offre.mode_travail ? (TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail) : undefined
+  const dureeLabel = offre.duree_contrat ? labelDe(DUREES_CONTRAT, offre.duree_contrat) : null
+  const horairesLabel = (() => {
+    const parts: string[] = []
+    if (offre.temps_travail) { const l = labelDe(TEMPS_TRAVAIL, offre.temps_travail); if (l) parts.push(l) }
+    for (const h of (offre.horaires ?? [])) { const l = labelDe(HORAIRES, h); if (l) parts.push(l) }
+    return parts.length > 0 ? parts.join(', ') : null
+  })()
+  const languesNoms  = (offre.langues ?? []).map(c => LANGUES.find(l => l.code === c)?.nom).filter(Boolean) as string[]
+  const permisLabels = (offre.permis ?? []).map(p => labelDe(PERMIS, p)).filter(Boolean) as string[]
+  const permisValue  = permisLabels.length > 0
+    ? permisLabels.join(', ')
+    : (offre.permis != null && (offre.published_at ?? '') > '2026-11-05T00:11:00Z' ? 'Aucun permis requis' : null)
+  const debutLabel   = labelDebut(offre.date_debut)
+  const infosPills: string[] = [
+    ...(offre.statut_cadre    ? ['Statut cadre'] : []),
+    ...(offre.logement_fourni ? ['Logement fourni'] : []),
+    ...(offre.repas_fournis   ? ['Repas fournis'] : []),
+    ...(offre.ouvert_handicap ? ['Poste ouvert aux personnes en situation de handicap'] : []),
+  ]
 
   function handleShare() {
     const url = `${window.location.origin}/offres/${offre.id}`
@@ -397,20 +439,23 @@ export function OffreDetail({
   // ── Panel mode ─────────────────────────────────────────────────────────────
 
   if (mode === 'panel') {
-    const modeTravailLabel = offre.mode_travail
-      ? (TELETRAVAIL[offre.mode_travail] ?? offre.mode_travail) + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j télétravail/sem` : '')
+    const modeTravailLabel = teleLabel
+      ? teleLabel + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j télétravail/sem` : '')
       : undefined
 
     const details: { label: string; value: string }[] = [
-      ...(offre.type_contrat   ? [{ label: 'Contrat',         value: offre.type_contrat }]   : []),
-      ...(offre.experience     ? [{ label: 'Expérience',      value: offre.experience }]      : []),
-      ...(offre.domaine        ? [{ label: 'Domaine',         value: offre.domaine }]         : []),
-      ...(modeTravailLabel     ? [{ label: 'Mode de travail', value: modeTravailLabel }]      : []),
-      ...(offre.deplacements   ? [{ label: 'Déplacements',    value: offre.deplacements }]    : []),
-      ...(offre.date_debut     ? [{ label: 'Prise de poste',  value: offre.date_debut }]      : []),
+      ...(offre.type_contrat   ? [{ label: 'Contrat',              value: offre.type_contrat }]              : []),
+      ...(dureeLabel           ? [{ label: 'Durée du contrat',     value: dureeLabel }]                      : []),
+      ...(horairesLabel        ? [{ label: 'Horaires de travail',  value: horairesLabel }]                   : []),
+      ...(offre.experience     ? [{ label: 'Expérience',           value: offre.experience }]                : []),
+      ...(modeTravailLabel     ? [{ label: 'Télétravail',          value: modeTravailLabel }]                : []),
+      ...(offre.deplacements   ? [{ label: 'Déplacements',         value: offre.deplacements }]              : []),
+      ...(debutLabel           ? [{ label: 'Prise de poste',       value: debutLabel }]                      : []),
+      ...(languesNoms.length > 0 ? [{ label: 'Langues demandées',  value: languesNoms.join(', ') }]          : []),
+      ...(permisValue          ? [{ label: 'Permis',               value: permisValue }]                     : []),
     ]
 
-    const hasDetails         = details.length > 0
+    const hasDetails         = details.length > 0 || infosPills.length > 0
     const hasLieu            = !!offre.ville
     const hasDescription     = !!offre.description
     const hasMissions        = (offre.missions?.filter(m => m.trim()).length ?? 0) > 0
@@ -591,16 +636,25 @@ export function OffreDetail({
             {/* Détails du poste */}
             {hasDetails && (
               <PanelSection title="Détails du poste" last={lastIdx === sIdx++}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {details.map(({ label, value }) => (
-                    <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '4px 0' }}>
-                      <span style={{ fontSize: 12, color: C.grey, fontWeight: 500, minWidth: 118, flexShrink: 0 }}>
-                        {label}
-                      </span>
-                      <span style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{value}</span>
-                    </div>
-                  ))}
-                </div>
+                {details.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {details.map(({ label, value }) => (
+                      <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 10, padding: '4px 0' }}>
+                        <span style={{ fontSize: 12, color: C.grey, fontWeight: 500, minWidth: 118, flexShrink: 0 }}>
+                          {label}
+                        </span>
+                        <span style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {infosPills.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: details.length > 0 ? 14 : 0 }}>
+                    {infosPills.map(label => (
+                      <span key={label} style={PILL}>{label}</span>
+                    ))}
+                  </div>
+                )}
               </PanelSection>
             )}
 
@@ -714,8 +768,8 @@ export function OffreDetail({
 
   // ── Page mode ──────────────────────────────────────────────────────────────
 
-  const pageModeLabel = offre.mode_travail
-    ? (TELETRAVAIL[offre.mode_travail] ?? offre.mode_travail) + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j/sem` : '')
+  const pageModeLabel = teleLabel
+    ? teleLabel + (offre.mode_travail === 'Hybride' && offre.jours_remote ? ` · ${offre.jours_remote}j/sem` : '')
     : undefined
 
   const badges = (mt: number) => (
@@ -732,28 +786,40 @@ export function OffreDetail({
   const validProcess  = offre.process_recrutement?.filter(p => p.trim()) ?? []
 
   const pageDetails: { label: string; value: string }[] = [
-    ...(offre.type_contrat ? [{ label: 'Contrat',         value: offre.type_contrat }] : []),
-    ...(offre.experience   ? [{ label: 'Expérience',      value: offre.experience }]   : []),
-    ...(offre.domaine      ? [{ label: 'Domaine',         value: offre.domaine }]       : []),
-    ...(pageModeLabel      ? [{ label: 'Mode de travail', value: pageModeLabel }]       : []),
-    ...(offre.deplacements ? [{ label: 'Déplacements',    value: offre.deplacements }]  : []),
-    ...(offre.ville        ? [{ label: 'Lieu',            value: offre.ville }]         : []),
-    ...(offre.date_debut   ? [{ label: 'Prise de poste',  value: offre.date_debut }]    : []),
+    ...(offre.type_contrat   ? [{ label: 'Contrat',              value: offre.type_contrat }]              : []),
+    ...(dureeLabel           ? [{ label: 'Durée du contrat',     value: dureeLabel }]                      : []),
+    ...(horairesLabel        ? [{ label: 'Horaires de travail',  value: horairesLabel }]                   : []),
+    ...(offre.experience     ? [{ label: 'Expérience',           value: offre.experience }]                : []),
+    ...(pageModeLabel        ? [{ label: 'Télétravail',          value: pageModeLabel }]                   : []),
+    ...(offre.deplacements   ? [{ label: 'Déplacements',         value: offre.deplacements }]              : []),
+    ...(offre.ville          ? [{ label: 'Lieu',                 value: offre.ville }]                     : []),
+    ...(debutLabel           ? [{ label: 'Prise de poste',       value: debutLabel }]                      : []),
+    ...(languesNoms.length > 0 ? [{ label: 'Langues demandées',  value: languesNoms.join(', ') }]          : []),
+    ...(permisValue          ? [{ label: 'Permis',               value: permisValue }]                     : []),
   ]
 
   const sectionEls: React.ReactNode[] = []
-  if (pageDetails.length > 0) sectionEls.push(
+  if (pageDetails.length > 0 || infosPills.length > 0) sectionEls.push(
     <Section key="details" title="Détails du poste" first={sectionEls.length === 0}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px 24px' }}>
-        {pageDetails.map(({ label, value }) => (
-          <div key={label}>
-            <div style={{ fontSize: 12, color: C.grey, fontWeight: 500, marginBottom: 3 }}>
-              {label}
+      {pageDetails.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px 24px' }}>
+          {pageDetails.map(({ label, value }) => (
+            <div key={label}>
+              <div style={{ fontSize: 12, color: C.grey, fontWeight: 500, marginBottom: 3 }}>
+                {label}
+              </div>
+              <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{value}</div>
             </div>
-            <div style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>{value}</div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+      {infosPills.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: pageDetails.length > 0 ? 16 : 0 }}>
+          {infosPills.map(label => (
+            <span key={label} style={PILL}>{label}</span>
+          ))}
+        </div>
+      )}
     </Section>
   )
   if (offre.description) sectionEls.push(

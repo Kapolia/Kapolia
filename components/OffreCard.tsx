@@ -9,7 +9,7 @@ import { haversineKm } from '@/lib/geo'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
-import { TELETRAVAIL } from '@/lib/referentiels'
+import { TELETRAVAIL_OPTIONS } from '@/lib/referentiels'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -210,7 +210,7 @@ export function OffreCard({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: offre.score != null ? 10 : 0 }}>
           {salaire && <span style={PILL_SALARY}>{salaire}</span>}
           {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
-          {offre.mode_travail && <span style={PILL}>{TELETRAVAIL[offre.mode_travail] ?? offre.mode_travail}</span>}
+          {offre.mode_travail && <span style={PILL}>{TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail}</span>}
           {applied && (
             <span style={{ ...PILL, display: 'inline-flex', alignItems: 'center', gap: 4, animation: 'kapolia-motion-pill-enter 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
               <svg width="11" height="9" viewBox="0 0 12 10" fill="none"><path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -300,7 +300,7 @@ export function OffreCard({
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
-        {offre.mode_travail && <span style={PILL}>{offre.mode_travail}</span>}
+        {offre.mode_travail && <span style={PILL}>{TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail}</span>}
         {offre.experience  && <span style={PILL}>{offre.experience}</span>}
         {salaire           && <span style={PILL_SALARY}>{salaire}</span>}
         {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}

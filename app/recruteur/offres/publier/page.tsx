@@ -27,7 +27,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
-import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, TELETRAVAIL_OPTIONS } from '@/lib/referentiels'
+import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, TELETRAVAIL_OPTIONS, labelDe } from '@/lib/referentiels'
 import { LANGUES } from '@/lib/langues'
 import { createAutosaveDraftController, type AutoSaveDraftController } from '@/lib/autosave-draft'
 import { C as _C } from '@/lib/colors'
@@ -67,6 +67,15 @@ type PreviewData = {
   competences: string[]; competencesBonus: string[]
   avantages: string[]
   processRecrutement: string[]
+  dureeContrat: string
+  tempsTravail: string
+  horaires: string[]
+  langues: string[]
+  permis: string[]
+  statutCadre: boolean
+  logementFourni: boolean
+  repasFournis: boolean
+  ouvertHandicap: boolean
 }
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
@@ -205,6 +214,27 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
   const modeColor    = d.modeTravail === '100% remote' ? C.vert : d.modeTravail === 'Hybride' ? '#7B5EA7' : C.grey
   const validMissions = d.missions.filter(m => m.trim())
   const validProcess  = d.processRecrutement.filter(p => p.trim())
+  const prevHorairesLabel = (() => {
+    const parts: string[] = []
+    if (d.tempsTravail) { const l = labelDe(TEMPS_TRAVAIL, d.tempsTravail); if (l) parts.push(l) }
+    for (const h of d.horaires) { const l = labelDe(HORAIRES, h); if (l) parts.push(l) }
+    return parts.length > 0 ? parts.join(', ') : null
+  })()
+  const prevLanguesNoms  = d.langues.map(c => LANGUES.find(l => l.code === c)?.nom).filter(Boolean) as string[]
+  const prevPermisLabels = d.permis.map(p => labelDe(PERMIS, p)).filter(Boolean) as string[]
+  const prevInfosPills: string[] = [
+    ...(d.statutCadre    ? ['Statut cadre'] : []),
+    ...(d.logementFourni ? ['Logement fourni'] : []),
+    ...(d.repasFournis   ? ['Repas fournis'] : []),
+    ...(d.ouvertHandicap ? ['Poste ouvert aux personnes en situation de handicap'] : []),
+  ]
+  const prevDetailItems: { label: string; value: string }[] = [
+    ...(d.dureeContrat          ? [{ label: 'Durée du contrat',    value: labelDe(DUREES_CONTRAT, d.dureeContrat) ?? d.dureeContrat }] : []),
+    ...(prevHorairesLabel       ? [{ label: 'Horaires de travail', value: prevHorairesLabel }]                                         : []),
+    ...(prevLanguesNoms.length > 0 ? [{ label: 'Langues demandées', value: prevLanguesNoms.join(', ') }]                               : []),
+    ...(prevPermisLabels.length > 0 ? [{ label: 'Permis',          value: prevPermisLabels.join(', ') }]                               : []),
+  ]
+  const hasExtras = prevDetailItems.length > 0 || prevInfosPills.length > 0
 
   const ST = { fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.09em', marginBottom: 10 }
 
@@ -259,6 +289,29 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
 
         {/* Body */}
         <div style={{ padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+          {hasExtras && (
+            <div style={{ backgroundColor: C.bg, borderRadius: 12, padding: '16px 20px' }}>
+              <div style={ST}>Critères du poste</div>
+              {prevDetailItems.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 32px', marginBottom: prevInfosPills.length > 0 ? 12 : 0 }}>
+                  {prevDetailItems.map(({ label, value }) => (
+                    <div key={label}>
+                      <div style={{ fontSize: 11, color: C.grey, marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 13, color: C.dark, fontWeight: 500 }}>{value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {prevInfosPills.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {prevInfosPills.map(label => (
+                    <span key={label} style={{ fontSize: 12, fontWeight: 500, backgroundColor: '#E8EDEB', color: '#3E4F46', padding: '3px 9px', borderRadius: 20 }}>{label}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {d.description && (
             <div>
@@ -709,7 +762,7 @@ function PublierOffrePageInner() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const previewData: PreviewData = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, ville, pays, modeTravail, joursRemote, dateDebut, debutImmediat, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement }
+  const previewData: PreviewData = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, ville, pays, modeTravail, joursRemote, dateDebut, debutImmediat, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement, dureeContrat, tempsTravail, horaires, langues, permis, statutCadre, logementFourni, repasFournis, ouvertHandicap }
   const descLen    = description.trim().length
   const descColor  = descLen > DESC_MAX ? C.erreur : descLen >= DESC_MIN ? C.vert : C.grey
   const suggestions = (COMP_REF[domaine] ?? []).filter(s => !competences.includes(s))

@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { scoreBreakdownCandidat, profilSuffisantPourScoreCandidat, type ProfilMatch, type ScoreBreakdown } from '@/lib/matching'
-import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, TELETRAVAIL, DUREES_CONTRAT, normaliserDebut } from '@/lib/referentiels'
+import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, TELETRAVAIL_OPTIONS, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, normaliserDebut } from '@/lib/referentiels'
+import { matchHoraires, matchPermis, matchAutres } from '@/lib/offres-filtres'
 import { OffreDetail, type OffreSimilaire } from '@/components/OffreDetail'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { LieuRadiusPopover } from '@/components/LieuRadiusPopover'
@@ -57,6 +58,14 @@ type Offre = {
   langues?: string[]
   duree_contrat?: string
   date_debut?: string
+  temps_travail?: string | null
+  horaires?: string[]
+  permis?: string[]
+  statut_cadre?: boolean
+  logement_fourni?: boolean
+  repas_fournis?: boolean
+  ouvert_handicap?: boolean
+  published_at?: string | null
   created_at: string
   score: number | null
   breakdown?: ScoreBreakdown | null
@@ -81,12 +90,15 @@ type Filters = {
   score_min: string
   tri: SortKey
   rayon: string
+  horaires: string[]
+  permis: string[]
+  autres: string[]
 }
 
 const EMPTY_FILTERS: Filters = {
   search: '', domaine: [], contrat: [], lieu: '', mode: [], exp: '', salaire: '',
   date_pub: '', langue: [], prise_de_poste: '', duree_contrat: '', score_min: '', tri: 'match',
-  rayon: '25',
+  rayon: '25', horaires: [], permis: [], autres: [],
 }
 
 // ─── Filter config ────────────────────────────────────────────────────────────
@@ -96,6 +108,23 @@ const EXP_OPTS         = EXPERIENCES
 const SALAIRE_PILL_OPTS = ['20 000 €+', '25 000 €+', '35 000 €+', '45 000 €+', '55 000 €+', '70 000 €+']
 const DATE_PUB_OPTS    = ["Aujourd'hui", '3 derniers jours', 'Cette semaine', 'Ce mois-ci']
 const PRISE_POSTE_OPTS = ['Immédiate', 'Dans le mois', 'Dans 3 mois']
+
+const HORAIRES_FILTRE = [
+  ...TEMPS_TRAVAIL,
+  ...HORAIRES,
+]
+
+const PERMIS_FILTRE = [
+  { value: 'sans_permis', label: 'Sans permis requis' },
+  ...PERMIS,
+]
+
+const AUTRES_FILTRE = [
+  { value: 'statut_cadre',    label: 'Statut cadre' },
+  { value: 'logement_fourni', label: 'Logement fourni' },
+  { value: 'repas_fournis',   label: 'Repas fournis' },
+  { value: 'ouvert_handicap', label: 'Poste ouvert aux personnes en situation de handicap' },
+]
 
 const TRI_LABELS: Record<SortKey, string> = {
   match:        'Meilleure correspondance',
@@ -198,6 +227,98 @@ function searchScore(offre: Offre, tokens: string[]): { score: number; fuzzy: bo
 
   if (total === descPts && !anyFuzzy) return { score: 0, fuzzy: false }
   return { score: total, fuzzy: anyFuzzy }
+}
+
+// ─── Filtre pur (sans tri) — partagé entre le pipeline principal et les suggestions ──
+
+function applyFiltersOnly(list: Offre[], f: Filters, coords: GeoCoords | null): Offre[] {
+  let result = [...list]
+
+  if (f.search.trim()) {
+    const tokens = getTokens(f.search)
+    if (tokens.length > 0) {
+      result = result.filter(o => searchScore(o, tokens).score > 0)
+    }
+  }
+
+  if (f.domaine.length > 0) {
+    result = result.filter(o => f.domaine.some(d => (o.domaine ?? '').toLowerCase().includes(d.toLowerCase())))
+  }
+
+  if (f.contrat.length > 0) {
+    result = result.filter(o => f.contrat.includes(o.type_contrat ?? ''))
+  }
+
+  if (f.lieu) {
+    if (coords) {
+      const maxKm    = f.rayon === '0' ? 0 : parseInt(f.rayon, 10) || 25
+      const normLieu = normalizeText(f.lieu)
+      result = result.filter(o => {
+        if (o.latitude == null || o.longitude == null) return normalizeText(o.ville ?? '').includes(normLieu)
+        return haversineKm(coords, { lat: o.latitude, lng: o.longitude }) <= maxKm
+      })
+    } else {
+      result = result.filter(o => (o.ville ?? '').toLowerCase().includes(f.lieu.toLowerCase()))
+    }
+  }
+
+  if (f.mode.length > 0) {
+    result = result.filter(o => f.mode.includes(o.mode_travail ?? ''))
+  }
+
+  if (f.exp) {
+    result = result.filter(o => o.experience === f.exp)
+  }
+
+  if (f.salaire) {
+    const minSalaire = parseInt(f.salaire.replace(/[^\d]/g, ''))
+    if (minSalaire > 0) {
+      result = result.filter(o => (o.salaire_min ?? 0) >= minSalaire || (o.salaire_max ?? 0) >= minSalaire)
+    }
+  }
+
+  if (f.date_pub) {
+    const MAX_DAYS: Record<string, number> = { "Aujourd'hui": 1, '3 derniers jours': 3, 'Cette semaine': 7, 'Ce mois-ci': 30 }
+    const maxDays = MAX_DAYS[f.date_pub]
+    if (maxDays !== undefined) {
+      result = result.filter(o => (Date.now() - new Date(o.created_at).getTime()) / 86400000 <= maxDays)
+    }
+  }
+
+  if (f.langue.length > 0) {
+    result = result.filter(o => f.langue.some(l => (o.langues ?? []).includes(l)))
+  }
+
+  if (f.duree_contrat) {
+    result = result.filter(o => o.type_contrat === 'CDD' && o.duree_contrat === f.duree_contrat)
+  }
+
+  if (f.prise_de_poste) {
+    const POSTE_ALLOWED: Record<string, string[]> = {
+      'Immédiate':    ['immediat'],
+      'Dans le mois': ['immediat', 'mois'],
+      'Dans 3 mois':  ['immediat', 'mois', 'trois_mois'],
+    }
+    const allowed = POSTE_ALLOWED[f.prise_de_poste] ?? []
+    if (allowed.length > 0) {
+      const today = new Date(); today.setHours(0, 0, 0, 0)
+      result = result.filter(o => {
+        const n = normaliserDebut(o.date_debut, today)
+        return n !== null && allowed.includes(n)
+      })
+    }
+  }
+
+  if (f.score_min) {
+    const threshold = parseInt(f.score_min, 10) / 100
+    result = result.filter(o => o.score != null && o.score >= threshold)
+  }
+
+  if (f.horaires.length > 0) result = result.filter(o => matchHoraires(o, f.horaires))
+  if (f.permis.length   > 0) result = result.filter(o => matchPermis(o,   f.permis))
+  if (f.autres.length   > 0) result = result.filter(o => matchAutres(o,   f.autres))
+
+  return result
 }
 
 // ─── Sub-components (page-local) ─────────────────────────────────────────────
@@ -1265,9 +1386,15 @@ function ContratPillDropdown({
 function AutresPillButton({
   mode, onModeChange,
   priseDePoste, onPriseDePosteChange,
+  horaires, onHorairesChange,
+  permis, onPermisChange,
+  autres, onAutresChange,
 }: {
   mode: string[]; onModeChange: (v: string[]) => void
   priseDePoste: string; onPriseDePosteChange: (v: string) => void
+  horaires: string[]; onHorairesChange: (v: string[]) => void
+  permis: string[]; onPermisChange: (v: string[]) => void
+  autres: string[]; onAutresChange: (v: string[]) => void
 }) {
   const uid = useId()
   const [open, setOpen]           = useState(false)
@@ -1276,7 +1403,7 @@ function AutresPillButton({
   const btnRef   = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  const count  = mode.length + (priseDePoste ? 1 : 0)
+  const count  = mode.length + (priseDePoste ? 1 : 0) + horaires.length + permis.length + autres.length
   const hasAny = count > 0
 
   function startClose() {
@@ -1372,21 +1499,87 @@ function AutresPillButton({
         }}>
           <div style={{ padding: '16px 20px' }}>
 
-            {/* Télétravail */}
-            <div style={{ marginBottom: 16 }}>
+            {/* Ligne 1 : Télétravail + Prise de poste (2 colonnes) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', marginBottom: 16 }}>
+
+              {/* Télétravail */}
+              <div>
+                <div style={{
+                  fontSize: 12, fontWeight: 600, color: C.grey,
+                  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
+                }}>
+                  Télétravail
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {TELETRAVAIL_OPTIONS.map(({ value: dbVal, label }) => {
+                    const sel = mode.includes(dbVal)
+                    return (
+                      <button
+                        key={dbVal}
+                        onClick={() => onModeChange(sel ? mode.filter(v => v !== dbVal) : [...mode, dbVal])}
+                        style={{
+                          fontSize: 13, padding: '6px 11px', borderRadius: 999,
+                          border: `1.5px solid ${sel ? 'rgba(194,97,31,0.45)' : C.sable}`,
+                          backgroundColor: sel ? 'rgba(194,97,31,0.10)' : 'transparent',
+                          color: sel ? C.orangeTexte : C.dark,
+                          fontWeight: sel ? 600 : 400,
+                          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Prise de poste */}
+              <div>
+                <div style={{
+                  fontSize: 12, fontWeight: 600, color: C.grey,
+                  textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
+                }}>
+                  Prise de poste
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {PRISE_POSTE_OPTS.map(opt => {
+                    const sel = priseDePoste === opt
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => onPriseDePosteChange(sel ? '' : opt)}
+                        style={{
+                          fontSize: 13, padding: '6px 11px', borderRadius: 999,
+                          border: `1.5px solid ${sel ? 'rgba(194,97,31,0.45)' : C.sable}`,
+                          backgroundColor: sel ? 'rgba(194,97,31,0.10)' : 'transparent',
+                          color: sel ? C.orangeTexte : C.dark,
+                          fontWeight: sel ? 600 : 400,
+                          cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Horaires de travail */}
+            <div style={{ borderTop: `1px solid ${C.sable}`, paddingTop: 16, marginBottom: 16 }}>
               <div style={{
                 fontSize: 12, fontWeight: 600, color: C.grey,
                 textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
               }}>
-                Télétravail
+                Horaires de travail
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {Object.entries(TELETRAVAIL).map(([dbVal, label]) => {
-                  const sel = mode.includes(dbVal)
+                {HORAIRES_FILTRE.map(({ value, label }) => {
+                  const sel = horaires.includes(value)
                   return (
                     <button
-                      key={dbVal}
-                      onClick={() => onModeChange(sel ? mode.filter(v => v !== dbVal) : [...mode, dbVal])}
+                      key={value}
+                      onClick={() => onHorairesChange(sel ? horaires.filter(v => v !== value) : [...horaires, value])}
                       style={{
                         fontSize: 13, padding: '6px 11px', borderRadius: 999,
                         border: `1.5px solid ${sel ? 'rgba(194,97,31,0.45)' : C.sable}`,
@@ -1403,21 +1596,21 @@ function AutresPillButton({
               </div>
             </div>
 
-            {/* Prise de poste */}
-            <div>
+            {/* Permis */}
+            <div style={{ borderTop: `1px solid ${C.sable}`, paddingTop: 16, marginBottom: 16 }}>
               <div style={{
                 fontSize: 12, fontWeight: 600, color: C.grey,
                 textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
               }}>
-                Prise de poste
+                Permis
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {PRISE_POSTE_OPTS.map(opt => {
-                  const sel = priseDePoste === opt
+                {PERMIS_FILTRE.map(({ value, label }) => {
+                  const sel = permis.includes(value)
                   return (
                     <button
-                      key={opt}
-                      onClick={() => onPriseDePosteChange(sel ? '' : opt)}
+                      key={value}
+                      onClick={() => onPermisChange(sel ? permis.filter(v => v !== value) : [...permis, value])}
                       style={{
                         fontSize: 13, padding: '6px 11px', borderRadius: 999,
                         border: `1.5px solid ${sel ? 'rgba(194,97,31,0.45)' : C.sable}`,
@@ -1427,7 +1620,38 @@ function AutresPillButton({
                         cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
                       }}
                     >
-                      {opt}
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Autres */}
+            <div style={{ borderTop: `1px solid ${C.sable}`, paddingTop: 16 }}>
+              <div style={{
+                fontSize: 12, fontWeight: 600, color: C.grey,
+                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
+              }}>
+                Autres
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {AUTRES_FILTRE.map(({ value, label }) => {
+                  const sel = autres.includes(value)
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => onAutresChange(sel ? autres.filter(v => v !== value) : [...autres, value])}
+                      style={{
+                        fontSize: 13, padding: '6px 11px', borderRadius: 999,
+                        border: `1.5px solid ${sel ? 'rgba(194,97,31,0.45)' : C.sable}`,
+                        backgroundColor: sel ? 'rgba(194,97,31,0.10)' : 'transparent',
+                        color: sel ? C.orangeTexte : C.dark,
+                        fontWeight: sel ? 600 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                      }}
+                    >
+                      {label}
                     </button>
                   )
                 })}
@@ -1442,7 +1666,7 @@ function AutresPillButton({
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <button
-                onClick={() => { onModeChange([]); onPriseDePosteChange('') }}
+                onClick={() => { onModeChange([]); onPriseDePosteChange(''); onHorairesChange([]); onPermisChange([]); onAutresChange([]) }}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 13, fontWeight: 600, color: C.orangeTexte,
@@ -1463,29 +1687,108 @@ function AutresPillButton({
   )
 }
 
-function EmptyState({ hasFilters, onReset }: { hasFilters: boolean; onReset: () => void }) {
+function EmptyState() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '72px 24px', textAlign: 'center' }}>
       <h3 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
-        {hasFilters ? 'Aucune offre ne correspond' : 'Aucune offre pour le moment'}
+        Aucune offre pour le moment
       </h3>
-      <p style={{ fontSize: 14, color: C.grey, margin: '0 0 20px', maxWidth: 360, lineHeight: 1.65 }}>
-        {hasFilters
-          ? "Essayez d'élargir votre recherche ou de réinitialiser vos filtres."
-          : 'Revenez bientôt : de nouvelles offres sont publiées régulièrement.'}
+      <p style={{ fontSize: 14, color: C.grey, margin: 0, maxWidth: 360, lineHeight: 1.65 }}>
+        Revenez bientôt : de nouvelles offres sont publiées régulièrement.
       </p>
-      {hasFilters && (
-        <button
-          onClick={onReset}
-          style={{
-            padding: '10px 22px', borderRadius: 10, border: 'none',
-            backgroundColor: C.terracotta, color: C.white,
-            fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          Réinitialiser les filtres
-        </button>
+    </div>
+  )
+}
+
+type SuggestionItem = {
+  label: string
+  count: number
+  patch: Partial<Filters>
+  clearCoords?: boolean
+}
+
+function EmptyStateFilters({
+  suggestions,
+  onApply,
+  onReset,
+}: {
+  suggestions: SuggestionItem[]
+  onApply: (patch: Partial<Filters>, clearCoords: boolean) => void
+  onReset: () => void
+}) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [hov, setHov] = useState<number | null>(null)
+
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    el.animate(
+      [{ opacity: '0', transform: 'translateY(8px)' }, { opacity: '1', transform: 'translateY(0)' }],
+      { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', delay: 120, fill: 'both' }
+    )
+  }, [])
+
+  const hasPropositions = suggestions.length > 0
+
+  return (
+    <div ref={cardRef} style={{
+      backgroundColor: C.white,
+      borderRadius: 12,
+      boxShadow: CARD_SHADOW,
+      padding: '22px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+    }}>
+      <h3 style={{
+        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+        fontSize: 17, fontWeight: 600,
+        color: C.dark, margin: 0, lineHeight: 1.3,
+      }}>
+        Aucune offre ne correspond à tous vos critères
+      </h3>
+      <p style={{ fontSize: 13.5, color: C.grey, margin: 0, lineHeight: 1.5 }}>
+        {hasPropositions
+          ? 'Un seul critère bloque peut-être la recherche :'
+          : 'Essayez avec moins de critères.'}
+      </p>
+      {hasPropositions && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {suggestions.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => onApply(s.patch, s.clearCoords ?? false)}
+              onMouseEnter={() => setHov(i)}
+              onMouseLeave={() => setHov(null)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 12px', borderRadius: 10,
+                border: '1px solid rgba(194,97,31,.3)',
+                backgroundColor: hov === i ? 'rgba(194,97,31,.11)' : 'rgba(194,97,31,.06)',
+                cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                transition: 'background-color 0.12s',
+              }}
+            >
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: C.orangeTexte }}>
+                Retirer &laquo;&nbsp;{s.label}&nbsp;&raquo;
+              </span>
+              <span style={{ fontSize: 12.5, color: C.grey, flexShrink: 0, marginLeft: 8 }}>
+                {s.count} offre{s.count !== 1 ? 's' : ''}
+              </span>
+            </button>
+          ))}
+        </div>
       )}
+      <button
+        onClick={onReset}
+        style={{
+          fontSize: 13, color: C.grey, background: 'none', border: 'none',
+          cursor: 'pointer', fontFamily: 'inherit', padding: 0,
+          textDecoration: 'underline', alignSelf: 'flex-start',
+        }}
+      >
+        Tout effacer
+      </button>
     </div>
   )
 }
@@ -1732,6 +2035,9 @@ export default function OffresPage() {
     if (p.get('sm'))    patch.score_min      = p.get('sm')!
     if (p.get('tri'))   patch.tri            = p.get('tri') as SortKey
     if (p.get('r'))     patch.rayon          = p.get('r')!
+    if (p.get('h'))     patch.horaires       = p.get('h')!.split(',').filter(Boolean)
+    if (p.get('pe'))    patch.permis         = p.get('pe')!.split(',').filter(Boolean)
+    if (p.get('a'))     patch.autres         = p.get('a')!.split(',').filter(Boolean)
     if (Object.keys(patch).length > 0) setFilters(prev => ({ ...prev, ...patch }))
     if (process.env.NODE_ENV === 'development') {
       const x = parseInt(p.get('x') ?? '1', 10)
@@ -1760,8 +2066,11 @@ export default function OffresPage() {
     if (filters.duree_contrat)   p.set('dc',  filters.duree_contrat)
     if (filters.score_min)       p.set('sm',  filters.score_min)
     if (filters.tri !== 'match') p.set('tri', filters.tri)
-    if (filters.rayon !== '25')  p.set('r',   filters.rayon)
-    if (selectedId)              p.set('offre', selectedId)
+    if (filters.rayon !== '25')      p.set('r',   filters.rayon)
+    if (filters.horaires.length)     p.set('h',   filters.horaires.join(','))
+    if (filters.permis.length)       p.set('pe',  filters.permis.join(','))
+    if (filters.autres.length)       p.set('a',   filters.autres.join(','))
+    if (selectedId)                  p.set('offre', selectedId)
     const qs = p.toString()
     window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
   }, [filters, selectedId, lieuCoords])
@@ -1847,7 +2156,8 @@ export default function OffresPage() {
   const hasActiveFilters = !!(
     filters.search || filters.domaine.length > 0 || filters.contrat.length > 0 || filters.lieu ||
     filters.mode.length > 0 || filters.date_pub || filters.exp || filters.prise_de_poste ||
-    filters.duree_contrat || filters.score_min || filters.langue.length > 0 || filters.salaire
+    filters.duree_contrat || filters.score_min || filters.langue.length > 0 || filters.salaire ||
+    filters.horaires.length > 0 || filters.permis.length > 0 || filters.autres.length > 0
   )
 
   // ── [DEV] duplication du tableau d'offres via ?x=N ───────────────────────
@@ -1863,7 +2173,10 @@ export default function OffresPage() {
   // ── Filter + sort pipeline ────────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (process.env.NODE_ENV === 'development') console.time('[DEV] pipeline')
-    let list = [...offresEffective]
+
+    const list = applyFiltersOnly(offresEffective, filters, lieuCoords)
+
+    // Reconstruit les maps de score uniquement pour le tri (applyFiltersOnly ne les expose pas)
     let textScores: Map<string, number> | null = null
     let fuzzySearch: Set<string> | null = null
     let geoFallback: Set<string> | null = null
@@ -1871,96 +2184,19 @@ export default function OffresPage() {
     if (filters.search.trim()) {
       const tokens = getTokens(filters.search)
       if (tokens.length > 0) {
-        textScores  = new Map()
+        textScores = new Map()
         fuzzySearch = new Set()
-        list = list.flatMap(o => {
+        list.forEach(o => {
           const { score, fuzzy } = searchScore(o, tokens)
-          if (score === 0) return []
           textScores!.set(o.id, score)
           if (fuzzy) fuzzySearch!.add(o.id)
-          return [o]
         })
       }
     }
 
-    if (filters.domaine.length > 0) {
-      list = list.filter(o => filters.domaine.some(d => (o.domaine ?? '').toLowerCase().includes(d.toLowerCase())))
-    }
-
-    if (filters.contrat.length > 0) {
-      list = list.filter(o => filters.contrat.includes(o.type_contrat ?? ''))
-    }
-
-    if (filters.lieu) {
-      if (lieuCoords) {
-        const maxKm    = filters.rayon === '0' ? 0 : parseInt(filters.rayon, 10) || 25
-        const normLieu = normalizeText(filters.lieu)
-        geoFallback    = new Set()
-        list = list.filter(o => {
-          if (o.latitude == null || o.longitude == null) {
-            if (normalizeText(o.ville ?? '').includes(normLieu)) {
-              geoFallback!.add(o.id)
-              return true
-            }
-            return false
-          }
-          return haversineKm(lieuCoords, { lat: o.latitude, lng: o.longitude }) <= maxKm
-        })
-      } else {
-        list = list.filter(o => (o.ville ?? '').toLowerCase().includes(filters.lieu.toLowerCase()))
-      }
-    }
-
-    if (filters.mode.length > 0) {
-      list = list.filter(o => filters.mode.includes(o.mode_travail ?? ''))
-    }
-
-    if (filters.exp) {
-      list = list.filter(o => o.experience === filters.exp)
-    }
-
-    if (filters.salaire) {
-      const minSalaire = parseInt(filters.salaire.replace(/[^\d]/g, ''))
-      if (minSalaire > 0) {
-        list = list.filter(o => (o.salaire_min ?? 0) >= minSalaire || (o.salaire_max ?? 0) >= minSalaire)
-      }
-    }
-
-    if (filters.date_pub) {
-      const MAX_DAYS: Record<string, number> = { "Aujourd'hui": 1, '3 derniers jours': 3, 'Cette semaine': 7, 'Ce mois-ci': 30 }
-      const maxDays = MAX_DAYS[filters.date_pub]
-      if (maxDays !== undefined) {
-        list = list.filter(o => (Date.now() - new Date(o.created_at).getTime()) / 86400000 <= maxDays)
-      }
-    }
-
-    if (filters.langue.length > 0) {
-      list = list.filter(o => filters.langue.some(l => (o.langues ?? []).includes(l)))
-    }
-
-    if (filters.duree_contrat) {
-      list = list.filter(o => o.type_contrat === 'CDD' && o.duree_contrat === filters.duree_contrat)
-    }
-
-    if (filters.prise_de_poste) {
-      const POSTE_ALLOWED: Record<string, string[]> = {
-        'Immédiate':    ['immediat'],
-        'Dans le mois': ['immediat', 'mois'],
-        'Dans 3 mois':  ['immediat', 'mois', 'trois_mois'],
-      }
-      const allowed = POSTE_ALLOWED[filters.prise_de_poste] ?? []
-      if (allowed.length > 0) {
-        const today = new Date(); today.setHours(0, 0, 0, 0)
-        list = list.filter(o => {
-          const n = normaliserDebut(o.date_debut, today)
-          return n !== null && allowed.includes(n)
-        })
-      }
-    }
-
-    if (filters.score_min) {
-      const threshold = parseInt(filters.score_min, 10) / 100
-      list = list.filter(o => o.score != null && o.score >= threshold)
+    if (filters.lieu && lieuCoords) {
+      geoFallback = new Set()
+      list.forEach(o => { if (o.latitude == null || o.longitude == null) geoFallback!.add(o.id) })
     }
 
     switch (filters.tri) {
@@ -2017,6 +2253,39 @@ export default function OffresPage() {
   }, [offresEffective, filters, lieuCoords])
 
   filteredRef.current = filtered
+
+  // ── Suggestions EmptyState : critère à retirer pour débloquer des offres ─
+  const suggestions = useMemo<SuggestionItem[]>(() => {
+    if (filtered.length > 0 || !hasActiveFilters) return []
+    const candidates: SuggestionItem[] = []
+
+    function tryRemove(label: string, patch: Partial<Filters>, clearCoords = false) {
+      const testFilters: Filters = { ...filters, ...patch }
+      if ('contrat' in patch && !testFilters.contrat.includes('CDD')) testFilters.duree_contrat = ''
+      const count = applyFiltersOnly(offresEffective, testFilters, clearCoords ? null : lieuCoords).length
+      if (count > 0) candidates.push({ label, count, patch, clearCoords })
+    }
+
+    if (filters.search.trim())    tryRemove(filters.search.trim(), { search: '' })
+    if (filters.score_min)        tryRemove(`Correspondance ${filters.score_min} % et plus`, { score_min: '' })
+    if (filters.exp)              tryRemove(filters.exp, { exp: '' })
+    if (filters.salaire)          tryRemove(filters.salaire, { salaire: '' })
+    if (filters.date_pub)         tryRemove(filters.date_pub, { date_pub: '' })
+    if (filters.prise_de_poste)   tryRemove(filters.prise_de_poste, { prise_de_poste: '' })
+    if (filters.duree_contrat)    tryRemove(filters.duree_contrat, { duree_contrat: '' })
+    if (filters.lieu)             tryRemove(filters.lieu, { lieu: '', rayon: '25' }, true)
+    filters.domaine.forEach(v => tryRemove(v, { domaine: filters.domaine.filter(x => x !== v) }))
+    filters.contrat.forEach(v => tryRemove(v, { contrat: filters.contrat.filter(x => x !== v) }))
+    filters.mode.forEach(v =>     tryRemove(v, { mode: filters.mode.filter(x => x !== v) }))
+    filters.langue.forEach(v =>   tryRemove(v, { langue: filters.langue.filter(x => x !== v) }))
+    filters.horaires.forEach(v => tryRemove(HORAIRES_FILTRE.find(o => o.value === v)?.label ?? v, { horaires: filters.horaires.filter(x => x !== v) }))
+    filters.permis.forEach(v =>   tryRemove(PERMIS_FILTRE.find(o => o.value === v)?.label ?? v,   { permis:   filters.permis.filter(x => x !== v) }))
+    filters.autres.forEach(v =>   tryRemove(AUTRES_FILTRE.find(o => o.value === v)?.label ?? v,   { autres:   filters.autres.filter(x => x !== v) }))
+
+    candidates.sort((a, b) => b.count - a.count)
+    return candidates.slice(0, 2)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, offresEffective, filters, lieuCoords])
 
   // ── Initialisation synchrone displayedOffres avant le premier paint ──────
   useLayoutEffect(() => {
@@ -2108,7 +2377,20 @@ export default function OffresPage() {
   // ── Auto-select : first offre, or re-select after filter change ───────────
   useEffect(() => {
     if (loading) return
-    if (filtered.length === 0) { setSelectedId(null); return }
+    if (filtered.length === 0) {
+      if (selectedIdRef.current !== null) {
+        const el = detailPanelRef.current
+        const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        if (!pref && el) {
+          el.getAnimations().forEach(a => a.cancel())
+          el.animate([{ opacity: '1' }, { opacity: '0' }], { duration: 160, easing: 'ease-out', fill: 'forwards' })
+            .onfinish = () => setSelectedId(null)
+        } else {
+          setSelectedId(null)
+        }
+      }
+      return
+    }
     if (!selectedIdRef.current || !filtered.some(o => o.id === selectedIdRef.current)) {
       setSelectedId(filtered[0].id)
     }
@@ -2192,7 +2474,7 @@ export default function OffresPage() {
 
   useLayoutEffect(() => {
     const el = detailPanelRef.current
-    if (!el) return
+    if (!el || !selectedId) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     el.style.opacity = ''
     el.animate(
@@ -2281,7 +2563,15 @@ export default function OffresPage() {
           {loadError}
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState hasFilters={hasActiveFilters} onReset={resetFilters} />
+        hasActiveFilters ? (
+          <EmptyStateFilters
+            suggestions={suggestions}
+            onApply={(patch, clearCoords) => { update(patch); if (clearCoords) setLieuCoords(null) }}
+            onReset={resetFilters}
+          />
+        ) : (
+          <EmptyState />
+        )
       ) : (
         <div ref={listContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {displayedOffres.map(offre => (
@@ -2436,6 +2726,9 @@ export default function OffresPage() {
               <AutresPillButton
                 mode={filters.mode} onModeChange={v => update({ mode: v })}
                 priseDePoste={filters.prise_de_poste} onPriseDePosteChange={v => update({ prise_de_poste: v })}
+                horaires={filters.horaires} onHorairesChange={v => update({ horaires: v })}
+                permis={filters.permis} onPermisChange={v => update({ permis: v })}
+                autres={filters.autres} onAutresChange={v => update({ autres: v })}
               />
 
               {hasActiveFilters && (
