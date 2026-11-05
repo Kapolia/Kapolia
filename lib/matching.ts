@@ -1,4 +1,4 @@
-import { EXPERIENCES, DOMAINES, COMP_REF } from '@/lib/referentiels'
+import { EXPERIENCES, DOMAINES, COMP_REF, offreAvecTeletravail } from '@/lib/referentiels'
 import { LANGUES } from '@/lib/langues'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -9,7 +9,7 @@ export type ProfilMatch = {
   type_poste?:          string[] | null
   valeur?:              string | null
   ville?:               string | null
-  mode_travail?:        string | null    // clé : 'remote' | 'hybride' | 'presentiel' | 'flexible'
+  mode_travail?:        string | null    // clé : 'remote' | 'hybride' | 'occasionnel' | 'presentiel' | 'flexible'
   type_entreprise?:     string[] | null  // clés : 'startup' | 'scaleup' | 'corporate' | 'indep' | 'sans_pref'
   langues?:             string[] | null  // format : 'Français — Natif', 'Anglais — Courant'
   competences_acquises?: string[] | null
@@ -22,7 +22,7 @@ export type OffreMatch = {
   valeurs?:           string[] | null
   ville?:             string | null
   teletravail?:       boolean | null   // scoreRecruteur uniquement
-  mode_travail?:      string | null    // scoreCandidat : '100% remote' | 'Hybride' | '100% présentiel'
+  mode_travail?:      string | null    // scoreCandidat : '100% remote' | 'Hybride' | 'Occasionnel' | '100% présentiel'
   langues?:           string[] | null  // codes ISO : ['fr', 'en']
   competences?:       string[] | null
   competences_bonus?: string[] | null
@@ -138,7 +138,7 @@ function evalValeurs(_p: ProfilMatch, _o: OffreMatch): Criterion | null {
 }
 
 function evalLocalisation(p: ProfilMatch, o: OffreMatch): Criterion | null {
-  if (o.teletravail) return { earned: Math.round(W.localisation * 2 / 3), weight: W.localisation }
+  if (offreAvecTeletravail(o.mode_travail)) return { earned: Math.round(W.localisation * 2 / 3), weight: W.localisation }
   const pv = p.ville?.toLowerCase().trim()
   const ov = o.ville?.toLowerCase().trim()
   if (!pv || !ov) return null
@@ -215,9 +215,10 @@ function evalContratC(p: ProfilMatch, o: OffreMatch): Criterion | null {
   return { earned: matches ? WC.contrat : 0, weight: WC.contrat }
 }
 
-function normOffreModeC(mode: string | null | undefined): 'remote' | 'hybride' | 'presentiel' | null {
+function normOffreModeC(mode: string | null | undefined): 'remote' | 'hybride' | 'occasionnel' | 'presentiel' | null {
   if (mode === '100% remote')     return 'remote'
   if (mode === 'Hybride')         return 'hybride'
+  if (mode === 'Occasionnel')     return 'occasionnel'
   if (mode === '100% présentiel') return 'presentiel'
   return null
 }
@@ -234,19 +235,21 @@ function evalLocalisationC(p: ProfilMatch, o: OffreMatch): Criterion | null {
       return { earned: Math.round(WC.localisation * 0.7), weight: WC.localisation }
 
     if (offreMode === 'remote') {
-      if (profilMode === 'remote')     return { earned: WC.localisation,                 weight: WC.localisation }
-      if (profilMode === 'hybride')    return { earned: Math.round(WC.localisation / 2), weight: WC.localisation }
-      if (profilMode === 'presentiel') return { earned: 0,                               weight: WC.localisation }
+      if (profilMode === 'remote')       return { earned: WC.localisation,                 weight: WC.localisation }
+      if (profilMode === 'hybride')      return { earned: Math.round(WC.localisation / 2), weight: WC.localisation }
+      if (profilMode === 'occasionnel')  return { earned: 4,                               weight: WC.localisation }
+      if (profilMode === 'presentiel')   return { earned: 0,                               weight: WC.localisation }
     }
     if (offreMode === 'hybride') {
-      if (profilMode === 'hybride')    return { earned: WC.localisation,                 weight: WC.localisation }
-      if (profilMode === 'remote')     return { earned: Math.round(WC.localisation / 2), weight: WC.localisation }
-      if (profilMode === 'presentiel') return { earned: Math.round(WC.localisation / 2), weight: WC.localisation }
+      if (profilMode === 'hybride')      return { earned: WC.localisation,                 weight: WC.localisation }
+      if (profilMode === 'remote')       return { earned: Math.round(WC.localisation / 2), weight: WC.localisation }
+      if (profilMode === 'occasionnel')  return { earned: 8,                               weight: WC.localisation }
+      if (profilMode === 'presentiel')   return { earned: Math.round(WC.localisation / 2), weight: WC.localisation }
     }
     return null
   }
 
-  if (offreMode === 'presentiel') {
+  if (offreMode === 'presentiel' || offreMode === 'occasionnel') {
     const pv = p.ville?.toLowerCase().trim()
     const ov = o.ville?.toLowerCase().trim()
     if (!pv || !ov) return null
@@ -254,10 +257,20 @@ function evalLocalisationC(p: ProfilMatch, o: OffreMatch): Criterion | null {
     if (pv !== ov) return { earned: 0, weight: WC.localisation }
 
     // Ville correspond
-    if (profilMode === 'presentiel') return { earned: WC.localisation, weight: WC.localisation }
-    if (profilMode === 'flexible')   return { earned: WC.localisation, weight: WC.localisation }
-    if (profilMode === 'hybride')    return { earned: 10,              weight: WC.localisation }
-    if (profilMode === 'remote')     return { earned: 4,               weight: WC.localisation }
+    if (offreMode === 'presentiel') {
+      if (profilMode === 'presentiel')   return { earned: WC.localisation, weight: WC.localisation }
+      if (profilMode === 'flexible')     return { earned: WC.localisation, weight: WC.localisation }
+      if (profilMode === 'hybride')      return { earned: 10,              weight: WC.localisation }
+      if (profilMode === 'occasionnel')  return { earned: 10,              weight: WC.localisation }
+      if (profilMode === 'remote')       return { earned: 4,               weight: WC.localisation }
+      return null
+    }
+    // offreMode === 'occasionnel'
+    if (profilMode === 'occasionnel')  return { earned: WC.localisation, weight: WC.localisation }
+    if (profilMode === 'presentiel')   return { earned: 10,              weight: WC.localisation }
+    if (profilMode === 'flexible')     return { earned: 10,              weight: WC.localisation }
+    if (profilMode === 'hybride')      return { earned: 11,              weight: WC.localisation }
+    if (profilMode === 'remote')       return { earned: 5,               weight: WC.localisation }
     return null
   }
 

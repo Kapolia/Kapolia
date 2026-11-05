@@ -12,6 +12,7 @@ import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { useFavoris } from '@/lib/favoris-context'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { countRdvEnAttente } from '@/lib/rdv-en-attente'
+import { PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
 import { largeurUtile } from '@/lib/largeur-utile'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -782,9 +783,9 @@ export default function DashboardPage() {
   const LABELS_TYPE_POSTE: Record<string, string> = {
     cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance', alternance: 'Alternance',
   }
-  const LABELS_MODE_TRAVAIL: Record<string, string> = {
-    remote: '100 % Remote', hybride: 'Hybride', presentiel: 'Présentiel',
-  }
+  const LABELS_MODE_TRAVAIL: Record<string, string> = Object.fromEntries(
+    PREFERENCES_TELETRAVAIL.map(p => [p.key, p.label])
+  )
   const searchSuggestions: string[] = (() => {
     const tags: string[] = []
     if (p.domaine) tags.push(p.domaine)

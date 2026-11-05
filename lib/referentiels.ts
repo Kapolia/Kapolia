@@ -40,6 +40,15 @@ export const TELETRAVAIL: Record<string, string> = {
   '100% présentiel': 'Pas de télétravail',
 }
 
+// Préférences de télétravail candidat — clés stockées dans profils.mode_travail
+export const PREFERENCES_TELETRAVAIL: { key: string; label: string; description: string }[] = [
+  { key: 'remote',      label: 'Télétravail complet',    description: 'Entièrement à distance' },
+  { key: 'hybride',     label: 'Télétravail partiel',    description: 'Une partie de la semaine à distance' },
+  { key: 'occasionnel', label: 'Télétravail occasionnel', description: 'Quelques jours par mois à distance' },
+  { key: 'presentiel',  label: 'Pas de télétravail',     description: 'Tous les jours sur le lieu de travail' },
+  { key: 'flexible',    label: 'Sans préférence',        description: "Le télétravail n'est pas un critère pour moi" },
+]
+
 // Options mode_travail ordonnées, avec label court et label long
 export const TELETRAVAIL_OPTIONS: { value: string; label: string; labelLong: string }[] = [
   { value: '100% remote',     label: 'Complet',           labelLong: 'Télétravail complet' },

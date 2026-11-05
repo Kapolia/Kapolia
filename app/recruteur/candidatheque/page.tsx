@@ -8,6 +8,7 @@ import Avatar from '@/components/Avatar'
 import { DOMAINES, EXPERIENCES, TYPES_POSTE } from '@/lib/onboarding-utils'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import { trouverConversation } from '@/lib/conversations'
+import { PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
 import { C } from '@/lib/colors'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -131,9 +132,9 @@ const panelSectionLabel: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7,
 }
 
-const LIEU_MAP: Record<string, string> = {
-  remote: '100 % Remote', hybride: 'Hybride', presentiel: 'Présentiel', flexible: 'Flexible',
-}
+const LIEU_MAP: Record<string, string> = Object.fromEntries(
+  PREFERENCES_TELETRAVAIL.map(p => [p.key, p.label])
+)
 
 // ─── Candidate row ────────────────────────────────────────────────────────────
 

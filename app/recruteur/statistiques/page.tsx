@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { offreAvecTeletravail } from '@/lib/referentiels'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell,
@@ -71,7 +72,7 @@ function computeScore(cand: Candidature, offre: Offre | undefined): number | nul
   const offreMatch: OffreMatch = {
     domaine: offre.domaine, experience: offre.experience,
     type_contrat: offre.type_contrat, valeurs: offre.valeurs, ville: offre.ville,
-    teletravail: offre.mode_travail === '100% remote' || offre.mode_travail === 'Hybride',
+    teletravail: offreAvecTeletravail(offre.mode_travail),
   }
   return scoreRecruteur(profil, offreMatch)
 }

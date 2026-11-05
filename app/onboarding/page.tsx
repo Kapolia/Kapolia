@@ -25,7 +25,7 @@ import type { TestAnswer } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
-import { COMP_REF } from '@/lib/referentiels'
+import { COMP_REF, PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
 import { C } from '@/lib/colors'
 
 // ─── Post-signup redirect ─────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ const MICRO_TEXTS: Record<number, string> = {
   7:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
   8:  "Sur Kapolia, les recruteurs s'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d'intérêt créent parfois de vrais points communs.",
   9:  'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
-  10: 'Télétravail, hybride ou présentiel : votre préférence pour le mode de travail. Votre ville est demandée juste en dessous.',
+  10: 'Votre préférence pour le télétravail. Votre ville est demandée juste en dessous.',
   11: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
   12: 'Indiquez où vous en êtes dans votre recherche. Les recruteurs sauront ainsi à quel moment vous pourriez les rejoindre.',
   13: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
@@ -97,12 +97,7 @@ const ENVIRONNEMENTS = [
 ]
 
 
-const LIEUX = [
-  { key: 'remote',     label: '100 % Remote', desc: 'Depuis partout dans le monde' },
-  { key: 'hybride',    label: 'Hybride',       desc: 'Présence et flexibilité' },
-  { key: 'presentiel', label: 'Présentiel',    desc: 'Je préfère le bureau' },
-  { key: 'flexible',   label: 'Flexible',      desc: 'La mission prime sur le lieu' },
-]
+const LIEUX = PREFERENCES_TELETRAVAIL
 
 const PRIORITES = [
   'Impact réel', 'Équipe soudée', 'Salaire compétitif',
@@ -1696,7 +1691,7 @@ export default function OnboardingPage() {
           <>
             <QuestionLabel num={step} text="Sur place ou à distance ?" sub={MICRO_TEXTS[step]} />
             {LIEUX.map(l => (
-              <ChoiceCard key={l.key} label={l.label} desc={l.desc}
+              <ChoiceCard key={l.key} label={l.label} desc={l.description}
                 selected={data.lieu === l.key} onClick={() => set('lieu', l.key)} />
             ))}
             <div style={{ marginTop: '4px' }}>

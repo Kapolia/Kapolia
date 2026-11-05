@@ -8,7 +8,7 @@ import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES } from '@/lib/langues'
-import { COMP_REF, DOMAINES } from '@/lib/referentiels'
+import { COMP_REF, DOMAINES, PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
@@ -125,9 +125,9 @@ const TYPE_POSTE_MAP: Record<string, string> = {
   cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance / Mission', alternance: 'Alternance / Stage', ouvert: 'Ouvert(e) à tout',
 }
 
-const LIEU_MAP: Record<string, string> = {
-  remote: '100% Remote', hybride: 'Hybride', presentiel: 'Présentiel', flexible: 'Flexible',
-}
+const LIEU_MAP: Record<string, string> = Object.fromEntries(
+  PREFERENCES_TELETRAVAIL.map(p => [p.key, p.label])
+)
 
 const PRIORITES = [
   'Impact réel', 'Équipe soudée', 'Salaire compétitif',

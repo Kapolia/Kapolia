@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
 import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matching'
+import { offreAvecTeletravail } from '@/lib/referentiels'
 import { ScoreRing } from '@/components/ScoreRing'
 import { getStatut } from '@/lib/statuts'
 import { notifStatutCandidature } from '@/lib/actions/email-notifs'
@@ -107,7 +108,7 @@ function computeScore(cand: Candidature, offre: OffreRow | null): number | null 
     type_contrat: offre.type_contrat,
     valeurs:      offre.valeurs,
     ville:        offre.ville,
-    teletravail:  offre.mode_travail === '100% remote' || offre.mode_travail === 'Hybride',
+    teletravail:  offreAvecTeletravail(offre.mode_travail),
   }
   return scoreRecruteur(profil, offreMatch)
 }
