@@ -27,7 +27,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
-import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF } from '@/lib/referentiels'
+import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, TELETRAVAIL_OPTIONS } from '@/lib/referentiels'
+import { LANGUES } from '@/lib/langues'
+import { createAutosaveDraftController, type AutoSaveDraftController } from '@/lib/autosave-draft'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -37,7 +39,6 @@ const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
 const CONTRATS = TYPES_CONTRAT
 const NIVEAUX  = EXPERIENCES
-const MODES       = ['100% présentiel', 'Hybride', '100% remote']
 const DEPLACS     = ['Jamais', 'Occasionnels', 'Fréquents']
 const AVANTAGES   = ['Mutuelle', 'RTT', 'Tickets restaurant', 'Intéressement', 'Stock options', 'Formation', 'Véhicule de fonction', 'Remboursement transport', 'Télétravail', 'Salle de sport']
 const PAYS_OPTS   = ['France', 'Belgique', 'Suisse', 'Luxembourg', 'Canada', 'Allemagne', 'Autre']
@@ -440,6 +441,9 @@ function PublierOffrePageInner() {
   // Step 1
   const [titre, setTitre]           = useState('')
   const [contrat, setContrat]       = useState('')
+  const [dureeContrat, setDureeContrat] = useState('')
+  const [tempsTravail, setTempsTravail] = useState('')
+  const [horaires, setHoraires]     = useState<string[]>([])
   const [domaine, setDomaine]       = useState('')
   const [niveau, setNiveau]         = useState('')
   const [salaireMin, setSalaireMin] = useState('')
@@ -464,16 +468,36 @@ function PublierOffrePageInner() {
   const [compInput, setCompInput]     = useState('')
   const [competencesBonus, setCompetencesBonus] = useState<string[]>([])
   const [compBonusInput, setCompBonusInput] = useState('')
+  const [langues, setLangues]               = useState<string[]>([])
+  const [langueSearch, setLangueSearch]     = useState('')
+  const [permis, setPermis]                 = useState<string[]>([])
+  const [statutCadre, setStatutCadre]       = useState(false)
+  const [logementFourni, setLogementFourni] = useState(false)
+  const [repasFournis, setRepasFournis]     = useState(false)
+  const [ouvertHandicap, setOuvertHandicap] = useState(false)
 
   // Step 4
   const [avantages, setAvantages]           = useState<string[]>([])
   const [processRecrutement, setProcessRecrutement] = useState<string[]>(['Entretien RH'])
   const [dureePublication, setDureePublication] = useState<30 | 60 | 90>(60)
   const existingPublishedAt = useRef<string | null>(null)
+  const autoSave = useRef(createAutosaveDraftController({
+    insert: async (payload) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+      const { data: draft } = await supabase.from('offres')
+        .insert({ ...payload, recruteur_id: user.id })
+        .select('id').single()
+      return draft?.id ?? null
+    },
+    update: async (id, payload) => {
+      await supabase.from('offres').update(payload).eq('id', id)
+    },
+  }))
 
   // F2 — Ref for auto-save (avoids stale closures)
-  const formRef = useRef({ titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement })
-  formRef.current = { titre, contrat, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, avantages, processRecrutement }
+  const formRef = useRef({ titre, contrat, dureeContrat, tempsTravail, horaires, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, langues, permis, statutCadre, logementFourni, repasFournis, ouvertHandicap, avantages, processRecrutement })
+  formRef.current = { titre, contrat, dureeContrat, tempsTravail, horaires, domaine, niveau, salaireMin, salaireMax, periode, debutImmediat, dateDebut, ville, pays, modeTravail, joursRemote, deplacements, description, missions, profilRecherche, competences, competencesBonus, langues, permis, statutCadre, logementFourni, repasFournis, ouvertHandicap, avantages, processRecrutement }
 
   // ── Toast helper ──────────────────────────────────────────────────────────
 
@@ -519,6 +543,15 @@ function PublierOffrePageInner() {
       setCompetencesBonus(data.competences_bonus ?? [])
       setAvantages(data.avantages ?? [])
       setProcessRecrutement(data.process_recrutement?.length ? data.process_recrutement : ['Entretien RH'])
+      setDureeContrat(data.duree_contrat ?? '')
+      setTempsTravail(data.temps_travail ?? '')
+      setHoraires(data.horaires ?? [])
+      setLangues(data.langues ?? [])
+      setPermis(data.permis ?? [])
+      setStatutCadre(data.statut_cadre ?? false)
+      setLogementFourni(data.logement_fourni ?? false)
+      setRepasFournis(data.repas_fournis ?? false)
+      setOuvertHandicap(data.ouvert_handicap ?? false)
       existingPublishedAt.current = data.published_at ?? null
     }
     load()
@@ -527,13 +560,14 @@ function PublierOffrePageInner() {
   // ── F2 — Auto-save every 60s ──────────────────────────────────────────────
 
   useEffect(() => {
-    const id = setInterval(async () => {
+    const id = setInterval(() => {
       const f = formRef.current
       if (!f.titre.trim() || editId) return
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      await supabase.from('offres').insert({
-        recruteur_id: user.id, titre: f.titre, type_contrat: f.contrat,
+      autoSave.current.tick({
+        titre: f.titre, type_contrat: f.contrat,
+        duree_contrat: f.dureeContrat || null,
+        temps_travail: f.tempsTravail || null,
+        horaires: f.horaires,
         domaine: f.domaine, experience: f.niveau,
         salaire_min: f.salaireMin ? parseInt(f.salaireMin) : null,
         salaire_max: f.salaireMax ? parseInt(f.salaireMax) : null,
@@ -545,12 +579,17 @@ function PublierOffrePageInner() {
         missions: f.missions.filter(m => m.trim()),
         profil_recherche: f.profilRecherche,
         competences: f.competences, competences_bonus: f.competencesBonus,
+        langues: f.langues,
+        permis: f.permis,
+        statut_cadre: f.statutCadre,
+        logement_fourni: f.logementFourni,
+        repas_fournis: f.repasFournis,
+        ouvert_handicap: f.ouvertHandicap,
         avantages: f.avantages,
         process_recrutement: f.processRecrutement.filter(p => p.trim()),
         statut: 'brouillon',
         active: false,
-      })
-      showToast('Brouillon sauvegardé automatiquement ✓')
+      }, () => showToast('Brouillon sauvegardé automatiquement ✓'))
     }, 60000)
     return () => clearInterval(id)
   }, [])
@@ -590,14 +629,18 @@ function PublierOffrePageInner() {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   async function save(statut: 'publiée' | 'brouillon', opts: { silent?: boolean } = {}) {
+    await autoSave.current.beforeSave()
     if (opts.silent) setSavingDraft(true); else setSubmitting(true)
     setServerError('')
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.replace('/connexion'); return }
+    if (!user) { autoSave.current.onSaveError(); router.replace('/connexion'); return }
 
     const fields = {
       titre, type_contrat: contrat,
+      duree_contrat: dureeContrat || null,
+      temps_travail: tempsTravail || null,
+      horaires,
       domaine, experience: niveau,
       salaire_min: salaireMin ? parseInt(salaireMin) : null,
       salaire_max: salaireMax ? parseInt(salaireMax) : null,
@@ -611,6 +654,12 @@ function PublierOffrePageInner() {
       missions: missions.filter(m => m.trim()),
       profil_recherche: profilRecherche,
       competences, competences_bonus: competencesBonus,
+      langues,
+      permis,
+      statut_cadre: statutCadre,
+      logement_fourni: logementFourni,
+      repas_fournis: repasFournis,
+      ouvert_handicap: ouvertHandicap,
       avantages,
       process_recrutement: processRecrutement.filter(p => p.trim()),
       statut,
@@ -626,14 +675,17 @@ function PublierOffrePageInner() {
 
     const { error } = editId
       ? await supabase.from('offres').update(fields).eq('id', editId).select()
-      : await supabase.from('offres').insert({ ...fields, recruteur_id: user.id }).select()
+      : autoSave.current.autosaveDraftId.current
+        ? await supabase.from('offres').update(fields).eq('id', autoSave.current.autosaveDraftId.current).select()
+        : await supabase.from('offres').insert({ ...fields, recruteur_id: user.id }).select()
 
     if (opts.silent) setSavingDraft(false); else setSubmitting(false)
     if (error) {
+      autoSave.current.onSaveError()
       if (opts.silent) { showToast('⚠ Erreur lors de la sauvegarde'); return }
       setServerError(`Erreur : ${error.message}`); return
     }
-    if (opts.silent) { showToast('Brouillon sauvegardé ✓'); return }
+    if (opts.silent) { autoSave.current.onSaveError(); showToast('Brouillon sauvegardé ✓'); return }
     setIsDraft(statut === 'brouillon'); setPublished(true)
   }
 
@@ -645,10 +697,12 @@ function PublierOffrePageInner() {
   function toggleAvantage(a: string) { setAvantages(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]) }
 
   function resetForm() {
-    setTitre(''); setContrat(''); setDomaine(''); setNiveau(''); setSalaireMin(''); setSalaireMax(''); setPeriode('annuel'); setDebutImmediat(true); setDateDebut('')
+    setTitre(''); setContrat(''); setDureeContrat(''); setTempsTravail(''); setHoraires([]); setDomaine(''); setNiveau(''); setSalaireMin(''); setSalaireMax(''); setPeriode('annuel'); setDebutImmediat(true); setDateDebut('')
     setVille(''); setVilleCoords(null); setPays('France'); setModeTravail(''); setJoursRemote(2); setDeplacements('')
     setDescription(''); setMissions(['']); setProfilRecherche(''); setCompetences([]); setCompInput(''); setCompetencesBonus([]); setCompBonusInput('')
+    setLangues([]); setLangueSearch(''); setPermis([]); setStatutCadre(false); setLogementFourni(false); setRepasFournis(false); setOuvertHandicap(false)
     setAvantages([]); setProcessRecrutement(['Entretien RH'])
+    autoSave.current.reset()
     setStep(1); setErrors({}); setServerError(''); setPublished(false); setIsDraft(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -704,8 +758,38 @@ function PublierOffrePageInner() {
             <Divider />
             <div>
               <SLabel>Type de contrat *</SLabel>
-              <Pills options={CONTRATS} value={contrat} onChange={v => setContrat(v as string)} />
+              <Pills options={CONTRATS} value={contrat} onChange={v => { setContrat(v as string); if (v !== 'CDD' && v !== 'Saisonnier') setDureeContrat('') }} />
               <FieldErr msg={errors.contrat} />
+              {(contrat === 'CDD' || contrat === 'Saisonnier') && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginBottom: 10 }}>Durée du contrat</div>
+                  <Pills
+                    options={DUREES_CONTRAT.map(o => o.label)}
+                    value={DUREES_CONTRAT.find(o => o.value === dureeContrat)?.label ?? ''}
+                    onChange={v => { const opt = DUREES_CONTRAT.find(o => o.label === (v as string)); setDureeContrat(opt?.value ?? '') }}
+                  />
+                </div>
+              )}
+            </div>
+            <Divider />
+            <div>
+              <SLabel>Temps de travail</SLabel>
+              <Pills
+                options={TEMPS_TRAVAIL.map(o => o.label)}
+                value={TEMPS_TRAVAIL.find(o => o.value === tempsTravail)?.label ?? ''}
+                onChange={v => { const opt = TEMPS_TRAVAIL.find(o => o.label === (v as string)); setTempsTravail(opt?.value ?? '') }}
+              />
+            </div>
+            <Divider />
+            <div>
+              <SLabel>Horaires</SLabel>
+              <Pills
+                options={HORAIRES.map(o => o.label)}
+                value={horaires.map(v => HORAIRES.find(o => o.value === v)?.label ?? v)}
+                onChange={v => { const labels = v as string[]; setHoraires(labels.map(l => HORAIRES.find(o => o.label === l)?.value ?? l)) }}
+                multi
+              />
+              <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>Cochez tout ce qui s&apos;applique.</div>
             </div>
             <Divider />
             <div>
@@ -771,8 +855,12 @@ function PublierOffrePageInner() {
             </div>
             <Divider />
             <div>
-              <SLabel sub="L'un des critères les plus consultés par les candidats.">Mode de travail *</SLabel>
-              <Pills options={MODES} value={modeTravail} onChange={v => setModeTravail(v as string)} />
+              <SLabel sub="L'un des critères les plus consultés par les candidats.">Télétravail *</SLabel>
+              <Pills
+                options={TELETRAVAIL_OPTIONS.map(o => o.label)}
+                value={TELETRAVAIL_OPTIONS.find(o => o.value === modeTravail)?.label ?? ''}
+                onChange={v => { const opt = TELETRAVAIL_OPTIONS.find(o => o.label === (v as string)); setModeTravail(opt?.value ?? '') }}
+              />
               <FieldErr msg={errors.modeTravail} />
               {modeTravail === 'Hybride' && (
                 <div style={{ marginTop: 20, backgroundColor: C.bg, borderRadius: 12, padding: '16px 20px' }}>
@@ -848,6 +936,70 @@ function PublierOffrePageInner() {
             <div>
               <SLabel sub="Compétences appréciées mais non bloquantes. Max. 5.">Compétences bonus ✦</SLabel>
               <TagInput tags={competencesBonus} onAdd={addCompBonus} onRemove={t => setCompetencesBonus(p => p.filter(x => x !== t))} placeholder="ex. Notion, Docker, SEO…" max={5} inputVal={compBonusInput} onInputChange={setCompBonusInput} color={C.vert} />
+            </div>
+            <Divider />
+            <div>
+              <SLabel>Langues demandées</SLabel>
+              {langues.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 10 }}>
+                  {langues.map(code => {
+                    const lang = LANGUES.find(l => l.code === code)
+                    return (
+                      <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, color: C.terracotta, backgroundColor: `${C.terracotta}12`, border: `1px solid ${C.terracotta}30`, padding: '4px 10px 4px 12px', borderRadius: 20 }}>
+                        {lang?.nom ?? code}
+                        <button type="button" onClick={() => setLangues(p => p.filter(c => c !== code))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.terracotta, fontSize: 16, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center' }}>×</button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+              <input
+                value={langueSearch}
+                onChange={e => setLangueSearch(e.target.value)}
+                placeholder="Rechercher une langue..."
+                style={{ width: '100%', padding: '10px 14px', fontSize: 13, borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              />
+              {langueSearch.trim() && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {LANGUES
+                    .filter(l => l.nom.toLowerCase().includes(langueSearch.toLowerCase().trim()) && !langues.includes(l.code))
+                    .slice(0, 10)
+                    .map(l => (
+                      <button key={l.code} type="button"
+                        onClick={() => { setLangues(p => [...p, l.code]); setLangueSearch('') }}
+                        style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.grey, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                        {l.nom}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+            <Divider />
+            <div>
+              <SLabel sub="Laissez vide si aucun permis n'est requis.">Permis</SLabel>
+              <Pills
+                options={PERMIS.map(o => o.label)}
+                value={permis.map(v => PERMIS.find(o => o.value === v)?.label ?? v)}
+                onChange={v => { const labels = v as string[]; setPermis(labels.map(l => PERMIS.find(o => o.label === l)?.value ?? l)) }}
+                multi
+              />
+            </div>
+            <Divider />
+            <div>
+              <SLabel>Autres informations</SLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {([
+                  { label: 'Poste de statut cadre',                                    checked: statutCadre,     toggle: () => setStatutCadre(p => !p) },
+                  { label: 'Logement fourni',                                           checked: logementFourni,  toggle: () => setLogementFourni(p => !p) },
+                  { label: 'Repas fournis',                                             checked: repasFournis,    toggle: () => setRepasFournis(p => !p) },
+                  { label: 'Poste ouvert aux personnes en situation de handicap',       checked: ouvertHandicap,  toggle: () => setOuvertHandicap(p => !p) },
+                ] as { label: string; checked: boolean; toggle: () => void }[]).map(({ label, checked, toggle }) => (
+                  <label key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${checked ? C.vert : C.sable}`, backgroundColor: checked ? `${C.vert}0D` : C.white, cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <input type="checkbox" checked={checked} onChange={toggle} style={{ accentColor: C.vert, width: 15, height: 15, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: checked ? C.vert : C.dark, fontWeight: checked ? 600 : 400 }}>{label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </Card>
         )}

@@ -30,13 +30,28 @@ export const EXPERIENCES = [
 ]
 
 // Types de contrat — labels stockés dans offres.type_contrat
-export const TYPES_CONTRAT = ['CDI', 'CDD', 'Freelance', 'Alternance', 'Stage', 'Intérim']
+export const TYPES_CONTRAT = ['CDI', 'CDD', 'Freelance', 'Alternance', 'Stage', 'Intérim', 'Saisonnier']
 
-// Mapping valeurs DB mode_travail → libellés d'affichage
+// Mapping valeurs DB mode_travail → libellés d'affichage (rétrocompatible)
 export const TELETRAVAIL: Record<string, string> = {
   '100% remote':     'Télétravail complet',
   'Hybride':         'Télétravail partiel',
+  'Occasionnel':     'Télétravail occasionnel',
   '100% présentiel': 'Pas de télétravail',
+}
+
+// Options mode_travail ordonnées, avec label court et label long
+export const TELETRAVAIL_OPTIONS: { value: string; label: string; labelLong: string }[] = [
+  { value: '100% remote',     label: 'Complet',           labelLong: 'Télétravail complet' },
+  { value: 'Hybride',         label: 'Partiel',           labelLong: 'Télétravail partiel' },
+  { value: 'Occasionnel',     label: 'Occasionnel',       labelLong: 'Télétravail occasionnel' },
+  { value: '100% présentiel', label: 'Pas de télétravail', labelLong: 'Pas de télétravail' },
+]
+
+// Renvoie true si le mode_travail implique au moins du télétravail.
+// Remplacera à terme la colonne offres.teletravail (que le formulaire n'écrit jamais).
+export function offreAvecTeletravail(mode_travail: string | null | undefined): boolean {
+  return mode_travail === '100% remote' || mode_travail === 'Hybride' || mode_travail === 'Occasionnel'
 }
 
 // Durées de CDD — valeur stockée en base + libellé d'affichage
@@ -46,6 +61,46 @@ export const DUREES_CONTRAT: { value: string; label: string }[] = [
   { value: '6_12',    label: '6 à 12 mois' },
   { value: 'plus_12', label: 'Plus de 12 mois' },
 ]
+
+// Temps de travail — valeur stockée en base + libellé d'affichage
+export const TEMPS_TRAVAIL: { value: string; label: string }[] = [
+  { value: 'temps_plein',    label: 'Temps plein' },
+  { value: 'temps_partiel',  label: 'Temps partiel' },
+]
+
+// Horaires — valeur stockée en base + libellé d'affichage
+export const HORAIRES: { value: string; label: string }[] = [
+  { value: 'journee',  label: 'Travail en journée' },
+  { value: 'nuit',     label: 'Travail de nuit' },
+  { value: 'week_end', label: 'Le week-end' },
+  { value: 'equipes',  label: 'En équipes alternées' },
+]
+
+// Permis et habilitations — valeur stockée en base + libellé d'affichage
+export const PERMIS: { value: string; label: string }[] = [
+  { value: 'B',     label: 'Permis B' },
+  { value: 'C_CE',  label: 'Permis C ou CE' },
+  { value: 'D',     label: 'Permis D' },
+  { value: 'CACES', label: 'CACES' },
+]
+
+// Renvoie le label d'une valeur dans un référentiel, ou null si inconnue.
+// Accepte un tableau de chaînes (TYPES_CONTRAT), un tableau { value, label }
+// ou un objet clé → label (TELETRAVAIL).
+export function labelDe(
+  constante: string[] | { value: string; label: string }[] | Record<string, string>,
+  value: string,
+): string | null {
+  if (Array.isArray(constante)) {
+    if (constante.length === 0) return null
+    if (typeof constante[0] === 'string') {
+      return (constante as string[]).includes(value) ? value : null
+    }
+    const found = (constante as { value: string; label: string }[]).find(e => e.value === value)
+    return found?.label ?? null
+  }
+  return (constante as Record<string, string>)[value] ?? null
+}
 
 // Normalise date_debut vers un code interne pour le filtre prise de poste.
 // today est injecté en paramètre pour permettre les tests unitaires.
