@@ -19,6 +19,10 @@ import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import LogoKapolia from '@/components/LogoKapolia'
 import { normalizeText } from '@/lib/storage-utils'
 import { largeurUtile } from '@/lib/largeur-utile'
+import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, sortirCartes, animerCartes } from '@/lib/motion'
+import { useRoulette } from '@/hooks/useRoulette'
+import { useNavigationClavier } from '@/hooks/useNavigationClavier'
+import { TriSelect } from '@/components/TriSelect'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -355,7 +359,7 @@ function PillDropdown({
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && dropRef.current) {
       dropRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -496,7 +500,7 @@ function MultiPillDropdown({
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && dropRef.current) {
       dropRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -666,7 +670,7 @@ function SalairePillDropdown({
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && dropRef.current) {
       dropRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -871,7 +875,7 @@ function LangPillDropdown({
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && dropRef.current) {
       dropRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -1063,7 +1067,7 @@ function CorrespondancePill({ value, onChange, profil, isConnected }: {
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && dropRef.current) {
       dropRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -1209,7 +1213,7 @@ function ContratPillDropdown({
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && dropRef.current) {
       dropRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -1408,7 +1412,7 @@ function AutresPillButton({
 
   function startClose() {
     if (!open) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     if (!pref && panelRef.current) {
       panelRef.current.getAnimations().forEach(a => a.cancel())
       setOpen(false); setIsClosing(true)
@@ -1721,10 +1725,10 @@ function EmptyStateFilters({
 
   useEffect(() => {
     const el = cardRef.current
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (!el || reduitMouvement()) return
     el.animate(
       [{ opacity: '0', transform: 'translateY(8px)' }, { opacity: '1', transform: 'translateY(0)' }],
-      { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', delay: 120, fill: 'both' }
+      { duration: 320, easing: EASE, delay: 120, fill: 'both' }
     )
   }, [])
 
@@ -1867,52 +1871,13 @@ export default function OffresPage() {
   const prevPositionsRef    = useRef<Map<string, DOMRect>>(new Map())
   const filterTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const filteredRef         = useRef<typeof offres>([])
-  const rouletteRafRef      = useRef<number | null>(null)
 
   function setDisplayedOffres(list: typeof offres) {
     displayedOffresRef.current = list
     setDisplayedOffresState(list)
   }
 
-  function applyRoulette() {
-    const col = leftColRef.current
-    if (!col) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      cardRefsMap.current.forEach(el => { el.style.transform = ''; el.style.opacity = ''; el.style.transformOrigin = '' })
-      return
-    }
-    if (col.scrollHeight <= col.clientHeight + 1) {
-      cardRefsMap.current.forEach(el => { el.style.transform = ''; el.style.opacity = ''; el.style.transformOrigin = '' })
-      return
-    }
-    cardRefsMap.current.forEach(el => {
-      if (!el.isConnected) return
-      if (el.offsetParent !== col) return
-      // Annule les animations terminées (fill:both/forwards) avant d'écrire les styles inline
-      el.getAnimations().forEach(a => { if (a.playState === 'finished') a.cancel() })
-      const h   = el.offsetHeight
-      const top = el.offsetTop - col.scrollTop
-      const bot = (col.scrollTop + col.clientHeight) - (el.offsetTop + el.offsetHeight)
-      let t = 0, sens = 0, origin = '50% 50%'
-      if      (top < 0) { t = Math.min(1, -top / h); sens =  1; origin = '50% 100%' }
-      else if (bot < 0) { t = Math.min(1, -bot / h); sens = -1; origin = '50% 0%'   }
-      if (t === 0) {
-        el.style.transform = ''; el.style.opacity = ''; el.style.transformOrigin = ''
-      } else {
-        el.style.transformOrigin = origin
-        el.style.transform       = `perspective(900px) rotateX(${sens * t * 38}deg) scale(${1 - 0.08 * t})`
-        el.style.opacity         = String(1 - 0.55 * t)
-      }
-    })
-  }
-
-  function scheduleRoulette() {
-    if (rouletteRafRef.current !== null) return
-    rouletteRafRef.current = requestAnimationFrame(() => {
-      rouletteRafRef.current = null
-      applyRoulette()
-    })
-  }
+  const scheduleRoulette = useRoulette(leftColRef, cardRefsMap, isSplit)
 
   // ── Animation carte ↔ pastille ─────────────────────────────────────────
   const [cardHidden, setCardHidden] = useState(false)
@@ -1996,25 +1961,6 @@ export default function OffresPage() {
     return () => window.removeEventListener('resize', check)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // ── Roulette : init quand le mode split s'active ───────────────────────────
-  useEffect(() => {
-    if (isSplit) requestAnimationFrame(scheduleRoulette)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSplit])
-
-  // ── Roulette : recalcul quand la colonne gauche change de hauteur ──────────
-  // (bandeau vert qui se replie/déplie au défilement, resize fenêtre)
-  useEffect(() => {
-    if (!isSplit) return
-    const col = leftColRef.current
-    if (!col) return
-    const ro = new ResizeObserver(scheduleRoulette)
-    ro.observe(col)
-    return () => ro.disconnect()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSplit])
-
 
   // ── Init filters + selectedId from URL ────────────────────────────────────
   useEffect(() => {
@@ -2301,7 +2247,7 @@ export default function OffresPage() {
     const prevIds = displayedOffresRef.current.map(o => o.id).join(',')
     const newIds  = filtered.map(o => o.id).join(',')
     if (prevIds === newIds) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const pref = reduitMouvement()
     const posSnapshot = new Map<string, DOMRect>()
     cardRefsMap.current.forEach((el, id) => { if (el.isConnected) posSnapshot.set(id, el.getBoundingClientRect()) })
     prevPositionsRef.current = posSnapshot
@@ -2312,13 +2258,7 @@ export default function OffresPage() {
       : []
     if (filterTimerRef.current) clearTimeout(filterTimerRef.current)
     if (leavingIds.length > 0 && !pref) {
-      leavingIds.forEach(id => {
-        const el = cardRefsMap.current.get(id)
-        if (el?.isConnected) el.animate(
-          [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.97)' }],
-          { duration: 160, easing: 'ease-in', fill: 'forwards' }
-        )
-      })
+      sortirCartes(leavingIds.map(id => cardRefsMap.current.get(id)).filter((el): el is HTMLElement => !!el))
       filterTimerRef.current = setTimeout(() => {
         filterTimerRef.current = null
         setDisplayedOffres(filteredRef.current)
@@ -2336,41 +2276,8 @@ export default function OffresPage() {
     if (!animInitializedRef.current || !isSplit) return
     const container = listContainerRef.current
     if (!container) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const cards = container.querySelectorAll<HTMLElement>('[data-card-id]')
-    const newPositions = new Map<string, DOMRect>()
-    cards.forEach(card => { newPositions.set(card.dataset.cardId!, card.getBoundingClientRect()) })
-    if (!pref) {
-      const prevPositions = prevPositionsRef.current
-      const isEntrance    = prevPositions.size === 0
-      if (isEntrance) {
-        cards.forEach((card, i) => card.animate(
-          [{ opacity: '0', transform: 'translateY(8px)' }, { opacity: '1', transform: 'translateY(0)' }],
-          { duration: 420, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', delay: i * 45, fill: 'both' }
-        ))
-      } else {
-        let enterIdx = 0
-        cards.forEach(card => {
-          const id   = card.dataset.cardId!
-          const prev = prevPositions.get(id)
-          const next = newPositions.get(id)!
-          if (prev) {
-            const dy = prev.top - next.top
-            if (Math.abs(dy) > 1) card.animate(
-              [{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }],
-              { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
-            )
-          } else {
-            card.animate(
-              [{ opacity: '0', transform: 'translateY(8px)' }, { opacity: '1', transform: 'translateY(0)' }],
-              { duration: 360, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', delay: 120 + enterIdx * 30, fill: 'both' }
-            )
-            enterIdx++
-          }
-        })
-      }
-    }
-    prevPositionsRef.current = newPositions
+    prevPositionsRef.current = animerCartes(cards, prevPositionsRef.current)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedOffres])
 
@@ -2380,7 +2287,7 @@ export default function OffresPage() {
     if (filtered.length === 0) {
       if (selectedIdRef.current !== null) {
         const el = detailPanelRef.current
-        const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        const pref = reduitMouvement()
         if (!pref && el) {
           el.getAnimations().forEach(a => a.cancel())
           el.animate([{ opacity: '1' }, { opacity: '0' }], { duration: 160, easing: 'ease-out', fill: 'forwards' })
@@ -2456,17 +2363,8 @@ export default function OffresPage() {
   // ── Sélection carte + transition panneau droit ───────────────────────────
   function handleCardSelect(id: string) {
     if (id === selectedId) return
-    const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!pref && detailPanelRef.current) {
-      detailPanelRef.current.getAnimations().forEach(a => a.cancel())
-      const anim = detailPanelRef.current.animate(
-        [{ opacity: '1' }, { opacity: '0' }],
-        { duration: 100, easing: 'ease-out' }
-      )
-      anim.onfinish = () => {
-        if (detailPanelRef.current) detailPanelRef.current.style.opacity = '0'
-        setSelectedId(id)
-      }
+    if (!reduitMouvement() && detailPanelRef.current) {
+      fondurPanneau(detailPanelRef.current, () => setSelectedId(id))
     } else {
       setSelectedId(id)
     }
@@ -2474,50 +2372,11 @@ export default function OffresPage() {
 
   useLayoutEffect(() => {
     const el = detailPanelRef.current
-    if (!el || !selectedId) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    el.style.opacity = ''
-    el.animate(
-      [{ opacity: '0', transform: 'translateY(6px)' }, { opacity: '1', transform: 'translateY(0)' }],
-      { duration: 240, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
-    )
+    if (!el || !selectedId || reduitMouvement()) return
+    entrerPanneau(el)
   }, [selectedId])
 
-  // ── Navigation clavier : flèches haut/bas ────────────────────────────────
-  useEffect(() => {
-    if (!isSplit) return
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-      const tag = (document.activeElement as HTMLElement | null)?.tagName?.toLowerCase()
-      if (tag === 'input' || tag === 'select' || tag === 'textarea') return
-      if (document.querySelector('[data-kapolia-filter-portal]')) return
-      const list = displayedOffresRef.current
-      if (list.length === 0) return
-      const curIdx = list.findIndex(o => o.id === selectedIdRef.current)
-      let nextIdx  = curIdx
-      if (e.key === 'ArrowDown') nextIdx = Math.min(list.length - 1, curIdx + 1)
-      if (e.key === 'ArrowUp')   nextIdx = Math.max(0, curIdx - 1)
-      if (nextIdx === curIdx) return
-      e.preventDefault()
-      const nextId = list[nextIdx].id
-      handleCardSelect(nextId)
-      requestAnimationFrame(() => {
-        const el  = cardRefsMap.current.get(nextId)
-        const col = leftColRef.current
-        if (!el || !col) return
-        el.focus({ preventScroll: true })
-        const r    = el.getBoundingClientRect()
-        const colR = col.getBoundingClientRect()
-        if (r.top < colR.top || r.bottom > colR.bottom) {
-          const pref = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          el.scrollIntoView({ block: 'nearest', behavior: pref ? 'instant' : 'smooth' })
-        }
-      })
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSplit])
+  useNavigationClavier(displayedOffresRef, selectedIdRef, handleCardSelect, cardRefsMap, leftColRef, isSplit)
 
   // ── Reusable list content (counter + sort + cards) ────────────────────────
   const listContent = (
@@ -2531,24 +2390,16 @@ export default function OffresPage() {
               <span style={{ color: C.grey }}> offre{filtered.length !== 1 ? 's' : ''}</span>
             </span>
             <span style={{ color: C.lightGrey, fontSize: 13 }}>·</span>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 13, color: C.grey }}>
-              Trier par
-              <select
-                className="kapolia-tri"
-                value={filters.tri}
-                onChange={e => update({ tri: e.target.value as SortKey })}
-                style={{
-                  border: 'none', background: 'none', fontFamily: 'inherit',
-                  fontSize: 13, color: C.dark, fontWeight: 600,
-                  cursor: 'pointer', outline: 'none', padding: '0 2px',
-                }}
-              >
-                <option value="match">Meilleure correspondance</option>
-                <option value="recent">Plus récentes</option>
-                <option value="salaire_desc">Salaire décroissant</option>
-                {lieuCoords && <option value="distance">Distance</option>}
-              </select>
-            </label>
+            <TriSelect
+              value={filters.tri}
+              onChange={v => update({ tri: v as SortKey })}
+              options={[
+                { value: 'match', label: 'Meilleure correspondance' },
+                { value: 'recent', label: 'Plus récentes' },
+                { value: 'salaire_desc', label: 'Salaire décroissant' },
+                ...(lieuCoords ? [{ value: 'distance', label: 'Distance' }] : []),
+              ]}
+            />
           </>
         )}
       </div>

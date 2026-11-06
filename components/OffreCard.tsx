@@ -62,18 +62,20 @@ function StarButton({ saved, onClick }: { saved: boolean; onClick: (e: React.Mou
   const prevSavedRef     = useRef(false)
 
   useEffect(() => {
-    if (saved && !prevSavedRef.current && iconRef.current) {
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        iconRef.current.animate(
-          [
-            { transform: 'scale(1)' },
-            { transform: 'scale(0.6)' },
-            { transform: 'scale(1.2)' },
-            { transform: 'scale(1)' },
-          ],
-          { duration: 380, easing: 'ease-out' }
-        )
-      }
+    const icon = iconRef.current
+    if (!icon || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      prevSavedRef.current = saved; return
+    }
+    if (saved && !prevSavedRef.current) {
+      icon.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(0.6)' }, { transform: 'scale(1.2)' }, { transform: 'scale(1)' }],
+        { duration: 380, easing: 'ease-out' }
+      )
+    } else if (!saved && prevSavedRef.current) {
+      icon.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(0.7)' }, { transform: 'scale(1)' }],
+        { duration: 260, easing: 'ease-out' }
+      )
     }
     prevSavedRef.current = saved
   }, [saved])
@@ -112,7 +114,7 @@ export const PILL_SALARY: React.CSSProperties = {
 
 export function OffreCard({
   offre, applied, saved, onApply, onToggleSave, isConnected,
-  isSelected = false, onSelect, searchCoords, dateLabel,
+  isSelected = false, onSelect, searchCoords, dateLabel, expirePastille, ferme,
   showDescription = true, showApply = true, showSave = true,
 }: {
   offre: OffreCardData
@@ -125,6 +127,8 @@ export function OffreCard({
   onSelect?: (id: string) => void   // presence triggers compact (split-view) mode
   searchCoords?: GeoCoords | null
   dateLabel?: string                // replaces auto-computed "publié il y a X jours"
+  expirePastille?: string | null    // badge d'expiration (mode compact uniquement, offres ouvertes)
+  ferme?: boolean                   // offre expirée ou dépubliée (mode compact)
   showDescription?: boolean
   showApply?: boolean
   showSave?: boolean
@@ -166,7 +170,7 @@ export function OffreCard({
           backgroundColor: isSelected ? `${C.terracotta}07` : C.white,
           borderLeft: `3px solid ${isSelected ? C.terracotta : hov ? `${C.terracotta}70` : 'transparent'}`,
           borderRadius: CARD_RADIUS,
-          padding: offre.score != null ? '14px 16px 0 13px' : '14px 16px 12px 13px',
+          padding: (!ferme && offre.score != null) ? '14px 16px 0 13px' : '14px 16px 12px 13px',
           cursor: 'pointer',
           boxShadow: isSelected
             ? '0 4px 10px rgba(27,48,38,.10), 0 14px 34px rgba(27,48,38,.16)'
@@ -179,8 +183,10 @@ export function OffreCard({
       >
         {/* En-tête : logo · bloc texte · étoile */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-          <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={36} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={ferme ? { filter: 'grayscale(1)', opacity: 0.6 } : undefined}>
+            <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={36} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, opacity: ferme ? 0.55 : undefined }}>
             <div style={{
               fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.3,
               color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
@@ -203,11 +209,11 @@ export function OffreCard({
               {offre.ville && <><span style={{ color: C.lightGrey }}> · </span><span style={{ color: C.grey }}>{offre.ville}</span></>}
             </div>
           </div>
-          <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />
+          {!applied && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}
         </div>
 
         {/* Pastilles — pleine largeur */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: offre.score != null ? 10 : 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: ferme ? 8 : (expirePastille ? 8 : (offre.score != null ? 10 : 0)), opacity: ferme ? 0.55 : undefined }}>
           {salaire && <span style={PILL_SALARY}>{salaire}</span>}
           {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
           {offre.mode_travail && <span style={PILL}>{TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail}</span>}
@@ -220,8 +226,32 @@ export function OffreCard({
           {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
         </div>
 
+        {/* Badge expiration / offre fermée */}
+        {ferme ? (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center',
+            fontSize: 11.5, fontWeight: 600, color: C.grey,
+            backgroundColor: '#EEF0EF', borderRadius: 20, padding: '3px 9px',
+          }}>
+            Offre expirée
+          </div>
+        ) : expirePastille ? (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            fontSize: 11.5, fontWeight: 600, color: '#8A5A12',
+            backgroundColor: '#F7EEDD', borderRadius: 20, padding: '3px 9px',
+            marginBottom: offre.score != null ? 8 : 0,
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8A5A12" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            {expirePastille}
+          </div>
+        ) : null}
+
         {/* Pied de score — pleine largeur */}
-        {offre.score != null ? (
+        {!ferme && offre.score != null ? (
           <div style={{ margin: '0 -16px 0 -13px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 5px 13px', fontSize: 12 }}>
               <span style={{ color: C.grey }}>{scoreLabel(offre.score)}</span>
@@ -236,7 +266,7 @@ export function OffreCard({
               }} />
             </div>
           </div>
-        ) : isConnected ? (
+        ) : !ferme && isConnected ? (
           <Link
             href="/profil"
             onClick={e => e.stopPropagation()}
@@ -295,7 +325,7 @@ export function OffreCard({
             {pubLabel && <><span style={{ color: C.lightGrey }}>·</span><span style={{ fontSize: 11, color: C.grey }}>{pubLabel}</span></>}
           </div>
         </div>
-        {showSave && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}
+        {showSave && !applied && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

@@ -2437,7 +2437,7 @@ export default function ProfilView({
 
         {/* ── COMPÉTENCES ────────────────────────────────────────────────────── */}
         {(isEditing || competencesAcquises.length > 0) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
+          <div id="competences" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16, scrollMarginTop: 24 }}>
             <SLabel>Compétences</SLabel>
             {isEditing ? (() => {
               const domain           = p.domaine ?? ''

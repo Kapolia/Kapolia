@@ -339,3 +339,20 @@ export function scoreBreakdownCandidat(profil: ProfilMatch, offre: OffreMatch): 
     total:        scoreCandidat(profil, offre),
   }
 }
+
+/** Compétences de l'offre présentes dans COMP_REF_SET et absentes du profil, dans l'ordre de l'offre. */
+export function competencesManquantesCandidat(profil: ProfilMatch, offre: OffreMatch): string[] {
+  const reqRef = (offre.competences ?? []).filter(c => COMP_REF_SET.has(c))
+  const pRef   = new Set((profil.competences_acquises ?? []).filter(c => COMP_REF_SET.has(c)))
+  return reqRef.filter(c => !pRef.has(c))
+}
+
+/** Score hypothétique si le candidat ajoutait toutes les compétences manquantes de l'offre. */
+export function scoreSiCompetencesAjoutees(profil: ProfilMatch, offre: OffreMatch): number | null {
+  const manquantes = competencesManquantesCandidat(profil, offre)
+  if (manquantes.length === 0) return scoreCandidat(profil, offre)
+  return scoreCandidat({
+    ...profil,
+    competences_acquises: [...(profil.competences_acquises ?? []), ...manquantes],
+  }, offre)
+}

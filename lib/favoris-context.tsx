@@ -8,13 +8,17 @@ type FavorisCtx = {
   favIds: Set<string>
   // undefined = pas encore chargé (évite le "0" qui clignote dans la sidebar)
   loaded: boolean
-  toggleFav: (offreId: string) => Promise<void>
+  toggleFav:   (offreId: string) => Promise<void>
+  removeFav:   (offreId: string) => Promise<void>
+  reinsertFav: (offreId: string, createdAt: string, isOpen: boolean) => Promise<boolean>
 }
 
 const FavorisContext = createContext<FavorisCtx>({
   favIds: new Set(),
   loaded: false,
-  toggleFav: async () => {},
+  toggleFav:   async () => {},
+  removeFav:   async () => {},
+  reinsertFav: async () => false,
 })
 
 export function useFavoris() {
@@ -102,8 +106,42 @@ export function FavorisProvider({ children }: { children: React.ReactNode }) {
     }
   }, [favIds, router])
 
+  const removeFav = useCallback(async (offreId: string) => {
+    const uid = userIdRef.current
+    if (!uid) return
+    const wasInFavIds = favIds.has(offreId)
+    setFavIds(prev => { const next = new Set(prev); next.delete(offreId); return next })
+    const { error } = await supabase
+      .from('offres_favorites')
+      .delete()
+      .eq('candidat_id', uid)
+      .eq('offre_id', offreId)
+    if (error) {
+      console.error('Erreur retrait favori:', error.message)
+      if (wasInFavIds) {
+        setFavIds(prev => { const next = new Set(prev); next.add(offreId); return next })
+      }
+    }
+  }, [favIds])
+
+  const reinsertFav = useCallback(async (offreId: string, createdAt: string, isOpen: boolean): Promise<boolean> => {
+    const uid = userIdRef.current
+    if (!uid) return false
+    const { error } = await supabase
+      .from('offres_favorites')
+      .insert({ candidat_id: uid, offre_id: offreId, created_at: createdAt })
+    if (error) {
+      console.error('Erreur réinsertion favori:', error.message)
+      return false
+    }
+    if (isOpen) {
+      setFavIds(prev => { const next = new Set(prev); next.add(offreId); return next })
+    }
+    return true
+  }, [])
+
   return (
-    <FavorisContext.Provider value={{ favIds, loaded, toggleFav }}>
+    <FavorisContext.Provider value={{ favIds, loaded, toggleFav, removeFav, reinsertFav }}>
       {children}
     </FavorisContext.Provider>
   )

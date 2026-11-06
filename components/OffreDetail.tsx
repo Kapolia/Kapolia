@@ -84,6 +84,7 @@ type Props = {
   onBack?: () => void
   score?: number | null
   breakdown?: ScoreBreakdown | null
+  expireLabel?: string | null
   removeAction?: () => void
   /**
    * Quand fourni, remplace la zone d'actions candidat dans le header
@@ -94,6 +95,18 @@ type Props = {
   actionsRecruteur?: React.ReactNode
   /** Préfixe ajouté aux liens /entreprise/[id] — passer '/recruteur' en vue recruteur. */
   entrepriseLinkPrefix?: string
+  /** Mode offre fermée (expirée ou dépubliée) — panel uniquement. */
+  ferme?: boolean
+  /** Texte du bandeau affiché à la place du bouton Postuler. */
+  bandeauText?: string
+  /** Callback du bouton « Retirer des favoris » dans le bandeau. */
+  onRetirer?: () => void
+  /** Offres ouvertes proches à afficher en haut du panneau. */
+  offresProches?: OffreSimilaire[]
+  /** Compétences de l'offre absentes du profil (pour la phrase d'amélioration). Panel uniquement. */
+  competencesManquantes?: string[]
+  /** Score hypothétique si le candidat ajoutait les compétences manquantes. */
+  scoreSiCompetences?: number | null
 }
 
 // ─── SimilaireCard ───────────────────────────────────────────────────────────
@@ -377,7 +390,9 @@ function GuestCTA({ offreId }: { offreId: string }) {
 export function OffreDetail({
   offre, applied, appliedDate, applying, saved, isConnected,
   similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, score, breakdown: _breakdown, removeAction, actionsRecruteur,
-  entrepriseLinkPrefix = '',
+  expireLabel, entrepriseLinkPrefix = '',
+  ferme, bandeauText, onRetirer, offresProches,
+  competencesManquantes, scoreSiCompetences,
 }: Props) {
   const [copied, setCopied] = useState(false)
 
@@ -492,20 +507,22 @@ export function OffreDetail({
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
             <h2 style={{
               fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 600,
-              color: C.dark, margin: 0, lineHeight: 1.2, flex: 1,
+              color: ferme ? '#5E6761' : C.dark, margin: 0, lineHeight: 1.2, flex: 1,
             }}>
               {offre.titre}
             </h2>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 3 }}>
-              <button
-                onClick={onToggleSave}
-                title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              </button>
+              {!applied && (
+                <button
+                  onClick={onToggleSave}
+                  title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                </button>
+              )}
               <button
                 onClick={handleShare}
                 title="Partager cette offre"
@@ -528,7 +545,9 @@ export function OffreDetail({
 
           {/* Bloc identité entreprise */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-            <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={44} />
+            <div style={ferme ? { filter: 'grayscale(1)', opacity: 0.6 } : undefined}>
+              <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={44} />
+            </div>
             <div>
               {offre.recruteur_id ? (
                 <Link
@@ -557,81 +576,188 @@ export function OffreDetail({
             </div>
           )}
 
-          {/* Action row */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <PanelApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
+          {/* Action row ou bandeau offre fermée */}
+          {ferme ? (
+            <div style={{
+              backgroundColor: '#F3F4F3', borderRadius: 10, padding: '12px 14px',
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#33413A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              <span style={{ fontSize: 14, color: '#33413A', flex: 1 }}>
+                {bandeauText ?? "Cette offre n'est plus disponible. Il n'est plus possible d'y postuler."}
+              </span>
+              {onRetirer && (
+                <button
+                  onClick={onRetirer}
+                  style={{
+                    height: 36, padding: '0 12px',
+                    display: 'inline-flex', alignItems: 'center',
+                    borderRadius: 10,
+                    border: `1px solid ${C.terracotta}50`,
+                    backgroundColor: `${C.terracotta}07`,
+                    color: C.terracotta,
+                    fontSize: 12, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  Retirer des favoris
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <PanelApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
 
-            {offre.recruteur_id && (
+              {offre.recruteur_id && (
+                <Link
+                  href={`${entrepriseLinkPrefix}/entreprise/${offre.recruteur_id}`}
+                  style={{
+                    height: 36, padding: '0 12px',
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    borderRadius: 10,
+                    border: `1px solid ${C.terracotta}50`,
+                    backgroundColor: `${C.terracotta}07`,
+                    color: C.terracotta,
+                    fontSize: 12, fontWeight: 600,
+                    textDecoration: 'none', fontFamily: 'inherit',
+                    whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
+                  }}
+                >
+                  Découvrir l&apos;entreprise
+                </Link>
+              )}
+
               <Link
-                href={`${entrepriseLinkPrefix}/entreprise/${offre.recruteur_id}`}
+                href={`/offres/${offre.id}`}
+                onClick={() => sessionStorage.setItem('kapolia-offre-return', offre.id)}
                 style={{
                   height: 36, padding: '0 12px',
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   borderRadius: 10,
-                  border: `1px solid ${C.terracotta}50`,
-                  backgroundColor: `${C.terracotta}07`,
-                  color: C.terracotta,
+                  border: `1px solid ${C.vert}50`,
+                  backgroundColor: `${C.vert}07`,
+                  color: C.vert,
                   fontSize: 12, fontWeight: 600,
                   textDecoration: 'none', fontFamily: 'inherit',
                   whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
                 }}
               >
-                Découvrir l'entreprise
-              </Link>
-            )}
-
-            <Link
-              href={`/offres/${offre.id}`}
-              onClick={() => sessionStorage.setItem('kapolia-offre-return', offre.id)}
-              style={{
-                height: 36, padding: '0 12px',
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                borderRadius: 10,
-                border: `1px solid ${C.vert}50`,
-                backgroundColor: `${C.vert}07`,
-                color: C.vert,
-                fontSize: 12, fontWeight: 600,
-                textDecoration: 'none', fontFamily: 'inherit',
-                whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
-              }}
-            >
-              Ouvrir dans une page
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
-              </svg>
-            </Link>
-
-            {removeAction && (
-              <button
-                onClick={removeAction}
-                title="Supprimer de mon suivi"
-                style={{
-                  height: 36, width: 36,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 10,
-                  border: `1px solid ${C.sable}`,
-                  backgroundColor: C.white,
-                  color: C.lightGrey,
-                  cursor: 'pointer', flexShrink: 0,
-                  transition: 'color 0.15s, border-color 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.grey }}
-                onMouseLeave={e => { e.currentTarget.style.color = C.lightGrey; e.currentTarget.style.borderColor = C.sable }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                  <path d="M10 11v6M14 11v6" />
-                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                Ouvrir dans une page
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
                 </svg>
-              </button>
-            )}
-          </div>
+              </Link>
+
+              {removeAction && (
+                <button
+                  onClick={removeAction}
+                  title="Supprimer de mon suivi"
+                  style={{
+                    height: 36, width: 36,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: 10,
+                    border: `1px solid ${C.sable}`,
+                    backgroundColor: C.white,
+                    color: C.lightGrey,
+                    cursor: 'pointer', flexShrink: 0,
+                    transition: 'color 0.15s, border-color 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = C.grey; e.currentTarget.style.borderColor = C.grey }}
+                  onMouseLeave={e => { e.currentTarget.style.color = C.lightGrey; e.currentTarget.style.borderColor = C.sable }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Phrase compétences manquantes — À étudier uniquement */}
+          {!ferme && competencesManquantes && competencesManquantes.length > 0 && score != null && score < 100 && (
+            <div style={{ marginTop: 14 }}>
+              <p style={{ margin: 0, fontSize: 13.5, color: C.grey, lineHeight: 1.5 }}>
+                {scoreSiCompetences === 100
+                  ? 'Pour atteindre 100 %, ajoutez '
+                  : 'Pour améliorer votre correspondance, ajoutez '}
+                {(() => {
+                  const shown = competencesManquantes.slice(0, 3)
+                  const extra = competencesManquantes.length - shown.length
+                  const nodes: React.ReactNode[] = []
+                  shown.forEach((c, i) => {
+                    if (i > 0 && (i < shown.length - 1 || extra > 0)) nodes.push(', ')
+                    else if (i > 0) nodes.push(' et ')
+                    nodes.push(<span key={c} style={{ fontWeight: 600, color: C.dark }}>{c}</span>)
+                  })
+                  if (extra > 0) nodes.push(` et ${extra} autre${extra > 1 ? 's' : ''} compétence${extra > 1 ? 's' : ''}`)
+                  return nodes
+                })()}
+                {competencesManquantes.length === 1 ? ' à votre profil si vous la maîtrisez.' : ' à votre profil si vous les maîtrisez.'}
+                <Link href="/profil#competences" style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none', marginLeft: 4 }}>
+                  Compléter mon profil
+                </Link>
+              </p>
+            </div>
+          )}
 
         </div>
 
         {/* Body scrollable */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
+
+          {/* Offres proches encore ouvertes (offre fermée seulement) */}
+          {ferme && offresProches && offresProches.length > 0 && (
+            <div style={{ padding: '24px 28px', borderBottom: `1px solid ${C.sable}` }}>
+              <PanelSectionTitle>Offres proches encore ouvertes</PanelSectionTitle>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                {offresProches.map(s => {
+                  const sal = (s.salaire_min || s.salaire_max)
+                    ? ((s.salaire_min && s.salaire_max)
+                        ? `${Math.round(s.salaire_min / 1000)}–${Math.round(s.salaire_max / 1000)}k`
+                        : `${Math.round(((s.salaire_min || s.salaire_max) as number) / 1000)}k`)
+                      + (s.periode_salaire === 'mensuel' ? '/mois' : '/an')
+                    : null
+                  return (
+                    <Link key={s.id} href={`/offres?offre=${s.id}`} style={{
+                      display: 'block', borderRadius: CARD_RADIUS,
+                      border: `1px solid ${C.sable}`, backgroundColor: C.white,
+                      textDecoration: 'none', transition: 'border-color 0.15s',
+                    }}>
+                      <div style={{ padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4, marginBottom: 3 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, lineHeight: 1.3, flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+                            {s.titre}
+                          </div>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={C.lightGrey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        </div>
+                        {(s.entreprise_nom || s.ville) && (
+                          <div style={{ fontSize: 11, color: C.grey, marginBottom: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {[s.entreprise_nom, s.ville].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {s.type_contrat && <span style={{ ...PILL, fontSize: 10, padding: '2px 7px' }}>{s.type_contrat}</span>}
+                          {sal && <span style={{ ...PILL_SALARY, fontSize: 10, padding: '2px 7px' }}>{sal}</span>}
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ opacity: ferme ? 0.6 : undefined }}>
 
             {/* Détails du poste */}
             {hasDetails && (
@@ -759,8 +885,10 @@ export function OffreDetail({
 
           {/* Published date */}
           <div style={{ textAlign: 'center', padding: '16px 0 28px', fontSize: 12, color: C.grey }}>
-            Publié {daysSince(offre.created_at)}
+            Publié {daysSince(offre.created_at)}{expireLabel ? ` · ${expireLabel}` : ''}
           </div>
+
+          </div> {/* end opacity wrapper */}
         </div>
       </div>
     )
@@ -945,15 +1073,17 @@ export function OffreDetail({
                 </h1>
                 {actionsRecruteur == null && (
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0, paddingTop: 4 }}>
-                    <button
-                      onClick={onToggleSave}
-                      title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                      style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    </button>
+                    {!applied && (
+                      <button
+                        onClick={onToggleSave}
+                        title={saved ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                        style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: 'transparent', cursor: 'pointer', flexShrink: 0 }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill={saved ? C.orange : 'none'} stroke={saved ? C.orange : C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon ref={saveRef} points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      </button>
+                    )}
                     <button
                       onClick={handleShare}
                       title="Partager cette offre"
@@ -1021,7 +1151,7 @@ export function OffreDetail({
                       whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.15s',
                     }}
                   >
-                    Découvrir l'entreprise
+                    Découvrir l&apos;entreprise
                   </Link>
                 )}
                 <PageApplyButton applied={applied} appliedDate={appliedDate} applying={applying} onApply={onApply} isConnected={isConnected} />
