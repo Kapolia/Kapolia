@@ -162,6 +162,7 @@ export default function ParametresPage() {
   const [contactError, setContactError] = useState('')
   const [savingPrivacy, setSavingPrivacy]       = useState(false)
   const [emailNotifications, setEmailNotifications] = useState(true)
+  const [rappelsFavoris, setRappelsFavoris]         = useState(true)
   const [savingNotifs, setSavingNotifs]         = useState(false)
   const [deleting, setDeleting]         = useState(false)
   const [deletePhrase, setDeletePhrase] = useState('')
@@ -189,7 +190,7 @@ export default function ParametresPage() {
       if (!user) { router.replace('/connexion'); return }
       setEmail(user.email ?? '')
       setEmailConfirme(!!user.email_confirmed_at)
-      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone,email_notifications').eq('user_id', user.id).single()
+      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone,email_notifications,rappels_favoris').eq('user_id', user.id).single()
       if (data) {
         setPrenom(data.prenom ?? '')
         setNom(data.nom ?? '')
@@ -203,6 +204,7 @@ export default function ParametresPage() {
           visible_candidatheque: vc,
         })
         setEmailNotifications(data.email_notifications ?? true)
+        setRappelsFavoris(data.rappels_favoris ?? true)
       }
       setLoading(false)
     }
@@ -333,7 +335,7 @@ export default function ParametresPage() {
     if (user) {
       const { error } = await supabase
         .from('profils')
-        .update({ email_notifications: emailNotifications })
+        .update({ email_notifications: emailNotifications, rappels_favoris: rappelsFavoris })
         .eq('user_id', user.id)
       if (error) {
         console.error('[saveNotifications] update failed', error)
@@ -594,6 +596,14 @@ export default function ParametresPage() {
                   label="Recevoir des e-mails de notification"
                   desc="RDV proposés, réponses de vos proches, mises à jour de candidatures."
                 />
+                <div style={{ opacity: emailNotifications ? 1 : 0.5, pointerEvents: emailNotifications ? 'auto' : 'none' }}>
+                  <Toggle
+                    checked={rappelsFavoris}
+                    onChange={setRappelsFavoris}
+                    label="Rappels des offres en favori"
+                    desc="Un rappel le lendemain et 3 jours après la mise en favori d'une offre."
+                  />
+                </div>
                 <div style={{ marginTop: 8 }}>
                   <SaveBtn loading={savingNotifs} onClick={saveNotifications} />
                 </div>

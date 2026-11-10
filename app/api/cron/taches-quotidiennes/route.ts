@@ -3,6 +3,14 @@ export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
+import { writeFileSync } from 'fs'
+import { join } from 'path'
+import {
+  selectionnerRappelsFavoris,
+  construireEmailRappel,
+  jetonDesinscription,
+  type ResultatSelectionFavoris,
+} from '@/lib/rappels-favoris'
 
 const SITE = 'https://kapolia.com'
 
@@ -230,6 +238,123 @@ async function traiterRelancesOffres(admin: ReturnType<typeof adminClient>) {
   return { envoyes, erreurs, total: liste.length }
 }
 
+// ── Tâche 3 : rappels favoris ─────────────────────────────────────────────────
+
+const RAISONS_MARQUABLES = new Set(['postulee', 'fermee', 'introuvable'])
+
+async function traiterRappelsFavoris(
+  admin: ReturnType<typeof adminClient>,
+  maintenant: Date,
+): Promise<{ envoyes: number; erreurs: number; total: number }> {
+  let resultat: ResultatSelectionFavoris
+  try {
+    resultat = await selectionnerRappelsFavoris(admin, maintenant)
+  } catch (err) {
+    console.error('[cron favoris] sélection', err)
+    return { envoyes: 0, erreurs: 0, total: 0 }
+  }
+
+  // Filtre local : RAPPELS_FAVORIS_SEUL_USER (jamais en production)
+  const seulUser = process.env.RAPPELS_FAVORIS_SEUL_USER
+  if (seulUser) {
+    resultat = {
+      candidats:  resultat.candidats.filter(c => c.candidat_id === seulUser),
+      exclusions: resultat.exclusions.filter(e => e.candidat_id === seulUser),
+    }
+  }
+
+  const maintenant_iso = maintenant.toISOString()
+
+  // Marquer les exclusions définitives (postulee / fermee / introuvable)
+  // pour ne pas les réexaminer au prochain passage
+  const excl24h = resultat.exclusions
+    .filter(e => e.rappel === '24h' && RAISONS_MARQUABLES.has(e.raison))
+    .map(e => e.favori_id)
+  const excl3j = resultat.exclusions
+    .filter(e => e.rappel === '3j' && RAISONS_MARQUABLES.has(e.raison))
+    .map(e => e.favori_id)
+
+  if (excl24h.length > 0) {
+    const { error } = await admin.from('offres_favorites')
+      .update({ rappel_24h_at: maintenant_iso }).in('id', excl24h)
+    if (error) console.error('[cron favoris] marquage exclusions 24h', error.message)
+  }
+  if (excl3j.length > 0) {
+    const { error } = await admin.from('offres_favorites')
+      .update({ rappel_3j_at: maintenant_iso }).in('id', excl3j)
+    if (error) console.error('[cron favoris] marquage exclusions 3j', error.message)
+  }
+
+  console.info(
+    `[cron favoris] ${resultat.candidats.length} candidat(s) à rappeler,` +
+    ` ${excl24h.length + excl3j.length} exclusion(s) marquées`,
+  )
+
+  let envoyes = 0
+  let erreurs = 0
+
+  for (const candidat of resultat.candidats) {
+    // Construction de l'e-mail
+    let emailContent: ReturnType<typeof construireEmailRappel>
+    try {
+      emailContent = construireEmailRappel(candidat)
+    } catch (err) {
+      console.error('[cron favoris] construction email', { candidatId: candidat.candidat_id, err })
+      erreurs++
+      continue
+    }
+
+    // En-têtes de désinscription
+    const lienDesinscription =
+      `${SITE}/api/desinscription/rappels-favoris?t=${jetonDesinscription(candidat.candidat_id)}`
+
+    const res = await sendEmail({
+      to:      { email: candidat.email },
+      subject: emailContent.subject,
+      html:    emailContent.html,
+      text:    emailContent.text,
+      headers: {
+        'List-Unsubscribe':      `<${lienDesinscription}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    })
+
+    if (!res.ok) {
+      console.error('[cron favoris] envoi', { candidatId: candidat.candidat_id, error: res.error })
+      erreurs++
+      continue
+    }
+
+    envoyes++
+
+    // Marquer les favoris après envoi réussi
+    const ids24h = candidat.hier.map(o => o.favori_id)
+    const ids3j  = candidat.il_y_a_3_jours.map(o => o.favori_id)
+
+    if (ids24h.length > 0) {
+      const { error } = await admin.from('offres_favorites')
+        .update({ rappel_24h_at: maintenant_iso }).in('id', ids24h)
+      if (error) console.error('[cron favoris] marquage 24h', { candidatId: candidat.candidat_id, msg: error.message })
+    }
+    if (ids3j.length > 0) {
+      const { error } = await admin.from('offres_favorites')
+        .update({ rappel_3j_at: maintenant_iso }).in('id', ids3j)
+      if (error) console.error('[cron favoris] marquage 3j', { candidatId: candidat.candidat_id, msg: error.message })
+    }
+  }
+
+  return { envoyes, erreurs, total: resultat.candidats.length }
+}
+
+// ── Helpers test ──────────────────────────────────────────────────────────────
+
+function masquerCandidats(candidats: import('@/lib/rappels-favoris').CandidatRappel[]) {
+  return candidats.map(c => ({
+    ...c,
+    email: c.email.replace(/^[^@]+/, s => s.slice(0, 2) + '***'),
+  }))
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -240,8 +365,72 @@ export async function GET(req: NextRequest) {
 
   const admin = adminClient()
 
-  let rdv    = { envoyes: 0, erreurs: 0, total: 0 }
-  let offres = { envoyes: 0, erreurs: 0, total: 0 }
+  const url      = new URL(req.url)
+  const testMode = url.searchParams.get('test') === '1'
+  const tache    = url.searchParams.get('tache')
+
+  if (testMode) {
+    const maintenantParam = url.searchParams.get('maintenant')
+    let maintenant: Date
+    if (maintenantParam) {
+      maintenant = new Date(maintenantParam)
+      if (isNaN(maintenant.getTime())) {
+        return NextResponse.json({ error: 'maintenant invalide' }, { status: 400 })
+      }
+    } else {
+      maintenant = new Date()
+    }
+    const resultat = await selectionnerRappelsFavoris(admin, maintenant)
+
+    const candidatsAvecEmail = resultat.candidats.map(c => {
+      const { subject, text } = construireEmailRappel(c)
+      return { ...masquerCandidats([c])[0]!, subject, text }
+    })
+
+    if (resultat.candidats.length > 0 && process.env.NODE_ENV !== 'production') {
+      try {
+        const { html: htmlPremier } = construireEmailRappel(resultat.candidats[0]!)
+        writeFileSync(join(process.cwd(), 'tmp-rappel.html'), htmlPremier, 'utf-8')
+      } catch (err) {
+        console.warn('[cron test] écriture tmp-rappel.html impossible', err)
+      }
+    }
+
+    return NextResponse.json({
+      test:       true,
+      maintenant: maintenant.toISOString(),
+      candidats:  candidatsAvecEmail,
+      exclusions: resultat.exclusions,
+    })
+  }
+
+  // ?tache=favoris : n'exécute que la tâche 3 (sûr pour tester sur la base de prod)
+  if (tache === 'favoris') {
+    const maintenantParam = url.searchParams.get('maintenant')
+    let maintenant = new Date()
+    if (maintenantParam) {
+      if (process.env.NODE_ENV !== 'production') {
+        const d = new Date(maintenantParam)
+        if (isNaN(d.getTime())) {
+          return NextResponse.json({ error: 'maintenant invalide' }, { status: 400 })
+        }
+        maintenant = d
+      }
+      // en production : ignoré, on utilise new Date()
+    }
+    let favoris = { envoyes: 0, erreurs: 0, total: 0 }
+    try {
+      favoris = await traiterRappelsFavoris(admin, maintenant)
+    } catch (err) {
+      console.error('[cron favoris] exception', err)
+    }
+    console.info('[cron] tâche favoris terminée', { favoris })
+    return NextResponse.json({ ok: true, favoris })
+  }
+
+  let rdv     = { envoyes: 0, erreurs: 0, total: 0 }
+  let offres  = { envoyes: 0, erreurs: 0, total: 0 }
+  let favoris = { envoyes: 0, erreurs: 0, total: 0 }
 
   try {
     rdv = await traiterRappelsRdv(admin)
@@ -255,6 +444,12 @@ export async function GET(req: NextRequest) {
     console.error('[cron offres] exception', err)
   }
 
-  console.info('[cron] terminé', { rdv, offres })
-  return NextResponse.json({ ok: true, rdv, offres })
+  try {
+    favoris = await traiterRappelsFavoris(admin, new Date())
+  } catch (err) {
+    console.error('[cron favoris] exception', err)
+  }
+
+  console.info('[cron] terminé', { rdv, offres, favoris })
+  return NextResponse.json({ ok: true, rdv, offres, favoris })
 }

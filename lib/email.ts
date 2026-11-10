@@ -16,6 +16,7 @@ export async function sendEmail(params: {
   subject: string
   html: string
   text?: string
+  headers?: Record<string, string>
 }): Promise<EmailResult> {
   const apiKey = process.env.BREVO_API_KEY
   if (!apiKey) {
@@ -28,6 +29,7 @@ export async function sendEmail(params: {
     subject: params.subject,
     htmlContent: params.html,
     ...(params.text ? { textContent: params.text } : {}),
+    ...(params.headers ? { headers: params.headers } : {}),
   }
 
   let res: Response
