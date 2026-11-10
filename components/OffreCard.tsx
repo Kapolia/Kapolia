@@ -114,7 +114,7 @@ export const PILL_SALARY: React.CSSProperties = {
 
 export function OffreCard({
   offre, applied, saved, onApply, onToggleSave, isConnected,
-  isSelected = false, onSelect, searchCoords, dateLabel, expirePastille, ferme,
+  isSelected = false, onSelect, searchCoords, dateLabel, ferme,
   showDescription = true, showApply = true, showSave = true,
 }: {
   offre: OffreCardData
@@ -127,7 +127,6 @@ export function OffreCard({
   onSelect?: (id: string) => void   // presence triggers compact (split-view) mode
   searchCoords?: GeoCoords | null
   dateLabel?: string                // replaces auto-computed "publié il y a X jours"
-  expirePastille?: string | null    // badge d'expiration (mode compact uniquement, offres ouvertes)
   ferme?: boolean                   // offre expirée ou dépubliée (mode compact)
   showDescription?: boolean
   showApply?: boolean
@@ -213,7 +212,7 @@ export function OffreCard({
         </div>
 
         {/* Pastilles — pleine largeur */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: ferme ? 8 : (expirePastille ? 8 : (offre.score != null ? 10 : 0)), opacity: ferme ? 0.55 : undefined }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: ferme ? 8 : (offre.score != null ? 10 : 0), opacity: ferme ? 0.55 : undefined }}>
           {salaire && <span style={PILL_SALARY}>{salaire}</span>}
           {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
           {offre.mode_travail && <span style={PILL}>{TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail}</span>}
@@ -226,8 +225,8 @@ export function OffreCard({
           {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
         </div>
 
-        {/* Badge expiration / offre fermée */}
-        {ferme ? (
+        {/* Badge offre fermée */}
+        {ferme && (
           <div style={{
             display: 'inline-flex', alignItems: 'center',
             fontSize: 11.5, fontWeight: 600, color: C.grey,
@@ -235,20 +234,7 @@ export function OffreCard({
           }}>
             Offre expirée
           </div>
-        ) : expirePastille ? (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            fontSize: 11.5, fontWeight: 600, color: '#8A5A12',
-            backgroundColor: '#F7EEDD', borderRadius: 20, padding: '3px 9px',
-            marginBottom: offre.score != null ? 8 : 0,
-          }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8A5A12" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            {expirePastille}
-          </div>
-        ) : null}
+        )}
 
         {/* Pied de score — pleine largeur */}
         {!ferme && offre.score != null ? (

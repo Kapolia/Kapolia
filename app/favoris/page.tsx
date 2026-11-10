@@ -39,31 +39,6 @@ function ajoutLabel(iso: string): string {
   return `Ajouté il y a ${d} jours`
 }
 
-function computeExpirePastille(expireAt: string | null): string | null {
-  if (!expireAt) return null
-  const d = Math.floor((new Date(expireAt).getTime() - Date.now()) / 86400000)
-  if (d < 0) return null
-  if (d === 0) return "Expire aujourd'hui"
-  if (d === 1) return 'Expire demain'
-  return `Expire dans ${d} jours`
-}
-
-function computeExpireLabel(expireAt: string | null): string | null {
-  if (!expireAt) return null
-  const d = new Date(expireAt)
-  if (isNaN(d.getTime())) return null
-  const now = new Date()
-  const opts: Intl.DateTimeFormatOptions = d.getFullYear() === now.getFullYear()
-    ? { day: 'numeric', month: 'long' }
-    : { day: 'numeric', month: 'long', year: 'numeric' }
-  return 'Expire le ' + d.toLocaleDateString('fr-FR', opts)
-}
-
-function expiresThisWeek(o: FavOffre): boolean {
-  if (!o.expire_at) return false
-  const ms = new Date(o.expire_at).getTime() - Date.now()
-  return ms > 0 && ms <= 7 * 86400000
-}
 
 type RawO = {
   id: string; titre: string
@@ -85,20 +60,6 @@ function isOuvert(o: RawO): boolean {
     new Date(o.expire_at) > new Date()
 }
 
-function computeBandeauText(favOffre: FavOffre | null): string {
-  if (favOffre?.expire_at && new Date(favOffre.expire_at) < new Date()) {
-    const dateStr = new Date(favOffre.expire_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
-    return `Cette offre a expiré le ${dateStr}. Il n\'est plus possible d\'y postuler.`
-  }
-  return "Cette offre n'est plus publiée. Il n'est plus possible d'y postuler."
-}
-
-const SORT_LABELS_GROUP: Record<SortKey, string> = {
-  match:        'par correspondance',
-  fav_desc:     'par ajout récent',
-  salaire_desc: 'par salaire décroissant',
-  offre_desc:   'par date de publication',
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -206,8 +167,6 @@ export default function FavorisPage() {
   const skipNextFlipRef       = useRef(false)
   const restoreCardIdRef      = useRef<string | null>(null)
   const skeletonTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const groupTitleExpiringRef = useRef<HTMLDivElement | null>(null)
-  const groupTitleOthersRef   = useRef<HTMLDivElement | null>(null)
   const groupTitleExpireesRef = useRef<HTMLDivElement | null>(null)
   const bandeauRef            = useRef<BandeauHandle>(null)
 
@@ -228,7 +187,12 @@ export default function FavorisPage() {
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.replace('/connexion'); return }
+      if (!user) {
+        const existingNext = new URLSearchParams(window.location.search).get('next')
+        const next = existingNext ?? '/favoris'
+        router.replace(`/connexion?next=${encodeURIComponent(next)}`)
+        return
+      }
       setIsConnected(true)
       setUserId(user.id)
 
@@ -476,19 +440,13 @@ export default function FavorisPage() {
     }
   }, [visibleOuverts, sortKey])
 
-  const { currentList, etudierExpiring, etudierOthers, expireesSorted } = useMemo(() => {
-    const expiring = [...etudierSorted.filter(expiresThisWeek)].sort(
-      (a, b) => new Date(a.expire_at!).getTime() - new Date(b.expire_at!).getTime()
-    )
-    const others = etudierSorted.filter(o => !expiresThisWeek(o))
+  const { currentList, expireesSorted } = useMemo(() => {
     const expSorted = [...expirees].sort(
       (a, b) => new Date(b.fav_created_at).getTime() - new Date(a.fav_created_at).getTime()
     )
     return {
-      currentList:      [...expiring, ...others, ...expSorted],
-      etudierExpiring:  expiring,
-      etudierOthers:    others,
-      expireesSorted:   expSorted,
+      currentList:    [...etudierSorted, ...expSorted],
+      expireesSorted: expSorted,
     }
   }, [etudierSorted, expirees])
 
@@ -500,13 +458,9 @@ export default function FavorisPage() {
     if (nOuverts === 0) {
       return `${nExpires} offre${nExpires !== 1 ? 's' : ''} expirée${nExpires !== 1 ? 's' : ''}`
     }
-    const nExpiring = etudierSorted.filter(expiresThisWeek).length
     const base = `${nOuverts} offre${nOuverts !== 1 ? 's' : ''} à étudier`
-    const withExpiring = nExpiring > 0
-      ? `${base}, dont ${nExpiring} qui expire${nExpiring !== 1 ? 'nt' : ''} cette semaine`
-      : base
-    if (nExpires === 0) return withExpiring
-    return `${withExpiring}, ${nExpires} offre${nExpires !== 1 ? 's' : ''} expirée${nExpires !== 1 ? 's' : ''}`
+    if (nExpires === 0) return base
+    return `${base}, ${nExpires} offre${nExpires !== 1 ? 's' : ''} expirée${nExpires !== 1 ? 's' : ''}`
   }, [loading, etudierSorted, expirees])
 
   // ── Auto-select première offre ────────────────────────────────────────────
@@ -634,15 +588,8 @@ export default function FavorisPage() {
     if (isSplit && !reduitMouvement()) {
       const wrapper = cardRefsMap.current.get(offreId)
       if (wrapper) {
-        const inExpiring = etudierExpiring.some(o => o.id === offreId)
-        const inOthers   = !inExpiring && etudierOthers.some(o => o.id === offreId)
-        const inExpirees = !inExpiring && !inOthers && expireesSorted.some(o => o.id === offreId)
-        const showOthersTitle = etudierOthers.length > 0 && (etudierExpiring.length > 0 || expireesSorted.length > 0)
-        const groupTitleEl =
-          inExpiring && etudierExpiring.length === 1 ? groupTitleExpiringRef.current :
-          inOthers   && etudierOthers.length   === 1 && showOthersTitle ? groupTitleOthersRef.current :
-          inExpirees && expireesSorted.length  === 1 ? groupTitleExpireesRef.current :
-          null
+        const inExpirees = expireesSorted.some(o => o.id === offreId)
+        const groupTitleEl = inExpirees && expireesSorted.length === 1 ? groupTitleExpireesRef.current : null
 
         setRemovingIds(prev => new Set([...prev, offreId]))
         setTimeout(() => {
@@ -779,15 +726,9 @@ export default function FavorisPage() {
     }
     if (isSplit && !reduitMouvement()) {
       setAppliedOverlayId(offreId)
-      const inExpiring = etudierExpiring.some(o => o.id === offreId)
-      const inOthers   = !inExpiring && etudierOthers.some(o => o.id === offreId)
-      const showOthersTitle = etudierOthers.length > 0 && (etudierExpiring.length > 0 || expireesSorted.length > 0)
-      const groupTitleEl = inExpiring && etudierExpiring.length === 1 ? groupTitleExpiringRef.current :
-                           inOthers   && etudierOthers.length   === 1 && showOthersTitle ? groupTitleOthersRef.current :
-                           null
       setTimeout(() => {
         setAppliedOverlayId(null)
-        collapseCardThenSelect(offreId, nextId, groupTitleEl, showApplyBandeau)
+        collapseCardThenSelect(offreId, nextId, null, showApplyBandeau)
       }, 1100)
     } else {
       setPendingApply(prev => { const s = new Set(prev); s.delete(offreId); return s })
@@ -811,15 +752,9 @@ export default function FavorisPage() {
     }
     if (isSplit && !reduitMouvement()) {
       setAppliedOverlayId(offreId)
-      const inExpiring = etudierExpiring.some(o => o.id === offreId)
-      const inOthers   = !inExpiring && etudierOthers.some(o => o.id === offreId)
-      const showOthersTitle = etudierOthers.length > 0 && (etudierExpiring.length > 0 || expireesSorted.length > 0)
-      const groupTitleEl = inExpiring && etudierExpiring.length === 1 ? groupTitleExpiringRef.current :
-                           inOthers   && etudierOthers.length   === 1 && showOthersTitle ? groupTitleOthersRef.current :
-                           null
       setTimeout(() => {
         setAppliedOverlayId(null)
-        collapseCardThenSelect(offreId, nextId, groupTitleEl, showApplyBandeau)
+        collapseCardThenSelect(offreId, nextId, null, showApplyBandeau)
       }, 1100)
     } else {
       setPendingApply(prev => { const s = new Set(prev); s.delete(offreId); return s })
@@ -887,7 +822,6 @@ export default function FavorisPage() {
             isConnected={isConnected}
             isSelected={selectedId === offre.id}
             onSelect={compact ? handleCardSelect : undefined}
-            expirePastille={compact && offre.ouvert ? computeExpirePastille(offre.expire_at) : undefined}
             ferme={!offre.ouvert}
             showDescription={!compact}
             showApply={!compact}
@@ -897,12 +831,10 @@ export default function FavorisPage() {
       )
     }
 
-    const hasExpiring = etudierExpiring.length > 0
-    const hasOthers   = etudierOthers.length > 0
+    const hasOuverts  = etudierSorted.length > 0
     const hasExpirees = expireesSorted.length > 0
-    const showOthersTitle = hasOthers && (hasExpiring || hasExpirees)
 
-    const triSelect = etudierSorted.length > 0 ? (
+    const triSelect = hasOuverts ? (
       <div style={{ marginBottom: 18 }}>
         <TriSelect
           value={sortKey}
@@ -921,42 +853,7 @@ export default function FavorisPage() {
       <>
         {triSelect}
 
-        {/* Groupe "Expire cette semaine" */}
-        {hasExpiring && (
-          <>
-            <div ref={groupTitleExpiringRef} style={{ overflow: 'hidden' }}>
-              <div style={{
-                fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-                fontSize: 15, fontWeight: 600, color: C.dark, paddingBottom: 8,
-              }}>
-                Expire cette semaine
-              </div>
-            </div>
-            {etudierExpiring.map(card)}
-          </>
-        )}
-
-        {/* Groupe "Les autres" */}
-        {hasOthers && (
-          <>
-            {showOthersTitle && (
-              <div ref={groupTitleOthersRef} style={{ overflow: 'hidden' }}>
-                <div style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                  fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-                  fontSize: 15, fontWeight: 600, color: C.dark,
-                  paddingTop: hasExpiring ? 20 : 0, paddingBottom: 8,
-                }}>
-                  <span>Les autres</span>
-                  <span style={{ fontSize: 13, fontWeight: 400, fontFamily: 'inherit', color: C.grey }}>
-                    {SORT_LABELS_GROUP[sortKey]}
-                  </span>
-                </div>
-              </div>
-            )}
-            {etudierOthers.map(card)}
-          </>
-        )}
+        {etudierSorted.map(card)}
 
         {/* Groupe "Expirées" */}
         {hasExpirees && (
@@ -965,7 +862,7 @@ export default function FavorisPage() {
               <div style={{
                 fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
                 fontSize: 15, fontWeight: 600, color: C.dark,
-                paddingTop: (hasExpiring || hasOthers) ? 20 : 0, paddingBottom: 8,
+                paddingTop: hasOuverts ? 20 : 0, paddingBottom: 8,
               }}>
                 Expirées
               </div>
@@ -1081,9 +978,8 @@ export default function FavorisPage() {
                   mode="panel"
                   score={selectedFavOffre?.score ?? null}
                   breakdown={selectedFavOffre?.breakdown ?? null}
-                  expireLabel={selectedFavOffre?.ouvert ? computeExpireLabel(selectedFavOffre.expire_at ?? null) : null}
                   ferme={selectedFavOffre ? !selectedFavOffre.ouvert : false}
-                  bandeauText={computeBandeauText(selectedFavOffre ?? null)}
+                  bandeauText="Cette offre n'est plus ouverte aux candidatures."
                   onRetirer={() => handleToggleSave(selectedDetail.id)}
                   offresProches={offresProches}
                   competencesManquantes={panelCompManquantes}

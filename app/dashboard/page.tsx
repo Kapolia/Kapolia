@@ -515,7 +515,7 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(30),
         supabase.from('offres_favorites')
-          .select('created_at, offres(id, titre, ville, recruteur_id, expire_at)')
+          .select('created_at, offres(id, titre, ville, recruteur_id)')
           .eq('candidat_id', user.id)
           .order('created_at', { ascending: false })
           .limit(5),
@@ -673,7 +673,7 @@ export default function DashboardPage() {
       // Favoris récents
       type FavRaw = {
         created_at: string
-        offres: { id: string; titre: string; ville: string | null; recruteur_id?: string | null; expire_at?: string | null } | null
+        offres: { id: string; titre: string; ville: string | null; recruteur_id?: string | null } | null
       }
       const favList: FavOffre[] = ((favData ?? []) as unknown as FavRaw[])
         .filter(f => f.offres != null)
@@ -711,21 +711,7 @@ export default function DashboardPage() {
         actionList.push({ label: `Vous avez ${unreadTotal} messages non lus`, href: '/dashboard/messages' })
       }
 
-      // Cas 3 : favoris expirant dans moins de 3 jours
-      const nowIso      = new Date().toISOString()
-      const threeDaysIso = new Date(Date.now() + 3 * 86400000).toISOString()
-      const favExpirantCount = ((favData ?? []) as unknown as FavRaw[])
-        .filter(f => {
-          const exp = f.offres?.expire_at
-          return exp && exp > nowIso && exp < threeDaysIso
-        }).length
-      if (favExpirantCount === 1) {
-        actionList.push({ label: 'Une offre en favori expire dans moins de trois jours', href: '/favoris' })
-      } else if (favExpirantCount > 1) {
-        actionList.push({ label: `${favExpirantCount} offres en favori expirent dans moins de trois jours`, href: '/favoris' })
-      }
-
-      // Cas 4 : profil incomplet (< 80 %)
+      // Cas 3 : profil incomplet (< 80 %)
       if (calcCompletion(p) < 80) {
         actionList.push({ label: 'Complétez votre profil pour apparaître dans plus de recherches', href: '/profil' })
       }

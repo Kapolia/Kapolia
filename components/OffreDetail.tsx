@@ -84,7 +84,6 @@ type Props = {
   onBack?: () => void
   score?: number | null
   breakdown?: ScoreBreakdown | null
-  expireLabel?: string | null
   removeAction?: () => void
   /**
    * Quand fourni, remplace la zone d'actions candidat dans le header
@@ -390,7 +389,7 @@ function GuestCTA({ offreId }: { offreId: string }) {
 export function OffreDetail({
   offre, applied, appliedDate, applying, saved, isConnected,
   similaires, similairesTitle, onApply, onToggleSave, onSelectSimilaire, mode = 'page', onBack, score, breakdown: _breakdown, removeAction, actionsRecruteur,
-  expireLabel, entrepriseLinkPrefix = '',
+  entrepriseLinkPrefix = '',
   ferme, bandeauText, onRetirer, offresProches,
   competencesManquantes, scoreSiCompetences,
 }: Props) {
@@ -885,7 +884,7 @@ export function OffreDetail({
 
           {/* Published date */}
           <div style={{ textAlign: 'center', padding: '16px 0 28px', fontSize: 12, color: C.grey }}>
-            Publié {daysSince(offre.created_at)}{expireLabel ? ` · ${expireLabel}` : ''}
+            Publié {daysSince(offre.created_at)}
           </div>
 
           </div> {/* end opacity wrapper */}

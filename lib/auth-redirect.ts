@@ -5,7 +5,7 @@ export const OAUTH_TYPE_KEY  = 'kapolia_oauth_account_type'
 export const OAUTH_NEXT_KEY  = 'kapolia_oauth_next'
 
 export function safeNext(raw: string | null): string | null {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return null
   return raw
 }
 

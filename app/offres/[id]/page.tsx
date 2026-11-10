@@ -189,7 +189,12 @@ export default function OffreDetailPage() {
   }, [id])
 
   async function handleApply() {
-    if (!isConnected) { router.push('/connexion'); return }
+    if (!isConnected) {
+      const existingNext = new URLSearchParams(window.location.search).get('next')
+      const next = existingNext ?? `/offres/${id}`
+      router.push(`/connexion?next=${encodeURIComponent(next)}`)
+      return
+    }
     if (applied || applying || !userId) return
     setApplying(true)
     const { error } = await supabase.from('candidatures').insert({
