@@ -194,8 +194,8 @@ export default function RecruiterSidebar({
 
   return (
     <aside style={{
-      position: 'fixed', left: 0, top: 0,
-      width: SIDEBAR_WIDTH, height: '100vh',
+      position: 'fixed', left: 0, top: 0, bottom: 0,
+      width: SIDEBAR_WIDTH,
       backgroundColor: C.vert,
       display: 'flex', flexDirection: 'column',
       zIndex: 40, overflowY: 'auto',

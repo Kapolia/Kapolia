@@ -472,9 +472,8 @@ export default function CandidatSidebar({
         onMouseEnter={() => setAsideHovered(true)}
         onMouseLeave={() => setAsideHovered(false)}
         style={{
-          position: 'fixed', left: 0, top: 0,
+          position: 'fixed', left: 0, top: 0, bottom: 0,
           width: 'var(--kapolia-sidebar-aside-w)',
-          height: '100vh',
           backgroundColor: C.vert,
           display: 'flex', flexDirection: 'column',
           zIndex: 40,

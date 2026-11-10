@@ -55,7 +55,7 @@ export default function CandidatPanneauLayout({ children }: { children: React.Re
   if (!hasSidebar) return <>{children}</>
 
   return (
-    <div style={{ paddingLeft: 'var(--kapolia-sidebar-w)', boxSizing: 'border-box', backgroundColor: C.vert, height: '100dvh', transition: 'padding-left 320ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, paddingLeft: 'var(--kapolia-sidebar-w)', boxSizing: 'border-box', backgroundColor: C.vert, transition: 'padding-left 320ms cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
       <div style={{ marginLeft: 6, height: '100%', borderRadius: '20px 0 0 20px', overflow: 'hidden' }}>
         <div ref={scrollRef} style={{ height: '100%', overflowY: 'auto', backgroundColor: C.bg }}>
           {children}

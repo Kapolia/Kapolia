@@ -10,6 +10,7 @@ import { QUALITE_LABELS } from '@/lib/test-qualites'
 import { trouverConversation } from '@/lib/conversations'
 import { PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
 import { C } from '@/lib/colors'
+import { SIDEBAR_WIDTH } from '@/components/RecruiterSidebar'
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -637,7 +638,7 @@ export default function RecruteurPage() {
 
   return (
     <>
-      <main style={{ height: '100vh', overflowY: 'auto', backgroundColor: C.bg }}>
+      <main style={{ position: 'fixed', top: 0, left: SIDEBAR_WIDTH, right: 0, bottom: 0, overflowY: 'auto', backgroundColor: C.bg }}>
 
         {/* Topbar */}
         <div style={{
