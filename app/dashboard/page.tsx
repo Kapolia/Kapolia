@@ -11,6 +11,7 @@ import { FONT_SERIF } from '@/lib/typography'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { useFavoris } from '@/lib/favoris-context'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { BadgeStatutCandidat } from '@/components/BadgeStatutCandidat'
 import { countRdvEnAttente } from '@/lib/rdv-en-attente'
 import { PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
 import { largeurUtile } from '@/lib/largeur-utile'
@@ -84,6 +85,7 @@ type OffresMode = 'match' | 'recent'
 
 type Candidature = {
   id: string
+  offre_id: string
   statut: string
   created_at: string
   offres?: {
@@ -352,31 +354,6 @@ function SectionTitle({ title, link, href, onClick }: { title: string; link?: st
   )
 }
 
-const STATUT_COLORS: Record<string, { bg: string; color: string }> = {
-  'envoyée':    { bg: '#EEF2FF', color: '#4F46E5' },
-  'vue':        { bg: `${C.sable}80`, color: C.grey },
-  'en cours':   { bg: `${C.terracotta}18`, color: C.terracotta },
-  'acceptée':   { bg: `${C.vert}18`, color: C.vert },
-  'refusée':    { bg: '#FDECEA', color: C.erreur },
-}
-
-function StatusBadge({ statut }: { statut: string }) {
-  const key = statut?.toLowerCase() ?? ''
-  const style = STATUT_COLORS[key] ?? { bg: C.chip, color: C.grey }
-  const labels: Record<string, string> = {
-    'envoyée': 'Envoyée', 'vue': 'Vue', 'en cours': 'En cours',
-    'acceptée': 'Acceptée', 'refusée': 'Refusée',
-  }
-  return (
-    <span style={{
-      fontSize: 11, fontWeight: 600,
-      backgroundColor: style.bg, color: style.color,
-      padding: '3px 10px', borderRadius: 20,
-    }}>
-      {labels[key] ?? statut}
-    </span>
-  )
-}
 
 
 
@@ -644,7 +621,7 @@ export default function DashboardPage() {
           date: c.created_at,
           kind: 'candidature' as ActivityKind,
           text: `Votre candidature chez ${entreprise} est ${c.statut}`,
-          href: '/candidatures',
+          href: `/candidatures?offre=${c.offre_id}`,
         })
       }
 
@@ -865,7 +842,7 @@ export default function DashboardPage() {
                   <span>{daysSince(c.created_at)}</span>
                 </div>
               </div>
-              <StatusBadge statut={c.statut} />
+              <BadgeStatutCandidat statut={c.statut} />
             </div>
           ))}
         </div>

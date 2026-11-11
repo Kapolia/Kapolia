@@ -12,6 +12,7 @@ import { OffreDetail, type OffreSimilaire } from '@/components/OffreDetail'
 import { type GeoCoords } from '@/components/GeoVilleInput'
 import { LieuRadiusPopover } from '@/components/LieuRadiusPopover'
 import { haversineKm } from '@/lib/geo'
+import { trouverSimilaires } from '@/lib/similaires'
 import { LANGUES } from '@/lib/langues'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard } from '@/components/OffreCard'
@@ -1797,36 +1798,7 @@ function EmptyStateFilters({
   )
 }
 
-// ─── Similaires scoring ───────────────────────────────────────────────────────
-
-const SIM_EXP_ORDER = ['Sans expérience', '1-2 ans', '3-5 ans', '5-10 ans', '+10 ans']
-
-function simSalMid(min?: number, max?: number) {
-  if (min && max) return (min + max) / 2
-  return min ?? max ?? 0
-}
-
-function scoreForSim(ref: Offre, cand: Offre): number {
-  let s = 0
-  if (ref.experience && cand.experience) {
-    const ri = SIM_EXP_ORDER.indexOf(ref.experience)
-    const ci = SIM_EXP_ORDER.indexOf(cand.experience)
-    if (ri !== -1 && ci !== -1) {
-      const d = Math.abs(ri - ci)
-      if (d === 0) s += 2
-      else if (d === 1) s += 1
-    }
-  }
-  if (ref.type_contrat && cand.type_contrat === ref.type_contrat) s += 2
-  const refMid = simSalMid(ref.salaire_min, ref.salaire_max)
-  const candMid = simSalMid(cand.salaire_min, cand.salaire_max)
-  if (refMid > 0 && candMid > 0 && Math.abs(refMid - candMid) / refMid <= 0.3) s += 1
-  return s
-}
-
-function offreToSimilaire(o: Offre): OffreSimilaire {
-  return { id: o.id, titre: o.titre, entreprise_nom: o.entreprise_nom, type_contrat: o.type_contrat, domaine: o.domaine, ville: o.ville, salaire_min: o.salaire_min, salaire_max: o.salaire_max, periode_salaire: o.periode_salaire, mode_travail: o.mode_travail }
-}
+// ─── Similaires scoring — logique déplacée dans lib/similaires.ts ─────────────
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -2317,42 +2289,12 @@ export default function OffresPage() {
   // Selected offre for the panel
   const selectedOffre = selectedId ? filtered.find(o => o.id === selectedId) ?? null : null
 
-  // ── Offres similaires (computed from already-loaded list) ─────────────────
+  // ── Offres similaires ─────────────────────────────────────────────────────
   const { similaires, similairesTitle } = useMemo<{ similaires: OffreSimilaire[]; similairesTitle: string }>(() => {
     if (!selectedOffre) return { similaires: [], similairesTitle: '' }
     const candidates = offresEffective.filter(o => o.id !== selectedOffre.id && !applied.has(o.id))
-
-    // Phase 1: same domain
-    const domainPool = selectedOffre.domaine ? candidates.filter(o => o.domaine === selectedOffre.domaine) : []
-    if (domainPool.length >= 2) {
-      const scored = domainPool
-        .map(o => ({ o, score: scoreForSim(selectedOffre, o) }))
-        .sort((a, b) => b.score - a.score || new Date(b.o.created_at).getTime() - new Date(a.o.created_at).getTime())
-      const withExtra = scored.filter(({ score }) => score >= 1)
-      if (withExtra.length >= 2) {
-        return { similaires: withExtra.slice(0, 4).map(({ o }) => offreToSimilaire(o)), similairesTitle: 'Offres similaires' }
-      }
-      return {
-        similaires: scored.slice(0, 4).map(({ o }) => offreToSimilaire(o)),
-        similairesTitle: selectedOffre.domaine ? `Autres offres en ${selectedOffre.domaine}` : 'Autres offres',
-      }
-    }
-
-    // Phase 2: zone fallback
-    if (selectedOffre.latitude != null && selectedOffre.longitude != null) {
-      const nearby = candidates.filter(o =>
-        o.latitude != null && o.longitude != null &&
-        haversineKm({ lat: selectedOffre.latitude!, lng: selectedOffre.longitude! }, { lat: o.latitude, lng: o.longitude }) < 50
-      )
-      if (nearby.length >= 2) {
-        return {
-          similaires: nearby.slice(0, 4).map(offreToSimilaire),
-          similairesTitle: selectedOffre.ville ? `Autres offres près de ${selectedOffre.ville}` : 'Autres offres à proximité',
-        }
-      }
-    }
-
-    return { similaires: [], similairesTitle: '' }
+    const { similaires, titre } = trouverSimilaires(selectedOffre, candidates)
+    return { similaires, similairesTitle: titre }
   }, [selectedOffre, offresEffective, applied])
 
   // ── [DEV] fin du timer render-liste après commit DOM ─────────────────────

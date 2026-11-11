@@ -11,19 +11,48 @@ export const STATUT_VALUES = [
 
 export type StatutCandidature = typeof STATUT_VALUES[number]
 
-export type StatutConfig = {
-  label: string
+export type StatutCandidatConfig = {
   bg:    string
   color: string
   dot:   string
+  dotStyle?: 'ring'
+}
+
+export type StatutConfig = {
+  label:         string
+  labelCandidat: string
+  bg:            string
+  color:         string
+  dot:           string
+  candidat:      StatutCandidatConfig
 }
 
 export const STATUTS: Record<StatutCandidature, StatutConfig> = {
-  'envoyée':  { label: 'Envoyée',   bg: 'rgba(100, 109, 103, 0.09)', color: C.grey,    dot: LIGHT_GREY },
-  'vue':      { label: 'Vue',       bg: 'rgba(200, 138, 42, 0.10)',  color: C.attente, dot: C.attente  },
-  'en cours': { label: 'En cours',  bg: 'rgba(37, 99, 235, 0.08)',   color: '#2563EB', dot: '#2563EB'  },
-  'acceptée': { label: 'Acceptée',  bg: 'rgba(36, 69, 58, 0.08)',    color: C.vert,    dot: C.vert     },
-  'refusée':  { label: 'Refusée',   bg: FDECEA,                      color: C.erreur,  dot: C.erreur   },
+  'envoyée': {
+    label: 'Envoyée', labelCandidat: 'Envoyée',
+    bg: 'rgba(100, 109, 103, 0.09)', color: C.grey, dot: LIGHT_GREY,
+    candidat: { bg: '#F1F3F2', color: C.grey, dot: '#B9BFBB' },
+  },
+  'vue': {
+    label: 'Vue', labelCandidat: 'Vue',
+    bg: 'rgba(200, 138, 42, 0.10)', color: C.attente, dot: C.attente,
+    candidat: { bg: 'rgba(200,138,42,.13)', color: '#8A5D14', dot: C.attente },
+  },
+  'en cours': {
+    label: 'En cours', labelCandidat: 'En cours',
+    bg: 'rgba(37, 99, 235, 0.08)', color: '#2563EB', dot: '#2563EB',
+    candidat: { bg: C.salaire, color: C.vert, dot: C.vert },
+  },
+  'acceptée': {
+    label: 'Acceptée', labelCandidat: 'Retenue',
+    bg: 'rgba(36, 69, 58, 0.08)', color: C.vert, dot: C.vert,
+    candidat: { bg: 'rgba(62,142,94,.14)', color: '#2F7049', dot: C.succes },
+  },
+  'refusée': {
+    label: 'Refusée', labelCandidat: 'Non retenue',
+    bg: FDECEA, color: C.erreur, dot: C.erreur,
+    candidat: { bg: '#F1F3F2', color: C.grey, dot: '#9AA19C', dotStyle: 'ring' },
+  },
 }
 
 export function getStatut(s: string): StatutConfig {

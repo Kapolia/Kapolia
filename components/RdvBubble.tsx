@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { notifCreneauConfirme } from '@/lib/actions/email-notifs'
+import { accepterCreneau, isRdvPlusPropose } from '@/lib/rdv'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
@@ -45,9 +45,11 @@ const STATUT_CFG: Record<StatutEffectif, { label: string; bg: string; color: str
 }
 
 export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRole }) {
-  const [rdv,     setRdv]     = useState<Rdv | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [acting,  setActing]  = useState(false)
+  const [rdv,       setRdv]       = useState<Rdv | null>(null)
+  const [loading,   setLoading]   = useState(true)
+  const [acting,    setActing]    = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+  const [errMsg,    setErrMsg]    = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -60,29 +62,23 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
           console.error('[RdvBubble fetch]', error.message, error.code, error.details, error.hint)
         } else {
           setRdv(data as unknown as Rdv)
+          setErrMsg(null)
         }
         setLoading(false)
       })
-  }, [rdvId])
+  }, [rdvId, reloadKey])
 
   async function accepter(creneauId: string) {
     if (!rdv || acting) return
     setActing(true)
-    const { error: crErr } = await supabase
-      .from('creneaux_rdv')
-      .update({ selectionne: true })
-      .eq('id', creneauId)
-    if (crErr) {
-      console.error('[RdvBubble accepter créneau]', crErr.message, crErr.code, crErr.details, crErr.hint)
-      setActing(false)
-      return
-    }
-    const { error: rdvErr } = await supabase
-      .from('rendez_vous')
-      .update({ statut: 'acceptee' })
-      .eq('id', rdvId)
-    if (rdvErr) {
-      console.error('[RdvBubble accepter rdv]', rdvErr.message, rdvErr.code, rdvErr.details, rdvErr.hint)
+    const { error } = await accepterCreneau(rdvId, creneauId)
+    if (error) {
+      if (isRdvPlusPropose(error)) {
+        setErrMsg('Ce rendez-vous n\'est plus disponible.')
+        setReloadKey(k => k + 1)
+      } else {
+        setErrMsg('Le créneau n\'a pas pu être confirmé. Réessayez dans un instant.')
+      }
       setActing(false)
       return
     }
@@ -90,7 +86,6 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
       ? { ...prev, statut: 'acceptee', creneaux_rdv: prev.creneaux_rdv.map(c => ({ ...c, selectionne: c.id === creneauId })) }
       : prev
     )
-    notifCreneauConfirme(rdvId, creneauId).catch(e => console.error('[notif creneau-confirme]', e))
     setActing(false)
   }
 
@@ -221,6 +216,12 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
           <div style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>
             {role === 'candidat' ? 'Proposition annulée par le recruteur' : 'Proposition annulée'}
           </div>
+        )}
+
+        {errMsg && (
+          <p style={{ fontSize: 11, color: C.erreur, margin: '8px 0 0', lineHeight: 1.5 }}>
+            {errMsg}
+          </p>
         )}
       </div>
 

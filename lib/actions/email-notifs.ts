@@ -105,11 +105,11 @@ export async function notifStatutCandidature(candId: string, statut: 'acceptée'
         ? `Votre candidature chez ${entreprise} est retenue`
         : `Candidature chez ${entreprise} — réponse reçue`,
       html: acceptee
-        ? `<p>Bonjour,</p><p>Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.</p><p><a href="${SITE}/candidatures">Voir mes candidatures →</a></p>${pied()}`
-        : `<p>Bonjour,</p><p>${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.</p><p><a href="${SITE}/candidatures">Voir mes candidatures →</a></p>${pied()}`,
+        ? `<p>Bonjour,</p><p>Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.</p><p><a href="${SITE}/candidatures?offre=${cand.offre_id}">Voir mes candidatures →</a></p>${pied()}`
+        : `<p>Bonjour,</p><p>${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.</p><p><a href="${SITE}/candidatures?offre=${cand.offre_id}">Voir mes candidatures →</a></p>${pied()}`,
       text: acceptee
-        ? `Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.\n\n${SITE}/candidatures\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`
-        : `${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.\n\n${SITE}/candidatures\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+        ? `Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.\n\n${SITE}/candidatures?offre=${cand.offre_id}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`
+        : `${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.\n\n${SITE}/candidatures?offre=${cand.offre_id}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
     })
     if (!result.ok) console.error('[email-notifs] statut-candidature', result.error, { candId, statut })
   })

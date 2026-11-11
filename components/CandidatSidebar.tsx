@@ -305,6 +305,18 @@ export default function CandidatSidebar({
     })
   }, [pathname])
 
+  // ── Recalcul immédiat après confirmation d'un créneau ─────────────────────
+  useEffect(() => {
+    function onRdvConfirme() {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return
+        fetchRdvEnAttenteCount(user.id).then(setRdvCount)
+      })
+    }
+    window.addEventListener('rdv-confirme', onRdvConfirme)
+    return () => window.removeEventListener('rdv-confirme', onRdvConfirme)
+  }, [])
+
   // ── Notifications proche ──────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
