@@ -17,6 +17,7 @@ import { OngletNav } from '@/components/OngletNav'
 import { type OffreSimilaire } from '@/components/OffreDetail'
 import { trouverSimilaires, type SimOffre } from '@/lib/similaires'
 import { accepterCreneau, isRdvPlusPropose } from '@/lib/rdv'
+import { formatCreneauParis } from '@/lib/rdv-format'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -420,18 +421,6 @@ function BoutonConv({ href, label, primary }: { href: string; label: string; pri
       {label}
     </Link>
   )
-}
-
-function formatCreneauParis(utc: string): string {
-  const d  = new Date(utc)
-  const tz = { timeZone: 'Europe/Paris' } as const
-  const wd  = d.toLocaleDateString('fr-FR', { weekday: 'short', ...tz })
-  const day = d.toLocaleDateString('fr-FR', { day: 'numeric', ...tz })
-  const mo  = d.toLocaleDateString('fr-FR', { month: 'short', ...tz })
-  const hm  = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', ...tz })
-              .replace(':', ' h ')
-  const moStr = mo.endsWith('.') ? mo : mo + '.'
-  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${day} ${moStr}, ${hm}`
 }
 
 function SpinnerSmall() {
