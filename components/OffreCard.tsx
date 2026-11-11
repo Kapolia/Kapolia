@@ -7,10 +7,8 @@ import { type GeoCoords } from '@/components/GeoVilleInput'
 import { FONT_SERIF } from '@/lib/typography'
 import { haversineKm } from '@/lib/geo'
 import { type ScoreBreakdown } from '@/lib/matching'
-import { C as _C, CARD_SHADOW, CARD_SELECTED_SHADOW, CARD_RADIUS } from '@/lib/colors'
-import { EASE } from '@/lib/motion'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
-import { SelectedPointer } from '@/components/SelectedPointer'
 import { TELETRAVAIL_OPTIONS } from '@/lib/referentiels'
 
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
@@ -162,115 +160,107 @@ export function OffreCard({
 
   // ── Compact card (split view) ─────────────────────────────────────────
   if (compact) {
-    const hovShadow = '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)'
     return (
       <div
         onClick={() => onSelect!(offre.id)}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
         style={{
-          position: 'relative',
-          borderRadius: CARD_RADIUS,
-          outline: isSelected ? `2px solid ${C.vert}` : 'none',
-          outlineOffset: '-2px',
-          scale: isSelected ? '1.035' : '1',
-          translate: !isSelected && hov ? '0 -1px' : 'none',
-          boxShadow: isSelected ? CARD_SELECTED_SHADOW : hov ? hovShadow : CARD_SHADOW,
-          transition: `box-shadow 0.15s, outline 0.15s, scale 320ms ${EASE}, translate 0.15s`,
-          zIndex: isSelected ? 2 : undefined,
-          cursor: 'pointer',
-        }}
-      >
-        {/* Inner div — overflow: hidden pour le score bar en négatif */}
-        <div style={{
-          backgroundColor: C.white,
+          backgroundColor: isSelected ? `${C.terracotta}07` : C.white,
+          borderLeft: `3px solid ${isSelected ? C.terracotta : hov ? `${C.terracotta}70` : 'transparent'}`,
           borderRadius: CARD_RADIUS,
           padding: (!ferme && offre.score != null) ? '14px 16px 0 13px' : '14px 16px 12px 13px',
+          cursor: 'pointer',
+          boxShadow: isSelected
+            ? '0 4px 10px rgba(27,48,38,.10), 0 14px 34px rgba(27,48,38,.16)'
+            : hov ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
+          transition: 'box-shadow 0.15s, border-left-color 0.15s, background-color 0.15s, scale 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+          scale: isSelected ? '1.035' : '1',
+          zIndex: isSelected ? 2 : undefined,
           overflow: 'hidden',
-        }}>
-          {/* En-tête : logo · bloc texte · étoile */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-            <div style={ferme ? { filter: 'grayscale(1)', opacity: 0.6 } : undefined}>
-              <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={36} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0, opacity: ferme ? 0.55 : undefined }}>
-              <div style={{
-                fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.3,
-                color: C.dark,
-              }}>
-                {offre.titre}
-              </div>
-              <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
-                {offre.recruteur_id ? (
-                  <Link
-                    href={`/entreprise/${offre.recruteur_id}`}
-                    onClick={e => e.stopPropagation()}
-                    style={{ fontWeight: 600, color: C.terracotta, textDecoration: 'none' }}
-                  >
-                    {entreprise}
-                  </Link>
-                ) : (
-                  <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
-                )}
-                {offre.ville && <><span style={{ color: C.lightGrey }}> · </span><span style={{ color: C.grey }}>{offre.ville}</span></>}
-              </div>
-            </div>
-            {!applied && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}
+        }}
+      >
+        {/* En-tête : logo · bloc texte · étoile */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+          <div style={ferme ? { filter: 'grayscale(1)', opacity: 0.6 } : undefined}>
+            <EntrepriseLogo nom={entreprise} logoUrl={offre.entreprise_logo_url} size={36} />
           </div>
-
-          {/* Pastilles — pleine largeur */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: ferme ? 8 : (offre.score != null ? 10 : 0), opacity: ferme ? 0.55 : undefined }}>
-            {salaire && <span style={PILL_SALARY}>{salaire}</span>}
-            {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
-            {offre.mode_travail && <span style={PILL}>{TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail}</span>}
-            {applied && (
-              <span style={{ ...PILL, display: 'inline-flex', alignItems: 'center', gap: 4, animation: 'kapolia-motion-pill-enter 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
-                <svg width="11" height="9" viewBox="0 0 12 10" fill="none"><path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                Candidature envoyée
-              </span>
-            )}
-            {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
-          </div>
-
-          {/* Badge offre fermée */}
-          {ferme && (
+          <div style={{ flex: 1, minWidth: 0, opacity: ferme ? 0.55 : undefined }}>
             <div style={{
-              display: 'inline-flex', alignItems: 'center',
-              fontSize: 11.5, fontWeight: 600, color: C.grey,
-              backgroundColor: '#EEF0EF', borderRadius: 20, padding: '3px 9px',
+              fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.3,
+              color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
+              transition: 'color 0.15s',
             }}>
-              Offre expirée
+              {offre.titre}
             </div>
-          )}
-
-          {/* Pied de score — pleine largeur */}
-          {!ferme && offre.score != null ? (
-            <div style={{ margin: '0 -16px 0 -13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 5px 13px', fontSize: 12 }}>
-                <span style={{ color: C.grey }}>{scoreLabel(offre.score)}</span>
-                <span style={{ color: C.vert, fontWeight: 600 }}>{offre.score} %</span>
-              </div>
-              <div style={{ height: 3, backgroundColor: '#EEF0EF' }}>
-                <div style={{
-                  height: 3, width: '100%', backgroundColor: C.vert,
-                  transform: barMounted ? `scaleX(${Math.min(100, offre.score) / 100})` : 'scaleX(0)',
-                  transformOrigin: 'left',
-                  transition: barMounted ? 'transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s' : 'none',
-                }} />
-              </div>
+            <div style={{ fontSize: 13, color: C.grey, marginTop: 3 }}>
+              {offre.recruteur_id ? (
+                <Link
+                  href={`/entreprise/${offre.recruteur_id}`}
+                  onClick={e => e.stopPropagation()}
+                  style={{ fontWeight: 600, color: C.terracotta, textDecoration: 'none' }}
+                >
+                  {entreprise}
+                </Link>
+              ) : (
+                <span style={{ fontWeight: 600, color: '#444' }}>{entreprise}</span>
+              )}
+              {offre.ville && <><span style={{ color: C.lightGrey }}> · </span><span style={{ color: C.grey }}>{offre.ville}</span></>}
             </div>
-          ) : !ferme && isConnected ? (
-            <Link
-              href="/profil"
-              onClick={e => e.stopPropagation()}
-              style={{ display: 'block', marginTop: 6, fontSize: 11, color: C.vert, opacity: 0.55, textDecoration: 'underline', textDecorationColor: `${C.vert}40` }}
-            >
-              Complétez votre profil pour voir votre correspondance
-            </Link>
-          ) : null}
+          </div>
+          {!applied && <StarButton saved={saved} onClick={e => { e.stopPropagation(); onToggleSave(offre.id) }} />}
         </div>
 
-        {isSelected && <SelectedPointer />}
+        {/* Pastilles — pleine largeur */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: ferme ? 8 : (offre.score != null ? 10 : 0), opacity: ferme ? 0.55 : undefined }}>
+          {salaire && <span style={PILL_SALARY}>{salaire}</span>}
+          {offre.type_contrat && <span style={PILL}>{offre.type_contrat}</span>}
+          {offre.mode_travail && <span style={PILL}>{TELETRAVAIL_OPTIONS.find(o => o.value === offre.mode_travail)?.labelLong ?? offre.mode_travail}</span>}
+          {applied && (
+            <span style={{ ...PILL, display: 'inline-flex', alignItems: 'center', gap: 4, animation: 'kapolia-motion-pill-enter 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
+              <svg width="11" height="9" viewBox="0 0 12 10" fill="none"><path d="M1 5L4 8L11 1" stroke={C.vert} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              Candidature envoyée
+            </span>
+          )}
+          {distanceKm != null && <span style={PILL}>à {distanceKm} km</span>}
+        </div>
+
+        {/* Badge offre fermée */}
+        {ferme && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center',
+            fontSize: 11.5, fontWeight: 600, color: C.grey,
+            backgroundColor: '#EEF0EF', borderRadius: 20, padding: '3px 9px',
+          }}>
+            Offre expirée
+          </div>
+        )}
+
+        {/* Pied de score — pleine largeur */}
+        {!ferme && offre.score != null ? (
+          <div style={{ margin: '0 -16px 0 -13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 16px 5px 13px', fontSize: 12 }}>
+              <span style={{ color: C.grey }}>{scoreLabel(offre.score)}</span>
+              <span style={{ color: C.vert, fontWeight: 600 }}>{offre.score} %</span>
+            </div>
+            <div style={{ height: 3, backgroundColor: '#EEF0EF' }}>
+              <div style={{
+                height: 3, width: '100%', backgroundColor: C.vert,
+                transform: barMounted ? `scaleX(${Math.min(100, offre.score) / 100})` : 'scaleX(0)',
+                transformOrigin: 'left',
+                transition: barMounted ? 'transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 0.2s' : 'none',
+              }} />
+            </div>
+          </div>
+        ) : !ferme && isConnected ? (
+          <Link
+            href="/profil"
+            onClick={e => e.stopPropagation()}
+            style={{ display: 'block', marginTop: 6, fontSize: 11, color: C.vert, opacity: 0.55, textDecoration: 'underline', textDecorationColor: `${C.vert}40` }}
+          >
+            Complétez votre profil pour voir votre correspondance
+          </Link>
+        ) : null}
       </div>
     )
   }
@@ -285,12 +275,13 @@ export function OffreCard({
       onMouseLeave={() => setHov(false)}
       style={{
         backgroundColor: C.white,
+        borderLeft: `3px solid ${hov ? C.terracotta : 'transparent'}`,
         borderRadius: CARD_RADIUS,
         padding: offre.score != null ? '16px 22px 0 21px' : '16px 22px 14px 21px',
         display: 'flex', flexDirection: 'column', gap: 9,
         boxShadow: hov ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
-        translate: hov ? '0 -1px' : 'none',
-        transition: 'box-shadow 0.18s, translate 0.18s',
+        transform: hov ? 'translateY(-2px)' : 'translateY(0)',
+        transition: 'box-shadow 0.18s, border-left-color 0.18s, transform 0.18s',
         cursor: 'pointer',
         overflow: 'hidden',
       }}
@@ -299,8 +290,8 @@ export function OffreCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{
             fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600,
-            color: C.dark,
-            margin: '0 0 4px', lineHeight: 1.3,
+            color: hov ? C.terracotta : C.dark,
+            margin: '0 0 4px', lineHeight: 1.3, transition: 'color 0.15s',
           }}>
             {offre.titre}
           </h3>
