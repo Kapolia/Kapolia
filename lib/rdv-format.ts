@@ -37,6 +37,27 @@ export function formatJourCourt(utc: string): string {
   return `${wdStr.charAt(0).toUpperCase() + wdStr.slice(1)} ${day} ${moStr}`
 }
 
+export function formatDateAnalyse(iso: string): string {
+  const TZ    = { timeZone: 'Europe/Paris' } as const
+  const date    = new Date(iso)
+  const rdvYear = Number(date.toLocaleDateString('fr-FR', { year: 'numeric', ...TZ }))
+  const nowYear = Number(new Date().toLocaleDateString('fr-FR', { year: 'numeric', ...TZ }))
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', ...TZ }
+  if (rdvYear !== nowYear) opts.year = 'numeric'
+  return date.toLocaleDateString('fr-FR', opts)
+}
+
+export function jourRelatifCourt(utc: string): 'aujourd\'hui' | 'demain' | null {
+  const toMs = (s: string) => { const [d, m, y] = s.split('/'); return Date.UTC(+y, +m - 1, +d) }
+  const opts = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const
+  const maintStr = new Date().toLocaleDateString('fr-FR', opts)
+  const cibleStr = new Date(utc).toLocaleDateString('fr-FR', opts)
+  const jours = Math.round((toMs(cibleStr) - toMs(maintStr)) / 86400000)
+  if (jours === 0) return "aujourd'hui"
+  if (jours === 1) return 'demain'
+  return null
+}
+
 export function delaiRelatif(utc: string): string | null {
   const toMs = (s: string) => { const [d, m, y] = s.split('/'); return Date.UTC(+y, +m - 1, +d) }
   const opts = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const

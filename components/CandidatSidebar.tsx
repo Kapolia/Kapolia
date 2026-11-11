@@ -8,6 +8,7 @@ import LogoKapolia from '@/components/LogoKapolia'
 import { FONT_SERIF } from '@/lib/typography'
 import { C, CARD_SHADOW } from '@/lib/colors'
 import { fetchRdvEnAttenteCount } from '@/lib/rdv-en-attente'
+import { reduitMouvement } from '@/lib/motion'
 
 const LS_KEY = 'kapolia-sidebar-repliee'
 
@@ -62,8 +63,8 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
 
-function Badge({ count, corner }: { count: number; corner?: boolean }) {
-  if (count <= 0) return null
+function Badge({ count, corner, exiting }: { count: number; corner?: boolean; exiting?: boolean }) {
+  if (count <= 0 && !exiting) return null
   return (
     <span style={{
       ...(corner ? {
@@ -78,7 +79,9 @@ function Badge({ count, corner }: { count: number; corner?: boolean }) {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       lineHeight: 1, boxSizing: 'border-box' as const,
       flexShrink: 0,
-      animation: 'kapolia-motion-badge-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both',
+      animation: exiting
+        ? 'kapolia-motion-badge-exit 250ms ease forwards'
+        : 'kapolia-motion-badge-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both',
     }}>
       {count > 9 ? '9+' : count}
     </span>
@@ -139,7 +142,7 @@ function MenuBtn({ label, onClick, danger = false, notif = false }: {
 
 // ─── Nav item (collapsed) ─────────────────────────────────────────────────────
 
-function CollapsedItem({ item, active, badge }: { item: NavItem; active: boolean; badge?: number }) {
+function CollapsedItem({ item, active, badge, badgeExiting }: { item: NavItem; active: boolean; badge?: number; badgeExiting?: boolean }) {
   const router = useRouter()
   const [hov, setHov] = useState(false)
 
@@ -161,7 +164,7 @@ function CollapsedItem({ item, active, badge }: { item: NavItem; active: boolean
         }}
       >
         <NavIcon id={item.id} active={active} />
-        {badge !== undefined && badge > 0 && <Badge count={badge} corner />}
+        {(badge !== undefined && badge > 0 || badgeExiting) && <Badge count={badge ?? 0} corner exiting={badgeExiting} />}
       </button>
       <Tooltip label={item.label} visible={hov} />
     </div>
@@ -170,8 +173,8 @@ function CollapsedItem({ item, active, badge }: { item: NavItem; active: boolean
 
 // ─── Nav item (expanded) ──────────────────────────────────────────────────────
 
-function ExpandedItem({ item, active, badge, btnRef }: {
-  item: NavItem; active: boolean; badge?: number;
+function ExpandedItem({ item, active, badge, badgeExiting, btnRef }: {
+  item: NavItem; active: boolean; badge?: number; badgeExiting?: boolean;
   btnRef?: (el: HTMLButtonElement | null) => void
 }) {
   const router = useRouter()
@@ -205,7 +208,7 @@ function ExpandedItem({ item, active, badge, btnRef }: {
       }}>
         {item.label}
       </span>
-      {badge !== undefined && badge > 0 && <Badge count={badge} />}
+      {(badge !== undefined && badge > 0 || badgeExiting) && <Badge count={badge ?? 0} exiting={badgeExiting} />}
     </button>
   )
 }
@@ -231,8 +234,11 @@ export default function CandidatSidebar({
   const [liveAvatar, setLiveAvatar] = useState({
     avatar_url: avatarUrl, avatar_type: avatarType, prenom, nom,
   })
-  const [msgCount, setMsgCount] = useState<number | undefined>(undefined)
-  const [rdvCount, setRdvCount] = useState<number | undefined>(undefined)
+  const [msgCount,        setMsgCount]        = useState<number | undefined>(undefined)
+  const [rdvCount,        setRdvCount]        = useState<number | undefined>(undefined)
+  const [rdvBadgeExiting, setRdvBadgeExiting] = useState(false)
+  const rdvCountRef       = useRef<number | undefined>(undefined)
+  const badgeExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [hasNotif, setHasNotif] = useState(false)
   const [menuOpen,     setMenuOpen]     = useState(false)
   const [menuHov,      setMenuHov]      = useState(false)
@@ -305,12 +311,27 @@ export default function CandidatSidebar({
     })
   }, [pathname])
 
+  useEffect(() => { rdvCountRef.current = rdvCount }, [rdvCount])
+
   // ── Recalcul immédiat après confirmation d'un créneau ─────────────────────
   useEffect(() => {
     function onRdvConfirme() {
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return
-        fetchRdvEnAttenteCount(user.id).then(setRdvCount)
+        fetchRdvEnAttenteCount(user.id).then(newCount => {
+          const prev = rdvCountRef.current ?? 0
+          const next = newCount ?? 0
+          if (prev > 0 && next === 0 && !reduitMouvement()) {
+            if (badgeExitTimerRef.current) clearTimeout(badgeExitTimerRef.current)
+            setRdvBadgeExiting(true)
+            badgeExitTimerRef.current = setTimeout(() => {
+              setRdvBadgeExiting(false)
+              setRdvCount(0)
+            }, 250)
+          } else {
+            setRdvCount(newCount)
+          }
+        })
       })
     }
     window.addEventListener('rdv-confirme', onRdvConfirme)
@@ -579,7 +600,7 @@ export default function CandidatSidebar({
             const active = isActive(entry)
             const badge  = getBadge(entry.id)
             if (repliee) {
-              return <CollapsedItem key={entry.id} item={entry} active={active} badge={badge} />
+              return <CollapsedItem key={entry.id} item={entry} active={active} badge={badge} badgeExiting={rdvBadgeExiting && entry.id === 'rendez-vous'} />
             }
             return (
               <ExpandedItem
@@ -587,6 +608,7 @@ export default function CandidatSidebar({
                 item={entry}
                 active={active}
                 badge={badge}
+                badgeExiting={rdvBadgeExiting && entry.id === 'rendez-vous'}
                 btnRef={el => {
                   if (el) navItemRefs.current.set(entry.id, el)
                   else navItemRefs.current.delete(entry.id)

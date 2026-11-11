@@ -4,15 +4,9 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { C } from '@/lib/colors'
+import { formatDateAnalyse } from '@/lib/rdv-format'
 
 type Phase = 'idle' | 'loading' | 'done' | 'error' | 'quota_atteint'
-
-function formatDateAnalyse(iso: string): string {
-  const date = new Date(iso)
-  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' }
-  if (date.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'
-  return date.toLocaleDateString('fr-FR', opts)
-}
 
 export default function AssistantPrepEntretien({
   rdvId,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useLayoutEffect, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
@@ -8,7 +8,11 @@ import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
 import AssistantPrepEntretien from '@/components/AssistantPrepEntretien'
 import { accepterCreneau, isRdvPlusPropose, refuserCreneaux } from '@/lib/rdv'
-import { formatJourLong, formatHeure, formatJourCourt, delaiRelatif } from '@/lib/rdv-format'
+import NumeroAppel from '@/components/NumeroAppel'
+import { formatJourLong, formatHeure, formatJourCourt, delaiRelatif, jourRelatifCourt, formatDateAnalyse } from '@/lib/rdv-format'
+import { animerCartes, EASE, reduitMouvement } from '@/lib/motion'
+import { genererIcs } from '@/lib/ics'
+import { sanitizeFilename } from '@/lib/storage-utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,10 +126,14 @@ function SpinnerSmall() {
   )
 }
 
-function CheckMark({ color = C.vert }: { color?: string }) {
+function CheckMark({ color = C.vert, animated = false }: { color?: string; animated?: boolean }) {
+  const shouldAnimate = animated && !reduitMouvement()
   return (
     <svg width="14" height="11" viewBox="0 0 13 10" fill="none" style={{ flexShrink: 0 }}>
-      <path d="M1 5L4 8L11 1" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M1 5L4 8L11 1" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        style={shouldAnimate ? { strokeDasharray: 16, strokeDashoffset: 16, animation: 'rdvp-draw 350ms ease forwards' } : undefined}
+      />
     </svg>
   )
 }
@@ -141,26 +149,79 @@ function Chip({ icon, label }: { icon: ReactNode; label: string }) {
 
 // ─── Carte "À confirmer" ──────────────────────────────────────────────────────
 
-function AttenteCard({ rdv, onConfirme, onReload, onRefuse }: {
-  rdv:        RdvRow
-  onConfirme: (rdvId: string, creneauId: string) => void
-  onReload:   (rdvId: string) => void
-  onRefuse:   (rdvId: string) => void
+function AttenteCard({ rdv, onConfirme, onReload, onRefuse, confirmedDates }: {
+  rdv:            RdvRow
+  onConfirme:     (rdvId: string, creneauId: string) => void
+  onReload:       (rdvId: string) => void
+  onRefuse:       (rdvId: string) => void
+  confirmedDates: { jourParis: string; type: 'telephonique' | 'entretien'; heure: string }[]
 }) {
   const [selectedId,      setSelectedId]      = useState<string | null>(null)
   const [submitting,      setSubmitting]       = useState(false)
   const [confirmed,       setConfirmed]        = useState<string | null>(null)
   const [errMsg,          setErrMsg]           = useState<string | null>(null)
+  const [showNumero,      setShowNumero]       = useState(false)
   const [showRefus,       setShowRefus]        = useState(false)
   const [refusMsg,        setRefusMsg]         = useState('')
   const [refusSubmitting, setRefusSubmitting]  = useState(false)
   const [refusErrMsg,     setRefusErrMsg]      = useState<string | null>(null)
   const [refusMsgPartiel, setRefusMsgPartiel]  = useState(false)
 
+  const cardRef         = useRef<HTMLDivElement>(null)
+  const confirmerBtnRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!selectedId || reduitMouvement()) return
+    const btn = document.querySelector<HTMLButtonElement>(`[data-creneau-id="${selectedId}"]`)
+    if (btn) btn.animate(
+      [{ transform: 'scale(0.97)' }, { transform: 'scale(1.03)', offset: 0.6 }, { transform: 'scale(1)' }],
+      { duration: 260, easing: 'cubic-bezier(0.3,1.5,0.5,1)' }
+    )
+  }, [selectedId])
+
+  useEffect(() => {
+    if (!selectedId || reduitMouvement()) return
+    const btn = confirmerBtnRef.current
+    if (btn) btn.animate([{ opacity: '0.5' }, { opacity: '1' }], { duration: 200, easing: 'ease-out' })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!selectedId])
+
+  function collapserEtConfirmer(rdvId: string, creneauId: string) {
+    const card = cardRef.current
+    if (card && !reduitMouvement()) {
+      const h = card.offsetHeight
+      card.style.overflow = 'hidden'
+      card.animate(
+        [{ height: `${h}px`, opacity: '1' }, { height: '0px', opacity: '0' }],
+        { duration: 320, easing: EASE, fill: 'forwards' }
+      ).onfinish = () => onConfirme(rdvId, creneauId)
+    } else {
+      onConfirme(rdvId, creneauId)
+    }
+  }
+
+  function collapserEtRefuser() {
+    const card = cardRef.current
+    if (card && !reduitMouvement()) {
+      const h = card.offsetHeight
+      card.style.overflow = 'hidden'
+      card.animate(
+        [{ height: `${h}px`, opacity: '1' }, { height: '0px', opacity: '0' }],
+        { duration: 320, easing: EASE, fill: 'forwards' }
+      ).onfinish = () => onRefuse(rdv.id)
+    } else {
+      onRefuse(rdv.id)
+    }
+  }
+
   const now    = Date.now()
   const futurs = rdv.creneaux_rdv
     .filter(c => new Date(c.debut_utc).getTime() > now)
     .sort((a, b) => new Date(a.debut_utc).getTime() - new Date(b.debut_utc).getTime())
+
+  const premierRelatif = futurs.length > 0 ? jourRelatifCourt(futurs[0].debut_utc) : null
+  const dernierFutur   = futurs.length > 0 ? futurs[futurs.length - 1] : null
+  const conflitOpts    = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const
 
   const n                = futurs.length
   const nStr             = nEnLettres(n)
@@ -188,7 +249,7 @@ function AttenteCard({ rdv, onConfirme, onReload, onRefuse }: {
     }
     setConfirmed(selectedId)
     setSubmitting(false)
-    setTimeout(() => onConfirme(rdv.id, selectedId!), 900)
+    setTimeout(() => collapserEtConfirmer(rdv.id, selectedId!), 900)
   }
 
   async function decliner() {
@@ -208,11 +269,11 @@ function AttenteCard({ rdv, onConfirme, onReload, onRefuse }: {
       return
     }
     setRefusSubmitting(false)
-    onRefuse(rdv.id)
+    collapserEtRefuser()
   }
 
   return (
-    <div style={{ backgroundColor: C.white, borderRadius: 14, boxShadow: CARD_SHADOW }}>
+    <div ref={cardRef} data-card-id={rdv.id} style={{ backgroundColor: C.white, borderRadius: 14, boxShadow: CARD_SHADOW }}>
 
       {/* En-tête */}
       <div style={{ padding: '18px 22px 0', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -232,87 +293,125 @@ function AttenteCard({ rdv, onConfirme, onReload, onRefuse }: {
         <p style={{ fontSize: 15, color: C.dark, margin: 0, lineHeight: 1.6 }}>
           <strong>{qui}</strong> vous propose {nStr} créneau{n > 1 ? 'x' : ''} pour {typeStr}. Proposition reçue {dateCreation}.
         </p>
+        {dernierFutur && (
+          <p style={{ fontSize: 13.5, color: '#7A4317', margin: '8px 0 0', lineHeight: 1.5 }}>
+            {premierRelatif && `Le premier créneau est ${premierRelatif}. `}
+            Sans réponse, la proposition expire après le dernier créneau, {formatJourLong(dernierFutur.debut_utc)} à {formatHeure(dernierFutur.debut_utc)}.
+          </p>
+        )}
       </div>
 
       {/* Zone créneaux */}
       <div style={{ padding: '16px 22px 0' }}>
-        {!confirmed && (
+        {showNumero && selectedId ? (
+          <NumeroAppel
+            rdvId={rdv.id}
+            creneauId={selectedId}
+            recruteurNom={rdv.recruteurNom || 'Le recruteur'}
+            entrepriseNom={rdv.entrepriseNom || 'ce recruteur'}
+            onConfirme={() => {
+              setShowNumero(false)
+              setConfirmed(selectedId)
+              setTimeout(() => collapserEtConfirmer(rdv.id, selectedId!), 900)
+            }}
+            onAnnuler={() => setShowNumero(false)}
+            onExpire={() => {
+              setShowNumero(false)
+              setErrMsg('Cette proposition n\'est plus disponible. Le recruteur l\'a peut-être retirée.')
+              onReload(rdv.id)
+            }}
+          />
+        ) : !confirmed ? (
           <>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: C.grey, marginBottom: 10 }}>
               Choisissez un créneau
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {futurs.map(c => {
-                const sel = c.id === selectedId
+                const sel         = c.id === selectedId
+                const creneauJour = new Date(c.debut_utc).toLocaleDateString('fr-FR', conflitOpts)
+                const conflit     = confirmedDates.find(cd => cd.jourParis === creneauJour)
                 return (
-                  <button
-                    key={c.id}
-                    onClick={() => !submitting && setSelectedId(c.id)}
-                    style={{
-                      backgroundColor: sel ? C.salaire : C.white,
-                      border:         `1.5px solid ${sel ? C.vert : C.sable}`,
-                      borderRadius: 10, padding: '9px 14px',
-                      cursor: submitting ? 'default' : 'pointer',
-                      fontFamily: 'inherit', textAlign: 'center', minWidth: 110,
-                      transition: 'border-color 0.12s, background-color 0.12s',
-                    }}
-                  >
-                    <div style={{ fontSize: 13, fontWeight: 600, color: sel ? C.vert : C.dark, lineHeight: 1.3 }}>
-                      {formatJourCourt(c.debut_utc)}
-                    </div>
-                    <div style={{ fontSize: 12.5, color: sel ? C.vert : C.grey, marginTop: 2 }}>
-                      {formatHeure(c.debut_utc)}
-                    </div>
-                  </button>
+                  <div key={c.id}>
+                    <button
+                      data-creneau-id={c.id}
+                      className="rdvp-creneau-btn"
+                      onClick={() => !submitting && setSelectedId(c.id)}
+                      style={{
+                        backgroundColor: sel ? C.salaire : C.white,
+                        border:         `1.5px solid ${sel ? C.vert : C.sable}`,
+                        borderRadius: 10, padding: '9px 14px',
+                        cursor: submitting ? 'default' : 'pointer',
+                        fontFamily: 'inherit', textAlign: 'center', minWidth: 110,
+                        transition: 'border-color 0.12s, background-color 0.12s',
+                      }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: sel ? C.vert : C.dark, lineHeight: 1.3 }}>
+                        {formatJourCourt(c.debut_utc)}
+                      </div>
+                      <div style={{ fontSize: 12.5, color: sel ? C.vert : C.grey, marginTop: 2 }}>
+                        {formatHeure(c.debut_utc)}
+                      </div>
+                    </button>
+                    {conflit && (
+                      <div style={{ fontSize: 11.5, color: '#8A5D14', marginTop: 4 }}>
+                        Même jour que votre {conflit.type === 'telephonique' ? 'appel' : 'entretien'} de {conflit.heure}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
+            {errMsg && (
+              <p style={{ fontSize: 13, color: '#8A3B12', margin: '8px 0 0', lineHeight: 1.5 }}>
+                {errMsg}
+              </p>
+            )}
           </>
-        )}
-        {confirmed && confirmedCreneau && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CheckMark color={C.vert} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: C.vert }}>
-              Créneau confirmé : {formatJourLong(confirmedCreneau.debut_utc)} à {formatHeure(confirmedCreneau.debut_utc)}
-            </span>
-          </div>
-        )}
-        {errMsg && (
-          <p style={{ fontSize: 13, color: '#8A3B12', margin: '8px 0 0', lineHeight: 1.5 }}>
-            {errMsg}
-          </p>
+        ) : (
+          confirmedCreneau && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckMark color={C.vert} animated />
+              <span style={{ fontSize: 14, fontWeight: 600, color: C.vert }}>
+                Créneau confirmé : {formatJourLong(confirmedCreneau.debut_utc)} à {formatHeure(confirmedCreneau.debut_utc)}
+              </span>
+            </div>
+          )
         )}
       </div>
 
       {/* Pied */}
-      <div style={{ padding: '14px 22px 18px', marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+      {!showNumero && (
+        <div style={{ padding: '14px 22px 18px', marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button
+              ref={confirmerBtnRef}
+              onClick={rdv.type === 'telephonique' ? () => { if (selectedId && !confirmed) setShowNumero(true) } : confirmer}
+              disabled={!selectedId || !!confirmed}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                backgroundColor: C.orange, color: '#fff', fontWeight: 600,
+                borderRadius: 10, padding: '10px 18px', fontSize: 14,
+                border: 'none', fontFamily: 'inherit',
+                cursor: !selectedId || !!confirmed ? 'default' : 'pointer',
+                opacity: !selectedId || !!confirmed ? 0.5 : 1,
+                transition: 'opacity 0.15s',
+              }}
+            >
+              {submitting ? <><SpinnerSmall /> Confirmer ce créneau</> : 'Confirmer ce créneau'}
+            </button>
+            <Link href={convHref} style={{ fontSize: 14, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>
+              Voir la conversation
+            </Link>
+          </div>
           <button
-            onClick={confirmer}
-            disabled={!selectedId || !!confirmed}
-            style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              backgroundColor: C.orange, color: '#fff', fontWeight: 600,
-              borderRadius: 10, padding: '10px 18px', fontSize: 14,
-              border: 'none', fontFamily: 'inherit',
-              cursor: !selectedId || !!confirmed ? 'default' : 'pointer',
-              opacity: !selectedId || !!confirmed ? 0.5 : 1,
-              transition: 'opacity 0.15s',
-            }}
+            onClick={() => setShowRefus(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: C.grey, textDecoration: 'underline', fontFamily: 'inherit', padding: 0 }}
           >
-            {submitting ? <><SpinnerSmall /> Confirmer ce créneau</> : 'Confirmer ce créneau'}
+            Aucun créneau ne me convient
           </button>
-          <Link href={convHref} style={{ fontSize: 14, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>
-            Voir la conversation
-          </Link>
         </div>
-        <button
-          onClick={() => setShowRefus(true)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: C.grey, textDecoration: 'underline', fontFamily: 'inherit', padding: 0 }}
-        >
-          Aucun créneau ne me convient
-        </button>
-      </div>
+      )}
 
       {showRefus && (
         <div style={{ padding: '0 22px 18px' }}>
@@ -396,7 +495,12 @@ function ColonneDate({ utc }: { utc: string }) {
 
 // ─── Carte "À venir" (mise en avant) ─────────────────────────────────────────
 
-function FeaturedCard({ rdv, onPreparer }: { rdv: RdvRow; onPreparer: () => void }) {
+function FeaturedCard({ rdv, onPreparer, onAgenda, prepData }: {
+  rdv:        RdvRow
+  onPreparer: () => void
+  onAgenda:   () => void
+  prepData:   { analysed_at: string } | null
+}) {
   const choisi = rdv.creneaux_rdv.find(c => c.selectionne)
   if (!choisi) return null
 
@@ -411,7 +515,7 @@ function FeaturedCard({ rdv, onPreparer }: { rdv: RdvRow; onPreparer: () => void
     : (rdv.contact_info ?? null)
 
   return (
-    <div style={{ backgroundColor: C.white, borderRadius: 14, boxShadow: CARD_SHADOW, display: 'flex', overflow: 'hidden' }}>
+    <div data-card-id={rdv.id} className="rdvp-featured-card" style={{ backgroundColor: C.white, borderRadius: 14, display: 'flex', overflow: 'hidden' }}>
       <ColonneDate utc={choisi.debut_utc} />
       <div style={{ flex: 1, minWidth: 0, padding: '18px 22px' }}>
         {delai && (
@@ -436,15 +540,22 @@ function FeaturedCard({ rdv, onPreparer }: { rdv: RdvRow; onPreparer: () => void
         {infoLine && (
           <div style={{ fontSize: 14, color: C.grey, marginBottom: 16 }}>{infoLine}</div>
         )}
-        {!infoLine && <div style={{ marginBottom: 16 }} />}
+        {!infoLine && !prepData && <div style={{ marginBottom: 16 }} />}
+        {prepData && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, backgroundColor: C.salaire, borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 13.5, color: C.vert }}>
+            <CheckMark color={C.vert} />
+            <span>Préparation faite le {formatDateAnalyse(prepData.analysed_at)}.</span>
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             onClick={onPreparer}
             style={{ backgroundColor: C.orange, color: '#fff', fontWeight: 600, borderRadius: 10, padding: '10px 18px', fontSize: 14, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
           >
-            {prepLbl}
+            {prepData ? 'Revoir ma préparation' : prepLbl}
           </button>
           <button
+            onClick={onAgenda}
             style={{ backgroundColor: C.white, color: C.dark, border: `1px solid ${C.sable}`, borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
           >
             Ajouter à mon agenda
@@ -467,7 +578,13 @@ function FeaturedCard({ rdv, onPreparer }: { rdv: RdvRow; onPreparer: () => void
 
 // ─── Ligne "À venir" suivante ─────────────────────────────────────────────────
 
-function AvenirRow({ rdv, annule, onPreparer }: { rdv: RdvRow; annule: boolean; onPreparer: () => void }) {
+function AvenirRow({ rdv, annule, onPreparer, onAgenda, prepData }: {
+  rdv:        RdvRow
+  annule:     boolean
+  onPreparer: () => void
+  onAgenda:   () => void
+  prepData:   { analysed_at: string } | null
+}) {
   const choisi   = rdv.creneaux_rdv.find(c => c.selectionne)
   const dateUtc  = choisi?.debut_utc ?? dateRef(rdv)
   if (!dateUtc) return null
@@ -495,7 +612,7 @@ function AvenirRow({ rdv, annule, onPreparer }: { rdv: RdvRow; annule: boolean; 
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '132px 1fr auto', borderRadius: 12, backgroundColor: C.white, boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
+    <div data-card-id={rdv.id} className="rdvp-avenir-row" style={{ display: 'grid', gridTemplateColumns: '132px 1fr auto', borderRadius: 12, backgroundColor: C.white, overflow: 'hidden' }}>
       <div style={{ textAlign: 'center', padding: '14px 0', borderRight: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>{formatJourCourt(dateUtc)}</div>
         <div style={{ fontSize: 13, color: C.grey, marginTop: 2 }}>{formatHeure(dateUtc)}</div>
@@ -506,9 +623,9 @@ function AvenirRow({ rdv, annule, onPreparer }: { rdv: RdvRow; annule: boolean; 
       </div>
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 8 }}>
         <button onClick={onPreparer} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.orangeTexte, fontFamily: 'inherit', padding: 0, whiteSpace: 'nowrap' }}>
-          {prepLbl}
+          {prepData ? 'Revoir' : prepLbl}
         </button>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.orangeTexte, fontFamily: 'inherit', padding: 0, whiteSpace: 'nowrap' }}>
+        <button onClick={onAgenda} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.orangeTexte, fontFamily: 'inherit', padding: 0, whiteSpace: 'nowrap' }}>
           Ajouter à mon agenda
         </button>
         <Link href={convHref} style={{ fontSize: 13, fontWeight: 600, color: C.grey, textDecoration: 'none', whiteSpace: 'nowrap' }}>
@@ -567,6 +684,13 @@ export default function RendezVousPage() {
   const [activeRdv, setActiveRdv] = useState<{
     id: string; dateRdv: string; typeRdv: 'telephonique' | 'entretien'
   } | null>(null)
+  const [prepMap, setPrepMap] = useState<Record<string, { analysed_at: string }>>({})
+  const [passesOpen, setPassesOpen] = useState(false)
+
+  const containerRef     = useRef<HTMLDivElement>(null)
+  const prevPositionsRef = useRef<Map<string, DOMRect>>(new Map())
+  const flipPendingRef   = useRef(false)
+  const newRdvIdRef      = useRef<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -669,6 +793,74 @@ export default function RendezVousPage() {
     [passes.map(r => r.id).join(',')]
   )
 
+  const confirmedDates = useMemo(() => {
+    const opts = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const
+    return avenir
+      .filter(r => r.statut === 'acceptee')
+      .flatMap(r => {
+        const choisi = r.creneaux_rdv.find(c => c.selectionne)
+        if (!choisi) return []
+        return [{
+          jourParis: new Date(choisi.debut_utc).toLocaleDateString('fr-FR', opts),
+          type: r.type as 'telephonique' | 'entretien',
+          heure: formatHeure(choisi.debut_utc),
+        }]
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avenir.map(r => r.id + r.statut).join(',')])
+
+  useEffect(() => {
+    const rdvsToFetch = avenirSorted.filter(r => r.statut !== 'annulee').slice(0, 5)
+    if (!rdvsToFetch.length) return
+    async function fetchPreps() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const results = await Promise.all(
+        rdvsToFetch.map(async r => {
+          try {
+            const res = await fetch(`/api/prep-entretien?rdv_id=${encodeURIComponent(r.id)}`, {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            })
+            if (!res.ok) return null
+            const data = await res.json() as { reponse?: string; analysed_at?: string }
+            return data.analysed_at ? { id: r.id, analysed_at: data.analysed_at } : null
+          } catch {
+            return null
+          }
+        })
+      )
+      const map: Record<string, { analysed_at: string }> = {}
+      for (const r of results) {
+        if (r) map[r.id] = { analysed_at: r.analysed_at }
+      }
+      setPrepMap(map)
+    }
+    fetchPreps()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [avenirSorted.map(r => r.id).join(',')])
+
+  useEffect(() => {
+    if (loading || !containerRef.current) return
+    const cards = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-card-id]'))
+    prevPositionsRef.current = animerCartes(cards, new Map())
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  useLayoutEffect(() => {
+    if (!flipPendingRef.current || !containerRef.current) return
+    flipPendingRef.current = false
+    const cards = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-card-id]'))
+    prevPositionsRef.current = animerCartes(cards, prevPositionsRef.current)
+    if (newRdvIdRef.current) {
+      const newCard = containerRef.current.querySelector<HTMLElement>(`[data-card-id="${newRdvIdRef.current}"]`)
+      if (newCard && !reduitMouvement()) {
+        newCard.classList.add('rdvp-new-card')
+        setTimeout(() => newCard.classList.remove('rdvp-new-card'), 1600)
+      }
+      newRdvIdRef.current = null
+    }
+  })
+
   const isEmpty = !loading && attente.length === 0 && avenir.length === 0 && passes.length === 0
 
   // ── Sous-titre ────────────────────────────────────────────────────────────
@@ -683,7 +875,41 @@ export default function RendezVousPage() {
   }, [attente.length, avenir.length])
 
   // ── Callbacks ─────────────────────────────────────────────────────────────
+  function telechargerIcs(rdv: RdvRow) {
+    const choisi = rdv.creneaux_rdv.find(c => c.selectionne)
+    if (!choisi) return
+    const icsText = genererIcs({
+      rdvId:         rdv.id,
+      type:          rdv.type,
+      dureeMinutes:  rdv.duree_minutes,
+      entrepriseNom: rdv.entrepriseNom,
+      recruteurNom:  rdv.recruteurNom,
+      offreTitre:    rdv.offreTitre,
+      contactInfo:   rdv.contact_info,
+      debutUtc:      choisi.debut_utc,
+    })
+    const jourIso = new Date(choisi.debut_utc)
+      .toLocaleDateString('fr-FR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Europe/Paris' })
+      .split('/').reverse().join('-')
+    const filename = sanitizeFilename(`rendez-vous-${rdv.entrepriseNom}-${jourIso}.ics`)
+    const blob = new Blob([icsText], { type: 'text/calendar' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function handleConfirme(rdvId: string, creneauId: string) {
+    if (containerRef.current) {
+      const cards = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-card-id]'))
+      const before = new Map<string, DOMRect>()
+      cards.forEach(c => { const id = c.dataset.cardId; if (id) before.set(id, c.getBoundingClientRect()) })
+      prevPositionsRef.current = before
+      flipPendingRef.current   = true
+      newRdvIdRef.current      = rdvId
+    }
     setRows(prev => prev.map(r =>
       r.id !== rdvId ? r : {
         ...r, statut: 'acceptee',
@@ -726,13 +952,25 @@ export default function RendezVousPage() {
     <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <style suppressHydrationWarning>{`
         @keyframes rdvp-spin { to { transform: rotate(360deg) } }
-        details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; }
-        details > summary::-webkit-details-marker { display: none; }
-        details[open] .rdvp-chevron { transform: rotate(90deg); }
+        @keyframes rdvp-draw { from { stroke-dashoffset: 16 } to { stroke-dashoffset: 0 } }
+        @keyframes rdvp-new-outline {
+          0%   { box-shadow: 0 0 0 2px ${C.vert}, 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07); }
+          100% { box-shadow: 0 0 0 0px transparent, 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07); }
+        }
+        .rdvp-featured-card { box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07); transition: transform 180ms ease, box-shadow 180ms ease; }
+        .rdvp-featured-card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(27,48,38,.08), 0 12px 28px rgba(27,48,38,.12); }
+        .rdvp-avenir-row { box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07); transition: transform 180ms ease, box-shadow 180ms ease; }
+        .rdvp-avenir-row:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(27,48,38,.08), 0 12px 28px rgba(27,48,38,.12); }
+        .rdvp-creneau-btn { transition: transform 120ms; }
+        .rdvp-creneau-btn:active { transform: scale(0.97); }
+        .rdvp-new-card { animation: rdvp-new-outline 1.6s ease forwards; }
         .rdvp-chevron { transition: transform 0.2s; display: inline-flex; }
+        .rdvp-passes-content { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 280ms ${EASE}, opacity 280ms ${EASE}; }
+        .rdvp-passes-open { max-height: 2000px; opacity: 1; }
+        @media (prefers-reduced-motion: reduce) { .rdvp-featured-card, .rdvp-avenir-row, .rdvp-creneau-btn, .rdvp-chevron, .rdvp-passes-content { transition: none; } .rdvp-featured-card:hover, .rdvp-avenir-row:hover { transform: none; } }
       `}</style>
 
-      <div style={{ maxWidth: 980, margin: '0 auto', padding: '28px 36px 60px' }}>
+      <div ref={containerRef} style={{ maxWidth: 980, margin: '0 auto', padding: '28px 36px 60px' }}>
 
         {/* ── En-tête ──────────────────────────────────────────────────── */}
         <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 600, color: C.dark, margin: '0 0 6px' }}>
@@ -763,7 +1001,7 @@ export default function RendezVousPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {attente.map(rdv => (
-                <AttenteCard key={rdv.id} rdv={rdv} onConfirme={handleConfirme} onReload={handleReload} onRefuse={handleRefuse} />
+                <AttenteCard key={rdv.id} rdv={rdv} onConfirme={handleConfirme} onReload={handleReload} onRefuse={handleRefuse} confirmedDates={confirmedDates} />
               ))}
             </div>
           </section>
@@ -785,6 +1023,8 @@ export default function RendezVousPage() {
                     const choisi = featuredRdv.creneaux_rdv.find(c => c.selectionne)
                     setActiveRdv({ id: featuredRdv.id, dateRdv: choisi?.debut_utc ?? '', typeRdv: featuredRdv.type })
                   }}
+                  onAgenda={() => telechargerIcs(featuredRdv)}
+                  prepData={prepMap[featuredRdv.id] ?? null}
                 />
               </div>
             )}
@@ -800,6 +1040,8 @@ export default function RendezVousPage() {
                       const choisi = rdv.creneaux_rdv.find(c => c.selectionne)
                       setActiveRdv({ id: rdv.id, dateRdv: choisi?.debut_utc ?? '', typeRdv: rdv.type })
                     }}
+                    onAgenda={() => telechargerIcs(rdv)}
+                    prepData={prepMap[rdv.id] ?? null}
                   />
                 ))}
               </div>
@@ -809,9 +1051,12 @@ export default function RendezVousPage() {
 
         {/* ── Section Passés ───────────────────────────────────────────── */}
         {!loading && passes.length > 0 && (
-          <details>
-            <summary>
-              <span className="rdvp-chevron">
+          <div data-card-id="passes">
+            <button
+              onClick={() => setPassesOpen(p => !p)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 0' }}
+            >
+              <span className="rdvp-chevron" style={{ transform: passesOpen ? 'rotate(90deg)' : undefined }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 18 15 12 9 6" />
                 </svg>
@@ -819,13 +1064,15 @@ export default function RendezVousPage() {
               <span style={{ fontSize: 14, fontWeight: 600, color: C.grey }}>
                 Rendez-vous passés ({passes.length})
               </span>
-            </summary>
-            <div style={{ marginTop: 10, backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, overflow: 'hidden', padding: '0 16px' }}>
-              {passesSorted.map((rdv, i) => (
-                <PasseRow key={rdv.id} rdv={rdv} hasBorder={i > 0} />
-              ))}
+            </button>
+            <div className={`rdvp-passes-content${passesOpen ? ' rdvp-passes-open' : ''}`}>
+              <div style={{ marginTop: 10, backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, overflow: 'hidden', padding: '0 16px' }}>
+                {passesSorted.map((rdv, i) => (
+                  <PasseRow key={rdv.id} rdv={rdv} hasBorder={i > 0} />
+                ))}
+              </div>
             </div>
-          </details>
+          </div>
         )}
 
       </div>
