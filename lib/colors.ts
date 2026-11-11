@@ -32,6 +32,5 @@ export const C = {
   erreur:        '#C0392B',
 } as const
 
-export const CARD_SHADOW          = '0 1px 2px rgba(27, 48, 38, .06), 0 6px 16px rgba(27, 48, 38, .07)' as const
-export const CARD_SELECTED_SHADOW = '0 2px 4px rgba(27, 48, 38, .08), 0 12px 28px rgba(27, 48, 38, .13)' as const
-export const CARD_RADIUS          = 12 as const
+export const CARD_SHADOW = '0 1px 2px rgba(27, 48, 38, .06), 0 6px 16px rgba(27, 48, 38, .07)' as const
+export const CARD_RADIUS = 12 as const

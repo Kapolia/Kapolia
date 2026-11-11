@@ -6,8 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
-import { C, CARD_SHADOW, CARD_SELECTED_SHADOW, CARD_RADIUS } from '@/lib/colors'
-import { SelectedPointer } from '@/components/SelectedPointer'
+import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { largeurUtile } from '@/lib/largeur-utile'
 import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, animerCartes } from '@/lib/motion'
 import { useNavigationClavier } from '@/hooks/useNavigationClavier'
@@ -221,17 +220,17 @@ function CandidatureCard({ cand, isSelected, convByOffre, rdvByConv, onClick }: 
       onMouseLeave={() => setHov(false)}
       style={{
         width: '100%', textAlign: 'left', fontFamily: 'inherit',
-        backgroundColor: C.white,
-        border: `1px solid ${C.sable}`,
+        backgroundColor: isSelected ? `${C.orange}07` : hov ? `${C.dark}03` : C.white,
+        border: `1px solid ${isSelected ? C.orange : C.sable}`,
+        borderLeft: `3px solid ${isSelected ? C.orange : hov ? `${C.orange}60` : 'transparent'}`,
         borderRadius: CARD_RADIUS,
         padding: '14px 16px',
         cursor: 'pointer',
-        outline: isSelected ? `2px solid ${C.vert}` : 'none',
-        outlineOffset: '-2px',
-        scale: isSelected ? '1.035' : '1',
-        translate: !isSelected && hov ? '0 -1px' : 'none',
-        boxShadow: isSelected ? CARD_SELECTED_SHADOW : CARD_SHADOW,
-        transition: `box-shadow 0.15s, outline 0.15s, scale 240ms ${EASE}, translate 0.15s`,
+        transform: isSelected ? 'scale(1.035)' : 'scale(1)',
+        boxShadow: isSelected
+          ? '0 2px 4px rgba(27,48,38,.08), 0 12px 28px rgba(27,48,38,.13)'
+          : CARD_SHADOW,
+        transition: `box-shadow 0.15s, border-color 0.15s, background-color 0.15s, transform 240ms ${EASE}`,
       }}
     >
       {/* Ligne 1 : logo + titre + sous-titre */}
@@ -1379,7 +1378,6 @@ function CandidaturesPageInner() {
               data-card-id={cand.id}
               tabIndex={-1}
               ref={el => { if (el) cardRefsMap.current.set(cand.id, el); else cardRefsMap.current.delete(cand.id) }}
-              style={{ position: 'relative', zIndex: cand.id === selectedId ? 2 : undefined }}
             >
               <CandidatureCard
                 cand={cand}
@@ -1388,7 +1386,6 @@ function CandidaturesPageInner() {
                 rdvByConv={rdvByConv}
                 onClick={() => handleSelect(cand.id)}
               />
-              {isSplit && cand.id === selectedId && <SelectedPointer />}
             </div>
           ))}
         </div>
