@@ -1284,6 +1284,32 @@ function CandidaturesPageInner() {
 
   if (loading) return <Spinner fullPage />
 
+  if (candidatures.length === 0) {
+    return (
+      <div style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+        <div style={{
+          backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW,
+          padding: 40, maxWidth: 480, width: '100%', textAlign: 'center',
+        }}>
+          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 600, color: C.dark, margin: '0 0 8px' }}>
+            Vous n&apos;avez pas encore postulé
+          </h2>
+          <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px', lineHeight: 1.6 }}>
+            Postulez en un clic depuis une offre : votre profil Kapolia fait office de candidature.
+          </p>
+          <Link href="/offres" style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: C.orange, color: '#fff', fontWeight: 600,
+            borderRadius: 10, padding: '12px 24px',
+            textDecoration: 'none', fontFamily: 'inherit', fontSize: 14,
+          }}>
+            Voir les offres
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const selectedCand = candidatures.find(c => c.id === selectedId) ?? null
 
   // ── Render panneau ────────────────────────────────────────────────────────
@@ -1318,8 +1344,17 @@ function CandidaturesPageInner() {
 
     if (groups.length === 0 || (groups.length === 1 && groups[0].items.length === 0)) {
       return (
-        <div style={{ padding: '48px 20px', textAlign: 'center', color: C.grey, fontSize: 14 }}>
-          {tab === 'en_cours' ? 'Aucune candidature en cours.' : 'Aucune candidature clôturée.'}
+        <div style={{ marginTop: 16, fontSize: 14, color: C.grey }}>
+          {tab === 'cloturees' ? (
+            'Aucune candidature clôturée pour l\'instant.'
+          ) : (
+            <>
+              {'Aucune candidature en cours. '}
+              <Link href="/offres" style={{ color: C.orangeTexte, textDecoration: 'none' }}>
+                Voir les offres
+              </Link>
+            </>
+          )}
         </div>
       )
     }
@@ -1446,19 +1481,22 @@ function CandidaturesPageInner() {
 
         {/* Colonne gauche */}
         <div ref={leftColRef} style={{
-          width: 372, flexShrink: 0,
+          ...(currentList.length > 0
+            ? { width: 372, flexShrink: 0, borderRight: `1px solid ${C.sable}` }
+            : { flex: 1 }),
           overflowY: 'auto',
           padding: '16px 16px 40px',
-          borderRight: `1px solid ${C.sable}`,
           display: 'flex', flexDirection: 'column', gap: 20,
         }}>
           {renderList()}
         </div>
 
-        {/* Panneau droit */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', backgroundColor: C.bg }}>
-          {panelNode}
-        </div>
+        {/* Panneau droit — masqué quand l'onglet est vide */}
+        {currentList.length > 0 && (
+          <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', backgroundColor: C.bg }}>
+            {panelNode}
+          </div>
+        )}
 
       </div>
 
