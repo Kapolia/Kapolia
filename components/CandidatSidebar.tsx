@@ -378,9 +378,7 @@ export default function CandidatSidebar({
         setPillStyle(null)
         return
       }
-      const navRect = nav.getBoundingClientRect()
-      const btnRect = btn.getBoundingClientRect()
-      setPillStyle({ top: btnRect.top - navRect.top + nav.scrollTop, height: btnRect.height })
+      setPillStyle({ top: btn.offsetTop, height: btn.offsetHeight })
     }
     measure()
     remeasureRef.current = measure

@@ -24,11 +24,9 @@ export function OngletNav({ onglets, actif, onChange }: Props) {
     const btn = container.querySelector<HTMLElement>(`[data-onglet="${actif}"]`)
     if (!btn) return
 
-    const cr   = btn.getBoundingClientRect()
-    const pr   = container.getBoundingClientRect()
-    const left = cr.left - pr.left
-    const w    = cr.width
-    const h    = cr.height
+    const left = btn.offsetLeft
+    const w    = btn.offsetWidth
+    const h    = btn.offsetHeight
 
     if (isFirstRef.current) {
       isFirstRef.current = false
