@@ -8,7 +8,8 @@ import { FONT_SERIF } from '@/lib/typography'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { largeurUtile } from '@/lib/largeur-utile'
-import { EASE, reduitMouvement, fondurPanneau, entrerPanneau } from '@/lib/motion'
+import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, animerCartes } from '@/lib/motion'
+import { useNavigationClavier } from '@/hooks/useNavigationClavier'
 import { Bandeau, type BandeauHandle } from '@/components/Bandeau'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
 import { BadgeStatutCandidat } from '@/components/BadgeStatutCandidat'
@@ -225,10 +226,11 @@ function CandidatureCard({ cand, isSelected, convByOffre, rdvByConv, onClick }: 
         borderRadius: CARD_RADIUS,
         padding: '14px 16px',
         cursor: 'pointer',
+        transform: isSelected ? 'scale(1.035)' : 'scale(1)',
         boxShadow: isSelected
-          ? '0 4px 10px rgba(27,48,38,.10), 0 14px 34px rgba(27,48,38,.14)'
+          ? '0 2px 4px rgba(27,48,38,.08), 0 12px 28px rgba(27,48,38,.13)'
           : CARD_SHADOW,
-        transition: 'box-shadow 0.15s, border-color 0.15s, background-color 0.15s',
+        transition: `box-shadow 0.15s, border-color 0.15s, background-color 0.15s, transform 240ms ${EASE}`,
       }}
     >
       {/* Ligne 1 : logo + titre + sous-titre */}
@@ -289,8 +291,34 @@ const STATUT_RANG: Record<string, number> = { 'envoyée': 0, 'vue': 1, 'en cours
 const ETAPE_RANG: Record<string, number>  = { 'envoyée': 0, 'vue': 1, 'en cours': 2, 'reponse': 3 }
 
 function Suivi({ statut, candCreatedAt }: { statut: string; candCreatedAt: string }) {
+  const rootRef  = useRef<HTMLDivElement>(null)
   const terminal = isCloturee(statut)
   const curRang  = STATUT_RANG[statut] ?? 0
+
+  useLayoutEffect(() => {
+    if (reduitMouvement()) return
+    const root = rootRef.current
+    if (!root) return
+    const circles = Array.from(root.querySelectorAll<HTMLElement>('[data-suivi-circle]'))
+    const lines   = Array.from(root.querySelectorAll<HTMLElement>('[data-suivi-line]'))
+    circles.forEach((circle, i) => {
+      const franchie = terminal || i < curRang
+      const actuelle = !terminal && i === curRang
+      if (!franchie && !actuelle) return
+      const delay = 120 + i * 150
+      circle.animate(
+        [{ opacity: '0', transform: 'scale(0.6)' }, { opacity: '1', transform: 'scale(1)' }],
+        { duration: 200, easing: EASE, delay, fill: 'backwards' }
+      )
+    })
+    lines.forEach((line, i) => {
+      if (!terminal && i >= curRang) return
+      line.animate(
+        [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }],
+        { duration: 220, easing: EASE, delay: 120 + i * 150 + 200, fill: 'backwards' }
+      )
+    })
+  }, []) // key={cand.id} sur <Suivi> force le remontage à chaque changement de candidature
 
   function circleState(i: number): 'franchie' | 'actuelle' | 'avenir' {
     if (terminal) return 'franchie'
@@ -304,7 +332,7 @@ function Suivi({ statut, candCreatedAt }: { statut: string; candCreatedAt: strin
   })
 
   return (
-    <div>
+    <div ref={rootRef}>
       <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 20 }}>
         Suivi
       </div>
@@ -316,12 +344,15 @@ function Suivi({ statut, candCreatedAt }: { statut: string; candCreatedAt: strin
           return (
             <div key={etape.key} style={{ display: 'contents' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, minWidth: 0 }}>
-                <div style={{
-                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                  backgroundColor: st === 'franchie' ? C.vert : 'transparent',
-                  border: st === 'franchie' ? 'none' : `2px solid ${st === 'actuelle' ? C.vert : '#C9CECB'}`,
-                  boxShadow: st === 'actuelle' ? '0 0 0 4px #E6EFE9' : 'none',
-                }} />
+                <div
+                  data-suivi-circle={i}
+                  style={{
+                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                    backgroundColor: st === 'franchie' ? C.vert : 'transparent',
+                    border: st === 'franchie' ? 'none' : `2px solid ${st === 'actuelle' ? C.vert : '#C9CECB'}`,
+                    boxShadow: st === 'actuelle' ? '0 0 0 4px #E6EFE9' : 'none',
+                  }}
+                />
                 <div style={{ fontSize: 11, color: st === 'avenir' ? '#9AA19C' : C.grey, marginTop: 7, textAlign: 'center', lineHeight: 1.3 }}>
                   {etape.label}
                 </div>
@@ -340,7 +371,10 @@ function Suivi({ statut, candCreatedAt }: { statut: string; candCreatedAt: strin
                 )}
               </div>
               {i < 3 && (
-                <div style={{ flex: 1, height: 2, backgroundColor: lineColor, marginTop: 9, minWidth: 8 }} />
+                <div
+                  data-suivi-line={i}
+                  style={{ flex: 1, height: 2, backgroundColor: lineColor, marginTop: 9, minWidth: 8, transformOrigin: 'left center' }}
+                />
               )}
             </div>
           )
@@ -747,7 +781,7 @@ function CandidaturePanel({ cand, convByOffre, rdvByConv, recruteurProfils, offr
 
       {/* Suivi */}
       <div style={{ padding: '20px 24px', borderBottom: '1px solid #E7EAE8' }}>
-        <Suivi statut={cand.statut} candCreatedAt={cand.created_at} />
+        <Suivi key={cand.id} statut={cand.statut} candCreatedAt={cand.created_at} />
       </div>
 
       {/* Ce qui vous attend */}
@@ -825,6 +859,14 @@ function CandidaturesPageInner() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
 
   const detailPanelRef    = useRef<HTMLDivElement>(null)
+  const leftColRef        = useRef<HTMLDivElement>(null)
+  const cardRefsMap       = useRef(new Map<string, HTMLElement>())
+  const prevPositionsRef  = useRef(new Map<string, DOMRect>())
+  const displayedRef      = useRef<{ id: string }[]>([])
+  const selectedIdRef     = useRef<string | null>(null)
+  const skipNextFlipRef   = useRef(false)
+  const restoreCardIdRef  = useRef<string | null>(null)
+  const prevIsSplitRef    = useRef(false)
   const initDoneRef       = useRef(false)
   const bandeauRef        = useRef<BandeauHandle>(null)
   const bandeauTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1058,9 +1100,58 @@ function CandidaturesPageInner() {
     entrerPanneau(el)
   }, [selectedId])
 
+  // ── Sync refs pour navigation clavier ────────────────────────────────────
+  useEffect(() => { displayedRef.current  = currentList }, [currentList])
+  useEffect(() => { selectedIdRef.current = selectedId  }, [selectedId])
+
+  // ── Cascade + FLIP quand la liste change ──────────────────────────────────
+  useLayoutEffect(() => {
+    const justSplit = prevIsSplitRef.current !== isSplit
+    prevIsSplitRef.current = isSplit
+    if (justSplit) prevPositionsRef.current = new Map()
+
+    if (!leftColRef.current) return
+    const cards = leftColRef.current.querySelectorAll<HTMLElement>('[data-card-id]')
+
+    if (skipNextFlipRef.current) {
+      skipNextFlipRef.current = false
+      const id = restoreCardIdRef.current
+      if (id) {
+        restoreCardIdRef.current = null
+        const newPos = new Map<string, DOMRect>()
+        Array.from(cards).forEach(c => { newPos.set(c.dataset.cardId!, c.getBoundingClientRect()) })
+        prevPositionsRef.current = newPos
+        const el = cardRefsMap.current.get(id)
+        if (el && !reduitMouvement()) {
+          const h = el.scrollHeight
+          el.style.overflow = 'hidden'
+          el.style.height = '0px'
+          requestAnimationFrame(() => {
+            el.animate(
+              [{ height: '0px', opacity: '0' }, { height: h + 'px', opacity: '0' }],
+              { duration: 260, easing: EASE }
+            ).onfinish = () => {
+              el.style.height = ''
+              el.style.overflow = ''
+              el.animate(
+                [{ opacity: '0', transform: 'scale(0.97)' }, { opacity: '1', transform: 'scale(1)' }],
+                { duration: 220, easing: EASE }
+              )
+            }
+          })
+        }
+      }
+      return
+    }
+
+    prevPositionsRef.current = animerCartes(cards, prevPositionsRef.current)
+  }, [currentList, isSplit, rdvByConv])
+
+  // ── Navigation clavier (flèches haut/bas) ────────────────────────────────
+  useNavigationClavier(displayedRef, selectedIdRef, handleSelect, cardRefsMap, leftColRef, isSplit)
+
   // ── Retirer de ma liste (bandeau Annuler, écriture différée 5 s) ──────────
   function handleRetirer(candId: string) {
-    // Commit toute écriture précédente en attente
     if (bandeauTimerRef.current) { clearTimeout(bandeauTimerRef.current); bandeauTimerRef.current = null }
     if (pendingRetirerRef.current) {
       supabase.from('candidatures').update({ masquee_candidat: true }).eq('id', pendingRetirerRef.current)
@@ -1077,22 +1168,47 @@ function CandidaturesPageInner() {
       if (!isSplit) setMobilePanelOpen(false)
     }
 
-    setCandidatures(prev => prev.filter(c => c.id !== candId))
     bandeauIndexRef.current   = idx
     pendingRetirerRef.current = candId
-    setBandeauCand(cand)
 
-    bandeauTimerRef.current = setTimeout(() => {
-      const commit = () => {
-        setBandeauCand(null)
-        if (pendingRetirerRef.current) {
-          supabase.from('candidatures').update({ masquee_candidat: true }).eq('id', pendingRetirerRef.current)
-          pendingRetirerRef.current = null
+    function doRemoveAndBandeau() {
+      setCandidatures(prev => prev.filter(c => c.id !== candId))
+      setBandeauCand(cand)
+      bandeauTimerRef.current = setTimeout(() => {
+        const commit = () => {
+          setBandeauCand(null)
+          if (pendingRetirerRef.current === candId) {
+            supabase.from('candidatures').update({ masquee_candidat: true }).eq('id', candId)
+            pendingRetirerRef.current = null
+          }
         }
+        if (bandeauRef.current) bandeauRef.current.animateOut(commit)
+        else commit()
+      }, 5000)
+    }
+
+    const wrapper = isSplit && !reduitMouvement() ? cardRefsMap.current.get(candId) : null
+    if (wrapper) {
+      const h = wrapper.getBoundingClientRect().height
+      wrapper.animate(
+        [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(0.97)' }],
+        { duration: 160, easing: 'ease-in', fill: 'forwards' }
+      )
+      const collapseAnim = wrapper.animate(
+        [{ height: h + 'px', marginBottom: '0px' }, { height: '0px', marginBottom: '-8px' }],
+        { duration: 260, easing: EASE, delay: 80, fill: 'forwards' }
+      )
+      collapseAnim.onfinish = () => {
+        const snap = new Map<string, DOMRect>()
+        cardRefsMap.current.forEach((el, id) => {
+          if (el.isConnected && id !== candId) snap.set(id, el.getBoundingClientRect())
+        })
+        prevPositionsRef.current = snap
+        doRemoveAndBandeau()
       }
-      if (bandeauRef.current) bandeauRef.current.animateOut(commit)
-      else commit()
-    }, 5000)
+    } else {
+      doRemoveAndBandeau()
+    }
   }
 
   async function handleAnnuler() {
@@ -1109,11 +1225,23 @@ function CandidaturesPageInner() {
     pendingRetirerRef.current = null
     if (!toRestore) return
 
-    setCandidatures(prev => {
-      const next = [...prev]
-      next.splice(Math.min(Math.max(0, idx), next.length), 0, toRestore)
-      return next
-    })
+    // Cancel WAAPI animations if card is still in DOM (Annuler during animation)
+    const wrapper = cardRefsMap.current.get(toRestore.id)
+    if (wrapper) wrapper.getAnimations().forEach(a => a.cancel())
+
+    // wrapper.isConnected === false means card was removed from state
+    const needsReinsert = !wrapper || !wrapper.isConnected
+    if (needsReinsert) {
+      if (isSplit && !reduitMouvement()) {
+        skipNextFlipRef.current  = true
+        restoreCardIdRef.current = toRestore.id
+      }
+      setCandidatures(prev => {
+        const next = [...prev]
+        next.splice(Math.min(Math.max(0, idx), next.length), 0, toRestore)
+        return next
+      })
+    }
     if (isSplit) setSelectedId(toRestore.id)
   }
 
@@ -1197,17 +1325,33 @@ function CandidaturesPageInner() {
 
     return groups.map((g, gi) => (
       <div key={gi} style={{ marginBottom: g.label ? 20 : 0 }}>
-        {g.label && <GroupLabel label={g.label} count={g.items.length} />}
+        {g.label && (
+          <div
+            data-card-id={`__group__${g.label}`}
+            ref={el => {
+              const k = `__group__${g.label}`
+              if (el) cardRefsMap.current.set(k, el); else cardRefsMap.current.delete(k)
+            }}
+          >
+            <GroupLabel label={g.label} count={g.items.length} />
+          </div>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {g.items.map(cand => (
-            <CandidatureCard
+            <div
               key={cand.id}
-              cand={cand}
-              isSelected={cand.id === selectedId}
-              convByOffre={convByOffre}
-              rdvByConv={rdvByConv}
-              onClick={() => handleSelect(cand.id)}
-            />
+              data-card-id={cand.id}
+              tabIndex={-1}
+              ref={el => { if (el) cardRefsMap.current.set(cand.id, el); else cardRefsMap.current.delete(cand.id) }}
+            >
+              <CandidatureCard
+                cand={cand}
+                isSelected={cand.id === selectedId}
+                convByOffre={convByOffre}
+                rdvByConv={rdvByConv}
+                onClick={() => handleSelect(cand.id)}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -1273,7 +1417,7 @@ function CandidaturesPageInner() {
       <div style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
         <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
         {header}
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '16px 20px 80px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div ref={leftColRef} style={{ maxWidth: 760, margin: '0 auto', padding: '16px 20px 80px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {renderList()}
         </div>
         {bandeauCand && (
@@ -1298,7 +1442,7 @@ function CandidaturesPageInner() {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* Colonne gauche */}
-        <div style={{
+        <div ref={leftColRef} style={{
           width: 372, flexShrink: 0,
           overflowY: 'auto',
           padding: '16px 16px 40px',
