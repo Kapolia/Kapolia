@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { notifCreneauConfirme } from './actions/email-notifs'
+import { notifCreneauConfirme, notifRdvRefuse } from './actions/email-notifs'
 import type { PostgrestError } from '@supabase/supabase-js'
 
 export type RdvPlusPropose = { code: 'RDV_PLUS_PROPOSE'; statut: string }
@@ -58,5 +58,44 @@ export async function accepterCreneau(
   }
 
   notifCreneauConfirme(rdvId, creneauId).catch(e => console.error('[notif creneau-confirme]', e))
+  return { error: null }
+}
+
+export async function refuserCreneaux(
+  rdvId:   string,
+  message: string | null,
+): Promise<{ error: PostgrestError | RdvPlusPropose | null; messageNonEnvoye?: true }> {
+  const { data: updated, error: rdvErr } = await supabase
+    .from('rendez_vous')
+    .update({ statut: 'refusee' })
+    .eq('id', rdvId)
+    .eq('statut', 'proposee')
+    .select('id, conversation_id')
+  if (rdvErr) {
+    console.error('[refuserCreneaux rdv]', rdvErr.message, rdvErr.code, rdvErr.details, rdvErr.hint)
+    return { error: rdvErr }
+  }
+  if (!updated || updated.length === 0) {
+    return { error: { code: 'RDV_PLUS_PROPOSE', statut: 'inconnu' } }
+  }
+
+  const conversationId = (updated[0] as { conversation_id: string }).conversation_id
+
+  if (message?.trim()) {
+    const { data: authData } = await supabase.auth.getUser()
+    const user = authData?.user
+    if (user) {
+      const { error: msgErr } = await supabase
+        .from('messages')
+        .insert({ expediteur_id: user.id, conversation_id: conversationId, contenu: message.trim() })
+      if (msgErr) {
+        console.error('[refuserCreneaux message]', msgErr.message, msgErr.code, msgErr.details, msgErr.hint)
+        notifRdvRefuse(rdvId, false).catch(e => console.error('[notif rdv-refuse]', e))
+        return { error: null, messageNonEnvoye: true }
+      }
+    }
+  }
+
+  notifRdvRefuse(rdvId, !!(message?.trim())).catch(e => console.error('[notif rdv-refuse]', e))
   return { error: null }
 }

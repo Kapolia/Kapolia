@@ -3,6 +3,7 @@
 import { after } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendEmail } from '@/lib/email'
+import { escapeHtml } from '@/lib/escape-html'
 
 const SITE = 'https://kapolia.com'
 
@@ -201,5 +202,49 @@ export async function notifRdvAnnule(rdvId: string, statutAvant: 'proposee' | 'a
       text:    `${corps}\n\n${convLink}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
     })
     if (!result.ok) console.error('[email-notifs] rdv-annule', result.error, { rdvId })
+  })
+}
+
+// ── Email 6 : aucun créneau retenu → recruteur ────────────────────────────────
+
+export async function notifRdvRefuse(rdvId: string, avecMessage: boolean) {
+  after(async () => {
+    const admin = adminClient()
+    const { data: rdv } = await admin
+      .from('rendez_vous')
+      .select('recruteur_id, candidat_id, conversation_id')
+      .eq('id', rdvId)
+      .single()
+    if (!rdv?.recruteur_id) { console.error('[email-notifs] rdv-refuse: rdv introuvable', { rdvId }); return }
+
+    const email = await fetchEmailSiActif(rdv.recruteur_id, admin)
+    if (!email) return
+
+    const [{ data: profil }, { data: conv }] = await Promise.all([
+      admin.from('profils').select('prenom').eq('user_id', rdv.candidat_id).single(),
+      admin.from('conversations').select('offre_id').eq('id', rdv.conversation_id).single(),
+    ])
+    const prenomRaw   = (profil as { prenom?: string } | null)?.prenom ?? 'Le candidat'
+    const offreId     = (conv as { offre_id?: string } | null)?.offre_id
+    let offreTitreRaw = ''
+    if (offreId) {
+      const { data: offre } = await admin.from('offres').select('titre').eq('id', offreId).single()
+      offreTitreRaw = (offre as { titre?: string } | null)?.titre ?? ''
+    }
+
+    const prenomH        = escapeHtml(prenomRaw)
+    const titreH         = escapeHtml(offreTitreRaw)
+    const titreClauseH   = titreH          ? ` pour le poste ${titreH}`        : ''
+    const titreClauseTxt = offreTitreRaw   ? ` pour le poste ${offreTitreRaw}` : ''
+    const msgClause      = avecMessage     ? ' Un message vous attend dans la conversation.' : ''
+    const convLink       = `${SITE}/recruteur/messages?conv=${rdv.conversation_id}`
+
+    const result = await sendEmail({
+      to:      { email },
+      subject: `${prenomRaw} n'a retenu aucun créneau`,
+      html:    `<p>Bonjour,</p><p>${prenomH} n'a retenu aucun des créneaux proposés${titreClauseH}.${msgClause}</p><p><a href="${convLink}">Voir la conversation</a></p>${pied()}`,
+      text:    `${prenomRaw} n'a retenu aucun des créneaux proposés${titreClauseTxt}.${msgClause}\n\n${convLink}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+    })
+    if (!result.ok) console.error('[email-notifs] rdv-refuse', result.error, { rdvId })
   })
 }

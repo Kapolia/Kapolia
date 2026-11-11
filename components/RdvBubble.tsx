@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { accepterCreneau, isRdvPlusPropose } from '@/lib/rdv'
+import { accepterCreneau, isRdvPlusPropose, refuserCreneaux } from '@/lib/rdv'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
@@ -49,7 +49,8 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
   const [loading,   setLoading]   = useState(true)
   const [acting,    setActing]    = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  const [errMsg,    setErrMsg]    = useState<string | null>(null)
+  const [errMsg,       setErrMsg]       = useState<string | null>(null)
+  const [confirmRefus, setConfirmRefus] = useState(false)
 
   useEffect(() => {
     supabase
@@ -92,16 +93,21 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
   async function refuser() {
     if (!rdv || acting) return
     setActing(true)
-    const { error } = await supabase
-      .from('rendez_vous')
-      .update({ statut: 'refusee' })
-      .eq('id', rdvId)
+    const { error } = await refuserCreneaux(rdvId, null)
     if (error) {
-      console.error('[RdvBubble refuser]', error.message, error.code, error.details, error.hint)
+      if (isRdvPlusPropose(error)) {
+        setErrMsg('Ce rendez-vous n\'est plus disponible.')
+        setReloadKey(k => k + 1)
+      } else {
+        console.error('[RdvBubble refuser]', error.message, error.code, error.details, error.hint)
+        setErrMsg('Le refus n\'a pas pu être envoyé. Réessayez dans un instant.')
+      }
+      setConfirmRefus(false)
       setActing(false)
       return
     }
     setRdv(prev => prev ? { ...prev, statut: 'refusee' } : prev)
+    setConfirmRefus(false)
     setActing(false)
   }
 
@@ -228,11 +234,28 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
       {/* ── Pied — actions ───────────────────────────────────────────────── */}
       {role === 'candidat' && interactif && (
         <div style={{ borderTop: `1px solid ${C.sable}`, padding: '7px 12px', textAlign: 'center' }}>
-          <button
-            onClick={refuser}
-            style={{ fontSize: 11, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}>
-            Aucun créneau ne me convient
-          </button>
+          {!confirmRefus ? (
+            <button
+              onClick={() => setConfirmRefus(true)}
+              style={{ fontSize: 11, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', padding: 0 }}>
+              Aucun créneau ne me convient
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11, color: C.grey }}>Décliner ces créneaux ?</span>
+              <button
+                onClick={refuser}
+                style={{ fontSize: 11, fontWeight: 600, color: '#8A3B12', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                Décliner
+              </button>
+              <span style={{ fontSize: 10, color: C.lightGrey }}>·</span>
+              <button
+                onClick={() => setConfirmRefus(false)}
+                style={{ fontSize: 11, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>
+                Annuler
+              </button>
+            </div>
+          )}
         </div>
       )}
 

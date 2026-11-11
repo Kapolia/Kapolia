@@ -7,7 +7,7 @@ import { FONT_SERIF } from '@/lib/typography'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
 import AssistantPrepEntretien from '@/components/AssistantPrepEntretien'
-import { accepterCreneau, isRdvPlusPropose } from '@/lib/rdv'
+import { accepterCreneau, isRdvPlusPropose, refuserCreneaux } from '@/lib/rdv'
 import { formatJourLong, formatHeure, formatJourCourt, delaiRelatif } from '@/lib/rdv-format'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -141,15 +141,21 @@ function Chip({ icon, label }: { icon: ReactNode; label: string }) {
 
 // ─── Carte "À confirmer" ──────────────────────────────────────────────────────
 
-function AttenteCard({ rdv, onConfirme, onReload }: {
+function AttenteCard({ rdv, onConfirme, onReload, onRefuse }: {
   rdv:        RdvRow
   onConfirme: (rdvId: string, creneauId: string) => void
   onReload:   (rdvId: string) => void
+  onRefuse:   (rdvId: string) => void
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [confirmed,  setConfirmed]  = useState<string | null>(null)
-  const [errMsg,     setErrMsg]     = useState<string | null>(null)
+  const [selectedId,      setSelectedId]      = useState<string | null>(null)
+  const [submitting,      setSubmitting]       = useState(false)
+  const [confirmed,       setConfirmed]        = useState<string | null>(null)
+  const [errMsg,          setErrMsg]           = useState<string | null>(null)
+  const [showRefus,       setShowRefus]        = useState(false)
+  const [refusMsg,        setRefusMsg]         = useState('')
+  const [refusSubmitting, setRefusSubmitting]  = useState(false)
+  const [refusErrMsg,     setRefusErrMsg]      = useState<string | null>(null)
+  const [refusMsgPartiel, setRefusMsgPartiel]  = useState(false)
 
   const now    = Date.now()
   const futurs = rdv.creneaux_rdv
@@ -163,7 +169,6 @@ function AttenteCard({ rdv, onConfirme, onReload }: {
     : `un entretien de ${rdv.duree_minutes} minutes`
   const dateCreation     = propositionDate(rdv.created_at)
   const qui              = rdv.recruteurNom || 'Le recruteur'
-  const poste            = rdv.offreTitre ? `, ${rdv.offreTitre},` : ''
   const convHref         = `/dashboard/messages?conv=${rdv.conversation_id}`
   const confirmedCreneau = confirmed ? rdv.creneaux_rdv.find(c => c.id === confirmed) ?? null : null
 
@@ -186,9 +191,24 @@ function AttenteCard({ rdv, onConfirme, onReload }: {
     setTimeout(() => onConfirme(rdv.id, selectedId!), 900)
   }
 
-  async function refuser() {
-    const { error } = await supabase.from('rendez_vous').update({ statut: 'refusee' }).eq('id', rdv.id)
-    if (!error) onReload(rdv.id)
+  async function decliner() {
+    if (refusSubmitting) return
+    setRefusSubmitting(true)
+    setRefusErrMsg(null)
+    const result = await refuserCreneaux(rdv.id, refusMsg || null)
+    if (result.error) {
+      setRefusErrMsg('Votre réponse n\'a pas pu être envoyée. Réessayez dans un instant.')
+      if (isRdvPlusPropose(result.error)) onReload(rdv.id)
+      setRefusSubmitting(false)
+      return
+    }
+    if (result.messageNonEnvoye) {
+      setRefusMsgPartiel(true)
+      setRefusSubmitting(false)
+      return
+    }
+    setRefusSubmitting(false)
+    onRefuse(rdv.id)
   }
 
   return (
@@ -210,7 +230,7 @@ function AttenteCard({ rdv, onConfirme, onReload }: {
       {/* Phrase */}
       <div style={{ margin: '16px 22px 0', backgroundColor: '#FBF3EC', borderRadius: 10, padding: '14px 16px' }}>
         <p style={{ fontSize: 15, color: C.dark, margin: 0, lineHeight: 1.6 }}>
-          <strong>{qui}</strong>{poste} vous propose {nStr} créneau{n > 1 ? 'x' : ''} pour {typeStr}. Proposition reçue {dateCreation}.
+          <strong>{qui}</strong> vous propose {nStr} créneau{n > 1 ? 'x' : ''} pour {typeStr}. Proposition reçue {dateCreation}.
         </p>
       </div>
 
@@ -287,12 +307,69 @@ function AttenteCard({ rdv, onConfirme, onReload }: {
           </Link>
         </div>
         <button
-          onClick={refuser}
+          onClick={() => setShowRefus(true)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: C.grey, textDecoration: 'underline', fontFamily: 'inherit', padding: 0 }}
         >
           Aucun créneau ne me convient
         </button>
       </div>
+
+      {showRefus && (
+        <div style={{ padding: '0 22px 18px' }}>
+          <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '14px 16px' }}>
+            {refusMsgPartiel ? (
+              <>
+                <p style={{ fontSize: 13, color: '#8A3B12', margin: '0 0 12px', lineHeight: 1.5 }}>
+                  Les créneaux ont été déclinés, mais votre message n'a pas pu être ajouté à la conversation.{' '}
+                  <Link href={convHref} style={{ fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>
+                    Ouvrir la conversation
+                  </Link>
+                </p>
+                <textarea
+                  value={refusMsg}
+                  readOnly
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: `1.5px solid ${C.sable}`, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', color: C.grey, backgroundColor: C.bg, resize: 'vertical', outline: 'none' }}
+                />
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 14, color: C.dark, margin: '0 0 12px', lineHeight: 1.6 }}>
+                  Votre réponse sera transmise à <strong>{qui}</strong>. Vous pouvez lui indiquer vos disponibilités, votre message sera ajouté à la conversation.
+                </p>
+                <textarea
+                  value={refusMsg}
+                  onChange={e => setRefusMsg(e.target.value.slice(0, 500))}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Par exemple : je suis disponible les mardis et jeudis après-midi."
+                  style={{ width: '100%', boxSizing: 'border-box', borderRadius: 8, border: `1.5px solid ${C.sable}`, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', color: C.dark, backgroundColor: C.white, resize: 'vertical', outline: 'none', marginBottom: 12 }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <button
+                    onClick={decliner}
+                    disabled={refusSubmitting}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8, backgroundColor: C.orange, color: '#fff', fontWeight: 600, borderRadius: 10, padding: '10px 18px', fontSize: 14, border: 'none', fontFamily: 'inherit', cursor: refusSubmitting ? 'default' : 'pointer', opacity: refusSubmitting ? 0.7 : 1 }}
+                  >
+                    {refusSubmitting ? <><SpinnerSmall /> Décliner ces créneaux</> : 'Décliner ces créneaux'}
+                  </button>
+                  <button
+                    onClick={() => { setShowRefus(false); setRefusMsgPartiel(false) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.grey, fontFamily: 'inherit', padding: 0 }}
+                  >
+                    Revenir aux créneaux
+                  </button>
+                </div>
+                {refusErrMsg && (
+                  <p style={{ fontSize: 13, color: '#8A3B12', margin: '8px 0 0', lineHeight: 1.5 }}>
+                    {refusErrMsg}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -637,6 +714,13 @@ export default function RendezVousPage() {
     })
   }
 
+  function handleRefuse(rdvId: string) {
+    setRows(prev => prev.map(r =>
+      r.id !== rdvId ? r : { ...r, statut: 'refusee' }
+    ))
+    window.dispatchEvent(new Event('rdv-confirme'))
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
@@ -679,7 +763,7 @@ export default function RendezVousPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {attente.map(rdv => (
-                <AttenteCard key={rdv.id} rdv={rdv} onConfirme={handleConfirme} onReload={handleReload} />
+                <AttenteCard key={rdv.id} rdv={rdv} onConfirme={handleConfirme} onReload={handleReload} onRefuse={handleRefuse} />
               ))}
             </div>
           </section>
