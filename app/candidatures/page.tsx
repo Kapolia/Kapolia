@@ -220,17 +220,18 @@ function CandidatureCard({ cand, isSelected, convByOffre, rdvByConv, onClick }: 
       onMouseLeave={() => setHov(false)}
       style={{
         width: '100%', textAlign: 'left', fontFamily: 'inherit',
-        backgroundColor: isSelected ? `${C.orange}07` : hov ? `${C.dark}03` : C.white,
-        border: `1px solid ${isSelected ? C.orange : C.sable}`,
-        borderLeft: `3px solid ${isSelected ? C.orange : hov ? `${C.orange}60` : 'transparent'}`,
+        backgroundColor: isSelected ? `${C.terracotta}07` : C.white,
+        border: 'none',
+        borderLeft: `3px solid ${isSelected ? C.terracotta : hov ? `${C.terracotta}70` : 'transparent'}`,
         borderRadius: CARD_RADIUS,
-        padding: '14px 16px',
+        padding: '14px 16px 14px 13px',
         cursor: 'pointer',
-        transform: isSelected ? 'scale(1.035)' : 'scale(1)',
+        scale: isSelected ? '1.035' : '1',
+        zIndex: isSelected ? 2 : undefined,
         boxShadow: isSelected
-          ? '0 2px 4px rgba(27,48,38,.08), 0 12px 28px rgba(27,48,38,.13)'
-          : CARD_SHADOW,
-        transition: `box-shadow 0.15s, border-color 0.15s, background-color 0.15s, transform 240ms ${EASE}`,
+          ? '0 4px 10px rgba(27,48,38,.10), 0 14px 34px rgba(27,48,38,.16)'
+          : hov ? '0 2px 6px rgba(27,48,38,.08), 0 8px 24px rgba(27,48,38,.11)' : CARD_SHADOW,
+        transition: 'box-shadow 0.15s, border-left-color 0.15s, background-color 0.15s, scale 320ms cubic-bezier(0.2, 0.8, 0.2, 1)',
       }}
     >
       {/* Ligne 1 : logo + titre + sous-titre */}
@@ -238,9 +239,11 @@ function CandidatureCard({ cand, isSelected, convByOffre, rdvByConv, onClick }: 
         <EntrepriseLogo nom={entreprise || '?'} logoUrl={offre?.entreprise_logo_url} size={36} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: 14.5, fontWeight: 600, color: C.dark,
+            fontSize: 14.5, fontWeight: 600,
+            color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
             lineHeight: 1.3, marginBottom: 3,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            transition: 'color 0.15s',
           }}>
             {offre?.titre ?? 'Offre supprimée'}
           </div>
