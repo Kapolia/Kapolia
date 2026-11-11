@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { accepterCreneau, isRdvPlusPropose, refuserCreneaux } from '@/lib/rdv'
+import NumeroAppel from '@/components/NumeroAppel'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
@@ -49,8 +50,9 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
   const [loading,   setLoading]   = useState(true)
   const [acting,    setActing]    = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  const [errMsg,       setErrMsg]       = useState<string | null>(null)
-  const [confirmRefus, setConfirmRefus] = useState(false)
+  const [errMsg,              setErrMsg]              = useState<string | null>(null)
+  const [confirmRefus,        setConfirmRefus]        = useState(false)
+  const [showNumeroForCreneau, setShowNumeroForCreneau] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -183,32 +185,55 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
               ? <div style={{ fontSize: 12, fontWeight: 600, color: C.vert, lineHeight: 1.45 }}>{formatCreneau(creneauChoisi.debut_utc)}</div>
               : <div style={{ fontSize: 12, color: C.grey }}>Créneau confirmé</div>
             }
-            {rdv.contact_info && (
+            {rdv.contact_info && rdv.type !== 'telephonique' && (
               <div style={{ fontSize: 11, color: C.grey, marginTop: 5 }}>{rdv.contact_info}</div>
             )}
           </div>
         )}
 
-        {/* En attente ou expiré — liste des créneaux */}
+        {/* En attente ou expiré — liste des créneaux ou saisie du numéro */}
         {(statut === 'proposee' || statut === 'expiree') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {sorted.map(c => {
-              const past = new Date(c.debut_utc).getTime() < Date.now()
-              return (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ flex: 1, fontSize: 12, color: past ? C.lightGrey : C.dark, lineHeight: 1.35, textDecoration: past ? 'line-through' : 'none' }}>
-                    {formatCreneau(c.debut_utc)}
+            {showNumeroForCreneau ? (
+              <NumeroAppel
+                rdvId={rdvId}
+                creneauId={showNumeroForCreneau}
+                recruteurNom="Le recruteur"
+                entrepriseNom="ce recruteur"
+                onConfirme={() => {
+                  setRdv(prev => prev
+                    ? { ...prev, statut: 'acceptee', creneaux_rdv: prev.creneaux_rdv.map(c => ({ ...c, selectionne: c.id === showNumeroForCreneau })) }
+                    : prev
+                  )
+                  window.dispatchEvent(new Event('rdv-confirme'))
+                  setShowNumeroForCreneau(null)
+                }}
+                onAnnuler={() => setShowNumeroForCreneau(null)}
+                onExpire={() => {
+                  setErrMsg('Ce rendez-vous n\'est plus disponible.')
+                  setReloadKey(k => k + 1)
+                  setShowNumeroForCreneau(null)
+                }}
+              />
+            ) : (
+              sorted.map(c => {
+                const past = new Date(c.debut_utc).getTime() < Date.now()
+                return (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, fontSize: 12, color: past ? C.lightGrey : C.dark, lineHeight: 1.35, textDecoration: past ? 'line-through' : 'none' }}>
+                      {formatCreneau(c.debut_utc)}
+                    </div>
+                    {role === 'candidat' && interactif && !past && (
+                      <button
+                        onClick={() => rdv.type === 'telephonique' ? setShowNumeroForCreneau(c.id) : accepter(c.id)}
+                        style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 8, border: `1.5px solid ${C.vert}`, backgroundColor: 'transparent', color: C.vert, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+                        Choisir
+                      </button>
+                    )}
                   </div>
-                  {role === 'candidat' && interactif && !past && (
-                    <button
-                      onClick={() => accepter(c.id)}
-                      style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 8, border: `1.5px solid ${C.vert}`, backgroundColor: 'transparent', color: C.vert, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-                      Choisir
-                    </button>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         )}
 
@@ -232,7 +257,7 @@ export default function RdvBubble({ rdvId, role }: { rdvId: string; role: RdvRol
       </div>
 
       {/* ── Pied — actions ───────────────────────────────────────────────── */}
-      {role === 'candidat' && interactif && (
+      {role === 'candidat' && interactif && !showNumeroForCreneau && (
         <div style={{ borderTop: `1px solid ${C.sable}`, padding: '7px 12px', textAlign: 'center' }}>
           {!confirmRefus ? (
             <button

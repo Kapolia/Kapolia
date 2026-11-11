@@ -63,7 +63,7 @@ type RdvCreneau   = { date: string; heure: string }
 type RdvFormData  = {
   type:         'telephonique' | 'entretien'
   dureeMinutes: number
-  contactInfo:  string
+  contactInfo:  string | null
   creneaux:     RdvCreneau[]
 }
 
@@ -251,7 +251,7 @@ function RdvPanel({ nomCandidat, onCancel, onSubmit }: {
   async function handleSubmit() {
     if (!canSubmit) return
     setSubmitting(true)
-    await onSubmit({ type, dureeMinutes: duree, contactInfo: contact, creneaux })
+    await onSubmit({ type, dureeMinutes: duree, contactInfo: type === 'telephonique' ? null : contact, creneaux })
     setSubmitting(false)
   }
 
@@ -292,14 +292,20 @@ function RdvPanel({ nomCandidat, onCancel, onSubmit }: {
         </div>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
-          {type === 'telephonique' ? 'Numéro de téléphone' : 'Lieu ou lien visio'}
+      {type === 'telephonique' ? (
+        <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, backgroundColor: C.bg, fontSize: 12, color: C.grey, lineHeight: 1.55 }}>
+          Le candidat vous communiquera son numéro en confirmant un créneau.
         </div>
-        <input type="text" value={contact} onChange={e => setContact(e.target.value)}
-          placeholder={type === 'telephonique' ? '+33 6 00 00 00 00' : 'Adresse, salle ou lien visio'}
-          style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
-      </div>
+      ) : (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>
+            Lieu ou lien visio
+          </div>
+          <input type="text" value={contact} onChange={e => setContact(e.target.value)}
+            placeholder="Adresse, salle ou lien visio"
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, fontSize: 13, color: C.dark, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+        </div>
+      )}
 
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Créneaux proposés</div>

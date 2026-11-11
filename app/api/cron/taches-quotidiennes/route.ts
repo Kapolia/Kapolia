@@ -130,10 +130,10 @@ async function traiterRappelsRdv(admin: ReturnType<typeof adminClient>) {
 
     if (emailCand && notifCand) {
       const salutation = prenomCand ? `Bonjour ${prenomCand},` : 'Bonjour,'
-      const htmlCoord  = rdv.contact_info
+      const htmlCoord  = rdv.contact_info && rdv.type !== 'telephonique'
         ? `<p><strong>Coordonnées :</strong> ${rdv.contact_info}</p>`
         : ''
-      const textCoord  = rdv.contact_info ? `\nCoordonnées : ${rdv.contact_info}` : ''
+      const textCoord  = rdv.contact_info && rdv.type !== 'telephonique' ? `\nCoordonnées : ${rdv.contact_info}` : ''
 
       const res = await sendEmail({
         to:      { email: emailCand },

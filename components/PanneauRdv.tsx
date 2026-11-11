@@ -167,6 +167,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
   const [acting,              setActing]              = useState(false)
   const [confirmerAnnulation, setConfirmerAnnulation] = useState(false)
   const [visible,             setVisible]             = useState(false)
+  const [telephoneCandidat,   setTelephoneCandidat]   = useState<string | null | undefined>(undefined)
 
   const onCloseRef = useRef(onClose)
   useEffect(() => { onCloseRef.current = onClose })
@@ -185,6 +186,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
     if (!rdvId) {
       setRdv(null); setProfil(null); setOffre(null)
       setErreur(null); setConfirmerAnnulation(false)
+      setTelephoneCandidat(undefined)
       return
     }
 
@@ -193,6 +195,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
     setErreur(null)
     setConfirmerAnnulation(false)
     setRdv(null); setProfil(null); setOffre(null)
+    setTelephoneCandidat(undefined)
 
     async function charger() {
       // 1. Rendez-vous complet
@@ -211,8 +214,8 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
       const r = rdvData as unknown as RdvDetail
       if (!annule) setRdv(r)
 
-      // 2. Profil du candidat + conversation en parallèle
-      const [profilRes, convRes] = await Promise.all([
+      // 2. Profil du candidat + conversation + téléphone (si appel confirmé) en parallèle
+      const [profilRes, convRes, telRes] = await Promise.all([
         r.candidat_id
           ? supabase
               .from('profils')
@@ -225,6 +228,9 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
           .select('offre_id')
           .eq('id', r.conversation_id)
           .single(),
+        r.type === 'telephonique' && r.statut === 'acceptee'
+          ? supabase.rpc('telephone_candidat', { p_conversation_id: r.conversation_id })
+          : Promise.resolve({ data: null, error: null }),
       ])
 
       // PGRST116 = aucune ligne trouvée (candidat supprimé) — pas une erreur fatale
@@ -236,6 +242,12 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
       }
 
       if (!annule) setProfil(profilRes.data as ProfilDetail ?? null)
+      if (!annule && r.type === 'telephonique' && r.statut === 'acceptee') {
+        if (telRes.error) {
+          console.error('[panneau tel]', telRes.error.message, (telRes.error as { code?: string }).code)
+        }
+        setTelephoneCandidat(telRes.data as string | null ?? null)
+      }
 
       const offreId = (convRes.data as { offre_id?: string | null } | null)?.offre_id ?? null
 
@@ -409,10 +421,28 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
                 </Section>
               )}
 
-              {/* Coordonnees (confirme uniquement) */}
-              {confirme && rdv.contact_info && (
-                <Section titre={rdv.type === 'telephonique' ? 'Numero' : 'Lieu'}>
+              {/* Numéro du candidat — appel téléphonique confirmé */}
+              {confirme && rdv.type === 'telephonique' && (
+                <Section titre="Numéro du candidat">
+                  <span style={{ fontSize: 13, color: telephoneCandidat !== undefined ? C.dark : C.grey }}>
+                    {telephoneCandidat === undefined ? 'Chargement…' : (telephoneCandidat ?? 'Non renseigné')}
+                  </span>
+                </Section>
+              )}
+
+              {/* Lieu / lien visio — entretien confirmé uniquement */}
+              {confirme && rdv.type !== 'telephonique' && rdv.contact_info && (
+                <Section titre="Lieu">
                   <span style={{ fontSize: 13, color: C.dark }}>{rdv.contact_info}</span>
+                </Section>
+              )}
+
+              {/* Info attente — appel téléphonique en attente */}
+              {!confirme && rdv.type === 'telephonique' && (
+                <Section titre="Numéro">
+                  <span style={{ fontSize: 13, color: C.grey, fontStyle: 'italic' }}>
+                    Le candidat communiquera son numéro en confirmant un créneau.
+                  </span>
                 </Section>
               )}
 
