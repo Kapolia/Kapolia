@@ -12,6 +12,7 @@ import { sanitizeFilename, normalizeText } from '@/lib/storage-utils'
 import { dateListeMessage, formatJourCourt, formatHeure } from '@/lib/rdv-format'
 import { STATUTS, type StatutCandidature } from '@/lib/statuts'
 import { C, CARD_SHADOW } from '@/lib/colors'
+import { Bandeau, type BandeauHandle } from '@/components/Bandeau'
 
 const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
 const MAX_BYTES  = 10 * 1024 * 1024
@@ -242,15 +243,17 @@ function CandidatMessagesPageInner() {
   const [activeId, setActiveId]           = useState('')
   const [msgCache, setMsgCache]           = useState<Record<string, LocalMsg[]>>({})
   const [loadingConvs, setLoadingConvs]   = useState(true)
-  const [input, setInput]                 = useState('')
+  const [drafts, setDrafts]               = useState<Record<string, string>>({})
+  const [perConvReply, setPerConvReply]   = useState<Record<string, ReplyRef | null>>({})
+  const [perConvFile, setPerConvFile]     = useState<Record<string, { file: File; nom: string; type: string; preview?: string } | null>>({})
   const [sending, setSending]             = useState(false)
   const [uploading, setUploading]         = useState(false)
-  const [pendingFile, setPendingFile]     = useState<{ file: File; nom: string; type: string; preview?: string } | null>(null)
   const [hovMsgId, setHovMsgId]           = useState<string | null>(null)
   const [hovConvId, setHovConvId]         = useState<string | null>(null)
   const [isTyping, setIsTyping]           = useState(false)
-  const [replyingTo, setReplyingTo]       = useState<ReplyRef | null>(null)
   const [sendErr, setSendErr]             = useState<string | null>(null)
+  const [menuOpen, setMenuOpen]           = useState(false)
+  const [retiredConv, setRetiredConv]     = useState<{ conv: LocalConv; nextId: string } | null>(null)
   const [q, setQ]                         = useState('')
   const [contextOffres, setContextOffres] = useState<Record<string, ContextOffre>>({})
   const [contextCands, setContextCands]   = useState<Record<string, ContextCand>>({})
@@ -266,6 +269,11 @@ function CandidatMessagesPageInner() {
   const typingTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingRef    = useRef<number>(0)
   const activeIdRef      = useRef<string>('')
+  const menuBtnRef       = useRef<HTMLButtonElement>(null)
+  const menuRef          = useRef<HTMLDivElement>(null)
+  const retiredTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bandeauRetirRef  = useRef<BandeauHandle>(null)
+  const inputZoneRef     = useRef<HTMLDivElement>(null)
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -481,6 +489,7 @@ function CandidatMessagesPageInner() {
       if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null }
       if (realtimeConvsRef.current) { supabase.removeChannel(realtimeConvsRef.current); realtimeConvsRef.current = null }
       if (typingTimer.current) clearTimeout(typingTimer.current)
+      if (retiredTimerRef.current) clearTimeout(retiredTimerRef.current)
     }
   }, [])
 
@@ -508,6 +517,13 @@ function CandidatMessagesPageInner() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgCache, activeId])
 
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('kapolia-brouillons-messages')
+      if (saved) setDrafts(JSON.parse(saved) as Record<string, string>)
+    } catch {}
+  }, [])
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const activeConv  = convs.find(c => c.id === activeId) ?? null
@@ -522,6 +538,10 @@ function CandidatMessagesPageInner() {
         )
       })
     : convs
+
+  const input       = drafts[activeId] ?? ''
+  const replyingTo  = perConvReply[activeId] ?? null
+  const pendingFile = perConvFile[activeId] ?? null
 
   // ── Realtime channel ──────────────────────────────────────────────────────
 
@@ -604,7 +624,7 @@ function CandidatMessagesPageInner() {
     // Snapshot nonLu BEFORE clearing it
     const prevNonLu = knownNonLu ?? (convs.find(c => c.id === id)?.nonLu ?? 0)
     setUnreadSepMsgId(null)
-    setActiveId(id); activeIdRef.current = id; setReplyingTo(null)
+    setActiveId(id); activeIdRef.current = id; setMenuOpen(false)
     setConvs(prev => prev.map(c => c.id === id ? { ...c, nonLu: 0 } : c))
     subscribeToConv(id)
 
@@ -679,9 +699,15 @@ function CandidatMessagesPageInner() {
       replyToId: replySnap?.id, replyToContenu: replySnap?.contenu,
     }
     setMsgCache(prev => ({ ...prev, [convId]: [...(prev[convId] ?? []), msg] }))
-    setInput(''); setReplyingTo(null)
+    setDrafts(prev => {
+      const next = { ...prev }; delete next[convId]
+      try { sessionStorage.setItem('kapolia-brouillons-messages', JSON.stringify(next)) } catch {}
+      return next
+    })
+    setPerConvReply(prev => ({ ...prev, [convId]: null }))
     if (textaRef.current) textaRef.current.style.height = 'auto'
-    if (pf?.preview) { setPendingFile(null); URL.revokeObjectURL(pf.preview) } else { setPendingFile(null) }
+    if (pf?.preview) URL.revokeObjectURL(pf.preview)
+    setPerConvFile(prev => ({ ...prev, [convId]: null }))
 
     let pjNom: string | undefined
     let pjUrl: string | undefined
@@ -829,6 +855,49 @@ function CandidatMessagesPageInner() {
     setSending(false)
   }
 
+  function retirerConversation() {
+    if (!activeConv) return
+    setMenuOpen(false)
+
+    const convToRemove = activeConv
+    const idx          = convs.findIndex(c => c.id === convToRemove.id)
+    const remaining    = convs.filter(c => c.id !== convToRemove.id)
+    const nextConv     = remaining[idx] ?? remaining[Math.max(0, idx - 1)] ?? null
+
+    setConvs(remaining)
+    setRetiredConv({ conv: convToRemove, nextId: nextConv?.id ?? '' })
+
+    if (nextConv) {
+      selectConv(nextConv.id, nextConv.nonLu)
+    } else {
+      setActiveId(''); activeIdRef.current = ''
+      subscribeToConv('')
+    }
+
+    if (retiredTimerRef.current) clearTimeout(retiredTimerRef.current)
+    retiredTimerRef.current = setTimeout(() => {
+      bandeauRetirRef.current?.animateOut(() => {
+        supabase.from('conversations').update({ masquee_candidat: true }).eq('id', convToRemove.id).then()
+        setRetiredConv(null)
+      })
+    }, 5000)
+  }
+
+  function annulerRetrait() {
+    if (!retiredConv) return
+    if (retiredTimerRef.current) { clearTimeout(retiredTimerRef.current); retiredTimerRef.current = null }
+
+    const convToRestore = retiredConv.conv
+    setConvs(prev => {
+      const withRestored = [...prev, convToRestore]
+      return withRestored.sort((a, b) =>
+        new Date(b.derniereDate).getTime() - new Date(a.derniereDate).getTime()
+      )
+    })
+    bandeauRetirRef.current?.animateOut(() => { setRetiredConv(null) })
+    selectConv(convToRestore.id, convToRestore.nonLu)
+  }
+
   function handleKey(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) }
   }
@@ -848,8 +917,26 @@ function CandidatMessagesPageInner() {
     const nom     = file.name
     const type    = isImage(nom) ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'file'
     const preview = isImage(nom) ? URL.createObjectURL(file) : undefined
-    setPendingFile({ file, nom, type, preview })
+    setPerConvFile(prev => ({ ...prev, [activeId]: { file, nom, type, preview } }))
   }
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function onDocMouseDown(e: MouseEvent) {
+      if (menuRef.current?.contains(e.target as Node)) return
+      if (menuBtnRef.current?.contains(e.target as Node)) return
+      setMenuOpen(false)
+    }
+    function onDocKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onDocKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onDocKeyDown)
+    }
+  }, [menuOpen])
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -929,8 +1016,14 @@ function CandidatMessagesPageInner() {
                     {conv.offreTitre || 'Repéré dans la candidathèque'}
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 13, color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                      {convPreview(conv)}
+                    <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {drafts[conv.id] && conv.id !== activeId
+                        ? <>
+                            <span style={{ color: C.orangeTexte, fontWeight: 600 }}>Brouillon&nbsp;: </span>
+                            <span style={{ color: C.grey }}>{drafts[conv.id]}</span>
+                          </>
+                        : <span style={{ color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 600 : 400 }}>{convPreview(conv)}</span>
+                      }
                     </span>
                     {conv.nonLu > 0 && (
                       <span style={{ height: 19, minWidth: 19, padding: '0 5px', borderRadius: 10, backgroundColor: C.orange, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}>
@@ -952,7 +1045,7 @@ function CandidatMessagesPageInner() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
           {/* En-tête conversation */}
-          <div style={{ padding: '16px 26px', backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+          <div style={{ position: 'relative', padding: '16px 26px', backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
             <EntrepriseLogo nom={activeConv.entreprise || activeConv.nom || '?'} logoUrl={activeConv.logoUrl} size={42} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, lineHeight: 1.25 }}>{activeConv.nom || activeConv.entreprise}</div>
@@ -960,13 +1053,46 @@ function CandidatMessagesPageInner() {
                 <div style={{ fontSize: 13, color: C.grey, marginTop: 2 }}>{activeConv.entreprise}</div>
               )}
             </div>
-            <button className="dk-dots-btn" title="Options" style={{ width: 34, height: 34, borderRadius: 9, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.12s' }}>
+            <button ref={menuBtnRef} className="dk-dots-btn" title="Options" onClick={() => setMenuOpen(o => !o)} style={{ width: 34, height: 34, borderRadius: 9, border: 'none', backgroundColor: menuOpen ? C.chip : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.12s' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="5"  r="1" fill={C.grey} />
                 <circle cx="12" cy="12" r="1" fill={C.grey} />
                 <circle cx="12" cy="19" r="1" fill={C.grey} />
               </svg>
             </button>
+            {menuOpen && (
+              <div ref={menuRef} style={{
+                position: 'absolute',
+                top: menuBtnRef.current
+                  ? menuBtnRef.current.offsetTop + menuBtnRef.current.offsetHeight + 4
+                  : 60,
+                right: 22,
+                backgroundColor: C.white,
+                borderRadius: 11,
+                boxShadow: '0 2px 6px rgba(27,48,38,.08), 0 12px 28px rgba(27,48,38,.14)',
+                minWidth: 230,
+                zIndex: 20,
+                paddingBottom: 10,
+                animation: 'kapolia-motion-menu-open 0.15s ease-out',
+                transformOrigin: 'top right',
+              }}>
+                <button
+                  type="button"
+                  onClick={retirerConversation}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 14, fontWeight: 500, color: C.dark, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" /><path d="M14 11v6" />
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+                  Retirer de ma messagerie
+                </button>
+                <div style={{ margin: '0 16px', padding: '8px 0 2px', borderTop: `1px solid ${C.sable}`, fontSize: 12, color: C.grey, lineHeight: 1.5 }}>
+                  {activeConv.nom} pourra toujours vous écrire. La conversation reviendra alors dans votre liste.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bandeau de contexte */}
@@ -1146,7 +1272,7 @@ function CandidatMessagesPageInner() {
                       }
                       {/* Bouton répondre (survol) */}
                       <button
-                        onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}
+                        onClick={() => setPerConvReply(prev => ({ ...prev, [activeId]: { id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe } }))}
                         title="Répondre"
                         style={{ width: 34, height: 34, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s' }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1187,7 +1313,7 @@ function CandidatMessagesPageInner() {
           </div>
 
           {/* Zone de saisie */}
-          <div style={{ padding: '12px 22px 16px', backgroundColor: C.bg, flexShrink: 0 }}>
+          <div ref={inputZoneRef} style={{ padding: '12px 22px 16px', backgroundColor: C.bg, flexShrink: 0 }}>
             <div style={{ backgroundColor: C.white, borderRadius: 14, boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
               {/* Barre de réponse */}
               {replyingTo && (
@@ -1201,7 +1327,7 @@ function CandidatMessagesPageInner() {
                       {replyingTo.contenu || 'Pièce jointe'}
                     </div>
                   </div>
-                  <button onClick={() => setReplyingTo(null)} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
+                  <button onClick={() => setPerConvReply(prev => ({ ...prev, [activeId]: null }))} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                   </button>
                 </div>
@@ -1217,7 +1343,7 @@ function CandidatMessagesPageInner() {
                     <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingFile.nom}</div>
                     <div style={{ fontSize: 11, color: C.grey, marginTop: 1 }}>{formatBytes(pendingFile.file.size)}</div>
                   </div>
-                  <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPendingFile(null) }} title="Retirer"
+                  <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPerConvFile(prev => ({ ...prev, [activeId]: null })) }} title="Retirer"
                     style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                   </button>
@@ -1235,7 +1361,17 @@ function CandidatMessagesPageInner() {
                 <textarea
                   ref={textaRef}
                   value={input}
-                  onChange={e => { setInput(e.target.value); adjustTA(); sendTypingSignal(); if (sendErr) setSendErr(null) }}
+                  onChange={e => {
+                    const val = e.target.value
+                    const id  = activeId
+                    setDrafts(prev => {
+                      const next = { ...prev }
+                      if (val) next[id] = val; else delete next[id]
+                      try { sessionStorage.setItem('kapolia-brouillons-messages', JSON.stringify(next)) } catch {}
+                      return next
+                    })
+                    adjustTA(); sendTypingSignal(); if (sendErr) setSendErr(null)
+                  }}
                   onKeyDown={handleKey}
                   placeholder={`Répondre à ${activeConv.nom || activeConv.entreprise}`}
                   rows={1}
@@ -1263,6 +1399,16 @@ function CandidatMessagesPageInner() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
           <span style={{ fontSize: 14, color: C.grey }}>Choisissez une conversation pour l&apos;afficher.</span>
         </div>
+      )}
+
+      {retiredConv && (
+        <Bandeau
+          ref={bandeauRetirRef}
+          fixe
+          bas={(inputZoneRef.current?.offsetHeight ?? 110) + 16}
+          message={`Conversation avec ${retiredConv.conv.entreprise || retiredConv.conv.nom} retirée.`}
+          action={{ libelle: 'Annuler', onClick: annulerRetrait }}
+        />
       )}
     </div>
   )

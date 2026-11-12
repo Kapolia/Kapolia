@@ -10,6 +10,7 @@ type BandeauProps = {
   message: string
   action?: { libelle: string; onClick?: () => void; href?: string }
   fixe?: boolean
+  bas?: number
 }
 
 export type BandeauHandle = {
@@ -17,7 +18,7 @@ export type BandeauHandle = {
 }
 
 export const Bandeau = React.forwardRef<BandeauHandle, BandeauProps>(
-  function Bandeau({ message, action, fixe }, ref) {
+  function Bandeau({ message, action, fixe, bas }, ref) {
     const divRef = useRef<HTMLDivElement>(null)
 
     React.useImperativeHandle(ref, () => ({
@@ -66,7 +67,7 @@ export const Bandeau = React.forwardRef<BandeauHandle, BandeauProps>(
         aria-live="polite"
         style={{
           position: fixe ? 'fixed' : 'absolute',
-          bottom: 24,
+          bottom: bas ?? 24,
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 50,
