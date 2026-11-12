@@ -6,13 +6,12 @@ import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
-import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
 import RdvBubble from '@/components/RdvBubble'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
 import { sanitizeFilename, normalizeText } from '@/lib/storage-utils'
 import { dateListeMessage, formatJourCourt, formatHeure } from '@/lib/rdv-format'
 import { STATUTS, type StatutCandidature } from '@/lib/statuts'
-import { C } from '@/lib/colors'
+import { C, CARD_SHADOW } from '@/lib/colors'
 
 const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
 const MAX_BYTES  = 10 * 1024 * 1024
@@ -21,24 +20,60 @@ function isImage(nom: string) {
   return IMAGE_EXTS.has(nom.split('.').pop()?.toLowerCase() ?? '')
 }
 
+// Paris-TZ date key for grouping messages
 function msgDate(isoStr: string): string {
-  const d = new Date(isoStr)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return new Date(isoStr).toLocaleDateString('fr-FR', {
+    timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+  })
 }
 
+// "Aujourd'hui" / "Hier" / "Mardi 10 novembre"
 function dateLabel(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const diff = Math.round((today.getTime() - d.getTime()) / 86400000)
+  const opts  = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const
+  const TZ    = { timeZone: 'Europe/Paris' } as const
+  const nowStr = new Date().toLocaleDateString('fr-FR', opts)
+  const toMs   = (s: string) => { const [d, m, y] = s.split('/'); return Date.UTC(+y, +m - 1, +d) }
+  const diff   = Math.round((toMs(nowStr) - toMs(dateStr)) / 86400000)
   if (diff === 0) return "Aujourd'hui"
   if (diff === 1) return 'Hier'
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+  const [dd, mm, yyyy] = dateStr.split('/')
+  const d     = new Date(`${yyyy}-${mm}-${dd}T12:00:00Z`)
+  const wd    = d.toLocaleDateString('fr-FR', { weekday: 'long', ...TZ })
+  const day   = d.toLocaleDateString('fr-FR', { day: 'numeric', ...TZ })
+  const month = d.toLocaleDateString('fr-FR', { month: 'long', ...TZ })
+  return `${wd.charAt(0).toUpperCase() + wd.slice(1)} ${day} ${month}`
 }
 
 function formatBytes(b: number) {
   if (b < 1024) return `${b} o`
   if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} Ko`
   return `${(b / 1024 / 1024).toFixed(1)} Mo`
+}
+
+// Split text into plain strings + clickable <a> nodes
+function renderMsgText(text: string, fromMe: boolean): React.ReactNode {
+  const URL_RE    = /https?:\/\/[^\s<>'"]+/g
+  const TRAIL_RE  = /[.,;:!?)»]+$/
+  const parts: React.ReactNode[] = []
+  let last = 0
+  let match: RegExpExecArray | null
+  while ((match = URL_RE.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index))
+    let url   = match[0]
+    let trail = ''
+    const tm  = TRAIL_RE.exec(url)
+    if (tm) { trail = tm[0]; url = url.slice(0, url.length - trail.length) }
+    parts.push(
+      <a key={match.index} href={url} target="_blank" rel="noopener noreferrer"
+        style={{ color: fromMe ? C.white : C.orangeTexte, textDecoration: 'underline', fontWeight: 600 }}>
+        {url}
+      </a>
+    )
+    if (trail) parts.push(trail)
+    last = match.index + match[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts.length === 0 ? text : <>{parts}</>
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,6 +97,10 @@ type LocalMsg = {
   pjUrl?: string; pjNom?: string; pjType?: string
   replyToId?: string; replyToContenu?: string
   rendezVousId?: string
+  failed?: boolean
+  retryContenu?: string
+  retryReplyId?: string | null
+  retryFile?: File
 }
 
 type PVP = { user_id: string; prenom?: string; nom?: string; entreprise_nom?: string | null; entreprise_logo_url?: string | null }
@@ -116,7 +155,7 @@ function scrollToRdv(rdvId: string) {
 // ─── Double checkmarks ────────────────────────────────────────────────────────
 
 function Checks({ lu }: { lu: boolean }) {
-  const col = lu ? C.terracotta : C.grey
+  const col       = lu ? C.vert : '#B8BFBB'
   const lineStyle = { stroke: col, strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
   return (
     <svg width="18" height="11" viewBox="0 0 18 11" style={{ flexShrink: 0, overflow: 'visible' }}>
@@ -128,7 +167,7 @@ function Checks({ lu }: { lu: boolean }) {
 
 // ─── File bubble ──────────────────────────────────────────────────────────────
 
-function FileBubble({ nom, url, type, fromMe: _fromMe }: { nom: string; url?: string; type?: string; fromMe: boolean }) {
+function FileBubble({ nom, url, type }: { nom: string; url?: string; type?: string }) {
   if ((type === 'image' || isImage(nom)) && url) {
     return (
       <a href={url} target="_blank" rel="noreferrer" style={{ display: 'block', maxWidth: 220, borderRadius: 12, overflow: 'hidden' }}>
@@ -159,47 +198,7 @@ function TypingIndicator({ nom }: { nom: string }) {
           <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.grey, animation: `kapolia-bounce 1.2s ${i * 0.2}s infinite` }} />
         ))}
       </div>
-      <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>{nom} est en train d&apos;écrire…</span>
-    </div>
-  )
-}
-
-// ─── Action btn (hover) ───────────────────────────────────────────────────────
-
-function ActionBtn({ children, title, onClick }: { children: React.ReactNode; title: string; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
-  const [h, setH] = useState(false)
-  return (
-    <button onClick={onClick} title={title}
-      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {children}
-    </button>
-  )
-}
-
-// ─── Reply preview bar ────────────────────────────────────────────────────────
-
-function ReplyBar({ reply, nom, onCancel }: { reply: ReplyRef; nom: string; onCancel: () => void }) {
-  return (
-    <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.sable}`, borderLeft: `3px solid ${C.terracotta}`, backgroundColor: `${C.terracotta}08`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: C.terracotta, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <polyline points="9 14 4 9 9 4" />
-            <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-          </svg>
-          Répondre à {reply.fromMe ? 'votre message' : nom}
-        </div>
-        <div style={{ fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {reply.contenu || 'Pièce jointe'}
-        </div>
-      </div>
-      <button onClick={onCancel} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+      <span style={{ fontSize: 13, color: C.grey }}>{nom} écrit…</span>
     </div>
   )
 }
@@ -220,7 +219,7 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
   )
 }
 
-// ─── Calendar icon (bandeau) ──────────────────────────────────────────────────
+// ─── Calendar icon ────────────────────────────────────────────────────────────
 
 function IconCalendar({ size = 17 }: { size?: number }) {
   return (
@@ -236,10 +235,9 @@ function IconCalendar({ size = 17 }: { size?: number }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function CandidatMessagesPageInner() {
-  const router = useRouter()
+  const router       = useRouter()
   const searchParams = useSearchParams()
 
-  const [userProfil, setUserProfil]       = useState<AvatarProfil>({})
   const [convs, setConvs]                 = useState<LocalConv[]>([])
   const [activeId, setActiveId]           = useState('')
   const [msgCache, setMsgCache]           = useState<Record<string, LocalMsg[]>>({})
@@ -257,6 +255,7 @@ function CandidatMessagesPageInner() {
   const [contextOffres, setContextOffres] = useState<Record<string, ContextOffre>>({})
   const [contextCands, setContextCands]   = useState<Record<string, ContextCand>>({})
   const [contextRdvs, setContextRdvs]     = useState<Record<string, ContextRdv>>({})
+  const [unreadSepMsgId, setUnreadSepMsgId] = useState<string | null>(null)
 
   const endRef           = useRef<HTMLDivElement>(null)
   const textaRef         = useRef<HTMLTextAreaElement>(null)
@@ -276,13 +275,6 @@ function CandidatMessagesPageInner() {
       if (!user) return
       userIdRef.current = user.id
 
-      const { data: profilData } = await supabase
-        .from('profils')
-        .select('prenom, nom, avatar_url, avatar_type')
-        .eq('user_id', user.id)
-        .single()
-      if (profilData) setUserProfil(profilData as AvatarProfil)
-
       const { data: convsRaw, error } = await supabase
         .from('conversations')
         .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, offres(titre)')
@@ -297,7 +289,6 @@ function CandidatMessagesPageInner() {
       const offreIds     = [...new Set(convsRaw.map(r => r.offre_id).filter(Boolean))]
       const convIds      = convsRaw.map(r => r.id)
 
-      // Parallel: profils + context offres + context candidatures + context rdvs
       const [pvpResult, offresCtxResult, candsCtxResult, rdvsCtxResult] = await Promise.all([
         recruteurIds.length
           ? supabase.from('profils_vue_publique').select('user_id, prenom, nom, entreprise_nom, entreprise_logo_url').in('user_id', recruteurIds)
@@ -313,7 +304,6 @@ function CandidatMessagesPageInner() {
           : Promise.resolve({ data: [], error: null }),
       ])
 
-      // Last message per conversation (N parallel)
       const lastMsgResults = await Promise.all(
         convsRaw.map(row =>
           supabase
@@ -326,7 +316,6 @@ function CandidatMessagesPageInner() {
         )
       )
 
-      // Build maps
       const { data: rData, error: rErr } = pvpResult
       if (rErr) console.error('[messages init profils]', rErr)
       const profilMap: Record<string, PVP> = {}
@@ -383,7 +372,7 @@ function CandidatMessagesPageInner() {
       setConvs(loaded)
       setLoadingConvs(false)
 
-      // ── Realtime : conversations ──────────────────────────────────────
+      // Realtime : conversations
       if (realtimeConvsRef.current) {
         supabase.removeChannel(realtimeConvsRef.current)
         realtimeConvsRef.current = null
@@ -483,7 +472,8 @@ function CandidatMessagesPageInner() {
 
       const convParam = searchParams.get('conv')
       if (convParam && loaded.some(c => c.id === convParam)) {
-        selectConv(convParam)
+        const initNonLu = loaded.find(c => c.id === convParam)?.nonLu ?? 0
+        selectConv(convParam, initNonLu)
       }
     }
     init()
@@ -509,9 +499,7 @@ function CandidatMessagesPageInner() {
         .limit(1)
         .maybeSingle()
         .then(({ data }) => {
-          if (data) {
-            setContextRdvs(prev => ({ ...prev, [convId]: data as unknown as ContextRdv }))
-          }
+          if (data) setContextRdvs(prev => ({ ...prev, [convId]: data as unknown as ContextRdv }))
         })
     }
     window.addEventListener('rdv-confirme', onRdvConfirme)
@@ -565,20 +553,21 @@ function CandidatMessagesPageInner() {
               rendezVousId: m.rendez_vous_id ?? undefined,
             }],
           }))
-          setConvs(prev => prev.map(c =>
-            c.id === convId ? {
-              ...c,
-              dernierMsg:       m.contenu || (m.piece_jointe_nom ?? ''),
-              derniereDate:     m.created_at,
-              dernierMsgFromMe: false,
-              dernierMsgIsRdv:  !!m.rendez_vous_id,
-              dernierMsgIsFile: !!m.piece_jointe_nom,
-              ...(isActive ? {} : { nonLu: c.nonLu + 1 }),
-            } : c
-          ))
           if (isActive && userIdRef.current) {
             supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
             supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', convId).then()
+          } else {
+            setConvs(prev => prev.map(c =>
+              c.id === convId ? {
+                ...c,
+                dernierMsg:       m.contenu || (m.piece_jointe_nom ?? ''),
+                derniereDate:     m.created_at,
+                dernierMsgFromMe: false,
+                dernierMsgIsRdv:  !!m.rendez_vous_id,
+                dernierMsgIsFile: !!m.piece_jointe_nom,
+                nonLu: c.nonLu + 1,
+              } : c
+            ))
           }
         }
       )
@@ -611,7 +600,10 @@ function CandidatMessagesPageInner() {
 
   // ── Select conversation ────────────────────────────────────────────────────
 
-  async function selectConv(id: string) {
+  async function selectConv(id: string, knownNonLu?: number) {
+    // Snapshot nonLu BEFORE clearing it
+    const prevNonLu = knownNonLu ?? (convs.find(c => c.id === id)?.nonLu ?? 0)
+    setUnreadSepMsgId(null)
     setActiveId(id); activeIdRef.current = id; setReplyingTo(null)
     setConvs(prev => prev.map(c => c.id === id ? { ...c, nonLu: 0 } : c))
     subscribeToConv(id)
@@ -623,11 +615,12 @@ function CandidatMessagesPageInner() {
       .order('created_at')
 
     if (data?.length) {
+      const uid = userIdRef.current
       setMsgCache(prev => ({
         ...prev,
         [id]: data.map(m => ({
           id: m.id,
-          fromMe: m.expediteur_id === userIdRef.current,
+          fromMe: m.expediteur_id === uid,
           lu: m.lu ?? false,
           contenu: m.contenu,
           heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -638,6 +631,14 @@ function CandidatMessagesPageInner() {
           rendezVousId: (m as { rendez_vous_id?: string }).rendez_vous_id ?? undefined,
         })),
       }))
+
+      // Find separator position BEFORE marking as read
+      if (prevNonLu > 0) {
+        const uid2 = userIdRef.current
+        const firstUnread = data.find(m => m.expediteur_id !== uid2 && !m.lu)
+        if (firstUnread) setUnreadSepMsgId(firstUnread.id)
+      }
+
       const last = data[data.length - 1] as {
         expediteur_id: string; rendez_vous_id?: string | null; piece_jointe_nom?: string | null
       }
@@ -669,6 +670,7 @@ function CandidatMessagesPageInner() {
     const heure     = nowHeure()
     const tmpId     = `tmp-${Date.now()}`
     const replySnap = replyingTo
+    const convId    = activeId
 
     const msg: LocalMsg = {
       id: tmpId, fromMe: true, lu: false, contenu: contenu.trim(), heure,
@@ -676,15 +678,7 @@ function CandidatMessagesPageInner() {
       pjNom: pf?.nom, pjUrl: undefined, pjType: pf?.type,
       replyToId: replySnap?.id, replyToContenu: replySnap?.contenu,
     }
-    setMsgCache(prev => ({ ...prev, [activeId]: [...(prev[activeId] ?? []), msg] }))
-    setConvs(prev => prev.map(c => c.id === activeId ? {
-      ...c,
-      dernierMsg:       contenu.trim() || (pf?.nom ?? ''),
-      derniereDate:     new Date().toISOString(),
-      dernierMsgFromMe: true,
-      dernierMsgIsRdv:  false,
-      dernierMsgIsFile: !!pf,
-    } : c))
+    setMsgCache(prev => ({ ...prev, [convId]: [...(prev[convId] ?? []), msg] }))
     setInput(''); setReplyingTo(null)
     if (textaRef.current) textaRef.current.style.height = 'auto'
     if (pf?.preview) { setPendingFile(null); URL.revokeObjectURL(pf.preview) } else { setPendingFile(null) }
@@ -693,42 +687,146 @@ function CandidatMessagesPageInner() {
     let pjUrl: string | undefined
     let pjType: string | undefined
 
-    if (pf && userIdRef.current && activeId) {
+    if (pf && userIdRef.current && convId) {
       setUploading(true)
-      const path = `${activeId}/${Date.now()}-${sanitizeFilename(pf.nom)}`
+      const path = `${convId}/${Date.now()}-${sanitizeFilename(pf.nom)}`
       const { error } = await supabase.storage.from('pieces-jointes').upload(path, pf.file)
       if (error) {
-        setSendErr("Le fichier n'a pas pu être envoyé. Réessayez.")
+        console.error('[messages send] file upload failed', error)
+        setMsgCache(prev => ({
+          ...prev,
+          [convId]: (prev[convId] ?? []).map(m => m.id === tmpId
+            ? { ...m, failed: true, retryContenu: contenu.trim(), retryFile: pf.file }
+            : m),
+        }))
         setUploading(false)
-        setMsgCache(prev => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter(m => m.id !== tmpId) }))
         return
       }
       pjUrl  = supabase.storage.from('pieces-jointes').getPublicUrl(path).data.publicUrl
       pjNom  = pf.nom
       pjType = pf.type
       setUploading(false)
-      setMsgCache(prev => ({ ...prev, [activeId]: (prev[activeId] ?? []).map(m => m.id === tmpId ? { ...m, pjUrl } : m) }))
+      setMsgCache(prev => ({ ...prev, [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, pjUrl } : m) }))
     }
 
-    if (userIdRef.current && activeId) {
+    if (userIdRef.current && convId) {
       setSending(true)
-      const { data: inserted } = await supabase.from('messages').insert({
+      const { data: inserted, error: insertError } = await supabase.from('messages').insert({
         expediteur_id:    userIdRef.current,
-        conversation_id:  activeId,
+        conversation_id:  convId,
         contenu:          contenu.trim() || (pjNom ?? ''),
         piece_jointe_url: pjUrl  ?? null,
         piece_jointe_nom: pjNom  ?? null,
         piece_jointe_type: pjType ?? null,
         reply_to_id:      replySnap?.id ?? null,
       }).select('id').single()
-      if (inserted) {
+
+      if (insertError || !inserted) {
+        console.error('[messages send] insert failed', insertError)
         setMsgCache(prev => ({
           ...prev,
-          [activeId]: (prev[activeId] ?? []).map(m => m.id === tmpId ? { ...m, id: inserted.id } : m),
+          [convId]: (prev[convId] ?? []).map(m => m.id === tmpId
+            ? { ...m, failed: true, retryContenu: contenu.trim(), retryReplyId: replySnap?.id ?? null }
+            : m),
         }))
+        setSending(false)
+        return
       }
+
+      setMsgCache(prev => ({
+        ...prev,
+        [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, id: inserted.id, failed: false } : m),
+      }))
+      setConvs(prev => prev.map(c => c.id === convId ? {
+        ...c,
+        dernierMsg:       contenu.trim() || (pjNom ?? ''),
+        derniereDate:     new Date().toISOString(),
+        dernierMsgFromMe: true,
+        dernierMsgIsRdv:  false,
+        dernierMsgIsFile: !!pjNom,
+      } : c))
       setSending(false)
     }
+  }
+
+  // ── Retry failed message ──────────────────────────────────────────────────
+
+  async function retrySend(msg: LocalMsg) {
+    if (!msg.failed) return
+    const contenu = msg.retryContenu ?? msg.contenu
+    const convId  = activeId
+    const tmpId   = msg.id
+
+    setMsgCache(prev => ({
+      ...prev,
+      [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, failed: false } : m),
+    }))
+
+    // Re-upload file si l'upload initial avait échoué
+    let pjUrl  = msg.pjUrl
+    let pjNom  = msg.pjNom
+    let pjType = msg.pjType
+    if (msg.retryFile && !pjUrl && userIdRef.current) {
+      setUploading(true)
+      const path = `${convId}/${Date.now()}-${sanitizeFilename(msg.retryFile.name)}`
+      const { error: upErr } = await supabase.storage.from('pieces-jointes').upload(path, msg.retryFile)
+      if (upErr) {
+        console.error('[messages send] retry upload failed', upErr)
+        setMsgCache(prev => ({
+          ...prev,
+          [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, failed: true } : m),
+        }))
+        setUploading(false)
+        return
+      }
+      pjUrl  = supabase.storage.from('pieces-jointes').getPublicUrl(path).data.publicUrl
+      pjNom  = msg.retryFile.name
+      pjType = msg.pjType
+      setUploading(false)
+      setMsgCache(prev => ({
+        ...prev,
+        [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, pjUrl, pjNom, pjType, retryFile: undefined } : m),
+      }))
+    }
+
+    // Ne jamais insérer piece_jointe_nom sans piece_jointe_url
+    const safePjNom = pjUrl ? (pjNom ?? null) : null
+    const safePjType = pjUrl ? (pjType ?? null) : null
+
+    setSending(true)
+    const { data: inserted, error: insertError } = await supabase.from('messages').insert({
+      expediteur_id:    userIdRef.current,
+      conversation_id:  convId,
+      contenu:          contenu || (safePjNom ?? ''),
+      piece_jointe_url: pjUrl     ?? null,
+      piece_jointe_nom: safePjNom,
+      piece_jointe_type: safePjType,
+      reply_to_id:      msg.retryReplyId ?? msg.replyToId ?? null,
+    }).select('id').single()
+
+    if (insertError || !inserted) {
+      console.error('[messages send] retry failed', insertError)
+      setMsgCache(prev => ({
+        ...prev,
+        [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, failed: true } : m),
+      }))
+      setSending(false)
+      return
+    }
+
+    setMsgCache(prev => ({
+      ...prev,
+      [convId]: (prev[convId] ?? []).map(m => m.id === tmpId ? { ...m, id: inserted.id, failed: false } : m),
+    }))
+    setConvs(prev => prev.map(c => c.id === convId ? {
+      ...c,
+      dernierMsg:       contenu || (pjNom ?? ''),
+      derniereDate:     new Date().toISOString(),
+      dernierMsgFromMe: true,
+      dernierMsgIsRdv:  false,
+      dernierMsgIsFile: !!pjNom,
+    } : c))
+    setSending(false)
   }
 
   function handleKey(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -740,8 +838,6 @@ function CandidatMessagesPageInner() {
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
   }
-
-  // ── File selection ────────────────────────────────────────────────────────
 
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return; e.target.value = ''
@@ -855,42 +951,37 @@ function CandidatMessagesPageInner() {
       ) : activeConv ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
-          {/* ── En-tête conversation ────────────────────────────────────── */}
-          {(() => {
-            return (
-              <div style={{ padding: '16px 26px', backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-                <EntrepriseLogo nom={activeConv.entreprise || activeConv.nom || '?'} logoUrl={activeConv.logoUrl} size={42} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, lineHeight: 1.25 }}>{activeConv.nom || activeConv.entreprise}</div>
-                  {activeConv.entreprise && (
-                    <div style={{ fontSize: 13, color: C.grey, marginTop: 2 }}>{activeConv.entreprise}</div>
-                  )}
-                </div>
-                <button className="dk-dots-btn" title="Options" style={{ width: 34, height: 34, borderRadius: 9, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.12s' }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="5"  r="1" fill={C.grey} />
-                    <circle cx="12" cy="12" r="1" fill={C.grey} />
-                    <circle cx="12" cy="19" r="1" fill={C.grey} />
-                  </svg>
-                </button>
-              </div>
-            )
-          })()}
+          {/* En-tête conversation */}
+          <div style={{ padding: '16px 26px', backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+            <EntrepriseLogo nom={activeConv.entreprise || activeConv.nom || '?'} logoUrl={activeConv.logoUrl} size={42} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: C.dark, lineHeight: 1.25 }}>{activeConv.nom || activeConv.entreprise}</div>
+              {activeConv.entreprise && (
+                <div style={{ fontSize: 13, color: C.grey, marginTop: 2 }}>{activeConv.entreprise}</div>
+              )}
+            </div>
+            <button className="dk-dots-btn" title="Options" style={{ width: 34, height: 34, borderRadius: 9, border: 'none', backgroundColor: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background-color 0.12s' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="5"  r="1" fill={C.grey} />
+                <circle cx="12" cy="12" r="1" fill={C.grey} />
+                <circle cx="12" cy="19" r="1" fill={C.grey} />
+              </svg>
+            </button>
+          </div>
 
-          {/* ── Bandeau de contexte ─────────────────────────────────────── */}
+          {/* Bandeau de contexte */}
           {(() => {
-            const hasOffre  = !!activeConv.offreId
-            const offre     = activeConv.offreId ? contextOffres[activeConv.offreId] : undefined
-            const cand      = activeConv.offreId ? contextCands[activeConv.offreId] : undefined
-            const rdv       = contextRdvs[activeId] ?? null
-            const expired   = isOffreExpiree(offre)
+            const hasOffre = !!activeConv.offreId
+            const offre    = activeConv.offreId ? contextOffres[activeConv.offreId] : undefined
+            const cand     = activeConv.offreId ? contextCands[activeConv.offreId] : undefined
+            const rdv      = contextRdvs[activeId] ?? null
+            const expired  = isOffreExpiree(offre)
 
             const bandeauLeft: React.ReactNode[] = []
 
-            // a. Offre ou candidathèque
             if (hasOffre) {
               bandeauLeft.push(
-                <span key="offre" style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
+                <span key="offre" style={{ display: 'inline-flex', alignItems: 'center' }}>
                   <span style={{ fontWeight: 600, color: C.dark }}>{offre?.titre ?? activeConv.offreTitre}</span>
                   {offre?.ville && <span style={{ color: C.grey }}>&nbsp;· {offre.ville}</span>}
                 </span>
@@ -903,7 +994,6 @@ function CandidatMessagesPageInner() {
               )
             }
 
-            // b. Candidature
             if (cand && hasOffre) {
               const cfg    = STATUTS[cand.statut as StatutCandidature] ?? STATUTS['envoyée']
               const label  = cfg.labelCandidat.toLowerCase()
@@ -916,14 +1006,10 @@ function CandidatMessagesPageInner() {
               )
             }
 
-            // c. Offre expirée
             if (expired && hasOffre) {
-              bandeauLeft.push(
-                <span key="expired" style={{ color: C.grey }}>Offre expirée</span>
-              )
+              bandeauLeft.push(<span key="expired" style={{ color: C.grey }}>Offre expirée</span>)
             }
 
-            // d. Rendez-vous
             if (rdv) {
               const futurCreneaux = rdv.creneaux_rdv.some(c => new Date(c.debut_utc).getTime() > Date.now())
               if (rdv.statut === 'proposee' && futurCreneaux) {
@@ -931,9 +1017,7 @@ function CandidatMessagesPageInner() {
                   <span key="rdv" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                     <IconCalendar size={17} />
                     <span>Rendez-vous à confirmer</span>
-                    <button
-                      onClick={() => scrollToRdv(rdv.id)}
-                      style={{ marginLeft: 4, padding: '6px 12px', borderRadius: 8, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                    <button onClick={() => scrollToRdv(rdv.id)} style={{ marginLeft: 4, padding: '6px 12px', borderRadius: 8, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
                       Choisir un créneau
                     </button>
                   </span>
@@ -942,8 +1026,8 @@ function CandidatMessagesPageInner() {
                 const choisi = rdv.creneaux_rdv.find(c => c.selectionne)
                 if (choisi && new Date(choisi.debut_utc).getTime() > Date.now()) {
                   const typeLabel = rdv.type === 'telephonique' ? 'Appel' : 'Entretien'
-                  const jc = formatJourCourt(choisi.debut_utc)
-                  const dateStr = jc.charAt(0).toLowerCase() + jc.slice(1) + ' à ' + formatHeure(choisi.debut_utc)
+                  const jc        = formatJourCourt(choisi.debut_utc)
+                  const dateStr   = jc.charAt(0).toLowerCase() + jc.slice(1) + ' à ' + formatHeure(choisi.debut_utc)
                   bandeauLeft.push(
                     <span key="rdv" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                       <IconCalendar size={17} />
@@ -954,7 +1038,6 @@ function CandidatMessagesPageInner() {
               }
             }
 
-            // e. Lien à droite
             const isNonRetenue = cand?.statut === 'refusée'
             let rightLink: React.ReactNode = null
             if (hasOffre) {
@@ -1000,15 +1083,32 @@ function CandidatMessagesPageInner() {
               const prev         = activeMsgs[i - 1]
               const next         = activeMsgs[i + 1]
               const dateChanged  = msg.date && (!prev || prev.date !== msg.date)
-              const isFirstGroup = !prev || prev.fromMe !== msg.fromMe || dateChanged
-              const isLastGroup  = !next || next.fromMe !== msg.fromMe || (msg.date && next.date !== msg.date)
+              const isFirstGroup = !prev || prev.fromMe !== msg.fromMe || !!dateChanged
+              const isLastGroup  = !next || next.fromMe !== msg.fromMe || (!!msg.date && next.date !== msg.date)
               const mt           = i === 0 || dateChanged ? 0 : isFirstGroup ? 14 : 3
+              const isUnreadSep  = msg.id === unreadSepMsgId
+              const bgBubble     = msg.failed ? '#E8ECEA' : msg.fromMe ? C.vert : C.white
+              const colorBubble  = msg.failed ? C.dark : msg.fromMe ? C.white : C.dark
+              const radiusBubble = isLastGroup
+                ? (msg.fromMe ? '15px 15px 5px 15px' : '15px 15px 15px 5px')
+                : '15px'
+              const shadowBubble = (!msg.fromMe && !msg.failed) ? '0 1px 2px rgba(27,48,38,.07)' : 'none'
+
               return (
                 <React.Fragment key={msg.id}>
-                  {dateChanged && msg.date && (
+                  {/* Séparateur "Nouveau message" */}
+                  {isUnreadSep && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: `${i === 0 ? 0 : 16}px 0 14px` }}>
+                      <div style={{ flex: 1, height: 1, backgroundColor: `${C.orangeTexte}59` }} />
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: C.orangeTexte, whiteSpace: 'nowrap' }}>Nouveau message</span>
+                      <div style={{ flex: 1, height: 1, backgroundColor: `${C.orangeTexte}59` }} />
+                    </div>
+                  )}
+                  {/* Séparateur de date */}
+                  {dateChanged && msg.date && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: `${i === 0 && !isUnreadSep ? 0 : 16}px 0 14px` }}>
                       <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
-                      <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' }}>{dateLabel(msg.date)}</span>
+                      <span style={{ fontSize: 12.5, color: C.grey, whiteSpace: 'nowrap' }}>{dateLabel(msg.date)}</span>
                       <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
                     </div>
                   )}
@@ -1016,15 +1116,19 @@ function CandidatMessagesPageInner() {
                     onMouseEnter={() => setHovMsgId(msg.id)}
                     onMouseLeave={() => setHovMsgId(null)}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: msg.fromMe ? 'flex-end' : 'flex-start', marginTop: mt }}>
+                    {/* Nom recruteur au-dessus du premier message d'un groupe reçu */}
+                    {isFirstGroup && !msg.fromMe && (
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: C.grey, marginBottom: 3 }}>
+                        {activeConv.nom || activeConv.entreprise}
+                      </div>
+                    )}
+                    {/* Citation */}
                     {msg.replyToId && (
-                      <div style={{ maxWidth: '66%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                          <polyline points="9 14 4 9 9 4" />
-                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                        </svg>
+                      <div style={{ maxWidth: '66%', padding: '4px 10px', borderLeft: `2px solid ${C.sable}`, marginBottom: 3, fontSize: 12.5, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {msg.replyToContenu ?? activeMsgs.find(m => m.id === msg.replyToId)?.contenu ?? '…'}
                       </div>
                     )}
+                    {/* Bulle + bouton répondre */}
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: msg.fromMe ? 'row-reverse' : 'row' }}>
                       {msg.rendezVousId
                         ? (
@@ -1033,92 +1137,126 @@ function CandidatMessagesPageInner() {
                           </div>
                         )
                         : msg.pjNom
-                          ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} fromMe={msg.fromMe} />
+                          ? <FileBubble nom={msg.pjNom} url={msg.pjUrl} type={msg.pjType} />
                           : (
-                            <div style={{ maxWidth: '68%', padding: '10px 16px', borderRadius: 15, backgroundColor: msg.fromMe ? C.terracotta : C.white, border: msg.fromMe ? 'none' : `1.5px solid ${C.sable}`, color: msg.fromMe ? C.white : C.dark, fontSize: 14, lineHeight: '1.55', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                              {msg.contenu}
+                            <div style={{ maxWidth: '72%', padding: '10px 15px', borderRadius: radiusBubble, backgroundColor: bgBubble, boxShadow: shadowBubble, color: colorBubble, fontSize: 14.5, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                              {renderMsgText(msg.contenu, msg.fromMe && !msg.failed)}
                             </div>
                           )
                       }
-                      <div style={{ display: 'flex', gap: 3, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s', flexShrink: 0 }}>
-                        <ActionBtn title="Répondre" onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="9 14 4 9 9 4" />
-                            <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
-                          </svg>
-                        </ActionBtn>
-                      </div>
+                      {/* Bouton répondre (survol) */}
+                      <button
+                        onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}
+                        title="Répondre"
+                        style={{ width: 34, height: 34, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 14 4 9 9 4" />
+                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                        </svg>
+                      </button>
                     </div>
+                    {/* Méta : heure + coches ou "Non envoyé" */}
                     {isLastGroup && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, paddingInline: 4 }}>
-                        <span style={{ fontSize: 11, color: C.grey }}>{msg.heure}</span>
-                        {msg.fromMe && <Checks lu={msg.lu} />}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, paddingInline: 2 }}>
+                        {msg.failed ? (
+                          <span style={{ fontSize: 11.5, color: C.erreur, fontWeight: 600 }}>
+                            Non envoyé.{' '}
+                            <button type="button" onClick={() => retrySend(msg)} style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
+                              Réessayer
+                            </button>
+                          </span>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: 11.5, color: C.grey }}>{msg.heure}</span>
+                            {msg.fromMe && (
+                              <>
+                                <Checks lu={msg.lu} />
+                                <span style={{ fontSize: 11.5, color: C.grey }}>{msg.lu ? 'Lu' : 'Envoyé'}</span>
+                              </>
+                            )}
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 </React.Fragment>
               )
             })}
-            {isTyping && <TypingIndicator nom={(activeConv.entreprise || activeConv.nom).split(' ')[0]} />}
+            {isTyping && <TypingIndicator nom={activeConv.nom || activeConv.entreprise} />}
             <div ref={endRef} />
           </div>
 
-          {replyingTo && (
-            <ReplyBar reply={replyingTo} nom={(activeConv.entreprise || activeConv.nom).split(' ')[0]} onCancel={() => setReplyingTo(null)} />
-          )}
-
-          {pendingFile && (
-            <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.sable}`, backgroundColor: `${C.terracotta}06`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-              {pendingFile.preview
-                ? <img src={pendingFile.preview} alt={pendingFile.nom} style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
-                : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-              }
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingFile.nom}</div>
-                <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>{formatBytes(pendingFile.file.size)}</div>
+          {/* Zone de saisie */}
+          <div style={{ padding: '12px 22px 16px', backgroundColor: C.bg, flexShrink: 0 }}>
+            <div style={{ backgroundColor: C.white, borderRadius: 14, boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
+              {/* Barre de réponse */}
+              {replyingTo && (
+                <div style={{ padding: '8px 14px', borderBottom: `1px solid ${C.sable}`, borderLeft: `3px solid ${C.terracotta}`, backgroundColor: `${C.terracotta}08`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: C.terracotta, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="9 14 4 9 9 4" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></svg>
+                      Répondre à {replyingTo.fromMe ? 'votre message' : (activeConv.nom || activeConv.entreprise).split(' ')[0]}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {replyingTo.contenu || 'Pièce jointe'}
+                    </div>
+                  </div>
+                  <button onClick={() => setReplyingTo(null)} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                </div>
+              )}
+              {/* Aperçu fichier */}
+              {pendingFile && (
+                <div style={{ padding: '8px 14px', borderBottom: `1px solid ${C.sable}`, backgroundColor: `${C.terracotta}06`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {pendingFile.preview
+                    ? <img src={pendingFile.preview} alt={pendingFile.nom} style={{ height: 44, width: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+                    : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                  }
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingFile.nom}</div>
+                    <div style={{ fontSize: 11, color: C.grey, marginTop: 1 }}>{formatBytes(pendingFile.file.size)}</div>
+                  </div>
+                  <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPendingFile(null) }} title="Retirer"
+                    style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                </div>
+              )}
+              {/* Ligne de saisie */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, padding: '8px 10px 8px 10px' }}>
+                <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre un fichier"
+                  style={{ width: 34, height: 34, borderRadius: 9, border: 'none', backgroundColor: 'transparent', cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
+                  {uploading
+                    ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} />
+                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                  }
+                </button>
+                <textarea
+                  ref={textaRef}
+                  value={input}
+                  onChange={e => { setInput(e.target.value); adjustTA(); sendTypingSignal(); if (sendErr) setSendErr(null) }}
+                  onKeyDown={handleKey}
+                  placeholder={`Répondre à ${activeConv.nom || activeConv.entreprise}`}
+                  rows={1}
+                  style={{ flex: 1, minHeight: 38, maxHeight: 120, padding: '8px 10px', border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 14.5, color: C.dark, fontFamily: 'inherit', resize: 'none', lineHeight: 1.5, overflowY: 'hidden' }}
+                />
+                <button
+                  onClick={() => send(input)}
+                  disabled={(!input.trim() && !pendingFile) || sending}
+                  style={{ height: 34, padding: '0 16px', borderRadius: 9, border: 'none', backgroundColor: (input.trim() || pendingFile) && !sending ? C.terracotta : C.sable, color: (input.trim() || pendingFile) && !sending ? C.white : C.grey, fontSize: 14, fontWeight: 600, cursor: (input.trim() || pendingFile) && !sending ? 'pointer' : 'default', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {sending || uploading ? 'Envoi…' : (
+                    <>Envoyer <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></>
+                  )}
+                </button>
               </div>
-              <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPendingFile(null) }} title="Retirer"
-                style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
             </div>
-          )}
-
-          <div style={{ padding: '10px 18px', backgroundColor: C.white, borderTop: `1px solid ${C.sable}`, display: 'flex', gap: 10, alignItems: 'flex-end', flexShrink: 0 }}>
-            <div style={{ marginBottom: 4, flexShrink: 0 }}>
-              <GlobalAvatar profil={userProfil} size="sm" />
+            {sendErr && (
+              <p style={{ margin: '5px 0 0', fontSize: 12, color: C.erreur, lineHeight: 1.4 }}>{sendErr}</p>
+            )}
+            <div style={{ marginTop: 6, fontSize: 12, color: C.grey, textAlign: 'center' }}>
+              Entrée pour envoyer, Maj + Entrée pour aller à la ligne.
             </div>
-            <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Joindre un fichier"
-              style={{ width: 38, height: 38, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: uploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: uploading ? 0.5 : 1 }}>
-              {uploading
-                ? <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-sp 0.7s linear infinite' }} />
-                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
-              }
-            </button>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <textarea ref={textaRef} value={input}
-                onChange={e => { setInput(e.target.value); adjustTA(); sendTypingSignal(); if (sendErr) setSendErr(null) }}
-                onKeyDown={handleKey}
-                placeholder={`Écrire à ${(activeConv.entreprise || activeConv.nom).split(' ')[0]}…`}
-                rows={1}
-                style={{ padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.bg, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
-              />
-              {sendErr && (
-                <p style={{ margin: 0, fontSize: 13, color: C.erreur, lineHeight: 1.4 }}>{sendErr}</p>
-              )}
-            </div>
-            <button onClick={() => send(input)} disabled={(!input.trim() && !pendingFile) || sending}
-              style={{ height: 38, padding: '0 18px', borderRadius: 12, border: 'none', backgroundColor: (input.trim() || pendingFile) && !sending ? C.terracotta : C.sable, color: (input.trim() || pendingFile) && !sending ? C.white : C.grey, fontSize: 14, fontWeight: 600, cursor: (input.trim() || pendingFile) && !sending ? 'pointer' : 'default', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {sending || uploading ? 'Envoi…' : (
-                <>Envoyer <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></>
-              )}
-            </button>
           </div>
         </div>
       ) : (
