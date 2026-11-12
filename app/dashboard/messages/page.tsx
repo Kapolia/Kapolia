@@ -278,6 +278,7 @@ function CandidatMessagesPageInner() {
   const retiredTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bandeauRetirRef  = useRef<BandeauHandle>(null)
   const inputZoneRef     = useRef<HTMLDivElement>(null)
+  const retiredConvRef   = useRef<{ conv: LocalConv; nextId: string } | null>(null)
   const convListRef      = useRef<HTMLDivElement>(null)
   const highlightRef     = useRef<HTMLDivElement>(null)
   const prevHighlightPos = useRef<{ top: number; h: number } | null>(null)
@@ -287,6 +288,9 @@ function CandidatMessagesPageInner() {
   const prevMsgRef       = useRef<{ activeId: string; count: number }>({ activeId: '', count: 0 })
   const prevLuRef        = useRef<Map<string, boolean>>(new Map())
   const justBatchLoadedRef = useRef<Record<string, boolean>>({})
+
+  // Sync retiredConvRef pour accès depuis timers et cleanup
+  useEffect(() => { retiredConvRef.current = retiredConv }, [retiredConv])
 
   // ── Reduced motion ────────────────────────────────────────────────────────
 
@@ -511,7 +515,14 @@ function CandidatMessagesPageInner() {
       if (realtimeRef.current) { supabase.removeChannel(realtimeRef.current); realtimeRef.current = null }
       if (realtimeConvsRef.current) { supabase.removeChannel(realtimeConvsRef.current); realtimeConvsRef.current = null }
       if (typingTimer.current) clearTimeout(typingTimer.current)
-      if (retiredTimerRef.current) clearTimeout(retiredTimerRef.current)
+      // Point 4 : retrait en attente au démontage → confirmer immédiatement sans animation
+      if (retiredTimerRef.current) {
+        clearTimeout(retiredTimerRef.current)
+        retiredTimerRef.current = null
+        if (retiredConvRef.current) {
+          confirmerRetrait(retiredConvRef.current.conv.id, retiredConvRef.current.conv)
+        }
+      }
     }
   }, [])
 
@@ -987,6 +998,22 @@ function CandidatMessagesPageInner() {
     setSending(false)
   }
 
+  async function confirmerRetrait(id: string, convSnapshot: LocalConv) {
+    const { error } = await supabase
+      .from('conversations')
+      .update({ masquee_candidat: true })
+      .eq('id', id)
+    if (error) {
+      console.error('[messages retirer]', error)
+      setConvs(prev => {
+        if (prev.some(c => c.id === id)) return prev
+        return [...prev, convSnapshot].sort((a, b) =>
+          new Date(b.derniereDate).getTime() - new Date(a.derniereDate).getTime()
+        )
+      })
+    }
+  }
+
   function retirerConversation() {
     if (!activeConv) return
     setMenuOpen(false)
@@ -997,6 +1024,15 @@ function CandidatMessagesPageInner() {
     const nextConv     = remaining[idx] ?? remaining[Math.max(0, idx - 1)] ?? null
 
     function proceed() {
+      // Point 2 : retrait déjà en attente → confirmer immédiatement avant d'en lancer un nouveau
+      if (retiredTimerRef.current) {
+        clearTimeout(retiredTimerRef.current)
+        retiredTimerRef.current = null
+        if (retiredConvRef.current) {
+          confirmerRetrait(retiredConvRef.current.conv.id, retiredConvRef.current.conv)
+        }
+      }
+
       setConvs(remaining)
       setRetiredConv({ conv: convToRemove, nextId: nextConv?.id ?? '' })
       if (nextConv) {
@@ -1005,11 +1041,15 @@ function CandidatMessagesPageInner() {
         setActiveId(''); activeIdRef.current = ''
         subscribeToConv('')
       }
-      if (retiredTimerRef.current) clearTimeout(retiredTimerRef.current)
+
+      // Point 3 : écriture d'abord, bandeau ensuite (sans dépendre de bandeauRetirRef)
       retiredTimerRef.current = setTimeout(() => {
-        bandeauRetirRef.current?.animateOut(() => {
-          supabase.from('conversations').update({ masquee_candidat: true }).eq('id', convToRemove.id).then()
-          setRetiredConv(null)
+        confirmerRetrait(convToRemove.id, convToRemove).then(() => {
+          if (bandeauRetirRef.current) {
+            bandeauRetirRef.current.animateOut(() => setRetiredConv(null))
+          } else {
+            setRetiredConv(null)
+          }
         })
       }, 5000)
     }
