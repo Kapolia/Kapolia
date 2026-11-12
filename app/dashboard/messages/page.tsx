@@ -1,29 +1,6 @@
 'use client'
 
-/*
-  SQL — Supabase SQL Editor (migrations) :
-
-  ALTER TABLE public.messages
-    ADD COLUMN IF NOT EXISTS piece_jointe_url  text,
-    ADD COLUMN IF NOT EXISTS piece_jointe_nom  text,
-    ADD COLUMN IF NOT EXISTS piece_jointe_type text,
-    ADD COLUMN IF NOT EXISTS reply_to_id       uuid references public.messages(id) on delete set null;
-
-  CREATE TABLE IF NOT EXISTS public.reactions (
-    id         uuid primary key default gen_random_uuid(),
-    message_id uuid references public.messages(id)  on delete cascade,
-    user_id    uuid references auth.users(id)        on delete cascade,
-    emoji      text not null,
-    UNIQUE(message_id, user_id, emoji)
-  );
-  ALTER TABLE public.reactions ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "Accès reactions" ON public.reactions
-    FOR ALL USING (true) WITH CHECK (auth.uid() = user_id);
-
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
-*/
-
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
 import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
@@ -32,15 +9,10 @@ import { FONT_SERIF } from '@/lib/typography'
 import GlobalAvatar, { type AvatarProfil } from '@/components/Avatar'
 import RdvBubble from '@/components/RdvBubble'
 import { sanitizeFilename } from '@/lib/storage-utils'
-import { C as _C } from '@/lib/colors'
-import { largeurUtile } from '@/lib/largeur-utile'
-const C = { ..._C, lightGrey: '#C8C8C8' as const }
+import { C } from '@/lib/colors'
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
-
-const IMAGE_EXTS  = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
-const MAX_BYTES   = 10 * 1024 * 1024
-const QUICK_EMOJIS = ['👍','❤️','😄','🎉','👏','✅']
+const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
+const MAX_BYTES  = 10 * 1024 * 1024
 
 function isImage(nom: string) {
   return IMAGE_EXTS.has(nom.split('.').pop()?.toLowerCase() ?? '')
@@ -68,58 +40,22 @@ function formatBytes(b: number) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ReactionData = { emoji: string; count: number; mine: boolean }
-type ReplyRef     = { id: string; contenu: string; fromMe: boolean }
+type ReplyRef = { id: string; contenu: string; fromMe: boolean }
 
 type LocalConv = {
   id: string; recruteurId?: string
   nom: string; initiales: string; avatarBg: string
   entreprise: string; offreTitre: string; offreId?: string
   dernierMsg: string; derniereHeure: string
-  nonLu: number; epinglee: boolean
+  nonLu: number
 }
 
 type LocalMsg = {
   id: string; fromMe: boolean; contenu: string; heure: string; lu: boolean
-  date?: string  // YYYY-MM-DD, pour séparateurs de date
+  date?: string
   pjUrl?: string; pjNom?: string; pjType?: string
   replyToId?: string; replyToContenu?: string
-  reactions: ReactionData[]
   rendezVousId?: string
-}
-
-// ─── Fictitious data ──────────────────────────────────────────────────────────
-
-const FICT_CONVS: LocalConv[] = [
-  { id: 'fc1', nom: 'Julien Renard',  initiales: 'AS', avatarBg: C.vert,    entreprise: 'Acme Studio',       offreTitre: 'Lead UX Designer',        dernierMsg: "Jeudi 10h me convient parfaitement !", derniereHeure: '10:42', nonLu: 0, epinglee: true  },
-  { id: 'fc2', nom: 'Clara Fontaine', initiales: 'MF', avatarBg: '#7B5EA7', entreprise: 'Méta France',        offreTitre: 'Product Manager Senior',  dernierMsg: "Avez-vous des disponibilités ?",       derniereHeure: 'Hier',  nonLu: 2, epinglee: false },
-  { id: 'fc3', nom: 'Pierre Morel',   initiales: 'LD', avatarBg: '#5A6E7B', entreprise: 'Lighthouse Digital', offreTitre: 'Développeur React Senior', dernierMsg: "Votre profil est excellent !",         derniereHeure: 'Jeu.',  nonLu: 1, epinglee: false },
-  { id: 'fc4', nom: 'Nadia Benali',   initiales: 'SB', avatarBg: '#8E6E5A', entreprise: 'StartupBuilder',     offreTitre: 'CTO Co-Fondateur',        dernierMsg: "Bientôt disponible…",                 derniereHeure: 'Lun.',  nonLu: 0, epinglee: false },
-]
-
-const FICT_MSGS: Record<string, LocalMsg[]> = {
-  'fc1': [
-    { id: 'f1m1', fromMe: false, lu: true,  heure: '09:15', contenu: "Bonjour ! Votre profil correspond exactement à notre poste de Lead UX Designer.", reactions: [{ emoji:'👍', count:1, mine:true }] },
-    { id: 'f1m2', fromMe: true,  lu: true,  heure: '09:30', contenu: "Bonjour Julien, merci beaucoup ! Acme Studio est une entreprise que j'admire vraiment.", reactions: [] },
-    { id: 'f1m3', fromMe: false, lu: true,  heure: '10:00', contenu: "Seriez-vous disponible pour un entretien cette semaine ?", reactions: [] },
-    { id: 'f1m4', fromMe: true,  lu: true,  heure: '10:25', contenu: "Oui bien sûr ! Jeudi ou vendredi matin, selon vos préférences.", reactions: [] },
-    { id: 'f1m5', fromMe: false, lu: true,  heure: '10:38', contenu: "Jeudi 10h en visio avec notre CPO — 45 minutes. Ça vous convient ?", replyToId: 'f1m4', replyToContenu: "Oui bien sûr ! Jeudi ou vendredi matin, selon vos préférences.", reactions: [] },
-    { id: 'f1m6', fromMe: true,  lu: false, heure: '10:42', contenu: "Jeudi 10h me convient parfaitement ! Merci, à jeudi !", reactions: [{ emoji:'🎉', count:1, mine:false }] },
-  ],
-  'fc2': [
-    { id: 'f2m1', fromMe: false, lu: true,  heure: 'Hier 11:30', contenu: "Bonjour, je me permets de vous contacter suite à la lecture de votre profil.", reactions: [] },
-    { id: 'f2m2', fromMe: false, lu: false, heure: 'Hier 11:32', contenu: "Avez-vous des disponibilités pour échanger la semaine prochaine ?", reactions: [] },
-  ],
-  'fc3': [
-    { id: 'f3m1', fromMe: false, lu: true,  heure: 'Jeu. 08:50', contenu: "Votre profil est excellent — la combinaison React + accessibilité est très rare !", reactions: [{ emoji:'🎉', count:1, mine:false }] },
-    { id: 'f3m2', fromMe: true,  lu: true,  heure: 'Jeu. 09:00', contenu: "Merci Pierre ! Je serais ravi d'en savoir plus sur Lighthouse Digital.", reactions: [] },
-    { id: 'f3m3', fromMe: false, lu: false, heure: 'Jeu. 10:12', contenu: "Votre profil est excellent ! Je vous envoie une invitation sous 24h.", reactions: [] },
-  ],
-  'fc4': [
-    { id: 'f4m1', fromMe: false, lu: true,  heure: 'Lun. 14:00', contenu: "Bonjour ! Nous construisons quelque chose d'unique, j'aimerais vous en parler.", reactions: [] },
-    { id: 'f4m2', fromMe: true,  lu: true,  heure: 'Lun. 15:00', contenu: "Intéressant ! Dites m'en plus sur le projet.", reactions: [] },
-    { id: 'f4m3', fromMe: false, lu: true,  heure: 'Lun. 15:30', contenu: "Je reviens vers vous avec plus de détails bientôt.", reactions: [] },
-  ],
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -135,7 +71,7 @@ function initEntreprise(nom: string): string {
   return (words[0][0] + words[1][0]).toUpperCase()
 }
 
-// ─── ConvAvatar (recruteur) ───────────────────────────────────────────────────
+// ─── ConvAvatar ───────────────────────────────────────────────────────────────
 
 function ConvAvatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
   return (
@@ -148,7 +84,7 @@ function ConvAvatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
 // ─── Double checkmarks ────────────────────────────────────────────────────────
 
 function Checks({ lu }: { lu: boolean }) {
-  const col = lu ? C.terracotta : C.lightGrey
+  const col = lu ? C.terracotta : C.grey
   const lineStyle = { stroke: col, strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
   return (
     <svg width="18" height="11" viewBox="0 0 18 11" style={{ flexShrink: 0, overflow: 'visible' }}>
@@ -160,7 +96,7 @@ function Checks({ lu }: { lu: boolean }) {
 
 // ─── File bubble ──────────────────────────────────────────────────────────────
 
-function FileBubble({ nom, url, type, fromMe }: { nom: string; url?: string; type?: string; fromMe: boolean }) {
+function FileBubble({ nom, url, type, fromMe: _fromMe }: { nom: string; url?: string; type?: string; fromMe: boolean }) {
   if ((type === 'image' || isImage(nom)) && url) {
     return (
       <a href={url} target="_blank" rel="noreferrer" style={{ display: 'block', maxWidth: 220, borderRadius: 12, overflow: 'hidden' }}>
@@ -171,7 +107,10 @@ function FileBubble({ nom, url, type, fromMe }: { nom: string; url?: string; typ
   return (
     <a href={url} target="_blank" rel="noopener noreferrer"
       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, backgroundColor: C.white, border: `1px solid ${C.sable}`, textDecoration: 'none', maxWidth: 260, cursor: url ? 'pointer' : 'default' }}>
-      <span style={{ fontSize: 20 }}>📄</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
       <span style={{ fontSize: 12, color: C.dark, fontWeight: 500, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
       {url && <span style={{ fontSize: 11, color: C.terracotta, fontWeight: 600, flexShrink: 0 }}>Télécharger</span>}
     </a>
@@ -188,7 +127,7 @@ function TypingIndicator({ nom }: { nom: string }) {
           <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.grey, animation: `kapolia-bounce 1.2s ${i * 0.2}s infinite` }} />
         ))}
       </div>
-      <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>{nom} est en train d'écrire…</span>
+      <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>{nom} est en train d&apos;écrire…</span>
     </div>
   )
 }
@@ -200,7 +139,7 @@ function ActionBtn({ children, title, onClick }: { children: React.ReactNode; ti
   return (
     <button onClick={onClick} title={title}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
+      style={{ width: 26, height: 26, borderRadius: 8, border: 'none', backgroundColor: h ? C.sable : C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {children}
     </button>
   )
@@ -212,88 +151,24 @@ function ReplyBar({ reply, nom, onCancel }: { reply: ReplyRef; nom: string; onCa
   return (
     <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.sable}`, borderLeft: `3px solid ${C.terracotta}`, backgroundColor: `${C.terracotta}08`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, color: C.terracotta, fontWeight: 700, marginBottom: 2 }}>
-          ↩ Répondre à {reply.fromMe ? 'votre message' : nom}
+        <div style={{ fontSize: 11, color: C.terracotta, fontWeight: 700, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <polyline points="9 14 4 9 9 4" />
+            <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+          </svg>
+          Répondre à {reply.fromMe ? 'votre message' : nom}
         </div>
         <div style={{ fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {reply.contenu || '📎 Pièce jointe'}
+          {reply.contenu || 'Pièce jointe'}
         </div>
       </div>
-      <button onClick={onCancel} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 2 }}>✕</button>
+      <button onClick={onCancel} style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
-  )
-}
-
-// ─── Reaction picker ──────────────────────────────────────────────────────────
-
-function ReactionPicker({ pos, onPick, onClose }: { pos: { top: number; left: number }; onPick: (e: string) => void; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [onClose])
-  return (
-    <div ref={ref} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 350, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 14, padding: '6px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', display: 'flex', gap: 2, animation: 'kapolia-dd 0.1s ease' }}>
-      {QUICK_EMOJIS.map(emoji => {
-        const [h, setH] = useState(false)
-        return (
-          <button key={emoji} onClick={() => { onPick(emoji); onClose() }}
-            onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-            style={{ border: 'none', backgroundColor: h ? C.bg : 'transparent', fontSize: 20, cursor: 'pointer', padding: '4px 5px', borderRadius: 8, transition: 'background-color 0.1s' }}>
-            {emoji}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─── Reactions bar ────────────────────────────────────────────────────────────
-
-function ReactionsBar({ reactions, onToggle }: { reactions: ReactionData[]; onToggle: (e: string) => void }) {
-  if (!reactions.length) return null
-  return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-      {reactions.filter(r => r.count > 0).map(r => (
-        <button key={r.emoji} onClick={() => onToggle(r.emoji)}
-          style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 8px', borderRadius: 10, border: `1px solid ${r.mine ? C.terracotta : C.sable}`, backgroundColor: r.mine ? `${C.terracotta}15` : C.white, cursor: 'pointer', fontSize: 13 }}>
-          <span>{r.emoji}</span>
-          <span style={{ fontSize: 11, color: r.mine ? C.terracotta : C.grey, fontWeight: r.mine ? 700 : 400 }}>{r.count}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ─── Context menu ─────────────────────────────────────────────────────────────
-
-function ContextMenu({ pos, pinned, onPin, onDelete, onClose }: {
-  pos: { top: number; right: number }; pinned: boolean
-  onPin: () => void; onDelete: () => void; onClose: () => void
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    function h(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose() }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [onClose])
-  return (
-    <div ref={ref} style={{ position: 'fixed', top: pos.top, right: pos.right, zIndex: 300, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 12, padding: 5, boxShadow: '0 8px 24px rgba(0,0,0,0.10)', minWidth: 160, animation: 'kapolia-dd 0.12s ease' }}>
-      <CMI label={pinned ? '📌 Désépingler' : '📌 Épingler'} onClick={() => { onPin(); onClose() }} />
-      <div style={{ height: 1, backgroundColor: C.sable, margin: '4px 0' }} />
-      <CMI label="Supprimer" danger onClick={() => { onDelete(); onClose() }} />
-    </div>
-  )
-}
-
-function CMI({ label, onClick, danger = false }: { label: string; onClick: () => void; danger?: boolean }) {
-  const [h, setH] = useState(false)
-  return (
-    <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', borderRadius: 8, backgroundColor: h ? (danger ? '#FDECEA' : C.bg) : 'transparent', color: danger ? C.erreur : C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'background-color 0.1s', whiteSpace: 'nowrap' }}>
-      {label}
-    </button>
   )
 }
 
@@ -303,11 +178,13 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 280 }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✉️</div>
         <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
         <div style={{ fontSize: 14, color: C.grey, marginBottom: 24, lineHeight: 1.6 }}>Les recruteurs intéressés par votre profil vous contacteront ici.</div>
-        <button onClick={onBrowse} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          Découvrir les offres →
+        <button onClick={onBrowse} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          Découvrir les offres
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </button>
       </div>
     </div>
@@ -329,31 +206,20 @@ function CandidatMessagesPageInner() {
   const [sending, setSending]         = useState(false)
   const [uploading, setUploading]     = useState(false)
   const [pendingFile, setPendingFile] = useState<{ file: File; nom: string; type: string; preview?: string } | null>(null)
-  const [menuId, setMenuId]           = useState<string | null>(null)
-  const [menuPos, setMenuPos]         = useState<{ top: number; right: number } | null>(null)
-  const [hovConvId, setHovConvId]     = useState<string | null>(null)
   const [hovMsgId, setHovMsgId]       = useState<string | null>(null)
-  // Étape 3
   const [isTyping, setIsTyping]       = useState(false)
-  // Étape 4
   const [replyingTo, setReplyingTo]   = useState<ReplyRef | null>(null)
-  // Étape 5
-  const [reactPickId, setReactPickId]   = useState<string | null>(null)
-  const [reactPickPos, setReactPickPos] = useState<{ top: number; left: number } | null>(null)
-  // Sélection multiple
-  const [selectMode, setSelectMode] = useState(false)
-  const [selected, setSelected]     = useState<Set<string>>(new Set())
+  const [sendErr, setSendErr]         = useState<string | null>(null)
 
-  const endRef        = useRef<HTMLDivElement>(null)
-  const textaRef      = useRef<HTMLTextAreaElement>(null)
-  const fileRef       = useRef<HTMLInputElement>(null)
-  const userIdRef     = useRef<string | null>(null)
-  const realtimeRef     = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const endRef           = useRef<HTMLDivElement>(null)
+  const textaRef         = useRef<HTMLTextAreaElement>(null)
+  const fileRef          = useRef<HTMLInputElement>(null)
+  const userIdRef        = useRef<string | null>(null)
+  const realtimeRef      = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const realtimeConvsRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
-  const reactIdMapRef    = useRef<Record<string, { message_id: string; user_id: string; emoji: string }>>({})
-  const typingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastTypingRef = useRef<number>(0)
-  const activeIdRef   = useRef<string>('')
+  const typingTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastTypingRef    = useRef<number>(0)
+  const activeIdRef      = useRef<string>('')
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -372,7 +238,7 @@ function CandidatMessagesPageInner() {
 
       const { data: convsRaw, error } = await supabase
         .from('conversations')
-        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, epinglee, offres(titre)')
+        .select('id, recruteur_id, offre_id, dernier_message, derniere_activite, non_lu_candidat, offres(titre)')
         .eq('candidat_id', user.id)
         .eq('masquee_candidat', false)
         .order('derniere_activite', { ascending: false })
@@ -405,7 +271,7 @@ function CandidatMessagesPageInner() {
           derniereHeure: row.derniere_activite
             ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
             : '',
-          nonLu: row.non_lu_candidat ?? 0, epinglee: row.epinglee ?? false,
+          nonLu: row.non_lu_candidat ?? 0,
         }
       })
       setConvs(loaded)
@@ -468,7 +334,7 @@ function CandidatMessagesPageInner() {
                 derniereHeure: c.derniere_activite
                   ? new Date(c.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                   : '',
-                nonLu: c.non_lu_candidat ?? 0, epinglee: false,
+                nonLu: c.non_lu_candidat ?? 0,
               }
               setConvs(prev => prev.some(x => x.id === c.id) ? prev : [restored, ...prev])
             }
@@ -477,7 +343,7 @@ function CandidatMessagesPageInner() {
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'conversations', filter: `candidat_id=eq.${user.id}` },
           async payload => {
-            const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_candidat?: number; epinglee?: boolean }
+            const row = payload.new as { id: string; recruteur_id: string; offre_id?: string; derniere_activite?: string; dernier_message?: string; non_lu_candidat?: number }
             const [{ data: offre, error: insOffreErr }, { data: profil, error: insProfilErr }] = await Promise.all([
               row.offre_id
                 ? supabase.from('offres').select('titre').eq('id', row.offre_id).single()
@@ -501,7 +367,7 @@ function CandidatMessagesPageInner() {
               derniereHeure: row.derniere_activite
                 ? new Date(row.derniere_activite).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
                 : '',
-              nonLu: row.non_lu_candidat ?? 0, epinglee: row.epinglee ?? false,
+              nonLu: row.non_lu_candidat ?? 0,
             }
             setConvs(prev => {
               if (prev.some(c => c.id === row.id)) return prev
@@ -532,9 +398,6 @@ function CandidatMessagesPageInner() {
   const activeConv  = convs.find(c => c.id === activeId) ?? null
   const activeMsgs  = msgCache[activeId] ?? []
   const totalUnread = convs.reduce((n, c) => n + c.nonLu, 0)
-  const sortedConvs = [...convs].sort((a, b) =>
-    a.epinglee !== b.epinglee ? (a.epinglee ? -1 : 1) : 0
-  )
 
   // ── Realtime channel ──────────────────────────────────────────────────────
 
@@ -564,7 +427,7 @@ function CandidatMessagesPageInner() {
               heure: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
               date: msgDate(m.created_at),
               pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type,
-              replyToId: m.reply_to_id, replyToContenu: undefined, reactions: [],
+              replyToId: m.reply_to_id, replyToContenu: undefined,
               rendezVousId: m.rendez_vous_id ?? undefined,
             }],
           }))
@@ -591,52 +454,6 @@ function CandidatMessagesPageInner() {
         }
       )
 
-      // ── Réactions INSERT (skip ses propres événements — update optimiste déjà appliqué)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions' }, payload => {
-        const r = payload.new as { id: string; message_id: string; user_id: string; emoji: string }
-        if (r.id) reactIdMapRef.current[r.id] = { message_id: r.message_id, user_id: r.user_id, emoji: r.emoji }
-        if (r.user_id === userIdRef.current) return
-        setMsgCache(prev => {
-          const msgs = prev[convId]
-          if (!msgs?.some(m => m.id === r.message_id)) return prev
-          return {
-            ...prev,
-            [convId]: msgs.map(msg => {
-              if (msg.id !== r.message_id) return msg
-              const ex = msg.reactions.find(x => x.emoji === r.emoji)
-              if (ex) return { ...msg, reactions: msg.reactions.map(x => x.emoji === r.emoji ? { ...x, count: x.count + 1 } : x) }
-              return { ...msg, reactions: [...msg.reactions, { emoji: r.emoji, count: 1, mine: false }] }
-            }),
-          }
-        })
-      })
-
-      // ── Réactions DELETE — payload.old ne contient que l'id → résolution via reactIdMapRef
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' }, payload => {
-        const { id } = payload.old as { id: string }
-        const cached = reactIdMapRef.current[id]
-        if (!cached) return
-        const { message_id, user_id, emoji } = cached
-        delete reactIdMapRef.current[id]
-        if (user_id === userIdRef.current) return
-        setMsgCache(prev => {
-          const msgs = prev[convId]
-          if (!msgs?.some(m => m.id === message_id)) return prev
-          return {
-            ...prev,
-            [convId]: msgs.map(msg => {
-              if (msg.id !== message_id) return msg
-              return {
-                ...msg,
-                reactions: msg.reactions
-                  .map(x => x.emoji === emoji ? { ...x, count: x.count - 1 } : x)
-                  .filter(x => x.count > 0),
-              }
-            }),
-          }
-        })
-      })
-
       // ── Typing ────────────────────────────────────────────────────────
       .on('broadcast', { event: 'typing' }, () => {
         setIsTyping(true)
@@ -647,7 +464,7 @@ function CandidatMessagesPageInner() {
   }
 
   function sendTypingSignal() {
-    if (activeId.startsWith('f') || !realtimeRef.current) return
+    if (!realtimeRef.current) return
     const now = Date.now()
     if (now - lastTypingRef.current < 1000) return
     lastTypingRef.current = now
@@ -657,10 +474,9 @@ function CandidatMessagesPageInner() {
   // ── Select conversation ────────────────────────────────────────────────────
 
   async function selectConv(id: string) {
-    setActiveId(id); activeIdRef.current = id; setMenuId(null); setReplyingTo(null)
+    setActiveId(id); activeIdRef.current = id; setReplyingTo(null)
     setConvs(prev => prev.map(c => c.id === id ? { ...c, nonLu: 0 } : c))
     subscribeToConv(id)
-    if (id.startsWith('f')) return
 
     const { data } = await supabase
       .from('messages')
@@ -669,23 +485,6 @@ function CandidatMessagesPageInner() {
       .order('created_at')
 
     if (data?.length) {
-      const { data: reacts } = await supabase
-        .from('reactions')
-        .select('id, emoji, user_id, message_id')
-        .in('message_id', data.map(m => m.id))
-
-      const reactMap: Record<string, ReactionData[]> = {}
-      reactIdMapRef.current = {}
-      if (reacts) {
-        for (const r of reacts) {
-          reactIdMapRef.current[r.id] = { message_id: r.message_id, user_id: r.user_id, emoji: r.emoji }
-          if (!reactMap[r.message_id]) reactMap[r.message_id] = []
-          const ex = reactMap[r.message_id].find(x => x.emoji === r.emoji)
-          if (ex) { ex.count++; if (r.user_id === userIdRef.current) ex.mine = true }
-          else reactMap[r.message_id].push({ emoji: r.emoji, count: 1, mine: r.user_id === userIdRef.current })
-        }
-      }
-
       setMsgCache(prev => ({
         ...prev,
         [id]: data.map(m => ({
@@ -698,7 +497,6 @@ function CandidatMessagesPageInner() {
           pjUrl: m.piece_jointe_url, pjNom: m.piece_jointe_nom, pjType: m.piece_jointe_type,
           replyToId: m.reply_to_id,
           replyToContenu: (m.reply as { contenu?: string } | null)?.contenu,
-          reactions: reactMap[m.id] ?? [],
           rendezVousId: (m as { rendez_vous_id?: string }).rendez_vous_id ?? undefined,
         })),
       }))
@@ -721,8 +519,8 @@ function CandidatMessagesPageInner() {
     if (!contenu.trim() && !pf) return
     if (!activeConv) return
 
-    const heure = nowHeure()
-    const tmpId = `tmp-${Date.now()}`
+    const heure     = nowHeure()
+    const tmpId     = `tmp-${Date.now()}`
     const replySnap = replyingTo
 
     const msg: LocalMsg = {
@@ -730,7 +528,6 @@ function CandidatMessagesPageInner() {
       date: msgDate(new Date().toISOString()),
       pjNom: pf?.nom, pjUrl: undefined, pjType: pf?.type,
       replyToId: replySnap?.id, replyToContenu: replySnap?.contenu,
-      reactions: [],
     }
     setMsgCache(prev => ({ ...prev, [activeId]: [...(prev[activeId] ?? []), msg] }))
     setConvs(prev => prev.map(c => c.id === activeId ? { ...c, dernierMsg: contenu.trim() || (pf?.nom ?? ''), derniereHeure: heure } : c))
@@ -745,15 +542,15 @@ function CandidatMessagesPageInner() {
     if (pf && userIdRef.current && activeId) {
       setUploading(true)
       const path = `${activeId}/${Date.now()}-${sanitizeFilename(pf.nom)}`
-      const { data: up, error } = await supabase.storage.from('pieces-jointes').upload(path, pf.file)
+      const { error } = await supabase.storage.from('pieces-jointes').upload(path, pf.file)
       if (error) {
-        alert(`Impossible d'envoyer le fichier : ${error.message}`)
+        setSendErr("Le fichier n'a pas pu être envoyé. Réessayez.")
         setUploading(false)
         setMsgCache(prev => ({ ...prev, [activeId]: (prev[activeId] ?? []).filter(m => m.id !== tmpId) }))
         return
       }
-      pjUrl = supabase.storage.from('pieces-jointes').getPublicUrl(path).data.publicUrl
-      pjNom = pf.nom
+      pjUrl  = supabase.storage.from('pieces-jointes').getPublicUrl(path).data.publicUrl
+      pjNom  = pf.nom
       pjType = pf.type
       setUploading(false)
       setMsgCache(prev => ({ ...prev, [activeId]: (prev[activeId] ?? []).map(m => m.id === tmpId ? { ...m, pjUrl } : m) }))
@@ -762,13 +559,13 @@ function CandidatMessagesPageInner() {
     if (userIdRef.current && activeId) {
       setSending(true)
       const { data: inserted } = await supabase.from('messages').insert({
-        expediteur_id: userIdRef.current,
-        conversation_id: activeId,
-        contenu: contenu.trim() || (pjNom ?? ''),
-        piece_jointe_url: pjUrl ?? null,
-        piece_jointe_nom: pjNom ?? null,
+        expediteur_id:    userIdRef.current,
+        conversation_id:  activeId,
+        contenu:          contenu.trim() || (pjNom ?? ''),
+        piece_jointe_url: pjUrl  ?? null,
+        piece_jointe_nom: pjNom  ?? null,
         piece_jointe_type: pjType ?? null,
-        reply_to_id: replySnap?.id ?? null,
+        reply_to_id:      replySnap?.id ?? null,
       }).select('id').single()
       if (inserted) {
         setMsgCache(prev => ({
@@ -790,151 +587,41 @@ function CandidatMessagesPageInner() {
     el.style.height = Math.min(el.scrollHeight, 120) + 'px'
   }
 
-  // ── File selection (no upload yet — upload happens on send) ───────────────
+  // ── File selection ────────────────────────────────────────────────────────
 
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return; e.target.value = ''
-    if (file.size > MAX_BYTES) { alert('Fichier trop volumineux (maximum 10 Mo).'); return }
-    const nom = file.name
-    const type = isImage(nom) ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'file'
+    if (file.size > MAX_BYTES) {
+      setSendErr('Ce fichier dépasse 10 Mo. Choisissez un fichier plus léger.')
+      return
+    }
+    const nom     = file.name
+    const type    = isImage(nom) ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'file'
     const preview = isImage(nom) ? URL.createObjectURL(file) : undefined
     setPendingFile({ file, nom, type, preview })
   }
 
-  // ── Reactions ─────────────────────────────────────────────────────────────
-
-  function openReactionPicker(e: React.MouseEvent<HTMLButtonElement>, msgId: string) {
-    e.stopPropagation()
-    const r = e.currentTarget.getBoundingClientRect()
-    setReactPickId(msgId); setReactPickPos({ top: r.top - 52, left: r.left - 80 })
-  }
-
-  async function toggleReaction(msgId: string, emoji: string) {
-    const msg = (msgCache[activeId] ?? []).find(m => m.id === msgId)
-    if (!msg) return
-    const existing = msg.reactions.find(r => r.emoji === emoji && r.mine)
-
-    const update = (reactions: ReactionData[]): ReactionData[] => {
-      const r = reactions.find(x => x.emoji === emoji)
-      if (existing) {
-        return r
-          ? reactions.map(x => x.emoji === emoji ? { ...x, count: x.count - 1, mine: false } : x).filter(x => x.count > 0)
-          : reactions
-      }
-      if (r) return reactions.map(x => x.emoji === emoji ? { ...x, count: x.count + 1, mine: true } : x)
-      return [...reactions, { emoji, count: 1, mine: true }]
-    }
-
-    setMsgCache(prev => ({
-      ...prev,
-      [activeId]: (prev[activeId] ?? []).map(m => m.id === msgId ? { ...m, reactions: update(m.reactions) } : m),
-    }))
-
-    if (!msgId.startsWith('f') && userIdRef.current) {
-      if (existing) {
-        await supabase.from('reactions').delete().eq('message_id', msgId).eq('user_id', userIdRef.current).eq('emoji', emoji)
-      } else {
-        await supabase.from('reactions').insert({ message_id: msgId, user_id: userIdRef.current, emoji })
-      }
-    }
-  }
-
-  // ── Conv management ───────────────────────────────────────────────────────
-
-  function openMenu(e: React.MouseEvent<HTMLButtonElement>, id: string) {
-    e.stopPropagation()
-    if (menuId === id) { setMenuId(null); setMenuPos(null); return }
-    const r = e.currentTarget.getBoundingClientRect()
-    setMenuPos({ top: r.bottom + 4, right: largeurUtile() - r.right }); setMenuId(id)
-  }
-
-  const pinConv = useCallback((id: string) => {
-    setConvs(prev => prev.map(c => c.id === id ? { ...c, epinglee: !c.epinglee } : c))
-    if (!id.startsWith('f')) {
-      const cur = convs.find(c => c.id === id)?.epinglee
-      supabase.from('conversations').update({ epinglee: !cur }).eq('id', id).then()
-    }
-  }, [convs])
-
-  const deleteConv = useCallback((id: string) => {
-    const conv = convs.find(c => c.id === id)
-    if (!conv || !confirm(`Retirer la conversation avec ${conv.entreprise || conv.nom} de votre messagerie ?`)) return
-    setConvs(prev => prev.filter(c => c.id !== id))
-    if (activeId === id) {
-      const next = convs.find(c => c.id !== id)
-      const nextId = next?.id ?? ''
-      setActiveId(nextId); activeIdRef.current = nextId
-    }
-    // Masquage côté candidat — ne détruit pas les données du recruteur
-    // TODO sprint sécurité : restreindre la policy RLS pour que seul le candidat puisse écrire masquee_candidat
-    if (!id.startsWith('f')) supabase.from('conversations').update({ masquee_candidat: true }).eq('id', id).then()
-  }, [convs, activeId])
-
-  function toggleSelectMode() {
-    setSelectMode(m => !m)
-    setSelected(new Set())
-    setMenuId(null); setMenuPos(null)
-  }
-
-  function toggleSelected(id: string) {
-    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
-  }
-
-  const maskSelected = useCallback(() => {
-    const ids = [...selected].filter(id => !id.startsWith('f'))
-    if (!ids.length) { setSelectMode(false); setSelected(new Set()); return }
-    const n = ids.length
-    if (!confirm(`Retirer ${n} conversation${n > 1 ? 's' : ''} de votre messagerie ?\nVos messages ne seront pas supprimés côté recruteur.`)) return
-    setConvs(prev => prev.filter(c => !selected.has(c.id)))
-    if (selected.has(activeId)) { setActiveId(''); activeIdRef.current = '' }
-    setSelected(new Set())
-    setSelectMode(false)
-    supabase.from('conversations').update({ masquee_candidat: true }).in('id', ids).then()
-  }, [selected, activeId])
-
   // ── Render ────────────────────────────────────────────────────────────────
-
-  const menuConv = menuId ? convs.find(c => c.id === menuId) : null
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`
-        @keyframes kapolia-dd     { from{opacity:0;transform:translateY(-4px)}  to{opacity:1;transform:translateY(0)} }
         @keyframes kapolia-sp     { to{transform:rotate(360deg)} }
         @keyframes kapolia-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
-        .dk-conv-row:hover .dk-cmb { opacity:1 !important; }
       `}</style>
 
-      {menuId && menuPos && menuConv && (
-        <ContextMenu
-          pos={menuPos} pinned={menuConv.epinglee}
-          onPin={() => pinConv(menuId)} onDelete={() => deleteConv(menuId)}
-          onClose={() => { setMenuId(null); setMenuPos(null) }}
-        />
-      )}
-      {reactPickId && reactPickPos && (
-        <ReactionPicker pos={reactPickPos} onPick={e => toggleReaction(reactPickId, e)} onClose={() => { setReactPickId(null); setReactPickPos(null) }} />
-      )}
       <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={handleFile} />
 
       {/* ── LEFT COLUMN ──────────────────────────────────────────────────── */}
       <div style={{ width: 280, flexShrink: 0, height: '100%', backgroundColor: C.white, borderRight: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.sable}`, flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark }}>Mes messages</span>
-              {!selectMode && totalUnread > 0 && (
-                <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>
-                  {totalUnread}
-                </span>
-              )}
-            </div>
-            {convs.length > 0 && (
-              <button onClick={toggleSelectMode}
-                style={{ fontSize: 12, fontWeight: 600, color: selectMode ? C.terracotta : C.grey, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontFamily: 'inherit' }}>
-                {selectMode ? 'Annuler' : 'Sélectionner'}
-              </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark }}>Mes messages</span>
+            {totalUnread > 0 && (
+              <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>
+                {totalUnread}
+              </span>
             )}
           </div>
           <div style={{ position: 'relative' }}>
@@ -950,77 +637,41 @@ function CandidatMessagesPageInner() {
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {loadingConvs ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: C.grey, fontSize: 13 }}>Chargement…</div>
-          ) : sortedConvs.length === 0 ? (
+          ) : convs.length === 0 ? (
             <div style={{ padding: '24px 16px', textAlign: 'center', color: C.grey, fontSize: 13 }}>Aucune conversation</div>
-          ) : sortedConvs.map(conv => {
+          ) : convs.map(conv => {
             const isActive   = conv.id === activeId
-            const isSel      = selected.has(conv.id)
-            const borderLeft = selectMode
-              ? `3px solid ${isSel ? C.terracotta : 'transparent'}`
-              : `3px solid ${isActive ? C.terracotta : conv.epinglee ? C.vert : 'transparent'}`
-            const bgColor    = selectMode
-              ? (isSel ? `${C.terracotta}10` : 'transparent')
-              : (isActive ? `${C.terracotta}08` : 'transparent')
+            const borderLeft = `3px solid ${isActive ? C.terracotta : 'transparent'}`
+            const bgColor    = isActive ? `${C.terracotta}08` : 'transparent'
             return (
-              <div key={conv.id} className="dk-conv-row"
-                onMouseEnter={() => setHovConvId(conv.id)}
-                onMouseLeave={() => setHovConvId(null)}
-                style={{ position: 'relative' }}>
-                <button onClick={() => selectMode ? toggleSelected(conv.id) : selectConv(conv.id)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 36px 12px 14px', border: 'none', borderBottom: `1px solid ${C.sable}`, borderLeft, backgroundColor: bgColor, cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s' }}>
-                  <ConvAvatar i={conv.initiales} bg={conv.avatarBg} s={40} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {!selectMode && conv.epinglee && <span style={{ fontSize: 10 }}>📌</span>}
-                        {conv.entreprise || conv.nom}
-                      </span>
-                      <span style={{ fontSize: 10, color: C.grey, flexShrink: 0, marginLeft: 4 }}>{conv.derniereHeure}</span>
-                    </div>
-                    <div style={{ fontSize: 11, color: C.grey, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {[conv.nom, conv.offreTitre].filter(Boolean).join(' · ')}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 12, color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                        {conv.dernierMsg}
-                      </span>
-                      {!selectMode && conv.nonLu > 0 && (
-                        <span style={{ width: 17, height: 17, borderRadius: '50%', flexShrink: 0, backgroundColor: C.terracotta, color: C.white, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {conv.nonLu}
-                        </span>
-                      )}
-                    </div>
+              <button key={conv.id} onClick={() => selectConv(conv.id)}
+                style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', border: 'none', borderBottom: `1px solid ${C.sable}`, borderLeft, backgroundColor: bgColor, cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s' }}>
+                <ConvAvatar i={conv.initiales} bg={conv.avatarBg} s={40} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {conv.entreprise || conv.nom}
+                    </span>
+                    <span style={{ fontSize: 10, color: C.grey, flexShrink: 0, marginLeft: 4 }}>{conv.derniereHeure}</span>
                   </div>
-                </button>
-                {selectMode ? (
-                  <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, borderRadius: '50%', border: `2px solid ${isSel ? C.terracotta : C.lightGrey}`, backgroundColor: isSel ? C.terracotta : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', flexShrink: 0 }}>
-                    {isSel && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><polyline points="1,4 4,7 9,1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  <div style={{ fontSize: 11, color: C.grey, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {[conv.nom, conv.offreTitre].filter(Boolean).join(' · ')}
                   </div>
-                ) : (
-                  <button className="dk-cmb" onClick={e => openMenu(e, conv.id)}
-                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', width: 22, height: 22, borderRadius: 6, border: 'none', backgroundColor: menuId === conv.id ? C.bg : 'transparent', color: C.grey, fontSize: 14, fontWeight: 700, letterSpacing: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: (hovConvId === conv.id || menuId === conv.id) ? 1 : 0, transition: 'opacity 0.15s', zIndex: 1, lineHeight: 1 }}
-                    title="Options">···</button>
-                )}
-              </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 12, color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {conv.dernierMsg}
+                    </span>
+                    {conv.nonLu > 0 && (
+                      <span style={{ width: 17, height: 17, borderRadius: '50%', flexShrink: 0, backgroundColor: C.terracotta, color: C.white, fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {conv.nonLu}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </button>
             )
           })}
         </div>
-
-        {/* ── Barre d'action sélection multiple ──────────────────────────── */}
-        {selectMode && (
-          <div style={{ padding: '10px 12px', borderTop: `1px solid ${C.sable}`, flexShrink: 0, backgroundColor: C.white, display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={() => setSelected(prev => prev.size === sortedConvs.length ? new Set() : new Set(sortedConvs.map(c => c.id)))}
-              style={{ fontSize: 12, color: C.grey, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '6px 0', flex: 1, textAlign: 'left' }}>
-              {selected.size === sortedConvs.length ? 'Tout décocher' : 'Tout sélectionner'}
-            </button>
-            {selected.size > 0 && (
-              <button onClick={maskSelected}
-                style={{ padding: '7px 12px', borderRadius: 8, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
-                Retirer ({selected.size})
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── CENTER COLUMN ────────────────────────────────────────────────── */}
@@ -1042,9 +693,12 @@ function CandidatMessagesPageInner() {
               )}
             </div>
             {activeConv.offreId && (
-              <button onClick={() => router.push(`/recruteur/offres/${activeConv.offreId}`)}
-                style={{ padding: '7px 14px', borderRadius: 9, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
-                Voir l'offre →
+              <button onClick={() => router.push(`/offres/${activeConv.offreId}`)}
+                style={{ padding: '7px 14px', borderRadius: 9, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.dark, fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                Voir l&apos;offre
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
               </button>
             )}
           </div>
@@ -1052,12 +706,12 @@ function CandidatMessagesPageInner() {
           {/* Messages */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
             {activeMsgs.map((msg, i) => {
-              const prev = activeMsgs[i - 1]
-              const next = activeMsgs[i + 1]
+              const prev         = activeMsgs[i - 1]
+              const next         = activeMsgs[i + 1]
               const dateChanged  = msg.date && (!prev || prev.date !== msg.date)
               const isFirstGroup = !prev || prev.fromMe !== msg.fromMe || dateChanged
               const isLastGroup  = !next || next.fromMe !== msg.fromMe || (msg.date && next.date !== msg.date)
-              const mt = i === 0 || dateChanged ? 0 : isFirstGroup ? 14 : 3
+              const mt           = i === 0 || dateChanged ? 0 : isFirstGroup ? 14 : 3
               return (
                 <React.Fragment key={msg.id}>
 
@@ -1077,12 +731,16 @@ function CandidatMessagesPageInner() {
 
                     {/* Reply quote */}
                     {msg.replyToId && (
-                      <div style={{ maxWidth: '66%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        ↩ {msg.replyToContenu ?? activeMsgs.find(m => m.id === msg.replyToId)?.contenu ?? '…'}
+                      <div style={{ maxWidth: '66%', padding: '5px 10px', borderRadius: '8px 8px 0 0', borderLeft: `3px solid ${C.sable}`, backgroundColor: `${C.sable}50`, marginBottom: 2, fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                          <polyline points="9 14 4 9 9 4" />
+                          <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                        </svg>
+                        {msg.replyToContenu ?? activeMsgs.find(m => m.id === msg.replyToId)?.contenu ?? '…'}
                       </div>
                     )}
 
-                    {/* Bubble + hover actions */}
+                    {/* Bubble + hover action */}
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, flexDirection: msg.fromMe ? 'row-reverse' : 'row' }}>
                       {msg.rendezVousId
                         ? <RdvBubble rdvId={msg.rendezVousId} role="candidat" />
@@ -1095,23 +753,22 @@ function CandidatMessagesPageInner() {
                           )
                       }
                       <div style={{ display: 'flex', gap: 3, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s', flexShrink: 0 }}>
-                        <ActionBtn title="Répondre" onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}>↩</ActionBtn>
-                        <ActionBtn title="Réagir" onClick={e => openReactionPicker(e, msg.id)}>😊</ActionBtn>
+                        <ActionBtn title="Répondre" onClick={() => setReplyingTo({ id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe })}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 14 4 9 9 4" />
+                            <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
+                          </svg>
+                        </ActionBtn>
                       </div>
                     </div>
 
-                    {/* Time + checks — dernier message du groupe seulement */}
+                    {/* Time + checks */}
                     {isLastGroup && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, paddingInline: 4 }}>
                         <span style={{ fontSize: 11, color: C.grey }}>{msg.heure}</span>
                         {msg.fromMe && <Checks lu={msg.lu} />}
                       </div>
                     )}
-
-                    {/* Reactions */}
-                    <div style={{ paddingInline: 4 }}>
-                      <ReactionsBar reactions={msg.reactions} onToggle={e => toggleReaction(msg.id, e)} />
-                    </div>
                   </div>
                 </React.Fragment>
               )
@@ -1131,13 +788,22 @@ function CandidatMessagesPageInner() {
             <div style={{ padding: '8px 14px', borderTop: `1px solid ${C.sable}`, backgroundColor: `${C.terracotta}06`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
               {pendingFile.preview
                 ? <img src={pendingFile.preview} alt={pendingFile.nom} style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
-                : <span style={{ fontSize: 22, flexShrink: 0 }}>📄</span>
+                : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
               }
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingFile.nom}</div>
                 <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>{formatBytes(pendingFile.file.size)}</div>
               </div>
-              <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPendingFile(null) }} title="Retirer" style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4, flexShrink: 0 }}>✕</button>
+              <button onClick={() => { if (pendingFile.preview) URL.revokeObjectURL(pendingFile.preview); setPendingFile(null) }} title="Retirer"
+                style={{ border: 'none', backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
           )}
 
@@ -1154,13 +820,18 @@ function CandidatMessagesPageInner() {
               }
             </button>
 
-            <textarea ref={textaRef} value={input}
-              onChange={e => { setInput(e.target.value); adjustTA(); sendTypingSignal() }}
-              onKeyDown={handleKey}
-              placeholder={`Écrire à ${(activeConv.entreprise || activeConv.nom).split(' ')[0]}…`}
-              rows={1}
-              style={{ flex: 1, padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.bg, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
-            />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <textarea ref={textaRef} value={input}
+                onChange={e => { setInput(e.target.value); adjustTA(); sendTypingSignal(); if (sendErr) setSendErr(null) }}
+                onKeyDown={handleKey}
+                placeholder={`Écrire à ${(activeConv.entreprise || activeConv.nom).split(' ')[0]}…`}
+                rows={1}
+                style={{ padding: '9px 14px', borderRadius: 12, border: `1.5px solid ${input || pendingFile ? C.terracotta : C.sable}`, backgroundColor: C.bg, fontSize: 14, color: C.dark, outline: 'none', fontFamily: 'inherit', resize: 'none', lineHeight: '1.5', overflowY: 'hidden', transition: 'border-color 0.15s' }}
+              />
+              {sendErr && (
+                <p style={{ margin: 0, fontSize: 13, color: C.erreur, lineHeight: 1.4 }}>{sendErr}</p>
+              )}
+            </div>
 
             <button onClick={() => send(input)} disabled={(!input.trim() && !pendingFile) || sending}
               style={{ height: 38, padding: '0 18px', borderRadius: 12, border: 'none', backgroundColor: (input.trim() || pendingFile) && !sending ? C.terracotta : C.sable, color: (input.trim() || pendingFile) && !sending ? C.white : C.grey, fontSize: 14, fontWeight: 600, cursor: (input.trim() || pendingFile) && !sending ? 'pointer' : 'default', transition: 'all 0.15s', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1173,7 +844,6 @@ function CandidatMessagesPageInner() {
       ) : (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
           <div style={{ textAlign: 'center', maxWidth: 300 }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
             <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
             <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
           </div>
