@@ -58,6 +58,29 @@ export function jourRelatifCourt(utc: string): 'aujourd\'hui' | 'demain' | null 
   return null
 }
 
+export function dateListeMessage(iso: string): string {
+  if (!iso) return ''
+  const TZ  = { timeZone: 'Europe/Paris' } as const
+  const d   = new Date(iso)
+  const fmt = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const
+  const dStr   = d.toLocaleDateString('fr-FR', fmt)
+  const nowStr = new Date().toLocaleDateString('fr-FR', fmt)
+  const toMs   = (s: string) => { const [dd, mm, yy] = s.split('/'); return Date.UTC(+yy, +mm - 1, +dd) }
+  const diff   = Math.round((toMs(nowStr) - toMs(dStr)) / 86400000)
+  if (diff <= 0) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', ...TZ })
+  if (diff === 1) return 'Hier'
+  if (diff < 7) {
+    const wd = d.toLocaleDateString('fr-FR', { weekday: 'short', ...TZ })
+    return wd.charAt(0).toUpperCase() + wd.slice(1)
+  }
+  const dYear   = Number(d.toLocaleDateString('fr-FR', { year: 'numeric', ...TZ }))
+  const nowYear = Number(new Date().toLocaleDateString('fr-FR', { year: 'numeric', ...TZ }))
+  const opts: Intl.DateTimeFormatOptions = dYear === nowYear
+    ? { day: 'numeric', month: 'short', ...TZ }
+    : { day: 'numeric', month: 'short', year: 'numeric', ...TZ }
+  return d.toLocaleDateString('fr-FR', opts)
+}
+
 export function delaiRelatif(utc: string): string | null {
   const toMs = (s: string) => { const [d, m, y] = s.split('/'); return Date.UTC(+y, +m - 1, +d) }
   const opts = { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' } as const
