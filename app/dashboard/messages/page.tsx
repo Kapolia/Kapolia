@@ -260,6 +260,7 @@ function CandidatMessagesPageInner() {
   const [contextCands, setContextCands]   = useState<Record<string, ContextCand>>({})
   const [contextRdvs, setContextRdvs]     = useState<Record<string, ContextRdv>>({})
   const [unreadSepMsgId, setUnreadSepMsgId] = useState<string | null>(null)
+  const [msgLoadErr, setMsgLoadErr]         = useState(false)
   const [reduitsMotion, setReduitsMotion]   = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
@@ -355,16 +356,19 @@ function CandidatMessagesPageInner() {
       const profilMap: Record<string, PVP> = {}
       for (const r of (rData ?? [])) profilMap[r.user_id] = r
 
+      if (offresCtxResult.error) console.error('[messages init offres]', offresCtxResult.error)
       const offresMap: Record<string, ContextOffre> = {}
       for (const o of ((offresCtxResult.data as ContextOffre[] | null) ?? [])) offresMap[o.id] = o
       setContextOffres(offresMap)
 
+      if (candsCtxResult.error) console.error('[messages init candidatures]', candsCtxResult.error)
       const candsMap: Record<string, ContextCand> = {}
       for (const c of ((candsCtxResult.data as ContextCand[] | null) ?? [])) {
         if (c.offre_id) candsMap[c.offre_id] = c
       }
       setContextCands(candsMap)
 
+      if (rdvsCtxResult.error) console.error('[messages init rendez-vous]', rdvsCtxResult.error)
       const rdvsMap: Record<string, ContextRdv> = {}
       for (const r of ((rdvsCtxResult.data as unknown as ContextRdv[] | null) ?? [])) {
         rdvsMap[r.conversation_id] = r
@@ -373,6 +377,7 @@ function CandidatMessagesPageInner() {
 
       const lastMsgMap: Record<string, { fromMe: boolean; isRdv: boolean; isFile: boolean }> = {}
       for (let i = 0; i < convsRaw.length; i++) {
+        if (lastMsgResults[i].error) console.error('[messages init dernier-msg]', lastMsgResults[i].error)
         const lm = lastMsgResults[i].data as LastMsgRow | null
         if (lm) {
           lastMsgMap[convsRaw[i].id] = {
@@ -540,8 +545,9 @@ function CandidatMessagesPageInner() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-        .then(({ data }) => {
-          if (data) setContextRdvs(prev => ({ ...prev, [convId]: data as unknown as ContextRdv }))
+        .then(({ data, error }) => {
+          if (error) console.error('[messages reload-rdv]', error)
+          else if (data) setContextRdvs(prev => ({ ...prev, [convId]: data as unknown as ContextRdv }))
         })
     }
     window.addEventListener('rdv-confirme', onRdvConfirme)
@@ -716,8 +722,10 @@ function CandidatMessagesPageInner() {
             }],
           }))
           if (isActive && userIdRef.current) {
-            supabase.from('messages').update({ lu: true }).eq('id', m.id).then()
-            supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', convId).then()
+            supabase.from('messages').update({ lu: true }).eq('id', m.id)
+              .then(({ error }) => { if (error) console.error('[messages marquer-lu-realtime]', error) })
+            supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', convId)
+              .then(({ error }) => { if (error) console.error('[messages non-lu-reset-realtime]', error) })
           } else {
             setConvs(prev => prev.map(c =>
               c.id === convId ? {
@@ -765,16 +773,23 @@ function CandidatMessagesPageInner() {
   async function selectConv(id: string, knownNonLu?: number) {
     // Snapshot nonLu BEFORE clearing it
     const prevNonLu = knownNonLu ?? (convs.find(c => c.id === id)?.nonLu ?? 0)
+    setMsgLoadErr(false)
     setUnreadSepMsgId(null)
     setActiveId(id); activeIdRef.current = id; setMenuOpen(false)
     setConvs(prev => prev.map(c => c.id === id ? { ...c, nonLu: 0 } : c))
     subscribeToConv(id)
 
-    const { data } = await supabase
+    const { data, error: loadErr } = await supabase
       .from('messages')
       .select('*, reply:reply_to_id(id, contenu)')
       .eq('conversation_id', id)
       .order('created_at')
+
+    if (loadErr) {
+      console.error('[messages charger]', loadErr)
+      setMsgLoadErr(true)
+      return
+    }
 
     if (data?.length) {
       const uid = userIdRef.current
@@ -814,13 +829,15 @@ function CandidatMessagesPageInner() {
     }
 
     if (userIdRef.current) {
-      await supabase
+      const { error: luErr } = await supabase
         .from('messages')
         .update({ lu: true })
         .eq('conversation_id', id)
         .neq('expediteur_id', userIdRef.current)
+      if (luErr) console.error('[messages marquer-lu]', luErr)
     }
-    supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', id).then()
+    supabase.from('conversations').update({ non_lu_candidat: 0 }).eq('id', id)
+      .then(({ error }) => { if (error) console.error('[messages non-lu-reset]', error) })
   }
 
   // ── Send message ──────────────────────────────────────────────────────────
@@ -1403,7 +1420,16 @@ function CandidatMessagesPageInner() {
 
           {/* Messages */}
           <div ref={threadRef} style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
-            {activeMsgs.map((msg, i) => {
+            {msgLoadErr ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 14, color: C.grey }}>
+                  Les messages n&apos;ont pas pu être chargés.{' '}
+                  <button type="button" onClick={() => selectConv(activeId)} style={{ background: 'none', border: 'none', padding: 0, fontFamily: 'inherit', fontSize: 'inherit', color: C.orangeTexte, textDecoration: 'underline', cursor: 'pointer' }}>
+                    Réessayer
+                  </button>
+                </span>
+              </div>
+            ) : activeMsgs.map((msg, i) => {
               const prev         = activeMsgs[i - 1]
               const next         = activeMsgs[i + 1]
               const dateChanged  = msg.date && (!prev || prev.date !== msg.date)
