@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, Suspense } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef, Suspense } from 'react'
 import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
@@ -13,6 +13,7 @@ import { dateListeMessage, formatJourCourt, formatHeure } from '@/lib/rdv-format
 import { STATUTS, type StatutCandidature } from '@/lib/statuts'
 import { C, CARD_SHADOW } from '@/lib/colors'
 import { Bandeau, type BandeauHandle } from '@/components/Bandeau'
+import { EASE, animerCartes } from '@/lib/motion'
 
 const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
 const MAX_BYTES  = 10 * 1024 * 1024
@@ -259,6 +260,9 @@ function CandidatMessagesPageInner() {
   const [contextCands, setContextCands]   = useState<Record<string, ContextCand>>({})
   const [contextRdvs, setContextRdvs]     = useState<Record<string, ContextRdv>>({})
   const [unreadSepMsgId, setUnreadSepMsgId] = useState<string | null>(null)
+  const [reduitsMotion, setReduitsMotion]   = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
 
   const endRef           = useRef<HTMLDivElement>(null)
   const textaRef         = useRef<HTMLTextAreaElement>(null)
@@ -274,6 +278,24 @@ function CandidatMessagesPageInner() {
   const retiredTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bandeauRetirRef  = useRef<BandeauHandle>(null)
   const inputZoneRef     = useRef<HTMLDivElement>(null)
+  const convListRef      = useRef<HTMLDivElement>(null)
+  const highlightRef     = useRef<HTMLDivElement>(null)
+  const prevHighlightPos = useRef<{ top: number; h: number } | null>(null)
+  const prevConvPositionsRef = useRef<Map<string, DOMRect>>(new Map())
+  const contextBandeauRef = useRef<HTMLDivElement>(null)
+  const threadRef        = useRef<HTMLDivElement>(null)
+  const prevMsgRef       = useRef<{ activeId: string; count: number }>({ activeId: '', count: 0 })
+  const prevLuRef        = useRef<Map<string, boolean>>(new Map())
+  const justBatchLoadedRef = useRef<Record<string, boolean>>({})
+
+  // ── Reduced motion ────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handler = (e: MediaQueryListEvent) => setReduitsMotion(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -524,6 +546,63 @@ function CandidatMessagesPageInner() {
     } catch {}
   }, [])
 
+  // ── Animations ────────────────────────────────────────────────────────────
+
+  // Point 1 + 5 : cascade à l'entrée et remontée FLIP
+  useLayoutEffect(() => {
+    if (!convListRef.current) return
+    const cards = convListRef.current.querySelectorAll<HTMLElement>('[data-card-id]')
+    if (cards.length === 0) { prevConvPositionsRef.current = new Map(); return }
+    prevConvPositionsRef.current = animerCartes(cards, prevConvPositionsRef.current)
+  }, [convs, q])
+
+  // Point 2 : fond glissant
+  useLayoutEffect(() => {
+    const h    = highlightRef.current
+    const list = convListRef.current
+    if (!h || !list) return
+    if (!activeId) {
+      h.style.opacity = '0'
+      prevHighlightPos.current = null
+      return
+    }
+    const btn = list.querySelector<HTMLElement>(`[data-conv-id="${activeId}"]`)
+    if (!btn) { h.style.opacity = '0'; return }
+    const newTop = btn.offsetTop
+    const newH   = btn.offsetHeight
+    const prev   = prevHighlightPos.current
+    h.style.opacity = '1'
+    if (prev && !reduitsMotion) {
+      h.getAnimations().forEach(a => a.cancel())
+      h.animate(
+        [{ top: prev.top + 'px', height: prev.h + 'px' }, { top: newTop + 'px', height: newH + 'px' }],
+        { duration: 320, easing: EASE, fill: 'forwards' }
+      )
+    }
+    h.style.top    = newTop + 'px'
+    h.style.height = newH + 'px'
+    prevHighlightPos.current = { top: newTop, h: newH }
+  }, [activeId, convs, reduitsMotion])
+
+  // Point 3 : fondu bandeau de contexte + fil
+  useLayoutEffect(() => {
+    if (!activeId || reduitsMotion) return
+    if (contextBandeauRef.current) {
+      contextBandeauRef.current.getAnimations().forEach(a => a.cancel())
+      contextBandeauRef.current.animate(
+        [{ opacity: '0' }, { opacity: '1' }],
+        { duration: 250, easing: 'ease-out' }
+      )
+    }
+    if (threadRef.current) {
+      threadRef.current.getAnimations().forEach(a => a.cancel())
+      threadRef.current.animate(
+        [{ opacity: '0', transform: 'translateY(8px)' }, { opacity: '1', transform: 'translateY(0)' }],
+        { duration: 300, easing: EASE }
+      )
+    }
+  }, [activeId])
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const activeConv  = convs.find(c => c.id === activeId) ?? null
@@ -542,6 +621,58 @@ function CandidatMessagesPageInner() {
   const input       = drafts[activeId] ?? ''
   const replyingTo  = perConvReply[activeId] ?? null
   const pendingFile = perConvFile[activeId] ?? null
+
+  // Point 4 + 5 : bulle montante à l'envoi/réception
+  useLayoutEffect(() => {
+    const prev   = prevMsgRef.current
+    const curLen = activeMsgs.length
+    if (prev.activeId !== activeId) {
+      prevMsgRef.current = { activeId, count: curLen }
+      return
+    }
+    if (justBatchLoadedRef.current[activeId]) {
+      justBatchLoadedRef.current[activeId] = false
+      prevMsgRef.current = { activeId, count: curLen }
+      return
+    }
+    if (curLen > prev.count && !reduitsMotion) {
+      for (let i = prev.count; i < curLen; i++) {
+        const msg = activeMsgs[i]
+        if (!msg) continue
+        const el = document.querySelector<HTMLElement>(`[data-msg-id="${msg.id}"]`)
+        if (!el) continue
+        const origin = msg.fromMe ? 'bottom right' : 'bottom left'
+        el.animate(
+          [
+            { opacity: '0', transform: 'translateY(14px) scale(0.96)', transformOrigin: origin },
+            { opacity: '1', transform: 'translateY(0) scale(1)',       transformOrigin: origin },
+          ],
+          { duration: 280, easing: EASE }
+        )
+      }
+    }
+    prevMsgRef.current = { activeId, count: curLen }
+  }, [activeMsgs, activeId, reduitsMotion])
+
+  // Point 4 : fondu Envoyé → Lu (450 ms)
+  useEffect(() => {
+    if (reduitsMotion) return
+    for (const msg of activeMsgs) {
+      if (!msg.fromMe) continue
+      const prevLu = prevLuRef.current.get(msg.id)
+      if (prevLu === false && msg.lu === true) {
+        const metaEl = document.querySelector<HTMLElement>(`[data-msg-meta="${msg.id}"]`)
+        if (metaEl) {
+          metaEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' })
+        }
+      }
+      prevLuRef.current.set(msg.id, msg.lu)
+    }
+    const currentIds = new Set(activeMsgs.map(m => m.id))
+    for (const id of Array.from(prevLuRef.current.keys())) {
+      if (!currentIds.has(id)) prevLuRef.current.delete(id)
+    }
+  }, [activeMsgs, reduitsMotion])
 
   // ── Realtime channel ──────────────────────────────────────────────────────
 
@@ -636,6 +767,7 @@ function CandidatMessagesPageInner() {
 
     if (data?.length) {
       const uid = userIdRef.current
+      justBatchLoadedRef.current[id] = true
       setMsgCache(prev => ({
         ...prev,
         [id]: data.map(m => ({
@@ -864,23 +996,47 @@ function CandidatMessagesPageInner() {
     const remaining    = convs.filter(c => c.id !== convToRemove.id)
     const nextConv     = remaining[idx] ?? remaining[Math.max(0, idx - 1)] ?? null
 
-    setConvs(remaining)
-    setRetiredConv({ conv: convToRemove, nextId: nextConv?.id ?? '' })
-
-    if (nextConv) {
-      selectConv(nextConv.id, nextConv.nonLu)
-    } else {
-      setActiveId(''); activeIdRef.current = ''
-      subscribeToConv('')
+    function proceed() {
+      setConvs(remaining)
+      setRetiredConv({ conv: convToRemove, nextId: nextConv?.id ?? '' })
+      if (nextConv) {
+        selectConv(nextConv.id, nextConv.nonLu)
+      } else {
+        setActiveId(''); activeIdRef.current = ''
+        subscribeToConv('')
+      }
+      if (retiredTimerRef.current) clearTimeout(retiredTimerRef.current)
+      retiredTimerRef.current = setTimeout(() => {
+        bandeauRetirRef.current?.animateOut(() => {
+          supabase.from('conversations').update({ masquee_candidat: true }).eq('id', convToRemove.id).then()
+          setRetiredConv(null)
+        })
+      }, 5000)
     }
 
-    if (retiredTimerRef.current) clearTimeout(retiredTimerRef.current)
-    retiredTimerRef.current = setTimeout(() => {
-      bandeauRetirRef.current?.animateOut(() => {
-        supabase.from('conversations').update({ masquee_candidat: true }).eq('id', convToRemove.id).then()
-        setRetiredConv(null)
-      })
-    }, 5000)
+    // Point 6 : repli de la ligne (280 ms), puis bandeau monte
+    const btn = convListRef.current?.querySelector<HTMLElement>(`[data-conv-id="${convToRemove.id}"]`)
+    if (btn && !reduitsMotion) {
+      const fullH = btn.offsetHeight
+      btn.style.overflow = 'hidden'
+      if (highlightRef.current) {
+        highlightRef.current.getAnimations().forEach(a => a.cancel())
+        highlightRef.current.animate(
+          [{ opacity: '1' }, { opacity: '0' }],
+          { duration: 180, easing: 'ease-in', fill: 'forwards' }
+        )
+      }
+      const anim = btn.animate(
+        [
+          { height: fullH + 'px', opacity: '1', marginBottom: '2px' },
+          { height: '0px',        opacity: '0', marginBottom: '0px' },
+        ],
+        { duration: 280, easing: 'ease-in', fill: 'forwards' }
+      )
+      anim.onfinish = proceed
+    } else {
+      proceed()
+    }
   }
 
   function annulerRetrait() {
@@ -983,7 +1139,9 @@ function CandidatMessagesPageInner() {
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 10px' }}>
+        <div ref={convListRef} style={{ flex: 1, overflowY: 'auto', padding: '0 10px 10px', position: 'relative' }}>
+          {/* Point 2 : fond glissant */}
+          <div ref={highlightRef} style={{ position: 'absolute', left: 10, right: 10, borderRadius: 11, backgroundColor: C.salaire, pointerEvents: 'none', opacity: 0, zIndex: 0 }} />
           {loadingConvs ? (
             <div style={{ padding: '24px 0', textAlign: 'center', color: C.grey, fontSize: 13 }}>Chargement…</div>
           ) : filteredConvs.length === 0 ? (
@@ -998,10 +1156,10 @@ function CandidatMessagesPageInner() {
             const isActive  = conv.id === activeId
             const isHovered = hovConvId === conv.id && !isActive
             return (
-              <button key={conv.id} onClick={() => selectConv(conv.id)}
+              <button key={conv.id} data-card-id={conv.id} data-conv-id={conv.id} onClick={() => selectConv(conv.id)}
                 onMouseEnter={() => setHovConvId(conv.id)}
                 onMouseLeave={() => setHovConvId(null)}
-                style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 10px', border: 'none', borderRadius: 11, backgroundColor: isActive ? C.salaire : (isHovered ? C.bg : 'transparent'), cursor: 'pointer', textAlign: 'left', transition: 'background-color 0.1s', marginBottom: 2 }}>
+                style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 10px', border: 'none', borderRadius: 11, backgroundColor: isHovered && !isActive ? C.bg : 'transparent', cursor: 'pointer', textAlign: 'left', transition: reduitsMotion ? 'none' : 'background-color 0.1s', marginBottom: 2 }}>
                 <EntrepriseLogo nom={conv.entreprise || conv.nom || '?'} logoUrl={conv.logoUrl} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
@@ -1026,7 +1184,7 @@ function CandidatMessagesPageInner() {
                       }
                     </span>
                     {conv.nonLu > 0 && (
-                      <span style={{ height: 19, minWidth: 19, padding: '0 5px', borderRadius: 10, backgroundColor: C.orange, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}>
+                      <span key={`badge-${conv.id}-${conv.nonLu}`} style={{ height: 19, minWidth: 19, padding: '0 5px', borderRadius: 10, backgroundColor: C.orange, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box', animation: reduitsMotion ? 'none' : 'kapolia-motion-badge-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
                         {conv.nonLu}
                       </span>
                     )}
@@ -1193,7 +1351,7 @@ function CandidatMessagesPageInner() {
 
             const sep = { width: 1, height: 16, backgroundColor: C.sable, flexShrink: 0, alignSelf: 'center' as const, margin: '0 18px' }
             return (
-              <div style={{ padding: '11px 26px', backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 8, fontSize: 13.5, lineHeight: 1.4, flexShrink: 0 }}>
+              <div ref={contextBandeauRef} style={{ padding: '11px 26px', backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 8, fontSize: 13.5, lineHeight: 1.4, flexShrink: 0 }}>
                 {bandeauLeft.flatMap((item, i) => i === 0
                   ? [<React.Fragment key={`item-${i}`}>{item}</React.Fragment>]
                   : [<div key={`sep-${i}`} style={sep} />, <React.Fragment key={`item-${i}`}>{item}</React.Fragment>]
@@ -1204,7 +1362,7 @@ function CandidatMessagesPageInner() {
           })()}
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
+          <div ref={threadRef} style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column' }}>
             {activeMsgs.map((msg, i) => {
               const prev         = activeMsgs[i - 1]
               const next         = activeMsgs[i + 1]
@@ -1239,6 +1397,7 @@ function CandidatMessagesPageInner() {
                     </div>
                   )}
                   <div
+                    data-msg-id={msg.id}
                     onMouseEnter={() => setHovMsgId(msg.id)}
                     onMouseLeave={() => setHovMsgId(null)}
                     style={{ display: 'flex', flexDirection: 'column', alignItems: msg.fromMe ? 'flex-end' : 'flex-start', marginTop: mt }}>
@@ -1274,7 +1433,7 @@ function CandidatMessagesPageInner() {
                       <button
                         onClick={() => setPerConvReply(prev => ({ ...prev, [activeId]: { id: msg.id, contenu: msg.contenu || (msg.pjNom ?? ''), fromMe: msg.fromMe } }))}
                         title="Répondre"
-                        style={{ width: 34, height: 34, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: hovMsgId === msg.id ? 1 : 0, transition: 'opacity 0.15s' }}>
+                        style={{ width: 34, height: 34, borderRadius: 10, border: 'none', backgroundColor: C.bg, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: hovMsgId === msg.id ? 1 : 0, transition: reduitsMotion ? 'none' : 'opacity 0.15s' }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="9 14 4 9 9 4" />
                           <path d="M20 20v-7a4 4 0 0 0-4-4H4" />
@@ -1283,7 +1442,7 @@ function CandidatMessagesPageInner() {
                     </div>
                     {/* Méta : heure + coches ou "Non envoyé" */}
                     {isLastGroup && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, paddingInline: 2 }}>
+                      <div data-msg-meta={msg.id} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, paddingInline: 2 }}>
                         {msg.failed ? (
                           <span style={{ fontSize: 11.5, color: C.erreur, fontWeight: 600 }}>
                             Non envoyé.{' '}
