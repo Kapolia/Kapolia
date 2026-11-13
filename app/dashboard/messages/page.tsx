@@ -285,7 +285,8 @@ function CandidatMessagesPageInner() {
   const realtimeConvsRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const typingTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTypingRef    = useRef<number>(0)
-  const activeIdRef      = useRef<string>('')
+  const activeIdRef          = useRef<string>('')
+  const frozenActiveNonLuRef = useRef<number>(0)
   const menuBtnRef       = useRef<HTMLButtonElement>(null)
   const menuRef          = useRef<HTMLDivElement>(null)
   const retiredTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -655,7 +656,7 @@ function CandidatMessagesPageInner() {
     return null
   }
 
-  const filteredConvs = q.trim()
+  const baseConvs = q.trim()
     ? convs.filter(conv => {
         const needle = normalizeText(q.trim())
         return [conv.entreprise, conv.nom, conv.offreTitre, conv.dernierMsg].some(
@@ -663,6 +664,15 @@ function CandidatMessagesPageInner() {
         )
       })
     : convs
+
+  const filteredConvs = [...baseConvs].sort((a, b) => {
+    const aNonLu = a.id === activeId ? frozenActiveNonLuRef.current : a.nonLu
+    const bNonLu = b.id === activeId ? frozenActiveNonLuRef.current : b.nonLu
+    const aTop = aNonLu > 0 ? 1 : 0
+    const bTop = bNonLu > 0 ? 1 : 0
+    if (aTop !== bTop) return bTop - aTop
+    return new Date(b.derniereDate).getTime() - new Date(a.derniereDate).getTime()
+  })
 
   const input       = drafts[activeId] ?? ''
   const replyingTo  = perConvReply[activeId] ?? null
@@ -801,8 +811,9 @@ function CandidatMessagesPageInner() {
   // ── Select conversation ────────────────────────────────────────────────────
 
   async function selectConv(id: string, knownNonLu?: number) {
-    // Snapshot nonLu BEFORE clearing it
+    // Snapshot nonLu BEFORE clearing it — also freezes the sort key while this conv is open
     const prevNonLu = knownNonLu ?? (convs.find(c => c.id === id)?.nonLu ?? 0)
+    frozenActiveNonLuRef.current = prevNonLu
     setMsgLoadErr(false)
     setUnreadSepMsgId(null)
     setActiveId(id); activeIdRef.current = id; setMenuOpen(false)
