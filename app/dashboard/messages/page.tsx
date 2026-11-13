@@ -137,6 +137,15 @@ function convPreview(conv: LocalConv): string {
   return conv.dernierMsg
 }
 
+function rdvAccepteeLabel(rdv: ContextRdv): string | null {
+  if (rdv.statut !== 'acceptee') return null
+  const choisi = rdv.creneaux_rdv.find(c => c.selectionne)
+  if (!choisi || new Date(choisi.debut_utc).getTime() <= Date.now()) return null
+  const typeLabel = rdv.type === 'telephonique' ? 'Appel' : 'Entretien'
+  const jc = formatJourCourt(choisi.debut_utc)
+  return `${typeLabel} ${jc.charAt(0).toLowerCase() + jc.slice(1)} à ${formatHeure(choisi.debut_utc)}`
+}
+
 function isOffreExpiree(o: ContextOffre | undefined): boolean {
   if (!o) return false
   if (o.statut === 'archivée') return true
@@ -264,6 +273,7 @@ function CandidatMessagesPageInner() {
   const [reduitsMotion, setReduitsMotion]   = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
+  const [frozenActiveGroup, setFrozenActiveGroup] = useState<'traiter' | 'autres' | null>(null)
 
   const endRef           = useRef<HTMLDivElement>(null)
   const textaRef         = useRef<HTMLTextAreaElement>(null)
@@ -626,6 +636,34 @@ function CandidatMessagesPageInner() {
   const activeMsgs  = msgCache[activeId] ?? []
   const totalUnread = convs.reduce((n, c) => n + c.nonLu, 0)
 
+  function convGroup(conv: LocalConv): 'traiter' | 'autres' {
+    if (conv.id === activeId && frozenActiveGroup !== null) return frozenActiveGroup
+    const rdv = contextRdvs[conv.id]
+    const hasFuturRdv = rdv?.statut === 'proposee' &&
+      rdv.creneaux_rdv.some(c => new Date(c.debut_utc).getTime() > Date.now())
+    return (conv.nonLu > 0 || hasFuturRdv) ? 'traiter' : 'autres'
+  }
+
+  function convEtiquette(conv: LocalConv): { label: string; bg: string; color: string } | null {
+    const rdv   = contextRdvs[conv.id] ?? null
+    const cand  = conv.offreId ? contextCands[conv.offreId]  : undefined
+    const offre = conv.offreId ? contextOffres[conv.offreId] : undefined
+    if (rdv?.statut === 'proposee') {
+      const hasFutur = rdv.creneaux_rdv.some(c => new Date(c.debut_utc).getTime() > Date.now())
+      if (hasFutur) return { label: 'Rendez-vous à confirmer', bg: C.creme, color: C.orangeTexte }
+    }
+    const rdvLabel = rdv ? rdvAccepteeLabel(rdv) : null
+    if (rdvLabel) return { label: rdvLabel, bg: C.salaire, color: C.vert }
+    if (cand?.statut === 'refusée')      return { label: 'Non retenue',   bg: C.chip, color: C.grey }
+    if (offre && isOffreExpiree(offre))  return { label: 'Offre expirée', bg: C.chip, color: C.grey }
+    if (!conv.offreId)                   return { label: 'Candidathèque', bg: C.chip, color: C.grey }
+    if (cand) {
+      const cfg = STATUTS[cand.statut as StatutCandidature] ?? STATUTS['envoyée']
+      return { label: `Candidature ${cfg.labelCandidat.toLowerCase()}`, bg: C.chip, color: C.grey }
+    }
+    return null
+  }
+
   const filteredConvs = q.trim()
     ? convs.filter(conv => {
         const needle = normalizeText(q.trim())
@@ -773,6 +811,11 @@ function CandidatMessagesPageInner() {
   async function selectConv(id: string, knownNonLu?: number) {
     // Snapshot nonLu BEFORE clearing it
     const prevNonLu = knownNonLu ?? (convs.find(c => c.id === id)?.nonLu ?? 0)
+    // Freeze group so the open conversation doesn't jump while it's visible (point 4)
+    const rdvSnap = contextRdvs[id]
+    const hasFuturRdvSnap = rdvSnap?.statut === 'proposee' &&
+      rdvSnap.creneaux_rdv.some(c => new Date(c.debut_utc).getTime() > Date.now())
+    setFrozenActiveGroup((prevNonLu > 0 || hasFuturRdvSnap) ? 'traiter' : 'autres')
     setMsgLoadErr(false)
     setUnreadSepMsgId(null)
     setActiveId(id); activeIdRef.current = id; setMenuOpen(false)
@@ -1209,47 +1252,77 @@ function CandidatMessagesPageInner() {
             ) : (
               <div style={{ padding: '24px 0', textAlign: 'center', color: C.grey, fontSize: 13 }}>Aucune conversation</div>
             )
-          ) : filteredConvs.map(conv => {
-            const isActive  = conv.id === activeId
-            const isHovered = hovConvId === conv.id && !isActive
-            return (
-              <button key={conv.id} data-card-id={conv.id} data-conv-id={conv.id} onClick={() => selectConv(conv.id)}
-                onMouseEnter={() => setHovConvId(conv.id)}
-                onMouseLeave={() => setHovConvId(null)}
-                style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 10px', border: 'none', borderRadius: 11, backgroundColor: isHovered && !isActive ? C.bg : 'transparent', cursor: 'pointer', textAlign: 'left', transition: reduitsMotion ? 'none' : 'background-color 0.1s', marginBottom: 2 }}>
-                <EntrepriseLogo nom={conv.entreprise || conv.nom || '?'} logoUrl={conv.logoUrl} size={40} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
-                    <span style={{ fontSize: 14.5, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                      {conv.entreprise || conv.nom}
-                    </span>
-                    <span style={{ fontSize: 12, flexShrink: 0, marginLeft: 6, color: conv.nonLu > 0 ? C.orangeTexte : C.grey, fontWeight: conv.nonLu > 0 ? 600 : 400 }}>
-                      {conv.derniereDate ? dateListeMessage(conv.derniereDate) : ''}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 12.5, color: C.grey, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {conv.offreTitre || 'Repéré dans la candidathèque'}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                      {drafts[conv.id] && conv.id !== activeId
-                        ? <>
-                            <span style={{ color: C.orangeTexte, fontWeight: 600 }}>Brouillon&nbsp;: </span>
-                            <span style={{ color: C.grey }}>{drafts[conv.id]}</span>
-                          </>
-                        : <span style={{ color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 600 : 400 }}>{convPreview(conv)}</span>
-                      }
-                    </span>
-                    {conv.nonLu > 0 && (
-                      <span key={`badge-${conv.id}-${conv.nonLu}`} style={{ height: 19, minWidth: 19, padding: '0 5px', borderRadius: 10, backgroundColor: C.orange, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box', animation: reduitsMotion ? 'none' : 'kapolia-motion-badge-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
-                        {conv.nonLu}
+          ) : (() => {
+            const groupA = filteredConvs.filter(c => convGroup(c) === 'traiter')
+            const groupB = filteredConvs.filter(c => convGroup(c) === 'autres')
+
+            const renderRow = (conv: LocalConv) => {
+              const isActive  = conv.id === activeId
+              const isHovered = hovConvId === conv.id && !isActive
+              const etiquette = convEtiquette(conv)
+              return (
+                <button key={conv.id} data-card-id={conv.id} data-conv-id={conv.id} onClick={() => selectConv(conv.id)}
+                  onMouseEnter={() => setHovConvId(conv.id)}
+                  onMouseLeave={() => setHovConvId(null)}
+                  style={{ position: 'relative', zIndex: 1, width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px 12px', border: 'none', borderRadius: 11, backgroundColor: isHovered && !isActive ? C.bg : 'transparent', cursor: 'pointer', textAlign: 'left', transition: reduitsMotion ? 'none' : 'background-color 0.1s', marginBottom: 2 }}>
+                  <EntrepriseLogo nom={conv.entreprise || conv.nom || '?'} logoUrl={conv.logoUrl} size={50} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                        {conv.entreprise || conv.nom}
                       </span>
+                      <span style={{ fontSize: 12, flexShrink: 0, marginLeft: 6, color: conv.nonLu > 0 ? C.orangeTexte : C.grey, fontWeight: conv.nonLu > 0 ? 600 : 400 }}>
+                        {conv.derniereDate ? dateListeMessage(conv.derniereDate) : ''}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: C.grey, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {conv.offreTitre || 'Repéré dans la candidathèque'}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {drafts[conv.id] && conv.id !== activeId
+                          ? <>
+                              <span style={{ color: C.orangeTexte, fontWeight: 600 }}>Brouillon&nbsp;: </span>
+                              <span style={{ color: C.grey }}>{drafts[conv.id]}</span>
+                            </>
+                          : <span style={{ color: conv.nonLu > 0 ? C.dark : C.grey, fontWeight: conv.nonLu > 0 ? 600 : 400 }}>{convPreview(conv)}</span>
+                        }
+                      </span>
+                      {conv.nonLu > 0 && (
+                        <span key={`badge-${conv.id}-${conv.nonLu}`} style={{ height: 19, minWidth: 19, padding: '0 5px', borderRadius: 10, backgroundColor: C.orange, color: C.white, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box', animation: reduitsMotion ? 'none' : 'kapolia-motion-badge-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both' }}>
+                          {conv.nonLu}
+                        </span>
+                      )}
+                    </div>
+                    {etiquette && (
+                      <div style={{ marginTop: 7 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, borderRadius: 6, padding: '2px 8px', backgroundColor: (isActive && etiquette.bg === C.chip) ? C.white : etiquette.bg, color: etiquette.color }}>
+                          {etiquette.label}
+                        </span>
+                      </div>
                     )}
                   </div>
-                </div>
-              </button>
+                </button>
+              )
+            }
+
+            return (
+              <>
+                {groupA.length > 0 && <>
+                  <div style={{ padding: '14px 12px 6px', fontSize: 12.5, fontWeight: 600, color: C.grey, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    À traiter <span style={{ color: C.orangeTexte }}>{groupA.length}</span>
+                  </div>
+                  {groupA.map(renderRow)}
+                </>}
+                {groupB.length > 0 && <>
+                  <div style={{ padding: '14px 12px 6px', fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                    Autres échanges
+                  </div>
+                  {groupB.map(renderRow)}
+                </>}
+              </>
             )
-          })}
+          })()}
         </div>
       </div>
 
@@ -1364,15 +1437,12 @@ function CandidatMessagesPageInner() {
                   </span>
                 )
               } else if (rdv.statut === 'acceptee') {
-                const choisi = rdv.creneaux_rdv.find(c => c.selectionne)
-                if (choisi && new Date(choisi.debut_utc).getTime() > Date.now()) {
-                  const typeLabel = rdv.type === 'telephonique' ? 'Appel' : 'Entretien'
-                  const jc        = formatJourCourt(choisi.debut_utc)
-                  const dateStr   = jc.charAt(0).toLowerCase() + jc.slice(1) + ' à ' + formatHeure(choisi.debut_utc)
+                const rdvLabel = rdvAccepteeLabel(rdv)
+                if (rdvLabel) {
                   bandeauLeft.push(
                     <span key="rdv" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                       <IconCalendar size={17} />
-                      <span style={{ fontWeight: 600 }}>{typeLabel} {dateStr}</span>
+                      <span style={{ fontWeight: 600 }}>{rdvLabel}</span>
                     </span>
                   )
                 }
