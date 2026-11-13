@@ -91,6 +91,7 @@ type LocalConv = {
   dernierMsgFromMe?: boolean
   dernierMsgIsRdv?: boolean
   dernierMsgIsFile?: boolean
+  dernierMsgPjType?: string
 }
 
 type LocalMsg = {
@@ -107,7 +108,7 @@ type LocalMsg = {
 
 type PVP = { user_id: string; prenom?: string; nom?: string; entreprise_nom?: string | null; entreprise_logo_url?: string | null }
 
-type LastMsgRow = { expediteur_id: string; rendez_vous_id?: string | null; piece_jointe_nom?: string | null }
+type LastMsgRow = { expediteur_id: string; rendez_vous_id?: string | null; piece_jointe_nom?: string | null; piece_jointe_type?: string | null }
 
 type ContextOffre = {
   id: string; titre: string; ville: string | null
@@ -131,9 +132,12 @@ function nowHeure() {
 }
 
 function convPreview(conv: LocalConv): string {
-  if (conv.dernierMsgIsRdv)   return 'Rendez-vous proposé'
-  if (conv.dernierMsgIsFile)  return conv.dernierMsg
-  if (conv.dernierMsgFromMe)  return `Vous : ${conv.dernierMsg}`
+  if (conv.dernierMsgIsRdv) return 'Rendez-vous proposé'
+  if (conv.dernierMsgIsFile) {
+    const label = conv.dernierMsgPjType?.startsWith('image/') ? 'Image' : 'Fichier'
+    return conv.dernierMsgFromMe ? `Vous : ${label}` : label
+  }
+  if (conv.dernierMsgFromMe) return `Vous : ${conv.dernierMsg}`
   return conv.dernierMsg
 }
 
@@ -353,7 +357,7 @@ function CandidatMessagesPageInner() {
         convsRaw.map(row =>
           supabase
             .from('messages')
-            .select('expediteur_id, rendez_vous_id, piece_jointe_nom')
+            .select('expediteur_id, rendez_vous_id, piece_jointe_nom, piece_jointe_type')
             .eq('conversation_id', row.id)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -385,7 +389,7 @@ function CandidatMessagesPageInner() {
       }
       setContextRdvs(rdvsMap)
 
-      const lastMsgMap: Record<string, { fromMe: boolean; isRdv: boolean; isFile: boolean }> = {}
+      const lastMsgMap: Record<string, { fromMe: boolean; isRdv: boolean; isFile: boolean; pjType: string | null }> = {}
       for (let i = 0; i < convsRaw.length; i++) {
         if (lastMsgResults[i].error) console.error('[messages init dernier-msg]', lastMsgResults[i].error)
         const lm = lastMsgResults[i].data as LastMsgRow | null
@@ -394,6 +398,7 @@ function CandidatMessagesPageInner() {
             fromMe: lm.expediteur_id === user.id,
             isRdv:  !!lm.rendez_vous_id,
             isFile: !!lm.piece_jointe_nom,
+            pjType: lm.piece_jointe_type ?? null,
           }
         }
       }
@@ -416,6 +421,7 @@ function CandidatMessagesPageInner() {
           dernierMsgFromMe: lm?.fromMe,
           dernierMsgIsRdv:  lm?.isRdv  ?? false,
           dernierMsgIsFile: lm?.isFile ?? false,
+          dernierMsgPjType: lm?.pjType ?? undefined,
         }
       })
       setConvs(loaded)
@@ -656,11 +662,6 @@ function CandidatMessagesPageInner() {
     if (rdvLabel) return { label: rdvLabel, bg: C.salaire, color: C.vert }
     if (cand?.statut === 'refusée')      return { label: 'Non retenue',   bg: C.chip, color: C.grey }
     if (offre && isOffreExpiree(offre))  return { label: 'Offre expirée', bg: C.chip, color: C.grey }
-    if (!conv.offreId)                   return { label: 'Candidathèque', bg: C.chip, color: C.grey }
-    if (cand) {
-      const cfg = STATUTS[cand.statut as StatutCandidature] ?? STATUTS['envoyée']
-      return { label: `Candidature ${cfg.labelCandidat.toLowerCase()}`, bg: C.chip, color: C.grey }
-    }
     return null
   }
 
@@ -773,6 +774,7 @@ function CandidatMessagesPageInner() {
                 dernierMsgFromMe: false,
                 dernierMsgIsRdv:  !!m.rendez_vous_id,
                 dernierMsgIsFile: !!m.piece_jointe_nom,
+                dernierMsgPjType: m.piece_jointe_type ?? undefined,
                 nonLu: c.nonLu + 1,
               } : c
             ))
@@ -861,13 +863,14 @@ function CandidatMessagesPageInner() {
       }
 
       const last = data[data.length - 1] as {
-        expediteur_id: string; rendez_vous_id?: string | null; piece_jointe_nom?: string | null
+        expediteur_id: string; rendez_vous_id?: string | null; piece_jointe_nom?: string | null; piece_jointe_type?: string | null
       }
       setConvs(prev => prev.map(c => c.id === id ? {
         ...c,
         dernierMsgFromMe: last.expediteur_id === userIdRef.current,
         dernierMsgIsRdv:  !!last.rendez_vous_id,
         dernierMsgIsFile: !!last.piece_jointe_nom,
+        dernierMsgPjType: last.piece_jointe_type ?? undefined,
       } : c))
     }
 
@@ -973,6 +976,7 @@ function CandidatMessagesPageInner() {
         dernierMsgFromMe: true,
         dernierMsgIsRdv:  false,
         dernierMsgIsFile: !!pjNom,
+        dernierMsgPjType: pjType ?? undefined,
       } : c))
       setSending(false)
     }
@@ -1054,6 +1058,7 @@ function CandidatMessagesPageInner() {
       dernierMsgFromMe: true,
       dernierMsgIsRdv:  false,
       dernierMsgIsFile: !!pjNom,
+      dernierMsgPjType: pjType ?? undefined,
     } : c))
     setSending(false)
   }
