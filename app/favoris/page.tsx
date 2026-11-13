@@ -12,7 +12,7 @@ import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import { scoreBreakdownCandidat, competencesManquantesCandidat, scoreSiCompetencesAjoutees, type ProfilMatch, type OffreMatch } from '@/lib/matching'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { largeurUtile } from '@/lib/largeur-utile'
-import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, animerCartes } from '@/lib/motion'
+import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, animerCartes, type CardPos } from '@/lib/motion'
 import { useRoulette } from '@/hooks/useRoulette'
 import { useNavigationClavier } from '@/hooks/useNavigationClavier'
 import { TriSelect } from '@/components/TriSelect'
@@ -161,7 +161,7 @@ export default function FavorisPage() {
   const bandeauUndoIndexRef   = useRef<number>(-1)
   const leftColRef            = useRef<HTMLDivElement>(null)
   const cardRefsMap           = useRef<Map<string, HTMLElement>>(new Map())
-  const prevPositionsRef      = useRef<Map<string, DOMRect>>(new Map())
+  const prevPositionsRef      = useRef<Map<string, CardPos>>(new Map())
   const displayedRef          = useRef<{ id: string }[]>([])
   const selectedIdRef         = useRef<string | null>(null)
   const skipNextFlipRef       = useRef(false)
@@ -491,8 +491,8 @@ export default function FavorisPage() {
       const id = restoreCardIdRef.current
       if (id) {
         restoreCardIdRef.current = null
-        const newPos = new Map<string, DOMRect>()
-        Array.from(cards).forEach(c => { newPos.set(c.dataset.cardId!, c.getBoundingClientRect()) })
+        const newPos = new Map<string, CardPos>()
+        Array.from(cards).forEach(c => { newPos.set(c.dataset.cardId!, { top: c.offsetTop, left: c.offsetLeft }) })
         prevPositionsRef.current = newPos
 
         const el = cardRefsMap.current.get(id)
@@ -610,8 +610,8 @@ export default function FavorisPage() {
             { duration: 260, easing: EASE, delay: 80, fill: 'forwards' }
           )
           collapseAnim.onfinish = () => {
-            const snap = new Map<string, DOMRect>()
-            cardRefsMap.current.forEach((el, id) => { if (el.isConnected && id !== offreId) snap.set(id, el.getBoundingClientRect()) })
+            const snap = new Map<string, CardPos>()
+            cardRefsMap.current.forEach((el, id) => { if (el.isConnected && id !== offreId) snap.set(id, { top: el.offsetTop, left: el.offsetLeft }) })
             prevPositionsRef.current = snap
             setRemovingIds(prev => { const s = new Set(prev); s.delete(offreId); return s })
             if (groupTitleEl) setTimeout(commitRemoval, 80)
@@ -689,8 +689,8 @@ export default function FavorisPage() {
         { duration: 260, easing: EASE, delay: 80, fill: 'forwards' }
       )
       collapseAnim.onfinish = () => {
-        const snap = new Map<string, DOMRect>()
-        cardRefsMap.current.forEach((el, id) => { if (el.isConnected && id !== offreId) snap.set(id, el.getBoundingClientRect()) })
+        const snap = new Map<string, CardPos>()
+        cardRefsMap.current.forEach((el, id) => { if (el.isConnected && id !== offreId) snap.set(id, { top: el.offsetTop, left: el.offsetLeft }) })
         prevPositionsRef.current = snap
         const doCommit = () => {
           setPendingApply(prev => { const s = new Set(prev); s.delete(offreId); return s })

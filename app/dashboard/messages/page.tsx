@@ -13,7 +13,7 @@ import { dateListeMessage, formatJourCourt, formatHeure } from '@/lib/rdv-format
 import { STATUTS, type StatutCandidature } from '@/lib/statuts'
 import { C, CARD_SHADOW } from '@/lib/colors'
 import { Bandeau, type BandeauHandle } from '@/components/Bandeau'
-import { EASE, animerCartes } from '@/lib/motion'
+import { EASE, animerCartes, type CardPos } from '@/lib/motion'
 
 const IMAGE_EXTS = new Set(['jpg','jpeg','png','gif','webp','bmp','svg'])
 const MAX_BYTES  = 10 * 1024 * 1024
@@ -283,7 +283,7 @@ function CandidatMessagesPageInner() {
   const convListRef      = useRef<HTMLDivElement>(null)
   const highlightRef     = useRef<HTMLDivElement>(null)
   const prevHighlightPos = useRef<{ top: number; h: number } | null>(null)
-  const prevConvPositionsRef = useRef<Map<string, DOMRect>>(new Map())
+  const prevConvPositionsRef = useRef<Map<string, CardPos>>(new Map())
   const contextBandeauRef = useRef<HTMLDivElement>(null)
   const threadRef        = useRef<HTMLDivElement>(null)
   const prevMsgRef       = useRef<{ activeId: string; count: number }>({ activeId: '', count: 0 })
@@ -569,7 +569,7 @@ function CandidatMessagesPageInner() {
   useLayoutEffect(() => {
     if (!convListRef.current) return
     const cards = convListRef.current.querySelectorAll<HTMLElement>('[data-card-id]')
-    if (cards.length === 0) { prevConvPositionsRef.current = new Map(); return }
+    if (cards.length === 0) { prevConvPositionsRef.current = new Map<string, CardPos>(); return }
     prevConvPositionsRef.current = animerCartes(cards, prevConvPositionsRef.current)
   }, [convs, q])
 

@@ -10,7 +10,7 @@ import AssistantPrepEntretien from '@/components/AssistantPrepEntretien'
 import { accepterCreneau, isRdvPlusPropose, refuserCreneaux } from '@/lib/rdv'
 import NumeroAppel from '@/components/NumeroAppel'
 import { formatJourLong, formatHeure, formatJourCourt, delaiRelatif, jourRelatifCourt, formatDateAnalyse } from '@/lib/rdv-format'
-import { animerCartes, EASE, reduitMouvement } from '@/lib/motion'
+import { animerCartes, EASE, reduitMouvement, type CardPos } from '@/lib/motion'
 import { genererIcs } from '@/lib/ics'
 import { sanitizeFilename } from '@/lib/storage-utils'
 
@@ -303,25 +303,7 @@ function AttenteCard({ rdv, onConfirme, onReload, onRefuse, confirmedDates }: {
 
       {/* Zone créneaux */}
       <div style={{ padding: '16px 22px 0' }}>
-        {showNumero && selectedId ? (
-          <NumeroAppel
-            rdvId={rdv.id}
-            creneauId={selectedId}
-            recruteurNom={rdv.recruteurNom || 'Le recruteur'}
-            entrepriseNom={rdv.entrepriseNom || 'ce recruteur'}
-            onConfirme={() => {
-              setShowNumero(false)
-              setConfirmed(selectedId)
-              setTimeout(() => collapserEtConfirmer(rdv.id, selectedId!), 900)
-            }}
-            onAnnuler={() => setShowNumero(false)}
-            onExpire={() => {
-              setShowNumero(false)
-              setErrMsg('Cette proposition n\'est plus disponible. Le recruteur l\'a peut-être retirée.')
-              onReload(rdv.id)
-            }}
-          />
-        ) : !confirmed ? (
+        {!confirmed ? (
           <>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: C.grey, marginBottom: 10 }}>
               Choisissez un créneau
@@ -381,7 +363,27 @@ function AttenteCard({ rdv, onConfirme, onReload, onRefuse, confirmedDates }: {
       </div>
 
       {/* Pied */}
-      {!showNumero && (
+      {showNumero && selectedId ? (
+        <div style={{ padding: '14px 22px 18px' }}>
+          <NumeroAppel
+            rdvId={rdv.id}
+            creneauId={selectedId}
+            recruteurNom={rdv.recruteurNom || 'Le recruteur'}
+            entrepriseNom={rdv.entrepriseNom || 'ce recruteur'}
+            onConfirme={() => {
+              setShowNumero(false)
+              setConfirmed(selectedId)
+              setTimeout(() => collapserEtConfirmer(rdv.id, selectedId!), 900)
+            }}
+            onAnnuler={() => setShowNumero(false)}
+            onExpire={() => {
+              setShowNumero(false)
+              setErrMsg('Cette proposition n\'est plus disponible. Le recruteur l\'a peut-être retirée.')
+              onReload(rdv.id)
+            }}
+          />
+        </div>
+      ) : (
         <div style={{ padding: '14px 22px 18px', marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <button
@@ -688,7 +690,7 @@ export default function RendezVousPage() {
   const [passesOpen, setPassesOpen] = useState(false)
 
   const containerRef     = useRef<HTMLDivElement>(null)
-  const prevPositionsRef = useRef<Map<string, DOMRect>>(new Map())
+  const prevPositionsRef = useRef<Map<string, CardPos>>(new Map())
   const flipPendingRef   = useRef(false)
   const newRdvIdRef      = useRef<string | null>(null)
 
@@ -842,7 +844,7 @@ export default function RendezVousPage() {
   useEffect(() => {
     if (loading || !containerRef.current) return
     const cards = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-card-id]'))
-    prevPositionsRef.current = animerCartes(cards, new Map())
+    prevPositionsRef.current = animerCartes(cards, new Map<string, CardPos>())
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading])
 
@@ -904,8 +906,8 @@ export default function RendezVousPage() {
   function handleConfirme(rdvId: string, creneauId: string) {
     if (containerRef.current) {
       const cards = Array.from(containerRef.current.querySelectorAll<HTMLElement>('[data-card-id]'))
-      const before = new Map<string, DOMRect>()
-      cards.forEach(c => { const id = c.dataset.cardId; if (id) before.set(id, c.getBoundingClientRect()) })
+      const before = new Map<string, CardPos>()
+      cards.forEach(c => { const id = c.dataset.cardId; if (id) before.set(id, { top: c.offsetTop, left: c.offsetLeft }) })
       prevPositionsRef.current = before
       flipPendingRef.current   = true
       newRdvIdRef.current      = rdvId

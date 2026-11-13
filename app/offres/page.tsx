@@ -20,7 +20,7 @@ import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import LogoKapolia from '@/components/LogoKapolia'
 import { normalizeText } from '@/lib/storage-utils'
 import { largeurUtile } from '@/lib/largeur-utile'
-import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, sortirCartes, animerCartes } from '@/lib/motion'
+import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, sortirCartes, animerCartes, type CardPos } from '@/lib/motion'
 import { useRoulette } from '@/hooks/useRoulette'
 import { useNavigationClavier } from '@/hooks/useNavigationClavier'
 import { TriSelect } from '@/components/TriSelect'
@@ -1840,7 +1840,7 @@ export default function OffresPage() {
   const listContainerRef    = useRef<HTMLDivElement>(null)
   const detailPanelRef      = useRef<HTMLDivElement>(null)
   const cardRefsMap         = useRef<Map<string, HTMLElement>>(new Map())
-  const prevPositionsRef    = useRef<Map<string, DOMRect>>(new Map())
+  const prevPositionsRef    = useRef<Map<string, CardPos>>(new Map())
   const filterTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const filteredRef         = useRef<typeof offres>([])
 
@@ -2220,8 +2220,8 @@ export default function OffresPage() {
     const newIds  = filtered.map(o => o.id).join(',')
     if (prevIds === newIds) return
     const pref = reduitMouvement()
-    const posSnapshot = new Map<string, DOMRect>()
-    cardRefsMap.current.forEach((el, id) => { if (el.isConnected) posSnapshot.set(id, el.getBoundingClientRect()) })
+    const posSnapshot = new Map<string, CardPos>()
+    cardRefsMap.current.forEach((el, id) => { if (el.isConnected) posSnapshot.set(id, { top: el.offsetTop, left: el.offsetLeft }) })
     prevPositionsRef.current = posSnapshot
     const prevIdSet  = new Set(displayedOffresRef.current.map(o => o.id))
     const newIdSet   = new Set(filtered.map(o => o.id))

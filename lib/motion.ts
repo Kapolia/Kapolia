@@ -37,6 +37,8 @@ export function sortirCartes(elements: HTMLElement[]): void {
   })
 }
 
+export type CardPos = { top: number; left: number }
+
 /**
  * Mesure les nouvelles positions des cartes, anime (cascade ou FLIP selon le contexte),
  * et renvoie la Map des nouvelles positions à stocker dans prevPositionsRef.
@@ -44,11 +46,11 @@ export function sortirCartes(elements: HTMLElement[]): void {
  */
 export function animerCartes(
   cards: NodeListOf<HTMLElement> | HTMLElement[],
-  prevPositions: Map<string, DOMRect>
-): Map<string, DOMRect> {
+  prevPositions: Map<string, CardPos>
+): Map<string, CardPos> {
   const cardArr = Array.from(cards)
-  const newPositions = new Map<string, DOMRect>()
-  cardArr.forEach(card => { newPositions.set(card.dataset.cardId!, card.getBoundingClientRect()) })
+  const newPositions = new Map<string, CardPos>()
+  cardArr.forEach(card => { newPositions.set(card.dataset.cardId!, { top: card.offsetTop, left: card.offsetLeft }) })
 
   if (!reduitMouvement()) {
     const isEntrance = prevPositions.size === 0

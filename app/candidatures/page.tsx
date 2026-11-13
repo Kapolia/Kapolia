@@ -8,7 +8,7 @@ import { FONT_SERIF } from '@/lib/typography'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { largeurUtile } from '@/lib/largeur-utile'
-import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, animerCartes } from '@/lib/motion'
+import { EASE, reduitMouvement, fondurPanneau, entrerPanneau, animerCartes, type CardPos } from '@/lib/motion'
 import { useNavigationClavier } from '@/hooks/useNavigationClavier'
 import { Bandeau, type BandeauHandle } from '@/components/Bandeau'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
@@ -853,7 +853,7 @@ function CandidaturesPageInner() {
   const detailPanelRef    = useRef<HTMLDivElement>(null)
   const leftColRef        = useRef<HTMLDivElement>(null)
   const cardRefsMap       = useRef(new Map<string, HTMLElement>())
-  const prevPositionsRef  = useRef(new Map<string, DOMRect>())
+  const prevPositionsRef  = useRef<Map<string, CardPos>>(new Map())
   const displayedRef      = useRef<{ id: string }[]>([])
   const selectedIdRef     = useRef<string | null>(null)
   const skipNextFlipRef   = useRef(false)
@@ -1100,7 +1100,7 @@ function CandidaturesPageInner() {
   useLayoutEffect(() => {
     const justSplit = prevIsSplitRef.current !== isSplit
     prevIsSplitRef.current = isSplit
-    if (justSplit) prevPositionsRef.current = new Map()
+    if (justSplit) prevPositionsRef.current = new Map<string, CardPos>()
 
     if (!leftColRef.current) return
     const cards = leftColRef.current.querySelectorAll<HTMLElement>('[data-card-id]')
@@ -1110,8 +1110,8 @@ function CandidaturesPageInner() {
       const id = restoreCardIdRef.current
       if (id) {
         restoreCardIdRef.current = null
-        const newPos = new Map<string, DOMRect>()
-        Array.from(cards).forEach(c => { newPos.set(c.dataset.cardId!, c.getBoundingClientRect()) })
+        const newPos = new Map<string, CardPos>()
+        Array.from(cards).forEach(c => { newPos.set(c.dataset.cardId!, { top: c.offsetTop, left: c.offsetLeft }) })
         prevPositionsRef.current = newPos
         const el = cardRefsMap.current.get(id)
         if (el && !reduitMouvement()) {
@@ -1191,9 +1191,9 @@ function CandidaturesPageInner() {
         { duration: 260, easing: EASE, delay: 80, fill: 'forwards' }
       )
       collapseAnim.onfinish = () => {
-        const snap = new Map<string, DOMRect>()
+        const snap = new Map<string, CardPos>()
         cardRefsMap.current.forEach((el, id) => {
-          if (el.isConnected && id !== candId) snap.set(id, el.getBoundingClientRect())
+          if (el.isConnected && id !== candId) snap.set(id, { top: el.offsetTop, left: el.offsetLeft })
         })
         prevPositionsRef.current = snap
         doRemoveAndBandeau()
