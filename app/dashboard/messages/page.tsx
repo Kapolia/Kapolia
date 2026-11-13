@@ -277,8 +277,6 @@ function CandidatMessagesPageInner() {
   const [reduitsMotion, setReduitsMotion]   = useState(() =>
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
-  const [frozenActiveGroup, setFrozenActiveGroup] = useState<'traiter' | 'autres' | null>(null)
-
   const endRef           = useRef<HTMLDivElement>(null)
   const textaRef         = useRef<HTMLTextAreaElement>(null)
   const fileRef          = useRef<HTMLInputElement>(null)
@@ -642,14 +640,6 @@ function CandidatMessagesPageInner() {
   const activeMsgs  = msgCache[activeId] ?? []
   const totalUnread = convs.reduce((n, c) => n + c.nonLu, 0)
 
-  function convGroup(conv: LocalConv): 'traiter' | 'autres' {
-    if (conv.id === activeId && frozenActiveGroup !== null) return frozenActiveGroup
-    const rdv = contextRdvs[conv.id]
-    const hasFuturRdv = rdv?.statut === 'proposee' &&
-      rdv.creneaux_rdv.some(c => new Date(c.debut_utc).getTime() > Date.now())
-    return (conv.nonLu > 0 || hasFuturRdv) ? 'traiter' : 'autres'
-  }
-
   function convEtiquette(conv: LocalConv): { label: string; bg: string; color: string } | null {
     const rdv   = contextRdvs[conv.id] ?? null
     const cand  = conv.offreId ? contextCands[conv.offreId]  : undefined
@@ -813,11 +803,6 @@ function CandidatMessagesPageInner() {
   async function selectConv(id: string, knownNonLu?: number) {
     // Snapshot nonLu BEFORE clearing it
     const prevNonLu = knownNonLu ?? (convs.find(c => c.id === id)?.nonLu ?? 0)
-    // Freeze group so the open conversation doesn't jump while it's visible (point 4)
-    const rdvSnap = contextRdvs[id]
-    const hasFuturRdvSnap = rdvSnap?.statut === 'proposee' &&
-      rdvSnap.creneaux_rdv.some(c => new Date(c.debut_utc).getTime() > Date.now())
-    setFrozenActiveGroup((prevNonLu > 0 || hasFuturRdvSnap) ? 'traiter' : 'autres')
     setMsgLoadErr(false)
     setUnreadSepMsgId(null)
     setActiveId(id); activeIdRef.current = id; setMenuOpen(false)
@@ -1258,9 +1243,6 @@ function CandidatMessagesPageInner() {
               <div style={{ padding: '24px 0', textAlign: 'center', color: C.grey, fontSize: 13 }}>Aucune conversation</div>
             )
           ) : (() => {
-            const groupA = filteredConvs.filter(c => convGroup(c) === 'traiter')
-            const groupB = filteredConvs.filter(c => convGroup(c) === 'autres')
-
             const renderRow = (conv: LocalConv) => {
               const isActive  = conv.id === activeId
               const isHovered = hovConvId === conv.id && !isActive
@@ -1311,22 +1293,7 @@ function CandidatMessagesPageInner() {
               )
             }
 
-            return (
-              <>
-                {groupA.length > 0 && <>
-                  <div style={{ padding: '14px 12px 6px', fontSize: 12.5, fontWeight: 600, color: C.grey, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    À traiter <span style={{ color: C.orangeTexte }}>{groupA.length}</span>
-                  </div>
-                  {groupA.map(renderRow)}
-                </>}
-                {groupB.length > 0 && <>
-                  <div style={{ padding: '14px 12px 6px', fontSize: 12.5, fontWeight: 600, color: C.grey }}>
-                    Autres échanges
-                  </div>
-                  {groupB.map(renderRow)}
-                </>}
-              </>
-            )
+            return <>{filteredConvs.map(renderRow)}</>
           })()}
         </div>
       </div>
