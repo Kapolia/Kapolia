@@ -13,6 +13,8 @@ import CartePresentation from '@/components/profil/CartePresentation'
 import CarteRecherche from '@/components/profil/CarteRecherche'
 import CarteParcours, { type ParcoursExpEdit, type ParcoursDiplomeEdit } from '@/components/profil/CarteParcours'
 import CarteQualites from '@/components/profil/CarteQualites'
+import CarteCompetences from '@/components/profil/CarteCompetences'
+import CarteProjet from '@/components/profil/CarteProjet'
 import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
@@ -639,6 +641,8 @@ export default function ProfilView({
   const [editProjetLien, setEditProjetLien]         = useState('')
   const [editProjetImages, setEditProjetImages]     = useState<string[]>([])
   const [editProjetVideo, setEditProjetVideo]       = useState('')
+  const [editProjetResultat, setEditProjetResultat] = useState('')
+  const [recordContext, setRecordContext]           = useState<'presentation' | 'projet'>('presentation')
   const [uploadingImages, setUploadingImages]       = useState(false)
   const [uploadingVideo, setUploadingVideo]         = useState(false)
   const [avatarModal, setAvatarModal]               = useState(false)
@@ -979,6 +983,7 @@ export default function ProfilView({
       setEditProjetTitre(p.projet_titre ?? ''); setEditProjetDesc(p.projet_phare ?? '')
       setEditProjetImpact(p.projet_impact ?? ''); setEditProjetLien(p.projet_lien ?? '')
       setEditProjetImages([...(p.projet_images ?? [])]); setEditProjetVideo(p.projet_video_url ?? '')
+      setEditProjetResultat(p.projet_resultat ?? '')
     } else if (carte === 'priorites') {
       setEditPriorite([...(p.priorites ?? [])])
     } else if (carte === 'passions') {
@@ -1113,7 +1118,13 @@ export default function ProfilView({
     }
     else if (carte === 'qualites') payload = { qualites: editQualites }
     else if (carte === 'competences') payload = { competences_acquises: editCompetences }
-    else if (carte === 'projet') payload = { projet_phare: editProjetDesc, projet_titre: editProjetTitre, projet_impact: editProjetImpact, projet_lien: editProjetLien, projet_images: editProjetImages, projet_video_url: editProjetVideo }
+    else if (carte === 'projet') {
+      if (editProjetImpact.length > 80 && editProjetImpact !== (p.projet_impact ?? '')) {
+        setCarteErreur('Résumez le résultat en un chiffre et quelques mots (80 caractères max).')
+        setSavingCarte(false); return
+      }
+      payload = { projet_phare: editProjetDesc, projet_titre: editProjetTitre, projet_resultat: editProjetResultat || null, projet_impact: editProjetImpact, projet_lien: editProjetLien, projet_images: editProjetImages, projet_video_url: editProjetVideo }
+    }
     else if (carte === 'priorites') payload = { priorites: editPriorite }
     else if (carte === 'passions') payload = { passions: editPassions }
 
@@ -1135,8 +1146,8 @@ export default function ProfilView({
   }
 
   async function processImageFiles(files: File[]) {
-    const remaining = 5 - editProjetImages.length
-    if (remaining <= 0) { showToast('Maximum 5 images.'); return }
+    const remaining = 4 - editProjetImages.length
+    if (remaining <= 0) { showToast('Maximum 4 fichiers.'); return }
     const MAX = 5 * 1024 * 1024
     setUploadingImages(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -1176,7 +1187,7 @@ export default function ProfilView({
       vid.onerror = () => { URL.revokeObjectURL(vid.src); resolve(0) }
       vid.src = URL.createObjectURL(file)
     })
-    if (duration > 30) { showToast('La vidéo doit faire 30 secondes maximum.'); return }
+    if (duration > 45) { showToast('Cette vidéo dure plus de 45 secondes. Raccourcissez-la ou filmez-en une nouvelle.'); return }
     setUploadingVideo(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setUploadingVideo(false); return }
@@ -1350,7 +1361,7 @@ export default function ProfilView({
     recordTimerRef.current = setInterval(() => {
       elapsed += 1
       setRecordDuration(elapsed)
-      if (elapsed >= 60) stopRecording()
+      if (elapsed >= (recordContext === 'projet' ? 45 : 60)) stopRecording()
     }, 1000)
   }
 
@@ -1371,9 +1382,22 @@ export default function ProfilView({
   async function useRecordedVideo() {
     if (!recordedBlob) return
     const ext = recordedBlob.type.includes('mp4') ? 'mp4' : 'webm'
-    const file = new File([recordedBlob], `presentation-${Date.now()}.${ext}`, { type: recordedBlob.type })
+    const file = new File([recordedBlob], `video-${Date.now()}.${ext}`, { type: recordedBlob.type })
     closeRecordModal()
-    await uploadVedetteVideo(file)
+    if (recordContext === 'projet') {
+      setUploadingVideo(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setUploadingVideo(false); return }
+      const path = `projets/${user.id}/video-${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('projets-medias').upload(path, file, { contentType: file.type })
+      if (error) { showToast('Erreur upload vidéo.'); setUploadingVideo(false); return }
+      const { data: u } = supabase.storage.from('projets-medias').getPublicUrl(path)
+      setEditProjetVideo(u.publicUrl)
+      setUploadingVideo(false)
+      setCarteModifiee(true)
+    } else {
+      await uploadVedetteVideo(file)
+    }
   }
 
   function updateExp(i: number, patch: Partial<ProfilExperience>) {
@@ -1503,7 +1527,7 @@ export default function ProfilView({
                 ) : effectiveOwner ? (
                   <button
                     className="btn-portrait"
-                    onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                    onClick={() => { setRecordContext('presentation'); setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
                     disabled={uploadingVedette}
                     style={{
                       position: 'absolute', bottom: 10, right: 10,
@@ -1723,7 +1747,7 @@ export default function ProfilView({
                     uploadingVedette={uploadingVedette}
                     deletingVideo={deletingVideo}
                     onOpenAvatarModal={openAvatarModal}
-                    onOpenRecord={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                    onOpenRecord={() => { setRecordContext('presentation'); setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
                     vedetteVideoInputRef={vedetteVideoInputRef}
                     onDeleteVideo={deleteVideoPresentation}
                     onChange={() => setCarteModifiee(true)}
@@ -1878,7 +1902,11 @@ export default function ProfilView({
               </div>
               {carteOuverte === 'competences' ? (
                 <>
-                  <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Ajoutez vos compétences techniques ou transverses.</p>
+                  <CarteCompetences
+                    valeurs={editCompetences}
+                    onChange={setEditCompetences}
+                    onMark={() => setCarteModifiee(true)}
+                  />
                   {cardFooter('competences')}
                 </>
               ) : competencesAcquises.length > 0 ? (
@@ -1905,7 +1933,23 @@ export default function ProfilView({
               </div>
               {carteOuverte === 'projet' ? (
                 <>
-                  <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Présentez votre réalisation la plus marquante.</p>
+                  <CarteProjet
+                    editTitre={editProjetTitre} setEditTitre={setEditProjetTitre}
+                    editDesc={editProjetDesc} setEditDesc={setEditProjetDesc}
+                    editResultat={editProjetResultat} setEditResultat={setEditProjetResultat}
+                    editImpact={editProjetImpact} setEditImpact={setEditProjetImpact}
+                    initialImpact={p.projet_impact ?? ''}
+                    editVideo={editProjetVideo}
+                    editImages={editProjetImages}
+                    uploadingVideo={uploadingVideo}
+                    uploadingImages={uploadingImages}
+                    onFilmer={() => { setRecordContext('projet'); setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                    onImporterVideo={() => videoInputRef.current?.click()}
+                    onImporterImages={() => imageInputRef.current?.click()}
+                    onSupprimerVideo={() => { deleteStorageVideo(editProjetVideo); setEditProjetVideo('') }}
+                    onSupprimerImage={url => setEditProjetImages(prev => prev.filter(u => u !== url))}
+                    onChange={() => setCarteModifiee(true)}
+                  />
                   {cardFooter('projet')}
                 </>
               ) : p.projet_phare ? (
@@ -2193,7 +2237,7 @@ export default function ProfilView({
                   <span style={{ fontSize: 48 }}>📷</span>
                   <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, margin: 0 }}>{recordError}</p>
                   <button
-                    onClick={() => { closeRecordModal(); setTimeout(() => mobileRecordInputRef.current?.click(), 50) }}
+                    onClick={() => { closeRecordModal(); setTimeout(() => (recordContext === 'projet' ? videoInputRef : mobileRecordInputRef).current?.click(), 50) }}
                     style={{ padding: '10px 20px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
                   >
                     Utiliser la caméra native
@@ -2233,7 +2277,7 @@ export default function ProfilView({
                   {/* Timer */}
                   {recordPhase === 'recording' && (
                     <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(194, 97, 31,0.9)', borderRadius: 20, padding: '3px 11px', fontSize: 12, fontWeight: 700, color: C.white, fontFamily: 'monospace' }}>
-                      {String(Math.floor(recordDuration / 60)).padStart(2, '0')}:{String(recordDuration % 60).padStart(2, '0')} / 01:00
+                      {String(Math.floor(recordDuration / 60)).padStart(2, '0')}:{String(recordDuration % 60).padStart(2, '0')} / {recordContext === 'projet' ? '00:45' : '01:00'}
                     </div>
                   )}
 
