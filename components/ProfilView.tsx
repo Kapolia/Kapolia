@@ -899,6 +899,76 @@ export default function ProfilView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carteOuverte, isOwner, unreadNotifCount, userId])
 
+  useEffect(() => {
+    if (searchParams.get('questionnaire') !== 'refait') return
+    showToast('Questionnaire enregistré')
+    router.replace('/profil')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Animations d'entrée (blocs + pastilles) ───────────────────────────────
+  useEffect(() => {
+    if (loading || hasAnimated.current) return
+    hasAnimated.current = true
+    if (typeof window === 'undefined' || reduitMouvement()) return
+    requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLElement>('[data-profil-bloc]').forEach((el, i) => {
+        el.animate(
+          [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
+          { duration: 450, delay: i * 70, fill: 'both', easing: EASE }
+        )
+      })
+      document.querySelectorAll<HTMLElement>('[data-profil-pastille]').forEach((el, i) => {
+        el.animate(
+          [{ opacity: '0', transform: 'scale(0.92)' }, { opacity: '1', transform: 'scale(1)' }],
+          { duration: 350, delay: 250 + i * 45, fill: 'both', easing: EASE }
+        )
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  // ── Animation ouverture / fermeture de carte ──────────────────────────────
+  useEffect(() => {
+    const prev = prevCarteRef.current
+    prevCarteRef.current = carteOuverte
+    if (typeof window === 'undefined' || reduitMouvement()) return
+    const toKey = (c: CarteType | null) =>
+      (c === 'presentation' || c === 'recherche') ? 'presentation' : c
+    if (carteOuverte) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-carte="${toKey(carteOuverte)}"]`)
+        if (!el) return
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        el.animate(
+          [{ opacity: '0', transform: 'translateY(6px) scale(0.99)' }, { opacity: '1', transform: 'none' }],
+          { duration: 340, fill: 'both', easing: EASE }
+        )
+      })
+    } else if (prev) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-carte="${toKey(prev)}"]`)
+        if (el) el.animate(
+          [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
+          { duration: 300, fill: 'both', easing: EASE }
+        )
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carteOuverte])
+
+  // ── Liseré vert après enregistrement ─────────────────────────────────────
+  useEffect(() => {
+    if (!carteSaved || typeof window === 'undefined' || reduitMouvement()) return
+    const key = (carteSaved === 'presentation' || carteSaved === 'recherche') ? 'presentation' : carteSaved
+    const el = document.querySelector<HTMLElement>(`[data-carte="${key}"]`)
+    if (el) el.animate(
+      [{ boxShadow: `inset 0 0 0 2px ${C.succes}` }, { boxShadow: 'inset 0 0 0 2px transparent' }],
+      { duration: 1600, fill: 'both', easing: 'ease-out' }
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carteSaved])
+
   if (loading) return (
     <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style suppressHydrationWarning>{`@keyframes kapolia-spin{to{transform:rotate(360deg)}}`}</style>
@@ -971,76 +1041,6 @@ export default function ProfilView({
     setToastMsg(msg); setToastVisible(true)
     setTimeout(() => setToastVisible(false), 3000)
   }
-
-  useEffect(() => {
-    if (searchParams.get('questionnaire') !== 'refait') return
-    showToast('Questionnaire enregistré')
-    router.replace('/profil')
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // ── Animations d'entrée (blocs + pastilles) ───────────────────────────────
-  useEffect(() => {
-    if (loading || hasAnimated.current) return
-    hasAnimated.current = true
-    if (typeof window === 'undefined' || reduitMouvement()) return
-    requestAnimationFrame(() => {
-      document.querySelectorAll<HTMLElement>('[data-profil-bloc]').forEach((el, i) => {
-        el.animate(
-          [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
-          { duration: 450, delay: i * 70, fill: 'both', easing: EASE }
-        )
-      })
-      document.querySelectorAll<HTMLElement>('[data-profil-pastille]').forEach((el, i) => {
-        el.animate(
-          [{ opacity: '0', transform: 'scale(0.92)' }, { opacity: '1', transform: 'scale(1)' }],
-          { duration: 350, delay: 250 + i * 45, fill: 'both', easing: EASE }
-        )
-      })
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading])
-
-  // ── Animation ouverture / fermeture de carte ──────────────────────────────
-  useEffect(() => {
-    const prev = prevCarteRef.current
-    prevCarteRef.current = carteOuverte
-    if (typeof window === 'undefined' || reduitMouvement()) return
-    const toKey = (c: CarteType | null) =>
-      (c === 'presentation' || c === 'recherche') ? 'presentation' : c
-    if (carteOuverte) {
-      requestAnimationFrame(() => {
-        const el = document.querySelector<HTMLElement>(`[data-carte="${toKey(carteOuverte)}"]`)
-        if (!el) return
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        el.animate(
-          [{ opacity: '0', transform: 'translateY(6px) scale(0.99)' }, { opacity: '1', transform: 'none' }],
-          { duration: 340, fill: 'both', easing: EASE }
-        )
-      })
-    } else if (prev) {
-      requestAnimationFrame(() => {
-        const el = document.querySelector<HTMLElement>(`[data-carte="${toKey(prev)}"]`)
-        if (el) el.animate(
-          [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
-          { duration: 300, fill: 'both', easing: EASE }
-        )
-      })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carteOuverte])
-
-  // ── Liseré vert après enregistrement ─────────────────────────────────────
-  useEffect(() => {
-    if (!carteSaved || typeof window === 'undefined' || reduitMouvement()) return
-    const key = (carteSaved === 'presentation' || carteSaved === 'recherche') ? 'presentation' : carteSaved
-    const el = document.querySelector<HTMLElement>(`[data-carte="${key}"]`)
-    if (el) el.animate(
-      [{ boxShadow: `inset 0 0 0 2px ${C.succes}` }, { boxShadow: 'inset 0 0 0 2px transparent' }],
-      { duration: 1600, fill: 'both', easing: 'ease-out' }
-    )
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [carteSaved])
 
   function ouvrirCarte(carte: CarteType) {
     if (carteModifiee) { setCarteErreur('Enregistrez ou annulez d\'abord vos changements.'); return }
