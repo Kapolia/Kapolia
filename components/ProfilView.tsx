@@ -15,6 +15,9 @@ import CarteParcours, { type ParcoursExpEdit, type ParcoursDiplomeEdit } from '@
 import CarteQualites from '@/components/profil/CarteQualites'
 import CarteCompetences from '@/components/profil/CarteCompetences'
 import CarteProjet from '@/components/profil/CarteProjet'
+import CartePriorites from '@/components/profil/CartePriorites'
+import CartePassions from '@/components/profil/CartePassions'
+import CarteLiens from '@/components/profil/CarteLiens'
 import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
@@ -1991,7 +1994,11 @@ export default function ProfilView({
                   </div>
                   {carteOuverte === 'priorites' ? (
                     <>
-                      <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Vos priorités en termes d&apos;environnement de travail.</p>
+                      <CartePriorites
+                        valeurs={editPriorite}
+                        onChange={setEditPriorite}
+                        onMark={() => setCarteModifiee(true)}
+                      />
                       {cardFooter('priorites')}
                     </>
                   ) : p.priorites && p.priorites.length > 0 ? (
@@ -2018,7 +2025,11 @@ export default function ProfilView({
                   </div>
                   {carteOuverte === 'passions' ? (
                     <>
-                      <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Vos passions en dehors du travail.</p>
+                      <CartePassions
+                        valeurs={editPassions}
+                        onChange={setEditPassions}
+                        onMark={() => setCarteModifiee(true)}
+                      />
                       {cardFooter('passions')}
                     </>
                   ) : passions.length > 0 ? (
@@ -2050,7 +2061,12 @@ export default function ProfilView({
                   </div>
                   {carteOuverte === 'liens' ? (
                     <>
-                      <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Ajoutez votre LinkedIn, portfolio ou site web.</p>
+                      <CarteLiens
+                        editLiens={editLiens}
+                        setEditLiens={setEditLiens}
+                        editLiensErrs={editLiensErrs}
+                        onMark={() => setCarteModifiee(true)}
+                      />
                       {cardFooter('liens')}
                     </>
                   ) : liensAffiches.length > 0 ? (
