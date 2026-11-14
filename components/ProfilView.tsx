@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
@@ -593,6 +593,7 @@ export default function ProfilView({
   sidebarOffset = 64,
 }: ProfilViewProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [profil, setProfil]   = useState<Profil | null>(null)
   const [loading, setLoading]     = useState(true)
@@ -966,6 +967,13 @@ export default function ProfilView({
     setToastMsg(msg); setToastVisible(true)
     setTimeout(() => setToastVisible(false), 3000)
   }
+
+  useEffect(() => {
+    if (searchParams.get('questionnaire') !== 'refait') return
+    showToast('Questionnaire enregistré')
+    router.replace('/profil')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function ouvrirCarte(carte: CarteType) {
     if (carteModifiee) { setCarteErreur('Enregistrez ou annulez d\'abord vos changements.'); return }

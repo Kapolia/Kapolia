@@ -99,7 +99,7 @@ export default function CarteQualites({
                 ))}
               </div>
               <p style={{ fontSize: 12.5, color: C.grey, margin: 0 }}>Questionnaire rempli.</p>
-              <Link href="/onboarding"
+              <Link href="/onboarding?refaire=questionnaire"
                 style={{ fontSize: 13, fontWeight: 600, color: C.dark, padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: C.white, textDecoration: 'none', display: 'inline-block', alignSelf: 'flex-start' }}>
                 Refaire le questionnaire
               </Link>
@@ -107,7 +107,7 @@ export default function CarteQualites({
           ) : (
             <>
               <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Pas encore de questionnaire.</p>
-              <Link href="/onboarding"
+              <Link href="/onboarding?refaire=questionnaire"
                 style={{ fontSize: 13, fontWeight: 600, color: C.vert, padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.sable}`, backgroundColor: C.salaire, textDecoration: 'none', display: 'inline-block', alignSelf: 'flex-start' }}>
                 Faire le questionnaire
               </Link>

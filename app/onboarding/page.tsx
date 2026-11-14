@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
 import LogoKapolia from '@/components/LogoKapolia'
@@ -359,9 +359,15 @@ const TOTAL_SITUATIONS = SITUATIONS[CURRENT_VERSION].length  // 9
 function QualitesCarousel({
   userId,
   onComplete,
+  forceEmpty = false,
+  writeDate  = false,
+  onRefaireDone,
 }: {
-  userId:     string
-  onComplete: (done: boolean) => void
+  userId:         string
+  onComplete:     (done: boolean) => void
+  forceEmpty?:    boolean
+  writeDate?:     boolean
+  onRefaireDone?: () => void
 }) {
   const [idx,        setIdx]        = useState(0)
   const [selections, setSelections] = useState<Record<number, (1|2|3|4)[]>>({})
@@ -373,6 +379,7 @@ function QualitesCarousel({
   // Charge les réponses existantes
   useEffect(() => {
     if (!userId) return
+    if (forceEmpty) { setLoading(false); return }
     supabase
       .from('test_qualites')
       .select('situation_id, reponse_1, reponse_2, version_test')
@@ -453,9 +460,12 @@ function QualitesCarousel({
         .filter((a): a is TestAnswer => a !== null)
       const resultats    = calculerQualites(allAnswers)
       const qualitesTest = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
-      await supabase.from('profils').update({ qualites_test: qualitesTest }).eq('user_id', userId)
+      await supabase.from('profils').update({
+        qualites_test: qualitesTest,
+        ...(writeDate ? { test_qualites_fait_le: new Date().toISOString() } : {}),
+      }).eq('user_id', userId)
       setPhase('done')
-      onComplete(true)
+      if (onRefaireDone) { onRefaireDone() } else { onComplete(true) }
     }
   }
 
@@ -1303,8 +1313,10 @@ function CompRefTagInput({
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 
-export default function OnboardingPage() {
+function OnboardingPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isRefaire = searchParams.get('refaire') === 'questionnaire'
   const [showWelcome, setShowWelcome] = useState(true)
   const [showFinal,   setShowFinal]   = useState(false)
   const [step, setStep] = useState(1)
@@ -1327,9 +1339,10 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function resumeIfNeeded() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoadingResume(false); return }
+      if (!user) { if (isRefaire) { router.replace('/connexion'); return } setLoadingResume(false); return }
       setUserId(user.id)
       setEmailConfirme(!!user.email_confirmed_at)
+      if (isRefaire) { setLoadingResume(false); return }
 
       const [{ data: profil }, { count: testCount }] = await Promise.all([
         supabase
@@ -1978,6 +1991,28 @@ export default function OnboardingPage() {
     </div>
   )
 
+  if (isRefaire) return (
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <header style={{ padding: '20px clamp(20px,5%,48px)', borderBottom: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
+        <span style={{ fontFamily: FONT_SERIF, fontSize: 20, fontWeight: 600, color: C.dark }}>Refaire le questionnaire</span>
+        <a href="/profil" style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>← Revenir à mon profil</a>
+      </header>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px clamp(20px,5%,48px)' }}>
+        <div style={{ width: '100%', maxWidth: 560 }}>
+          {!loadingResume && userId && (
+            <QualitesCarousel
+              userId={userId}
+              forceEmpty
+              writeDate
+              onComplete={() => {}}
+              onRefaireDone={() => router.push('/profil?questionnaire=refait')}
+            />
+          )}
+        </div>
+      </div>
+    </main>
+  )
+
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
   if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push(readPostSignupNext() ?? '/profil')} userId={userId} emailConfirme={emailConfirme} />
 
@@ -2110,4 +2145,9 @@ export default function OnboardingPage() {
       </footer>
     </main>
   )
+}
+
+import { Suspense } from 'react'
+export default function OnboardingPage() {
+  return <Suspense><OnboardingPageInner /></Suspense>
 }
