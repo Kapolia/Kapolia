@@ -10,6 +10,7 @@ import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES } from '@/lib/langues'
 import { COMP_REF, DOMAINES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
 import { anneesExperience, lireMoisAnnee, type PosteParcours } from '@/lib/parcours'
+import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
@@ -33,10 +34,13 @@ function isFromRef(comp: string): boolean {
 type ProfilExperience = {
   poste: string; entreprise: string
   date_debut: string; date_fin: string; en_poste: boolean; missions: string
+  debut_annee?: number | null; debut_mois?: number | null
+  fin_annee?: number | null; fin_mois?: number | null
 }
 
 type ProfilDiplome = {
   intitule: string; ecole: string; annee: string; mention?: string
+  en_cours?: boolean; debut_annee?: number | null
 }
 
 type Lien = { intitule: string; url: string }
@@ -3002,63 +3006,9 @@ export default function ProfilView({
             </div>
           </div>
 
-          {/* ── PARCOURS (Expériences + Formations) ── */}
+          {/* ── PARCOURS ── */}
           {(experiences.length > 0 || diplomes.length > 0) && (
-            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-              <SLabel20>Parcours</SLabel20>
-              {experiences.length > 0 && (
-                <div style={{ position: 'relative' }}>
-                  {diplomes.length > 0 && (
-                    <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 12 }}>Expériences</div>
-                  )}
-                  <div style={{ position: 'absolute', left: 7, top: diplomes.length > 0 ? 28 : 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                    {experiences.map((exp, i) => (
-                      <div key={i} style={{ display: 'flex', gap: 20, paddingLeft: 28, position: 'relative' as const }}>
-                        <div style={{ position: 'absolute', left: 0, top: 5, width: 16, height: 16, borderRadius: '50%', backgroundColor: C.terracotta, border: `2.5px solid ${C.bg}`, flexShrink: 0 }} />
-                        <div style={{ flex: 1, backgroundColor: C.white, borderRadius: 14, padding: '16px 20px', border: `1px solid ${C.sable}` }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: C.dark, marginBottom: 2 }}>{exp.poste}</div>
-                          <div style={{ fontSize: 12, color: C.grey, marginBottom: exp.missions ? 10 : 0 }}>
-                            {exp.entreprise}
-                            {(exp.date_debut || exp.date_fin || exp.en_poste) && <span style={{ color: C.grey, margin: '0 6px' }}>·</span>}
-                            {exp.date_debut && <span>{exp.date_debut}</span>}
-                            {exp.date_debut && (exp.en_poste || exp.date_fin) && <span> — </span>}
-                            {exp.en_poste ? <span style={{ color: C.terracotta }}>En poste</span> : <span>{exp.date_fin}</span>}
-                          </div>
-                          {exp.missions && (
-                            <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
-                              {exp.missions.split('\n').filter(Boolean).slice(0, 4).map((m, j) => (
-                                <li key={j} style={{ fontSize: 12, color: C.dark, lineHeight: 1.7 }}>{m.trim()}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {diplomes.length > 0 && experiences.length > 0 && (
-                <div style={{ borderTop: `1px solid ${C.sable}`, margin: '20px 0 16px' }} />
-              )}
-              {diplomes.length > 0 && (
-                <>
-                  {experiences.length > 0 && (
-                    <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 12 }}>Formations</div>
-                  )}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {diplomes.map((d, i) => (
-                      <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.sable}` }}>
-                        <div style={{ fontWeight: 600, fontSize: 14, color: C.dark }}>{d.intitule}</div>
-                        <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
-                          {d.ecole}{d.annee && <> · {d.annee}</>}{d.mention && <> · <span style={{ color: C.terracotta }}>{d.mention}</span></>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <CarteParcoursView experiences={experiences} diplomes={diplomes} />
           )}
 
           {/* ── QUALITÉS ── */}
