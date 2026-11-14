@@ -12,15 +12,14 @@ import { COMP_REF, DOMAINES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/refer
 import { anneesExperience, lireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
+import { iconePassion, PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 import InvitationModal, { type ActiveInvitation } from '@/components/InvitationModal'
 import AssistantProfilPanel from '@/components/AssistantProfilPanel'
-import { C as _C, CARD_RADIUS, CARD_SHADOW } from '@/lib/colors'
-import { sanitizeFilename } from '@/lib/storage-utils'
-
-const C = { ..._C, lightGrey: '#C8C8C8' as const }
+import { C, CARD_RADIUS, CARD_SHADOW } from '@/lib/colors'
+import { sanitizeFilename, normalizeText } from '@/lib/storage-utils'
 
 
 function isFromRef(comp: string): boolean {
@@ -74,7 +73,7 @@ type Profil = {
   portfolio?: string; user_id?: string
   experiences?: ProfilExperience[]; diplomes?: ProfilDiplome[]
   competences_acquises?: string[]; langues?: string[]
-  projet_titre?: string; projet_impact?: string; projet_lien?: string
+  projet_titre?: string; projet_impact?: string; projet_resultat?: string | null; projet_lien?: string
   projet_images?: string[]; projet_video_url?: string
   avatar_url?: string; avatar_type?: string
   telephone?: string | null
@@ -101,7 +100,7 @@ const COLONNES_PROPRIETAIRE = [
   'type_poste', 'mode_travail', 'disponibilite', 'dispo_date', 'priorites',
   'ville',
   'experiences', 'diplomes', 'competences_acquises', 'langues',
-  'projet_titre', 'projet_impact', 'projet_lien', 'projet_images', 'projet_video_url',
+  'projet_titre', 'projet_impact', 'projet_resultat', 'projet_lien', 'projet_images', 'projet_video_url',
   'avatar_url', 'avatar_type', 'telephone', 'linkedin_url', 'portfolio_url',
   'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
   'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
@@ -115,7 +114,7 @@ const COLONNES_VISITEUR = [
   'type_poste', 'mode_travail', 'disponibilite', 'dispo_date', 'priorites',
   'ville',
   'experiences', 'diplomes', 'competences_acquises', 'langues',
-  'projet_titre', 'projet_impact', 'projet_lien', 'projet_images', 'projet_video_url',
+  'projet_titre', 'projet_impact', 'projet_resultat', 'projet_lien', 'projet_images', 'projet_video_url',
   'avatar_url', 'avatar_type', 'linkedin_url', 'portfolio_url',
   'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
   'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
@@ -145,8 +144,8 @@ const PRIORITES = [
 ]
 
 const DISPO_OPTIONS = [
-  { key: 'maintenant',      label: 'Disponible maintenant', color: '#27AE60' },
-  { key: 'a_partir_de',    label: 'À partir de…',          color: '#E67E22' },
+  { key: 'maintenant',      label: 'Disponible maintenant', color: C.succes },
+  { key: 'a_partir_de',    label: 'À partir de…',          color: C.attente },
   { key: 'non_disponible', label: 'Non disponible',         color: C.erreur },
 ]
 
@@ -156,13 +155,6 @@ const MOIS_FR = [
 ]
 
 const NIVEAUX_LANGUE = ['Natif', 'Courant', 'Intermédiaire', 'Débutant']
-
-const PASSION_EMOJIS: Record<string, string> = {
-  Musique: '🎵', Sport: '⚽', Lecture: '📚', Voyage: '✈️', Cuisine: '🍳',
-  Jeux: '🎮', Photo: '📷', Art: '🎨', Cinema: '🎬', Tech: '💻',
-  Nature: '🌿', Yoga: '🧘', Gaming: '🕹️', Podcast: '🎙️',
-  Randonnée: '🥾', Danse: '💃', Ecriture: '✍️', Dessin: '✏️', Montagne: '⛰️',
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -333,7 +325,7 @@ function VideoPlayer({ src, miroir, frameStyle }: {
 
   const pct         = duration ? (currentTime / duration) * 100 : 0
   const effectiveVol = muted ? 0 : volume
-  const volIcon     = (muted || volume === 0) ? '🔇' : volume < 0.4 ? '🔉' : '🔊'
+  const volState    = (muted || volume === 0) ? 'mute' : volume < 0.4 ? 'low' : 'high'
 
   const wrapperStyle: React.CSSProperties = isFullscreen
     ? { position: 'relative', overflow: 'hidden', backgroundColor: '#000', cursor: 'pointer', width: '100%', height: '100%' }
@@ -460,12 +452,38 @@ function VideoPlayer({ src, miroir, frameStyle }: {
                 style={{ width: 68, accentColor: C.terracotta, cursor: 'pointer', verticalAlign: 'middle' }}
               />
             )}
-            <button onClick={toggleMute} style={btnBase}>{volIcon}</button>
+            <button onClick={toggleMute} style={btnBase}>
+              {volState === 'mute' ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>
+              ) : volState === 'low' ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              )}
+            </button>
           </div>
 
           {/* Plein écran */}
           <button onClick={toggleFullscreen} style={{ ...btnBase, fontSize: 12, color: 'rgba(255,255,255,0.85)', letterSpacing: '0.03em' }}>
-            {isFullscreen ? '✕' : '⛶'}
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+            )}
           </button>
         </div>
       </div>
@@ -1401,6 +1419,8 @@ export default function ProfilView({
         .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
         .profil-entete-portrait { width: 200px; height: 244px; flex-shrink: 0; }
         .profil-col3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .profil-lien-row { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; background:${C.bg}; text-decoration:none; transition:background 0.15s; }
+        .profil-lien-row:hover { background:${C.salaire}; }
         @media (max-width: 768px) {
           .profil-entete { display: flex; flex-direction: column; align-items: stretch; }
           .profil-entete-portrait { width: 100% !important; height: 260px; }
@@ -1461,7 +1481,10 @@ export default function ProfilView({
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0' }}
                 title="Changer l'avatar"
               >
-                ✎
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
               </button>
             )}
             {!isEditing && (
@@ -1485,11 +1508,11 @@ export default function ProfilView({
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     padding: '3px 9px', borderRadius: 20,
-                    backgroundColor: 'rgba(39,174,96,0.18)',
-                    border: '1px solid rgba(39,174,96,0.4)',
+                    backgroundColor: `${C.succes}2E`,
+                    border: `1px solid ${C.succes}66`,
                   }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#27AE60', flexShrink: 0, boxShadow: '0 0 0 2px rgba(39,174,96,0.3)' }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6ABFA0', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Actif</span>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.succes, flexShrink: 0, boxShadow: `0 0 0 2px ${C.succes}50` }} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.succes, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Actif</span>
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>{activity.label}</span>
@@ -2070,8 +2093,8 @@ export default function ProfilView({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <span style={{ fontSize: 11, fontWeight: 500, color: C.grey }}>Expérience {i + 1}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <button type="button" aria-label="Monter" onClick={() => setEditExperiences(moveUp(editExperiences, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
-                        <button type="button" aria-label="Descendre" onClick={() => setEditExperiences(moveDown(editExperiences, i))} disabled={i === editExperiences.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editExperiences.length - 1 ? 'default' : 'pointer', color: i === editExperiences.length - 1 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
+                        <button type="button" aria-label="Monter" onClick={() => setEditExperiences(moveUp(editExperiences, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
+                        <button type="button" aria-label="Descendre" onClick={() => setEditExperiences(moveDown(editExperiences, i))} disabled={i === editExperiences.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editExperiences.length - 1 ? 'default' : 'pointer', color: i === editExperiences.length - 1 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
                         <button type="button" onClick={() => setEditExperiences(editExperiences.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: C.grey, padding: '0 4px', lineHeight: 1, fontFamily: 'inherit' }}>Supprimer</button>
                       </div>
                     </div>
@@ -2108,7 +2131,7 @@ export default function ProfilView({
                         <div style={{ fontWeight: 700, fontSize: 14, color: C.dark, marginBottom: 2 }}>{exp.poste}</div>
                         <div style={{ fontSize: 12, color: C.grey, marginBottom: exp.missions ? 10 : 0 }}>
                           {exp.entreprise}
-                          {(exp.date_debut || exp.date_fin || exp.en_poste) && <span style={{ color: C.lightGrey, margin: '0 6px' }}>·</span>}
+                          {(exp.date_debut || exp.date_fin || exp.en_poste) && <span style={{ color: C.sable, margin: '0 6px' }}>·</span>}
                           {exp.date_debut && <span>{exp.date_debut}</span>}
                           {exp.date_debut && (exp.en_poste || exp.date_fin) && <span> — </span>}
                           {exp.en_poste ? <span style={{ color: C.terracotta }}>En poste</span> : <span>{exp.date_fin}</span>}
@@ -2141,8 +2164,8 @@ export default function ProfilView({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <span style={{ fontSize: 11, fontWeight: 500, color: C.grey }}>Diplôme {i + 1}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <button type="button" aria-label="Monter" onClick={() => setEditDiplomes(moveUp(editDiplomes, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
-                        <button type="button" aria-label="Descendre" onClick={() => setEditDiplomes(moveDown(editDiplomes, i))} disabled={i === editDiplomes.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editDiplomes.length - 1 ? 'default' : 'pointer', color: i === editDiplomes.length - 1 ? C.lightGrey : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
+                        <button type="button" aria-label="Monter" onClick={() => setEditDiplomes(moveUp(editDiplomes, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
+                        <button type="button" aria-label="Descendre" onClick={() => setEditDiplomes(moveDown(editDiplomes, i))} disabled={i === editDiplomes.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editDiplomes.length - 1 ? 'default' : 'pointer', color: i === editDiplomes.length - 1 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
                         <button type="button" onClick={() => setEditDiplomes(editDiplomes.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: C.grey, padding: '0 4px', lineHeight: 1, fontFamily: 'inherit' }}>Supprimer</button>
                       </div>
                     </div>
@@ -2508,7 +2531,7 @@ export default function ProfilView({
                   padding: '5px 12px', borderRadius: 20, fontSize: 12,
                   border: `1.5px solid ${added ? C.vert : C.sable}`,
                   backgroundColor: added ? `${C.vert}12` : C.white,
-                  color: added ? C.vert : full ? C.lightGrey : C.grey,
+                  color: added ? C.vert : full ? C.sable : C.grey,
                   cursor: full && !added ? 'default' : 'pointer',
                   fontFamily: 'inherit', transition: 'all 0.15s',
                 }
@@ -2527,7 +2550,7 @@ export default function ProfilView({
                             padding: '5px 10px', borderRadius: 20, fontSize: 12, fontWeight: 500,
                             backgroundColor: inRef ? `${C.vert}12` : C.chip,
                             color: inRef ? C.vert : C.grey,
-                            border: `1.5px ${inRef ? 'solid' : 'dashed'} ${inRef ? `${C.vert}30` : C.lightGrey}`,
+                            border: `1.5px ${inRef ? 'solid' : 'dashed'} ${inRef ? `${C.vert}30` : C.sable}`,
                           }}>
                             {c}
                             <button type="button" onClick={() => setEditCompetences(editCompetences.filter(x => x !== c))}
@@ -2706,7 +2729,7 @@ export default function ProfilView({
               <div>
                 {/* Options prédéfinies */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                  {Object.entries(PASSION_EMOJIS).map(([nom]) => {
+                  {PASSIONS_SUGGESTIONS.map(nom => {
                     const sel = editPassions.includes(nom)
                     return (
                       <button
@@ -2726,8 +2749,8 @@ export default function ProfilView({
                     )
                   })}
                 </div>
-                {/* Tags personnalisés (valeurs hors PASSION_EMOJIS) */}
-                {editPassions.filter(nom => !PASSION_EMOJIS[nom]).map(passion => (
+                {/* Tags personnalisés (valeurs hors suggestions prédéfinies) */}
+                {editPassions.filter(nom => !PASSIONS_SUGGESTIONS.includes(nom)).map(passion => (
                   <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500, marginRight: 6, marginBottom: 8 }}>
                     {passion}<button type="button" onClick={() => setEditPassions(editPassions.filter(x => x !== passion))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
                   </span>
@@ -3012,114 +3035,205 @@ export default function ProfilView({
           )}
 
           {/* ── QUALITÉS ── */}
-          {(qualites.length > 0 || qualitesProchesSel.length > 0 || unreadNotifCount > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (
-            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-              <SLabel20>Qualités</SLabel20>
-              {isOwner && unreadNotifCount > 0 && (
-                <p style={{ margin: '0 0 14px', padding: '11px 16px', borderRadius: 10, backgroundColor: `${C.terracotta}0F`, border: `1px solid ${C.terracotta}35`, fontSize: 13, color: C.terracotta, lineHeight: 1.55 }}>
-                  {unreadNotifCount === 1
-                    ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
-                    : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
-                </p>
-              )}
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                {p.qualites_test && Object.entries(p.qualites_test)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([key, count]) => (
-                    <span key={key} style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}18`, color: C.vert, border: `1px solid ${C.vert}30`, fontSize: 12, fontWeight: 600 }}>
-                      {QUALITE_LABELS[key] ?? key}
-                      <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.6, fontWeight: 400 }}>×{count}</span>
-                    </span>
-                  ))
-                }
-                {qualites.map(q => (
-                  <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>
-                ))}
-                {qualitesProchesSel.map(s => (
-                  <span key={s.qualite} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
-                    <LogoKapolia variante="sombre" avecTexte={false} taille={14} />
-                    {s.qualite}
-                  </span>
-                ))}
+          {(isOwner || qualites.length > 0 || qualitesProchesSel.length > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (() => {
+            const testLabels = Object.entries(p.qualites_test ?? {}).sort((a, b) => b[1] - a[1]).map(([k]) => QUALITE_LABELS[k] ?? k)
+            const procheLabels = qualitesProchesSel.map(s => s.qualite)
+            const candidatLabels = qualites
+            const nt = new Set(testLabels.map(normalizeText))
+            const np = new Set(procheLabels.map(normalizeText))
+            const nc = new Set(candidatLabels.map(normalizeText))
+            const isCommun = (label: string) => [nt, np, nc].filter(s => s.has(normalizeText(label))).length >= 2
+            const tagSt = (label: string): React.CSSProperties => isCommun(label)
+              ? { display: 'inline-block', padding: '4px 10px', borderRadius: 7, backgroundColor: C.vert, border: `1px solid ${C.vert}`, fontSize: 13.5, fontWeight: 600, color: C.white }
+              : { display: 'inline-block', padding: '4px 10px', borderRadius: 7, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13.5, fontWeight: 600, color: C.dark }
+            const selIds = new Set(qualitesProchesSel.map(s => s.reponse_id))
+            const uniqueProches = [...new Map(reponsesProches.filter(r => selIds.has(r.reponse_id)).map(r => [r.prenom_proche, r])).values()].map(r => r.prenom_proche)
+            return (
+              <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+                <SLabel20>Qualités</SLabel20>
+                {isOwner && unreadNotifCount > 0 && (
+                  <p style={{ margin: '0 0 14px', padding: '11px 16px', borderRadius: 10, backgroundColor: `${C.terracotta}0F`, border: `1px solid ${C.terracotta}35`, fontSize: 13, color: C.terracotta, lineHeight: 1.55 }}>
+                    {unreadNotifCount === 1
+                      ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
+                      : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
+                  </p>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                  <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      Selon le questionnaire
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                      {testLabels.length > 0 ? testLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                      {uniqueProches.length > 0 ? (
+                        <span style={{ display: 'inline-flex', gap: 2, flexShrink: 0 }}>
+                          {uniqueProches.slice(0, 3).map((prenom, j) => (
+                            <span key={j} style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: `${C.vert}22`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: C.vert }}>
+                              {(prenom[0] ?? '?').toUpperCase()}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                      )}
+                      {isOwner ? 'Selon vos proches' : 'Selon ses proches'}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                      {procheLabels.length > 0 ? procheLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                      {isOwner ? 'Selon vous' : `Selon ${p.prenom}`}
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                      {candidatLabels.length > 0 ? candidatLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: 11, color: C.grey }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: C.vert, flexShrink: 0, display: 'inline-block' }} />
+                  Qualité commune à plusieurs sources
+                </div>
               </div>
-              {qualitesProchesSel.length > 0 && (
-                <p style={{ margin: '8px 0 0', fontSize: 11, fontStyle: 'italic', color: C.grey }}>
-                  Les qualités marquées viennent de proches.
-                </p>
-              )}
-            </div>
-          )}
+            )
+          })()}
 
           {/* ── COMPÉTENCES ── */}
-          {competencesAcquises.length > 0 && (
+          {(competencesAcquises.length > 0 || isOwner) && (
             <div id="competences" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px', scrollMarginTop: 24 }}>
               <SLabel20>Compétences</SLabel20>
-              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                {competencesAcquises.map(s => (
-                  <span key={s} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>{s}</span>
-                ))}
-              </div>
+              {competencesAcquises.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                  {competencesAcquises.map(s => (
+                    <span key={s} style={{ padding: '4px 10px', borderRadius: 7, backgroundColor: C.chip, color: C.chipTexte, fontSize: 13, fontWeight: 500 }}>{s}</span>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 13, color: C.grey }}>Ajoutez vos compétences techniques ou transverses.</span>
+                  <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                </div>
+              )}
             </div>
           )}
 
           {/* ── PROJET PHARE ── */}
-          {p.projet_phare && (
+          {(p.projet_phare || isOwner) && (
             <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
               <SLabel20>Mon projet phare</SLabel20>
-              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
-                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.white, fontWeight: 600, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Voir les détails du projet →</div>
-              </div>
+              {p.projet_phare ? (
+                <div style={{ display: 'grid', gridTemplateColumns: p.projet_resultat ? '150px 1fr' : '1fr', gap: 16, alignItems: 'center' }}>
+                  {p.projet_resultat && (
+                    <div style={{ width: 120, height: 120, borderRadius: 14, backgroundColor: C.vert, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '12px 8px', flexShrink: 0 }}>
+                      <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.02em', fontSize: 38, fontWeight: 600, color: C.white, lineHeight: 1 }}>{p.projet_resultat}</span>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 5, lineHeight: 1.3, textAlign: 'center' as const }}>résultat clé</span>
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16.5, fontWeight: 600, color: C.dark, marginBottom: 8 }}>{p.projet_titre || 'Projet phare'}</div>
+                    <p style={{ margin: 0, fontSize: 13.5, color: C.grey, lineHeight: 1.55, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
+                    {!p.projet_resultat && p.projet_impact && (
+                      <div style={{ marginTop: 8, fontSize: 13.5, color: C.dark }}>Résultat : <strong>{p.projet_impact}</strong></div>
+                    )}
+                    <button onClick={() => setProjetModal(true)} style={{ marginTop: 10, padding: 0, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.vert, textDecoration: 'underline', textUnderlineOffset: 3, fontFamily: 'inherit' }}>Voir le projet</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 13, color: C.grey }}>Présentez votre réalisation la plus marquante.</span>
+                  <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                </div>
+              )}
             </div>
           )}
 
           {/* ── GRILLE 3 COLONNES ── */}
-          {((p.priorites && p.priorites.length > 0) || passions.length > 0 || liensAffiches.length > 0) && (
+          {(isOwner || (p.priorites && p.priorites.length > 0) || passions.length > 0 || liensAffiches.length > 0) && (
             <div className="profil-col3">
 
               {/* Ce qui compte */}
-              {p.priorites && p.priorites.length > 0 && (
+              {(isOwner || (p.priorites && p.priorites.length > 0)) && (
                 <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
                   <SLabel17>Ce qui compte</SLabel17>
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                    {(p.priorites ?? []).map(item => (
-                      <span key={item} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}14`, border: `1px solid ${C.terracotta}44`, fontSize: 11, fontWeight: 600, color: C.terracotta }}>{item}</span>
-                    ))}
-                  </div>
+                  {p.priorites && p.priorites.length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                      {(p.priorites ?? []).map(item => (
+                        <span key={item} style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 8, backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600 }}>{item}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 13, color: C.grey }}>Vos priorités en termes d&apos;environnement.</span>
+                      <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Ce qui l'anime / Ce qui m'anime */}
-              {passions.length > 0 && (
+              {/* Ce qui anime */}
+              {(isOwner || passions.length > 0) && (
                 <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
                   <SLabel17>{isOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
-                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 7 }}>
-                    {passions.map(passion => (
-                      <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                        {passion}
-                      </span>
-                    ))}
-                  </div>
+                  {passions.length > 0 ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
+                      {passions.map(passion => (
+                        <div key={passion} style={{ width: 96, padding: '12px 6px', borderRadius: 12, backgroundColor: C.bg, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 6 }}>
+                          <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: C.salaire, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {iconePassion(passion)}
+                          </div>
+                          <span style={{ fontSize: 13.5, fontWeight: 600, color: C.dark, textAlign: 'center' as const, lineHeight: 1.3, wordBreak: 'break-word' as const }}>{passion}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 13, color: C.grey }}>Vos passions en dehors du travail.</span>
+                      <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Liens */}
-              {liensAffiches.length > 0 && (
+              {(isOwner || liensAffiches.length > 0) && (
                 <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
                   <SLabel17>Liens</SLabel17>
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                    {liensAffiches.map((lien, i) => {
-                      let hostname = ''
-                      try { hostname = new URL(lien.url).hostname.replace(/^www\./, '') } catch {}
-                      return (
-                        <a key={i} href={lien.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 12px', borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.sable}`, textDecoration: 'none' }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{lien.intitule}</span>
-                          <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{hostname} →</span>
-                        </a>
-                      )
-                    })}
-                  </div>
+                  {liensAffiches.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                      {liensAffiches.map((lien, i) => {
+                        let hostname = ''
+                        try { hostname = new URL(lien.url).hostname.replace(/^www\./, '') } catch {}
+                        return (
+                          <a key={i} href={lien.url} target="_blank" rel="noopener noreferrer" className="profil-lien-row">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                            </svg>
+                            <span style={{ fontSize: 14, fontWeight: 600, color: C.dark, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{lien.intitule}</span>
+                            <span style={{ fontSize: 12.5, color: C.grey, flexShrink: 0 }}>{hostname}</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.grey} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 13, color: C.grey }}>Ajoutez votre LinkedIn, portfolio ou site web.</span>
+                      <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -3149,7 +3263,9 @@ export default function ProfilView({
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px, 4%, 40px)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
               <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark, margin: 0, fontWeight: 600, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
-              <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+              <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
             {projetVideoUrl && (
               <div style={{ marginBottom: 28 }}>
@@ -3204,7 +3320,9 @@ export default function ProfilView({
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 24, width: '100%', maxWidth: 480, padding: 'clamp(24px, 4%, 36px)', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0, fontWeight: 600 }}>Personnaliser mon avatar</h2>
-              <button onClick={() => setAvatarModal(false)} style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>✕</button>
+              <button onClick={() => setAvatarModal(false)} style={{ width: 32, height: 32, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
             <div style={{ display: 'flex', gap: 4, marginBottom: 28, backgroundColor: C.bg, borderRadius: 12, padding: 4 }}>
               {(['photo', 'avatar', 'initiales'] as const).map(tab => (
