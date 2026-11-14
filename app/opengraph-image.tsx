@@ -7,9 +7,9 @@ export const contentType = 'image/png'
 export const alt         = 'Kapolia — Trouvez votre cap'
 
 export default async function Image() {
-  const [loraFont, interFont] = await Promise.all([
+  const [loraFont, sourceSansFont] = await Promise.all([
     readFile(join(process.cwd(), 'public/fonts/Lora-Bold.ttf')),
-    readFile(join(process.cwd(), 'public/fonts/Inter-Regular.ttf')),
+    readFile(join(process.cwd(), 'public/fonts/SourceSans3-Regular.ttf')),
   ])
 
   return new ImageResponse(
@@ -67,7 +67,7 @@ export default async function Image() {
 
         <div
           style={{
-            fontFamily: 'Inter',
+            fontFamily: 'Source Sans 3',
             fontSize:   '30px',
             color:      '#E5E8E5',
             display:    'flex',
@@ -80,8 +80,8 @@ export default async function Image() {
     {
       ...size,
       fonts: [
-        { name: 'Lora',  data: loraFont,  weight: 700, style: 'normal' },
-        { name: 'Inter', data: interFont, weight: 400, style: 'normal' },
+        { name: 'Lora',          data: loraFont,       weight: 700, style: 'normal' },
+        { name: 'Source Sans 3', data: sourceSansFont, weight: 400, style: 'normal' },
       ],
     },
   )

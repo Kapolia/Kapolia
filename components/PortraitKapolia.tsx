@@ -6,17 +6,12 @@ import { join } from 'path'
 
 const FONT_DIR = join(process.cwd(), 'public', 'fonts')
 
-Font.register({ family: 'Inter', fonts: [
-  { src: join(FONT_DIR, 'Inter-Regular.ttf'), fontWeight: 400 },
-  { src: join(FONT_DIR, 'Inter-Medium.ttf'),  fontWeight: 500 },
-  { src: join(FONT_DIR, 'Inter-Bold.ttf'),    fontWeight: 700 },
-  { src: join(FONT_DIR, 'Inter-Italic.ttf'),  fontWeight: 400, fontStyle: 'italic' },
-]})
-
-Font.register({ family: 'Lora', fonts: [
-  { src: join(FONT_DIR, 'Lora-Regular.ttf'),  fontWeight: 400 },
-  { src: join(FONT_DIR, 'Lora-SemiBold.ttf'), fontWeight: 600 },
-  { src: join(FONT_DIR, 'Lora-Bold.ttf'),     fontWeight: 700 },
+Font.register({ family: 'Source Sans 3', fonts: [
+  { src: join(FONT_DIR, 'SourceSans3-Regular.ttf'),  fontWeight: 400 },
+  { src: join(FONT_DIR, 'SourceSans3-Italic.ttf'),   fontWeight: 400, fontStyle: 'italic' },
+  { src: join(FONT_DIR, 'SourceSans3-Medium.ttf'),   fontWeight: 500 },
+  { src: join(FONT_DIR, 'SourceSans3-SemiBold.ttf'), fontWeight: 600 },
+  { src: join(FONT_DIR, 'SourceSans3-Bold.ttf'),     fontWeight: 700 },
 ]})
 
 Font.registerHyphenationCallback(word => [word])
@@ -24,17 +19,17 @@ Font.registerHyphenationCallback(word => [word])
 // ─── Typographie — constantes fixes (spec maquette) ───────────────────────────
 
 const FS = {
-  nom:       23,    // Lora 600
-  intitule:  10,    // Inter 700
-  contact:   8,     // Inter 400
-  cardTitle: 11.5,  // Lora 600
-  itemTitle: 12,    // Lora 600
-  company:   9,     // Inter 700
-  body:      8,     // Inter 400
-  dates:     7.7,   // Inter 400
-  italic:    7.2,   // Inter italic
-  badge:     8,     // Inter 400/700
-  footer:    7.4,   // Lora 400 / Inter 400
+  nom:       23,    // Source Sans 3 700
+  intitule:  10,    // Source Sans 3 700
+  contact:   8,     // Source Sans 3 400
+  cardTitle: 11.5,  // Source Sans 3 600
+  itemTitle: 12,    // Source Sans 3 600
+  company:   9,     // Source Sans 3 700
+  body:      8,     // Source Sans 3 400
+  dates:     7.7,   // Source Sans 3 400
+  italic:    7.2,   // Source Sans 3 italic
+  badge:     8,     // Source Sans 3 400/700
+  footer:    7.4,   // Source Sans 3 400
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -165,7 +160,7 @@ function Card({ children, s }: { children: React.ReactNode; s: ScaleCfg }) {
 function CardTitle({ label, s }: { label: string; s: ScaleCfg }) {
   return (
     <View style={{ borderBottomWidth: 0.6, borderBottomColor: '#EDE4D4', borderBottomStyle: 'solid', paddingBottom: 5, marginBottom: s.cardPadV }}>
-      <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: FS.cardTitle, color: '#24453A' }}>
+      <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 600, fontSize: FS.cardTitle, color: '#24453A' }}>
         {label}
       </Text>
     </View>
@@ -253,7 +248,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
     <Document>
       <Page
         size="A4"
-        style={{ fontFamily: 'Inter', color: '#22312B', backgroundColor: '#F6F7F5', display: 'flex', flexDirection: 'column' }}
+        style={{ fontFamily: 'Source Sans 3', color: '#22312B', backgroundColor: '#F6F7F5', display: 'flex', flexDirection: 'column' }}
       >
         {/* ── Bandeau ─────────────────────────────────────────────────────── */}
         <View style={{ backgroundColor: '#24453A', paddingHorizontal: 29, paddingVertical: 12 }}>
@@ -261,13 +256,13 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
             <View style={{ flex: 1, paddingRight: showPhoto ? 14 : 0 }}>
 
               {/* Nom : Lora 600, 23pt, #FFFFFF, lineHeight 1.05 */}
-              <Text style={{ fontFamily: 'Lora', fontWeight: 700, fontSize: FS.nom, color: 'white', lineHeight: 1.05 }}>
+              <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: FS.nom, color: 'white', lineHeight: 1.05 }}>
                 {profil.prenom} {profil.nom}
               </Text>
 
               {/* Intitulé : Inter 700, 10pt, #E5E8E5, marginTop 4pt */}
               {displayTitle ? (
-                <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 11.5, color: '#F2E4CC', marginTop: 4 }}>
+                <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: 11.5, color: '#F2E4CC', marginTop: 4 }}>
                   {displayTitle}
                 </Text>
               ) : null}
@@ -277,7 +272,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                 {/* Gauche : email · téléphone sur une ligne — Inter 700, 8.5pt, blanc */}
                 <View style={{ flex: 1, paddingRight: 22 }}>
                   {((showEmail && email) || (showPhone && profil.telephone)) ? (
-                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 8.5, color: 'white' }}>
+                    <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: 8.5, color: 'white' }}>
                       {[showEmail && email ? email : null, showPhone && profil.telephone ? profil.telephone : null].filter(Boolean).join(' · ')}
                     </Text>
                   ) : null}
@@ -285,10 +280,10 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                 {/* Droite : ville + expérience/dispo — Inter 500, 8.5pt, blanc */}
                 <View style={{ flex: 1 }}>
                   {profil.ville ? (
-                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 8.5, color: 'white', marginBottom: 2.5 }}>{profil.ville}</Text>
+                    <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: 8.5, color: 'white', marginBottom: 2.5 }}>{profil.ville}</Text>
                   ) : null}
                   {rightLine2 ? (
-                    <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 8.5, color: 'white' }}>{rightLine2}</Text>
+                    <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: 8.5, color: 'white' }}>{rightLine2}</Text>
                   ) : null}
                 </View>
               </View>
@@ -338,7 +333,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                 return (
                   <View key={i} style={{ marginBottom: i < exps.length - 1 ? ENTRY_GAP : 0 }} wrap={false}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', flex: 1, paddingRight: 8 }}>
+                      <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', flex: 1, paddingRight: 8 }}>
                         {exp.poste || ''}
                       </Text>
                       {datesStr ? (
@@ -348,7 +343,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
                       ) : null}
                     </View>
                     {exp.entreprise ? (
-                      <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C2611F', marginTop: s.companyMt }}>
+                      <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: FS.company, color: '#C2611F', marginTop: s.companyMt }}>
                         {exp.entreprise}
                       </Text>
                     ) : null}
@@ -373,10 +368,10 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               {dips.map((d, i) => (
                 <View key={i} style={{ marginBottom: i < dips.length - 1 ? (dips.length > 1 ? 5 : ENTRY_GAP) : 0 }} wrap={false}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', flex: 1, paddingRight: 8 }}>
+                    <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', flex: 1, paddingRight: 8 }}>
                       {d.intitule || ''}
                       {d.ecole ? (
-                        <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: FS.company, color: '#C2611F' }}>
+                        <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 700, fontSize: FS.company, color: '#C2611F' }}>
                           {' · '}{d.ecole}
                         </Text>
                       ) : null}
@@ -401,10 +396,10 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
           {SECTIONS_ACTIVES.includes('Projet phare') && profil.projet_phare ? (
             <Card s={s}>
               <CardTitle label="Projet phare" s={s} />
-              <Text style={{ fontFamily: 'Lora', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', lineHeight: s.lineH }}>
+              <Text style={{ fontFamily: 'Source Sans 3', fontWeight: 600, fontSize: expTitleSize, color: '#24453A', lineHeight: s.lineH }}>
                 {profil.projet_titre || 'Projet phare'}
               </Text>
-              <Text style={{ fontFamily: 'Inter', fontStyle: 'italic', fontSize: FS.italic, color: '#6B7A73', marginTop: 4, lineHeight: 1.45 }}>
+              <Text style={{ fontFamily: 'Source Sans 3', fontStyle: 'italic', fontSize: FS.italic, color: '#6B7A73', marginTop: 4, lineHeight: 1.45 }}>
                 Le détail de ce projet et le profil complet sont consultables sur Kapolia.
               </Text>
             </Card>
@@ -500,7 +495,7 @@ export default function PortraitKapolia({ profil, email, title, withPhoto, avata
               <Path d="M14 29 L21 12 L28 29" stroke="#FFFFFF" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
               <Path d="M14 29 L21 25 L28 29" stroke="#C2611F" strokeWidth="4.4" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
-            <Text style={{ fontFamily: 'Lora', fontSize: FS.footer, color: '#24453A' }}>
+            <Text style={{ fontFamily: 'Source Sans 3', fontSize: FS.footer, color: '#24453A' }}>
               Portrait Kapolia
             </Text>
           </View>

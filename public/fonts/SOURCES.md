@@ -21,12 +21,11 @@ react-pdf ne prend en charge que les formats TTF et OTF.
 
 | Fichier | Famille | Graisse | Version | Source | Licence | Date |
 |---|---|---|---|---|---|---|
-| Inter-Regular.ttf | Inter | 400 Regular | 4.1 | https://github.com/rsms/inter/releases/tag/v4.1 | OFL-1.1 | 2026-09-02 |
-| Inter-Medium.ttf | Inter | 500 Medium | 4.1 | https://github.com/rsms/inter/releases/tag/v4.1 (extras/ttf/) | OFL-1.1 | 2026-09-04 |
-| Inter-Bold.ttf | Inter | 700 Bold | 4.1 | https://github.com/rsms/inter/releases/tag/v4.1 | OFL-1.1 | 2026-09-02 |
-| Inter-Italic.ttf | Inter | 400 Italic | 4.1 | https://github.com/rsms/inter/releases/tag/v4.1 | OFL-1.1 | 2026-09-03 |
-| Lora-Regular.ttf | Lora | 400 Regular | 3.021 | https://github.com/cyrealtype/Lora-Cyrillic/releases/tag/v3.021 | OFL-1.1 | 2026-09-02 |
-| Lora-SemiBold.ttf | Lora | 600 SemiBold | 3.021 | https://github.com/cyrealtype/Lora-Cyrillic/releases/tag/v3.021 | OFL-1.1 | 2026-09-04 |
+| SourceSans3-Regular.ttf | Source Sans 3 | 400 Regular | 3.052R | https://github.com/adobe-fonts/source-sans/releases/tag/3.052R | OFL-1.1 | 2026-11-14 |
+| SourceSans3-Italic.ttf | Source Sans 3 | 400 Italic | 3.052R | https://github.com/adobe-fonts/source-sans/releases/tag/3.052R | OFL-1.1 | 2026-11-14 |
+| SourceSans3-Medium.ttf | Source Sans 3 | 500 Medium | 3.052R | https://github.com/adobe-fonts/source-sans/releases/tag/3.052R | OFL-1.1 | 2026-11-14 |
+| SourceSans3-SemiBold.ttf | Source Sans 3 | 600 SemiBold | 3.052R | https://github.com/adobe-fonts/source-sans/releases/tag/3.052R | OFL-1.1 | 2026-11-14 |
+| SourceSans3-Bold.ttf | Source Sans 3 | 700 Bold | 3.052R | https://github.com/adobe-fonts/source-sans/releases/tag/3.052R | OFL-1.1 | 2026-11-14 |
 | Lora-Bold.ttf | Lora | 700 Bold | 3.021 | https://github.com/cyrealtype/Lora-Cyrillic/releases/tag/v3.021 | OFL-1.1 | 2026-09-02 |
 
 Toutes ces polices sont publiées sous [SIL Open Font License 1.1](https://openfontlicense.org/),
