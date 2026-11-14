@@ -167,12 +167,12 @@ function getDispoStatus(dispo?: string | null, dispoDate?: string | null): { col
     if (dispoDate) {
       const d = new Date(dispoDate + 'T00:00:00')
       const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-      return { color: '#E67E22', label: `À partir de ${label}` }
+      return { color: C.attente, label: `À partir de ${label}` }
     }
-    return { color: '#E67E22', label: 'Disponible prochainement' }
+    return { color: C.attente, label: 'Disponible prochainement' }
   }
-  if (dispo === 'maintenant') return { color: '#27AE60', label: 'Disponible maintenant' }
-  return { color: '#27AE60', label: 'Disponible' }
+  if (dispo === 'maintenant') return { color: C.succes, label: 'Disponible maintenant' }
+  return { color: C.succes, label: 'Disponible' }
 }
 
 // ─── Recording helpers ────────────────────────────────────────────────────────
@@ -472,7 +472,7 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
   const r = size / 2 - 5
   const circ = 2 * Math.PI * r
   const offset = animated ? circ * (1 - score / 100) : circ
-  const color = score >= 80 ? '#6ABFA0' : score >= 60 ? C.terracotta : C.lightGrey
+  const color = score >= 80 ? C.succes : score >= 60 ? C.terracotta : C.sable
   return (
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
@@ -493,6 +493,22 @@ function ScoreCircle({ score, size = 70 }: { score: number; size?: number }) {
 function SLabel({ children }: { children: string }) {
   return (
     <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+      {children}
+    </div>
+  )
+}
+
+function SLabel20({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600, color: C.dark, marginBottom: 14 }}>
+      {children}
+    </div>
+  )
+}
+
+function SLabel17({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
       {children}
     </div>
   )
@@ -544,9 +560,10 @@ export default function ProfilView({
   const [saved, setSaved]         = useState(false)
   const [notFound, setNotFound]   = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
-  const [projetModal, setProjetModal]         = useState(false)
-  const [zoomImage, setZoomImage]             = useState<string | null>(null)
-  const [projetCardHover, setProjetCardHover] = useState(false)
+  const [projetModal, setProjetModal]             = useState(false)
+  const [zoomImage, setZoomImage]               = useState<string | null>(null)
+  const [projetCardHover, setProjetCardHover]   = useState(false)
+  const [portraitVideoOpen, setPortraitVideoOpen] = useState(false)
 
   const [toastMsg, setToastMsg]         = useState('')
   const [toastVisible, setToastVisible]         = useState(false)
@@ -874,6 +891,12 @@ export default function ProfilView({
   const videoPresentation   = p.video_presentation_url ?? '' // used in vedette section
   const videoMiroir         = p.video_miroir ?? false
   const activity            = getProfilActivity(p.derniere_maj_profil)
+  const liensAffiches: Lien[] = p.liens && p.liens.length > 0
+    ? p.liens
+    : [
+      ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
+      ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
+    ]
 
   function showToast(msg: string) {
     setToastMsg(msg); setToastVisible(true)
@@ -1352,6 +1375,14 @@ export default function ProfilView({
           .profil-layout { flex-direction: column; }
           .profil-left { width: 100%; position: static; }
         }
+        .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
+        .profil-entete-portrait { width: 200px; height: 244px; flex-shrink: 0; }
+        .profil-col3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        @media (max-width: 768px) {
+          .profil-entete { display: flex; flex-direction: column; align-items: stretch; }
+          .profil-entete-portrait { width: 100% !important; height: 260px; }
+          .profil-col3 { grid-template-columns: 1fr; }
+        }
       `}</style>
 
       {/* Toast */}
@@ -1380,7 +1411,8 @@ export default function ProfilView({
       }} />
 
 
-      {/* ━━━ MISE EN PAGE DEUX COLONNES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* ━━━ MISE EN PAGE ÉDITION (deux colonnes) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {isEditing && (
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 80px' }}>
         <div className="profil-layout">
 
@@ -2715,6 +2747,409 @@ export default function ProfilView({
 
         </div>
       </div>
+      )} {/* fin isEditing */}
+
+      {/* ━━━ VUE LECTURE — mise en page une colonne ━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {!isEditing && (
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px 80px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* ── EN-TÊTE ── */}
+          <div style={{ backgroundColor: C.white, borderRadius: 16, boxShadow: CARD_SHADOW, padding: 22 }}>
+            <div className="profil-entete">
+
+              {/* Portrait */}
+              <div className="profil-entete-portrait" style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', backgroundColor: C.bg }}>
+                <Avatar profil={p} size="lg" style={{ width: '100%', height: '100%', borderRadius: 0 }} />
+                {videoPresentation ? (
+                  <button
+                    onClick={() => setPortraitVideoOpen(true)}
+                    style={{
+                      position: 'absolute', bottom: 10, right: 10,
+                      padding: '5px 11px', borderRadius: 20, border: 'none',
+                      backgroundColor: 'rgba(0,0,0,0.65)', color: C.white,
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}
+                  >▶ Vidéo</button>
+                ) : isOwner ? (
+                  <button
+                    className="btn-portrait"
+                    onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                    disabled={uploadingVedette}
+                    style={{
+                      position: 'absolute', bottom: 10, right: 10,
+                      padding: '5px 11px', borderRadius: 20,
+                      border: `1.5px dashed ${C.sable}`,
+                      backgroundColor: 'rgba(255,255,255,0.9)', color: C.grey,
+                      fontSize: 11, fontWeight: 500, cursor: uploadingVedette ? 'default' : 'pointer',
+                      fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4,
+                      transition: 'opacity 0.15s',
+                    }}
+                  >+ Vidéo</button>
+                ) : null}
+              </div>
+
+              {/* Info */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+                <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 30, fontWeight: 600, color: C.dark, margin: 0, lineHeight: 1.2 }}>
+                  {p.prenom} {p.nom}
+                </h1>
+
+                {/* Poste actuel ou domaine */}
+                {(() => {
+                  const cur = experiences.find(e => e.en_poste)
+                  const lat = cur ?? experiences[0]
+                  const title = lat?.poste
+                    ? lat.poste + (lat.entreprise ? ' · ' + lat.entreprise : '')
+                    : (p.domaine ?? null)
+                  return title ? <div style={{ fontSize: 14, color: C.grey, fontWeight: 500 }}>{title}</div> : null
+                })()}
+
+                {/* Activité */}
+                {activity.label && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' as const }}>
+                    {activity.isActif && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        padding: '2px 8px', borderRadius: 20,
+                        backgroundColor: `${C.succes}22`,
+                        border: `1px solid ${C.succes}44`,
+                        fontSize: 11, fontWeight: 700, color: C.succes, letterSpacing: '0.06em',
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: C.succes, flexShrink: 0 }} />
+                        Actif
+                      </span>
+                    )}
+                    <span style={{ fontSize: 12, color: C.grey }}>{activity.label}</span>
+                  </div>
+                )}
+
+                {/* Boutons action */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginTop: 4 }}>
+                  {isOwner ? (
+                    <>
+                      <button onClick={startEdit} style={{
+                        padding: '8px 20px', borderRadius: 10, border: 'none',
+                        backgroundColor: C.terracotta, color: C.white,
+                        fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      }}>Modifier mon profil</button>
+                      <button
+                        className="btn-portrait"
+                        onClick={() => {
+                          const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
+                          setPortraitTitle(saved ?? p.domaine ?? '')
+                          setPortraitWithPhoto(false)
+                          const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
+                          setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
+                          const hasPhone = !!(p.telephone)
+                          const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
+                          setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
+                          setPortraitModal(true)
+                        }}
+                        style={{
+                          padding: '8px 20px', borderRadius: 10,
+                          border: `1px solid ${C.sable}`, backgroundColor: C.white,
+                          color: C.dark, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
+                          transition: 'opacity 0.15s',
+                        }}
+                      >↓ Mon portrait en PDF</button>
+                    </>
+                  ) : (
+                    <>
+                      <ScoreCircle score={83} size={58} />
+                      <button
+                        onClick={async () => {
+                          setWritingMsg(true)
+                          const existing = await trouverConversation(userId)
+                          setWritingMsg(false)
+                          if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
+                          router.push(`/recruteur/messages?new=${userId}`)
+                        }}
+                        disabled={writingMsg}
+                        style={{
+                          padding: '8px 18px', borderRadius: 10, border: 'none',
+                          backgroundColor: C.terracotta, color: C.white,
+                          fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer',
+                          fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1,
+                        }}
+                      >{writingMsg ? '…' : 'Écrire'}</button>
+                      <button onClick={() => setSaved(s => !s)} style={{
+                        padding: '8px 18px', borderRadius: 10,
+                        border: `1.5px solid ${saved ? C.vert : C.sable}`,
+                        backgroundColor: saved ? `${C.vert}12` : C.white,
+                        color: saved ? C.vert : C.grey,
+                        fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
+                      }}>
+                        {saved ? 'Sauvegardé' : 'Sauvegarder'}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* Signature */}
+                {p.signature ? (
+                  <div style={{ marginTop: 2 }}>
+                    <p style={{
+                      margin: 0,
+                      fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic',
+                      fontSize: 15, color: C.grey, lineHeight: 1.6,
+                      ...(signatureExpanded ? {} : {
+                        display: '-webkit-box', WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
+                      }),
+                    }}>« {p.signature} »</p>
+                    {p.signature.length > 120 && (
+                      <button
+                        onClick={() => setSignatureExpanded(v => !v)}
+                        style={{ background: 'none', border: 'none', padding: 0, marginTop: 4, color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}
+                      >{signatureExpanded ? 'voir moins' : 'voir plus'}</button>
+                    )}
+                  </div>
+                ) : isOwner ? (
+                  <button onClick={startEdit} style={{
+                    padding: '7px 14px', borderRadius: 8, border: `1.5px dashed ${C.sable}`,
+                    backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer',
+                    fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start',
+                  }}>+ Ajouter une phrase signature</button>
+                ) : null}
+
+                {/* Pastilles */}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginTop: 2 }}>
+                  {p.disponibilite && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0 }} />
+                      {dispo.label}
+                    </span>
+                  )}
+                  {(p.type_poste ?? []).length > 0 && (
+                    <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
+                      {typePosteLabel}
+                    </span>
+                  )}
+                  {(p.ville || modeTravailLabel) && (
+                    <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
+                      {[p.ville, modeTravailLabel].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                  {langues.map((entry, li) => {
+                    const sep = entry.indexOf(' — ')
+                    const nom = sep >= 0 ? entry.slice(0, sep) : entry
+                    const niv = sep >= 0 ? entry.slice(sep + 3) : ''
+                    return (
+                      <span key={li} style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
+                        {nom}{niv ? ` · ${niv}` : ''}
+                      </span>
+                    )
+                  })}
+                  {isOwner && !p.disponibilite && (
+                    <button onClick={startEdit} style={{ padding: '4px 10px', borderRadius: 10, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      + Disponibilité
+                    </button>
+                  )}
+                </div>
+
+                {/* Gestion vidéo — propriétaire avec vidéo */}
+                {isOwner && videoPresentation && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    <button
+                      onClick={toggleVideoMiroir}
+                      disabled={togglingMiroir || uploadingVedette || deletingVideo}
+                      style={{ padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${videoMiroir ? C.vert : C.sable}`, backgroundColor: videoMiroir ? `${C.vert}18` : C.white, color: videoMiroir ? C.vert : C.grey, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: (togglingMiroir || uploadingVedette || deletingVideo) ? 0.5 : 1, transition: 'all 0.15s' }}
+                    >Miroir</button>
+                    <button
+                      onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                      disabled={uploadingVedette || deletingVideo}
+                      style={{ padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: (uploadingVedette || deletingVideo) ? 0.5 : 1 }}
+                    >Remplacer</button>
+                    <button
+                      onClick={deleteVideoPresentation}
+                      disabled={uploadingVedette || deletingVideo}
+                      style={{ padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${C.erreur}44`, backgroundColor: C.white, color: C.erreur, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: (uploadingVedette || deletingVideo) ? 0.5 : 1 }}
+                    >{deletingVideo ? 'Suppression…' : 'Supprimer'}</button>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+
+          {/* ── PARCOURS (Expériences + Formations) ── */}
+          {(experiences.length > 0 || diplomes.length > 0) && (
+            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+              <SLabel20>Parcours</SLabel20>
+              {experiences.length > 0 && (
+                <div style={{ position: 'relative' }}>
+                  {diplomes.length > 0 && (
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 12 }}>Expériences</div>
+                  )}
+                  <div style={{ position: 'absolute', left: 7, top: diplomes.length > 0 ? 28 : 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {experiences.map((exp, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 20, paddingLeft: 28, position: 'relative' as const }}>
+                        <div style={{ position: 'absolute', left: 0, top: 5, width: 16, height: 16, borderRadius: '50%', backgroundColor: C.terracotta, border: `2.5px solid ${C.bg}`, flexShrink: 0 }} />
+                        <div style={{ flex: 1, backgroundColor: C.white, borderRadius: 14, padding: '16px 20px', border: `1px solid ${C.sable}` }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: C.dark, marginBottom: 2 }}>{exp.poste}</div>
+                          <div style={{ fontSize: 12, color: C.grey, marginBottom: exp.missions ? 10 : 0 }}>
+                            {exp.entreprise}
+                            {(exp.date_debut || exp.date_fin || exp.en_poste) && <span style={{ color: C.grey, margin: '0 6px' }}>·</span>}
+                            {exp.date_debut && <span>{exp.date_debut}</span>}
+                            {exp.date_debut && (exp.en_poste || exp.date_fin) && <span> — </span>}
+                            {exp.en_poste ? <span style={{ color: C.terracotta }}>En poste</span> : <span>{exp.date_fin}</span>}
+                          </div>
+                          {exp.missions && (
+                            <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
+                              {exp.missions.split('\n').filter(Boolean).slice(0, 4).map((m, j) => (
+                                <li key={j} style={{ fontSize: 12, color: C.dark, lineHeight: 1.7 }}>{m.trim()}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {diplomes.length > 0 && experiences.length > 0 && (
+                <div style={{ borderTop: `1px solid ${C.sable}`, margin: '20px 0 16px' }} />
+              )}
+              {diplomes.length > 0 && (
+                <>
+                  {experiences.length > 0 && (
+                    <div style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 12 }}>Formations</div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {diplomes.map((d, i) => (
+                      <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.sable}` }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: C.dark }}>{d.intitule}</div>
+                        <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
+                          {d.ecole}{d.annee && <> · {d.annee}</>}{d.mention && <> · <span style={{ color: C.terracotta }}>{d.mention}</span></>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── QUALITÉS ── */}
+          {(qualites.length > 0 || qualitesProchesSel.length > 0 || unreadNotifCount > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (
+            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+              <SLabel20>Qualités</SLabel20>
+              {isOwner && unreadNotifCount > 0 && (
+                <p style={{ margin: '0 0 14px', padding: '11px 16px', borderRadius: 10, backgroundColor: `${C.terracotta}0F`, border: `1px solid ${C.terracotta}35`, fontSize: 13, color: C.terracotta, lineHeight: 1.55 }}>
+                  {unreadNotifCount === 1
+                    ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
+                    : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
+                </p>
+              )}
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                {p.qualites_test && Object.entries(p.qualites_test)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([key, count]) => (
+                    <span key={key} style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}18`, color: C.vert, border: `1px solid ${C.vert}30`, fontSize: 12, fontWeight: 600 }}>
+                      {QUALITE_LABELS[key] ?? key}
+                      <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.6, fontWeight: 400 }}>×{count}</span>
+                    </span>
+                  ))
+                }
+                {qualites.map(q => (
+                  <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>
+                ))}
+                {qualitesProchesSel.map(s => (
+                  <span key={s.qualite} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
+                    <LogoKapolia variante="sombre" avecTexte={false} taille={14} />
+                    {s.qualite}
+                  </span>
+                ))}
+              </div>
+              {qualitesProchesSel.length > 0 && (
+                <p style={{ margin: '8px 0 0', fontSize: 11, fontStyle: 'italic', color: C.grey }}>
+                  Les qualités marquées viennent de proches.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ── COMPÉTENCES ── */}
+          {competencesAcquises.length > 0 && (
+            <div id="competences" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px', scrollMarginTop: 24 }}>
+              <SLabel20>Compétences</SLabel20>
+              <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                {competencesAcquises.map(s => (
+                  <span key={s} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── PROJET PHARE ── */}
+          {p.projet_phare && (
+            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+              <SLabel20>Mon projet phare</SLabel20>
+              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
+                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.white, fontWeight: 600, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
+                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Voir les détails du projet →</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── GRILLE 3 COLONNES ── */}
+          {((p.priorites && p.priorites.length > 0) || passions.length > 0 || liensAffiches.length > 0) && (
+            <div className="profil-col3">
+
+              {/* Ce qui compte */}
+              {p.priorites && p.priorites.length > 0 && (
+                <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+                  <SLabel17>Ce qui compte</SLabel17>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+                    {(p.priorites ?? []).map(item => (
+                      <span key={item} style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, backgroundColor: `${C.terracotta}14`, border: `1px solid ${C.terracotta}44`, fontSize: 11, fontWeight: 600, color: C.terracotta }}>{item}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ce qui l'anime / Ce qui m'anime */}
+              {passions.length > 0 && (
+                <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+                  <SLabel17>{isOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
+                  <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 7 }}>
+                    {passions.map(passion => (
+                      <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
+                        {passion}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Liens */}
+              {liensAffiches.length > 0 && (
+                <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+                  <SLabel17>Liens</SLabel17>
+                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                    {liensAffiches.map((lien, i) => {
+                      let hostname = ''
+                      try { hostname = new URL(lien.url).hostname.replace(/^www\./, '') } catch {}
+                      return (
+                        <a key={i} href={lien.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 12px', borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.sable}`, textDecoration: 'none' }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{lien.intitule}</span>
+                          <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{hostname} →</span>
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* ━━━ BARRE FLOTTANTE ÉDITION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {isEditing && (
@@ -2771,6 +3206,16 @@ export default function ProfilView({
                 <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>{projetLien.length > 60 ? projetLien.slice(0, 60) + '…' : projetLien}</div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ━━━ MODALE VIDÉO PORTRAIT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {portraitVideoOpen && videoPresentation && (
+        <div onClick={() => setPortraitVideoOpen(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 760 }}>
+            <VideoPlayer src={videoPresentation} miroir={videoMiroir} frameStyle={{ borderRadius: 16, aspectRatio: '16 / 9', boxShadow: '0 8px 36px rgba(36,69,58,0.14)' }} />
+            <button onClick={() => setPortraitVideoOpen(false)} style={{ marginTop: 14, display: 'block', margin: '14px auto 0', padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: 'rgba(255,255,255,0.1)', color: C.white, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Fermer</button>
           </div>
         </div>
       )}
