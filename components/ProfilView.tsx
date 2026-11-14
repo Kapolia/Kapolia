@@ -11,7 +11,8 @@ import { LANGUES } from '@/lib/langues'
 import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
 import CartePresentation from '@/components/profil/CartePresentation'
 import CarteRecherche from '@/components/profil/CarteRecherche'
-import { anneesExperience, lireMoisAnnee, type PosteParcours } from '@/lib/parcours'
+import CarteParcours, { type ParcoursExpEdit, type ParcoursDiplomeEdit } from '@/components/profil/CarteParcours'
+import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import { iconePassion, PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
@@ -39,11 +40,12 @@ type ProfilExperience = {
   date_debut: string; date_fin: string; en_poste: boolean; missions: string
   debut_annee?: number | null; debut_mois?: number | null
   fin_annee?: number | null; fin_mois?: number | null
+  date_a_verifier?: boolean | null
 }
 
 type ProfilDiplome = {
   intitule: string; ecole: string; annee: string; mention?: string
-  en_cours?: boolean; debut_annee?: number | null
+  en_cours?: boolean; debut_annee?: number | null; annee_debut?: string | null
 }
 
 type Lien = { intitule: string; url: string }
@@ -1082,7 +1084,32 @@ export default function ProfilView({
     let payload: Record<string, unknown> = {}
     if (carte === 'presentation') payload = { prenom: editPrenom, nom: editNom, metier: editMetier || null, domaine: editDomaine || null, experience: editExperience || null, signature: editSignature }
     else if (carte === 'recherche') payload = { disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, type_entreprise: editTypeEntreprise, langues: editLangues, permis: editPermis }
-    else if (carte === 'parcours') payload = { experiences: editExperiences, diplomes: editDiplomes }
+    else if (carte === 'parcours') {
+      const finErr = editExperiences.some(exp => {
+        if (exp.en_poste || !exp.debut_annee || !exp.fin_annee) return false
+        if (exp.fin_annee < exp.debut_annee) return true
+        return exp.fin_annee === exp.debut_annee && !!exp.debut_mois && !!exp.fin_mois && exp.fin_mois < exp.debut_mois
+      })
+      if (finErr) { setCarteErreur('Corrigez les dates avant d\'enregistrer.'); setSavingCarte(false); return }
+      const expsToSave = [...editExperiences].map(exp => {
+        const debut = exp.debut_annee ? { annee: exp.debut_annee, mois: exp.debut_mois ?? null } : null
+        const fin = !exp.en_poste && exp.fin_annee ? { annee: exp.fin_annee, mois: exp.fin_mois ?? null } : null
+        return {
+          ...exp,
+          date_debut: debut ? ecrireMoisAnnee(debut) : exp.date_debut,
+          date_fin: fin ? ecrireMoisAnnee(fin) : exp.en_poste ? '' : exp.date_fin,
+          date_a_verifier: false,
+        }
+      }).sort((a, b) => {
+        const diff = (b.debut_annee ?? 0) - (a.debut_annee ?? 0)
+        return diff !== 0 ? diff : (b.debut_mois ?? 0) - (a.debut_mois ?? 0)
+      })
+      const diploToSave = editDiplomes.map(d => ({
+        ...d,
+        annee_debut: d.debut_annee ? String(d.debut_annee) : null,
+      }))
+      payload = { experiences: expsToSave, diplomes: diploToSave }
+    }
     else if (carte === 'qualites') payload = { qualites: editQualites }
     else if (carte === 'competences') payload = { competences_acquises: editCompetences }
     else if (carte === 'projet') payload = { projet_phare: editProjetDesc, projet_titre: editProjetTitre, projet_impact: editProjetImpact, projet_lien: editProjetLien, projet_images: editProjetImages, projet_video_url: editProjetVideo }
@@ -1727,7 +1754,13 @@ export default function ProfilView({
               </div>
               {carteOuverte === 'parcours' ? (
                 <>
-                  <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Ajoutez ou modifiez vos expériences et formations.</p>
+                  <CarteParcours
+                    editExperiences={editExperiences as ParcoursExpEdit[]}
+                    setEditExperiences={v => setEditExperiences(v as ProfilExperience[])}
+                    editDiplomes={editDiplomes as ParcoursDiplomeEdit[]}
+                    setEditDiplomes={v => setEditDiplomes(v as ProfilDiplome[])}
+                    onChange={() => setCarteModifiee(true)}
+                  />
                   {cardFooter('parcours')}
                 </>
               ) : (

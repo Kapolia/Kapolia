@@ -26,6 +26,7 @@ export type ParcoursExp = {
   debut_mois?: number | null
   fin_annee?: number | null
   fin_mois?: number | null
+  date_a_verifier?: boolean | null
 }
 
 export type ParcoursDiplome = {
@@ -35,6 +36,7 @@ export type ParcoursDiplome = {
   mention?: string
   en_cours?: boolean
   debut_annee?: number | null
+  annee_debut?: string | null
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
