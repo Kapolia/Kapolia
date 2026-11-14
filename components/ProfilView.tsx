@@ -30,6 +30,8 @@ function isFromRef(comp: string): boolean {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type CarteType = 'presentation' | 'recherche' | 'parcours' | 'qualites' | 'competences' | 'projet' | 'priorites' | 'passions' | 'liens'
+
 type ProfilExperience = {
   poste: string; entreprise: string
   date_debut: string; date_fin: string; en_poste: boolean; missions: string
@@ -602,8 +604,10 @@ export default function ProfilView({
   const [portraitShowEmail, setPortraitShowEmail] = useState(true)
   const [portraitShowPhone, setPortraitShowPhone] = useState(false)
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [saving, setSaving]       = useState(false)
+  const [carteOuverte, setCarteOuverte]     = useState<CarteType | null>(null)
+  const [savingCarte, setSavingCarte]       = useState(false)
+  const [carteErreur, setCarteErreur]       = useState('')
+  const [carteModifiee, setCarteModifiee]   = useState(false)
 
   const [editSignature, setEditSignature]           = useState('')
   const [signatureExpanded, setSignatureExpanded]   = useState(false)
@@ -645,6 +649,7 @@ export default function ProfilView({
   const [editTypePoste, setEditTypePoste]           = useState<string[]>([])
   const [editLiens, setEditLiens]                   = useState<Lien[]>([])
   const [editLiensErrs, setEditLiensErrs]           = useState<Record<number, string>>({})
+  const [editPermis, setEditPermis]                 = useState<string[]>([])
   const [editTypeEntreprise, setEditTypeEntreprise] = useState<string[]>([])
   const [editPriorite, setEditPriorite]             = useState<string[]>([])
   const [editLangues, setEditLangues]               = useState<string[]>([])
@@ -795,7 +800,8 @@ export default function ProfilView({
         setEditTypeEntreprise([...(profil.type_entreprise ?? [])])
         setEditLangues([...(profil.langues ?? [])])
         setEditPassions([...(profil.passions ?? [])])
-        setIsEditing(true)
+        setEditPermis([...(profil.permis ?? [])])
+        setCarteOuverte('presentation')
       }
     }
     load()
@@ -854,9 +860,9 @@ export default function ProfilView({
     previewVideoRef.current.play().catch(() => {})
   }, [recordPhase])
 
-  // Marquer les notifications reponse_proche comme lues au passage en modification
+  // Marquer les notifications reponse_proche comme lues à l'ouverture de la carte qualités
   useEffect(() => {
-    if (!isEditing || !isOwner || unreadNotifCount === 0) return
+    if (carteOuverte !== 'qualites' || !isOwner || unreadNotifCount === 0) return
     setUnreadNotifCount(0)
     window.dispatchEvent(new CustomEvent('kapolia:notif-read'))
     supabase
@@ -869,7 +875,7 @@ export default function ProfilView({
         if (error) console.error('[mark-read] update error:', error)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing, isOwner, unreadNotifCount, userId])
+  }, [carteOuverte, isOwner, unreadNotifCount, userId])
 
   if (loading) return (
     <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -944,40 +950,38 @@ export default function ProfilView({
     setTimeout(() => setToastVisible(false), 3000)
   }
 
-  function startEdit() {
-    setEditSignature(p.signature ?? '')
-    setEditQualites([...(p.qualites ?? [])])
-    setEditCompetences([...(p.competences_acquises ?? [])])
-    setEditExperiences(JSON.parse(JSON.stringify(p.experiences ?? [])))
-    setEditDiplomes(JSON.parse(JSON.stringify(p.diplomes ?? [])))
-    setEditProjetTitre(p.projet_titre ?? '')
-    setEditProjetDesc(p.projet_phare ?? '')
-    setEditProjetImpact(p.projet_impact ?? '')
-    setEditProjetLien(p.projet_lien ?? '')
-    setEditProjetImages([...(p.projet_images ?? [])])
-    setEditProjetVideo(p.projet_video_url ?? '')
-    setEditVille(p.ville ?? '')
-    setEditModeTravail(p.mode_travail ?? '')
-    setEditDispo(p.disponibilite ?? '')
-    setEditDispoDate(p.dispo_date ?? '')
-    setEditTypePoste([...(p.type_poste ?? [])])
-    setEditPriorite([...(p.priorites ?? [])])
-    setEditLiens(p.liens && p.liens.length > 0 ? [...p.liens] : [
-      ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
-      ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
-    ])
-    setEditLiensErrs({})
-    setEditTypeEntreprise([...(p.type_entreprise ?? [])])
-    setEditLangues([...(p.langues ?? [])])
-    setEditPassions([...(p.passions ?? [])])
-    setNewQualite(''); setNewCompetence('')
-    setEditQualitesProches([...qualitesProchesSel])
-    setIsEditing(true)
+  function ouvrirCarte(carte: CarteType) {
+    if (carteModifiee) { setCarteErreur('Enregistrez ou annulez d\'abord vos changements.'); return }
+    if (carte === 'presentation' || carte === 'recherche') {
+      setEditSignature(p.signature ?? ''); setEditDispo(p.disponibilite ?? ''); setEditDispoDate(p.dispo_date ?? '')
+      setEditTypePoste([...(p.type_poste ?? [])]); setEditModeTravail(p.mode_travail ?? ''); setEditVille(p.ville ?? '')
+      setEditTypeEntreprise([...(p.type_entreprise ?? [])]); setEditLangues([...(p.langues ?? [])]); setEditPermis([...(p.permis ?? [])])
+    } else if (carte === 'parcours') {
+      setEditExperiences(JSON.parse(JSON.stringify(p.experiences ?? [])))
+      setEditDiplomes(JSON.parse(JSON.stringify(p.diplomes ?? [])))
+    } else if (carte === 'qualites') {
+      setEditQualites([...(p.qualites ?? [])]); setNewQualite(''); setEditQualitesProches([...qualitesProchesSel])
+    } else if (carte === 'competences') {
+      setEditCompetences([...(p.competences_acquises ?? [])]); setNewCompetence('')
+    } else if (carte === 'projet') {
+      setEditProjetTitre(p.projet_titre ?? ''); setEditProjetDesc(p.projet_phare ?? '')
+      setEditProjetImpact(p.projet_impact ?? ''); setEditProjetLien(p.projet_lien ?? '')
+      setEditProjetImages([...(p.projet_images ?? [])]); setEditProjetVideo(p.projet_video_url ?? '')
+    } else if (carte === 'priorites') {
+      setEditPriorite([...(p.priorites ?? [])])
+    } else if (carte === 'passions') {
+      setEditPassions([...(p.passions ?? [])]); setNewPassion('')
+    } else if (carte === 'liens') {
+      setEditLiens(p.liens && p.liens.length > 0 ? [...p.liens] : [
+        ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
+        ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
+      ]); setEditLiensErrs({})
+    }
+    setCarteModifiee(false); setCarteErreur(''); setCarteOuverte(carte)
   }
 
-  function cancelEdit() {
-    setEditQualitesProches([...qualitesProchesSel])
-    setIsEditing(false)
+  function annulerCarte() {
+    setCarteModifiee(false); setCarteErreur(''); setCarteOuverte(null)
   }
 
   function toggleEditCompetence(comp: string) {
@@ -1041,114 +1045,56 @@ export default function ProfilView({
     showToast('Avatar mis à jour ✓')
   }
 
-  async function saveEdit() {
-    setSaving(true)
+  async function enregistrerCarte(carte: CarteType) {
+    setSavingCarte(true); setCarteErreur('')
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); return }
+    if (!user) { setSavingCarte(false); return }
 
-    // ── Valider et sauvegarder les liens via la route sécurisée ─────────────
-    if (isOwner) {
+    if (carte === 'liens') {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.access_token) {
         const res = await fetch('/api/profil/liens', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ liens: editLiens }),
         })
         const json = await res.json()
         if (!res.ok || json.errors) {
-          setEditLiensErrs(json.errors ?? { 0: json.error ?? 'Erreur de validation.' })
-          setSaving(false)
-          return
+          setEditLiensErrs(json.errors ?? { 0: json.error ?? 'Erreur.' })
+          setCarteErreur(json.error ?? 'Erreur de validation.')
+          setSavingCarte(false); return
         }
         setEditLiensErrs({})
       }
+      setProfil(prev => prev ? { ...prev, liens: editLiens } : null)
+      setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false); showToast('Modifications enregistrées'); return
     }
 
-    const coreData = {
-      signature:                editSignature,
-      qualites:                 editQualites,
-      competences_acquises:     editCompetences,
-      experiences:              editExperiences,
-      diplomes:                 editDiplomes,
-      projet_phare:             editProjetDesc,
-      ville:                    editVille,
-      mode_travail:             editModeTravail,
-      disponibilite:            editDispo || null,
-      dispo_date:               editDispo === 'a_partir_de' ? (editDispoDate || null) : null,
-      type_poste:               editTypePoste,
-      priorites:                editPriorite,
-      type_entreprise:          editTypeEntreprise,
-      langues:                  editLangues,
-      passions:                 editPassions,
-    }
+    let payload: Record<string, unknown> = {}
+    if (carte === 'presentation') payload = { signature: editSignature, disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, type_entreprise: editTypeEntreprise, langues: editLangues, permis: editPermis }
+    else if (carte === 'recherche') payload = { disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, type_entreprise: editTypeEntreprise, langues: editLangues, permis: editPermis }
+    else if (carte === 'parcours') payload = { experiences: editExperiences, diplomes: editDiplomes }
+    else if (carte === 'qualites') payload = { qualites: editQualites }
+    else if (carte === 'competences') payload = { competences_acquises: editCompetences }
+    else if (carte === 'projet') payload = { projet_phare: editProjetDesc, projet_titre: editProjetTitre, projet_impact: editProjetImpact, projet_lien: editProjetLien, projet_images: editProjetImages, projet_video_url: editProjetVideo }
+    else if (carte === 'priorites') payload = { priorites: editPriorite }
+    else if (carte === 'passions') payload = { passions: editPassions }
 
-    const projetData = {
-      projet_titre:     editProjetTitre,
-      projet_impact:    editProjetImpact,
-      projet_lien:      editProjetLien,
-      projet_images:    editProjetImages,
-      projet_video_url: editProjetVideo,
-    }
+    const { error } = await supabase.from('profils').update(payload).eq('user_id', user.id)
+    if (error) { setCarteErreur(error.message); setSavingCarte(false); return }
 
-    const editData = { ...coreData, ...projetData }
-
-    const { error } = await supabase.from('profils').update(editData).eq('user_id', user.id)
-
-    if (!error) {
-      setProfil(prev => prev ? { ...prev, ...editData, liens: editLiens } : null)
-
-      // ── Sauvegarde intégrée de la sélection de qualités reçues ──────────────
+    if (carte === 'qualites') {
       const currentSet = new Set(qualitesProchesSel.map(s => s.qualite))
-      const newMap     = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
-      const toDelete   = qualitesProchesSel.filter(s => !newMap.has(s.qualite))
-      const toInsert   = editQualitesProches.filter(s => !currentSet.has(s.qualite))
-      let prochesErr   = false
-
-      if (toDelete.length > 0) {
-        const { error: errDel } = await supabase
-          .from('qualites_proches_selectionnees')
-          .delete()
-          .eq('user_id', user.id)
-          .in('qualite', toDelete.map(s => s.qualite))
-        if (errDel) prochesErr = true
-      }
-      if (!prochesErr && toInsert.length > 0) {
-        const { error: errIns } = await supabase
-          .from('qualites_proches_selectionnees')
-          .insert(toInsert.map(s => ({ user_id: user.id, reponse_id: s.reponse_id, qualite: s.qualite })))
-        if (errIns) prochesErr = true
-      }
-
-      setIsEditing(false)
-      setSaving(false)
-      if (prochesErr) {
-        showToast('Profil enregistré. La sélection de qualités reçues n\'a pas pu être sauvegardée — réessayez en repassant en modification.')
-      } else {
-        setQualitesProchesSel([...editQualitesProches])
-        showToast('Profil mis à jour ✓')
-      }
-      return
+      const newMap = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
+      const toDelete = qualitesProchesSel.filter(s => !newMap.has(s.qualite))
+      const toInsert = editQualitesProches.filter(s => !currentSet.has(s.qualite))
+      if (toDelete.length > 0) await supabase.from('qualites_proches_selectionnees').delete().eq('user_id', user.id).in('qualite', toDelete.map(s => s.qualite))
+      if (toInsert.length > 0) await supabase.from('qualites_proches_selectionnees').insert(toInsert.map(s => ({ user_id: user.id, reponse_id: s.reponse_id, qualite: s.qualite })))
+      setQualitesProchesSel([...editQualitesProches])
     }
 
-    if (error.code === '42703') {
-      console.warn('Colonnes projet_* absentes — sauvegarde partielle des champs de base.')
-      const { error: err2 } = await supabase.from('profils').update(coreData).eq('user_id', user.id)
-      if (!err2) {
-        setProfil(prev => prev ? { ...prev, ...coreData } : null)
-        setIsEditing(false)
-        showToast('Profil mis à jour ✓ (colonnes projet manquantes — voir console)')
-      } else {
-        showToast(`Erreur : ${err2.message}`)
-      }
-    } else {
-      showToast(`Erreur : ${error.message}`)
-    }
-
-    setSaving(false)
+    setProfil(prev => prev ? { ...prev, ...payload } : null)
+    setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false); showToast('Modifications enregistrées')
   }
 
   async function processImageFiles(files: File[]) {
@@ -1400,10 +1346,45 @@ export default function ProfilView({
     const arr = [...editDiplomes]; arr[i] = { ...arr[i], ...patch }; setEditDiplomes(arr)
   }
 
+  // ─── Helpers rendu carte-par-carte ───────────────────────────────────────────
+
+  const enTeteIsOpen = carteOuverte === 'presentation' || carteOuverte === 'recherche'
+
+  function carteWrapStyle(carte: CarteType, padding?: string): React.CSSProperties {
+    const p2 = padding ?? '20px 22px'
+    const base: React.CSSProperties = { backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: p2 }
+    if (carteOuverte === carte) return { ...base, border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` }
+    if (carteOuverte !== null) return { ...base, boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0)', pointerEvents: 'none' as const }
+    return { ...base, boxShadow: CARD_SHADOW }
+  }
+
+  function modifierBtn(carte: CarteType) {
+    const isOpen = carte === 'presentation' || carte === 'recherche' ? enTeteIsOpen : carteOuverte === carte
+    return isOpen
+      ? <span style={{ fontSize: 12, fontWeight: 700, color: C.lien, backgroundColor: C.peche, borderRadius: 6, padding: '2px 8px' }}>En modification</span>
+      : <button onClick={() => ouvrirCarte(carte)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.lien, padding: '2px 0', fontFamily: 'inherit' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Modifier
+        </button>
+  }
+
+  function cardFooter(carte: CarteType) {
+    return <>
+      {carteErreur && <p style={{ fontSize: 13, color: C.erreur, margin: '12px 0 0' }}>{carteErreur}</p>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.sable}` }}>
+        <button onClick={annulerCarte} style={{ padding: '8px 18px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.grey, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
+        <button onClick={() => enregistrerCarte(carte)} disabled={savingCarte} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 13, fontWeight: 600, cursor: savingCarte ? 'default' : 'pointer', opacity: savingCarte ? 0.75 : 1, fontFamily: 'inherit' }}>
+          {savingCarte && <span style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite', flexShrink: 0, display: 'inline-block' }} />}
+          {savingCarte ? 'Enregistrement' : 'Enregistrer'}
+        </button>
+      </div>
+    </>
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: isEditing ? 72 : 0 }}>
+    <main style={{ backgroundColor: C.bg, minHeight: '100vh', marginLeft: sidebarOffset, paddingBottom: 0 }}>
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin { to { transform: rotate(360deg); } }
         @keyframes kapolia-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
@@ -1411,14 +1392,7 @@ export default function ProfilView({
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
         .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:#A9541A; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
         .profil-lien-action:hover { background:#FBF3EC; }
-        .profil-layout { display: flex; gap: 20px; align-items: flex-start; }
-        .profil-left { width: 360px; flex-shrink: 0; position: sticky; top: 20px; }
-        .profil-right { flex: 1; min-width: 0; }
-        @media (max-width: 1000px) {
-          .profil-layout { flex-direction: column; }
-          .profil-left { width: 100%; position: static; }
-        }
-        .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
+.profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
         .profil-entete-portrait { width: 200px; height: 244px; flex-shrink: 0; }
         .profil-col3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
         .profil-lien-row { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:9px; background:${C.bg}; text-decoration:none; transition:background 0.15s; }
@@ -1432,7 +1406,7 @@ export default function ProfilView({
 
       {/* Toast */}
       <div style={{
-        position: 'fixed', bottom: isEditing ? 84 : 28, left: '50%',
+        position: 'fixed', bottom: 28, left: '50%',
         transform: `translateX(-50%) translateY(${toastVisible ? '0' : '14px'})`,
         opacity: toastVisible ? 1 : 0, transition: 'opacity 0.22s, transform 0.22s',
         pointerEvents: 'none', zIndex: 300,
@@ -1456,1349 +1430,8 @@ export default function ProfilView({
       }} />
 
 
-      {/* ━━━ MISE EN PAGE ÉDITION (deux colonnes) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {isEditing && (
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 20px 80px' }}>
-        <div className="profil-layout">
-
-          {/* ── COLONNE GAUCHE (fixe) ─────────────────────────────────────── */}
-          <div className="profil-left">
-
-            {/* Carte verte — identité */}
-            <div style={{ backgroundColor: C.vert, borderRadius: CARD_RADIUS, boxShadow: '0 1px 2px rgba(27, 48, 38, .10), 0 6px 16px rgba(27, 48, 38, .14)', padding: '20px 16px 16px', marginBottom: 12 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          {/* Avatar */}
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <Avatar profil={p} size="lg" />
-            {isEditing && (
-              <button
-                onClick={openAvatarModal}
-                style={{
-                  position: 'absolute', inset: 0, borderRadius: '50%', border: 'none',
-                  backgroundColor: 'rgba(0,0,0,0.45)', color: C.white, fontSize: 20,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  opacity: 0, transition: 'opacity 0.15s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = '0' }}
-                title="Changer l'avatar"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-            )}
-            {!isEditing && (
-              <div style={{
-                position: 'absolute', bottom: 2, right: 2, width: 16, height: 16, borderRadius: '50%',
-                backgroundColor: dispo.color, border: `2.5px solid ${C.vert}`,
-              }} title={dispo.label} />
-            )}
-          </div>
-
-          {/* Identité */}
-          <div style={{ width: '100%', textAlign: 'center' }}>
-            <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.white, fontWeight: 600, margin: '0 0 4px', lineHeight: 1.2 }}>
-              {p.prenom} {p.nom}
-            </h1>
-
-            {/* Indicateur activité (signal de confiance côté recruteur) */}
-            {!isEditing && activity.label && (
-              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {activity.isActif && (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '3px 9px', borderRadius: 20,
-                    backgroundColor: `${C.succes}2E`,
-                    border: `1px solid ${C.succes}66`,
-                  }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: C.succes, flexShrink: 0, boxShadow: `0 0 0 2px ${C.succes}50` }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.succes, letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>Actif</span>
-                  </span>
-                )}
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)' }}>{activity.label}</span>
-              </div>
-            )}
-
-            {/* Signature — affichée dans le bandeau vert, éditable inline */}
-            {isEditing ? (
-              <div style={{ marginTop: 12 }}>
-                <textarea
-                  ref={sigTextareaRef}
-                  value={editSignature}
-                  onChange={e => {
-                    const next = e.target.value
-                    if (next.length <= MAX_SIGNATURE || next.length < editSignature.length) {
-                      setEditSignature(next)
-                    }
-                  }}
-                  placeholder="Votre phrase signature — ce qui vous définit en une ligne…"
-                  style={{
-                    width: '100%', backgroundColor: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8,
-                    color: C.white, fontSize: 13, padding: '8px 12px',
-                    fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic', lineHeight: 1.6,
-                    resize: 'none', outline: 'none', boxSizing: 'border-box' as const,
-                    overflow: 'hidden', minHeight: 42,
-                  }}
-                />
-                <SignatureCounter count={editSignature.length} max={MAX_SIGNATURE} theme="dark" />
-              </div>
-            ) : (
-              p.signature && (
-                <div style={{ marginTop: 6 }}>
-                  <p style={{
-                    margin: 0, textAlign: 'left',
-                    fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic',
-                    fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 1.55,
-                    ...(signatureExpanded ? {} : {
-                      display: '-webkit-box', WebkitLineClamp: 3,
-                      WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-                    }),
-                  }}>
-                    « {p.signature} »
-                  </p>
-                  {p.signature.length > 120 && (
-                    <button
-                      onClick={() => setSignatureExpanded(v => !v)}
-                      style={{
-                        background: 'none', border: 'none', padding: 0, marginTop: 5,
-                        color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer',
-                        fontFamily: 'inherit', textDecoration: 'underline', display: 'block', textAlign: 'left',
-                      }}
-                    >
-                      {signatureExpanded ? 'voir moins' : 'voir plus'}
-                    </button>
-                  )}
-                </div>
-              )
-            )}
-          </div>
-
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ marginBottom: 12 }}>
-          {/* CTA */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-            {!isEditing && !isOwner && <ScoreCircle score={83} size={72} />}
-            {!isEditing && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {isOwner ? (
-                  <>
-                  <button onClick={startEdit} style={{
-                    padding: '8px 20px', borderRadius: 10, border: 'none',
-                    backgroundColor: C.terracotta, color: C.white,
-                    fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                  }}>
-                    Modifier mon profil
-                  </button>
-                  <button
-                    className="btn-portrait"
-                    onClick={() => {
-                      const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
-                      setPortraitTitle(saved ?? profil?.domaine ?? '')
-                      setPortraitWithPhoto(false)
-
-                      const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
-                      setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
-
-                      const hasPhone = !!(profil?.telephone)
-                      const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
-                      setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
-
-                      setPortraitModal(true)
-                    }}
-                    style={{
-                      padding: '8px 20px', borderRadius: 10,
-                      border: `1px solid ${C.sable}`,
-                      backgroundColor: C.white,
-                      color: C.dark,
-                      fontSize: 13, fontWeight: 600,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      transition: 'opacity 0.15s',
-                    }}
-                  >
-                    ↓ Mon portrait en PDF
-                  </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={async () => {
-                        setWritingMsg(true)
-                        const existing = await trouverConversation(userId)
-                        setWritingMsg(false)
-                        if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
-                        router.push(`/recruteur/messages?new=${userId}`)
-                      }}
-                      disabled={writingMsg}
-                      style={{
-                        padding: '8px 18px', borderRadius: 10, border: 'none',
-                        backgroundColor: C.terracotta, color: C.white,
-                        fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer',
-                        fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1,
-                      }}
-                    >{writingMsg ? '…' : 'Écrire'}</button>
-                    <button onClick={() => setSaved(s => !s)} style={{
-                      padding: '8px 18px', borderRadius: 10,
-                      border: `1.5px solid ${saved ? '#6ABFA0' : 'rgba(255,255,255,0.2)'}`,
-                      backgroundColor: saved ? 'rgba(106,191,160,0.15)' : 'rgba(255,255,255,0.08)',
-                      color: saved ? '#6ABFA0' : 'rgba(255,255,255,0.8)',
-                      fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
-                    }}>
-                      {saved ? 'Sauvegardé' : 'Sauvegarder'}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-            </div>
-
-            {/* Carte Son cap */}
-            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '16px 18px', marginBottom: 12 }}>
-          {/* Cap header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0 8px' }}>
-            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>{isOwner ? 'Cap sur votre recherche' : 'Son cap'}</span>
-            <div style={{ flex: 1, height: 1, backgroundColor: C.sable }} />
-          </div>
-          {/* 3 columns */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', paddingBottom: 14, gap: 12 }}>
-
-            {/* Disponibilité */}
-            <div style={{ display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
-              {!(isEditing && isOwner) && <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0, boxShadow: `0 0 0 3px ${dispo.color}22` }} />}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 5 }}>Disponibilité</div>
-                {isEditing && isOwner ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {DISPO_OPTIONS.map(opt => {
-                      const sel = editDispo === opt.key
-                      return (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          onClick={() => {
-                            setEditDispo(opt.key)
-                            if (opt.key === 'a_partir_de' && !editDispoDate) {
-                              const d = new Date(); d.setMonth(d.getMonth() + 1)
-                              setEditDispoDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`)
-                            }
-                          }}
-                          style={{
-                            padding: '4px 10px', borderRadius: 8,
-                            border: `1.5px solid ${sel ? opt.color : C.sable}`,
-                            backgroundColor: sel ? `${opt.color}14` : 'transparent',
-                            color: sel ? opt.color : C.grey, fontSize: 11, fontWeight: sel ? 700 : 500,
-                            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
-                            transition: 'all 0.12s',
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      )
-                    })}
-                    {editDispo === 'a_partir_de' && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
-                        <select
-                          value={editDispoDate.slice(5, 7)}
-                          onChange={e => setEditDispoDate(prev => (prev || `${new Date().getFullYear()}-01-01`).slice(0, 5) + e.target.value.padStart(2, '0') + '-01')}
-                          style={{ flex: 1, fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontFamily: 'inherit' }}
-                        >
-                          {MOIS_FR.map((m, i) => (
-                            <option key={i} value={String(i + 1).padStart(2, '0')}>{m}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={editDispoDate.slice(0, 4)}
-                          onChange={e => setEditDispoDate(prev => e.target.value + (prev || `-01-01`).slice(4))}
-                          style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontFamily: 'inherit' }}
-                        >
-                          {[0, 1, 2].map(offset => {
-                            const y = new Date().getFullYear() + offset
-                            return <option key={y} value={y}>{y}</option>
-                          })}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, fontWeight: 600, color: dispo.color }}>{dispo.label}</div>
-                )}
-              </div>
-            </div>
-
-            {/* Type de poste — sélection multiple */}
-            <div style={{ display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 5 }}>Type de poste</div>
-                {isEditing && isOwner ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {Object.entries(TYPE_POSTE_MAP).map(([key, label]) => {
-                      const sel = editTypePoste.includes(key)
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setEditTypePoste(prev =>
-                            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
-                          )}
-                          style={{
-                            padding: '4px 10px', borderRadius: 8, border: `1.5px solid ${sel ? C.vert : C.sable}`,
-                            backgroundColor: sel ? `${C.vert}12` : 'transparent',
-                            color: sel ? C.vert : C.grey, fontSize: 11, fontWeight: sel ? 700 : 500,
-                            cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
-                            transition: 'all 0.12s',
-                          }}
-                        >
-                          {sel ? '✓ ' : ''}{label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>{typePosteLabel}</div>
-                )}
-              </div>
-            </div>
-
-            {/* Lieu / Mobilité — éditable directement ici */}
-            <div style={{ display: 'flex', alignItems: isEditing && isOwner ? 'flex-start' : 'center', gap: 10, paddingTop: isEditing && isOwner ? 4 : 0 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: isEditing && isOwner ? 5 : 3 }}>Lieu / Mobilité</div>
-                {isEditing && isOwner ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <input
-                      value={editVille}
-                      onChange={e => setEditVille(e.target.value)}
-                      placeholder="Votre ville / région / zone géographique"
-                      style={{
-                        width: '100%', fontSize: 10, padding: '4px 8px', borderRadius: 6,
-                        border: `1px solid ${C.sable}`, outline: 'none', fontFamily: 'inherit',
-                        color: C.dark, backgroundColor: C.white, boxSizing: 'border-box' as const,
-                      }}
-                    />
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 4 }}>
-                      {Object.entries(LIEU_MAP).map(([key, label]) => {
-                        const sel = editModeTravail === key
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setEditModeTravail(sel ? '' : key)}
-                            style={{
-                              padding: '3px 8px', borderRadius: 20, border: `1.5px solid ${sel ? C.vert : C.sable}`,
-                              backgroundColor: sel ? `${C.vert}12` : 'transparent',
-                              color: sel ? C.vert : C.grey, fontSize: 10, fontWeight: sel ? 700 : 500,
-                              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                            }}
-                          >
-                            {label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 12, fontWeight: 600, color: C.dark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {[p.ville, modeTravailLabel].filter(Boolean).join(' · ') || '—'}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-          {/* Priorités — ligne sous les 3 colonnes, visible si renseignées ou en édition */}
-          {((isEditing && isOwner) || (p.priorites && p.priorites.length > 0)) && (
-            <div style={{ borderTop: `1px solid ${C.sable}`, paddingTop: 12, paddingBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.terracotta, marginBottom: 8 }}>Priorités</div>
-              {isEditing && isOwner ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                  {PRIORITES.map(prio => {
-                    const sel       = editPriorite.includes(prio)
-                    const maxReached = editPriorite.length >= 3
-                    return (
-                      <button
-                        key={prio}
-                        type="button"
-                        onClick={() => setEditPriorite(prev =>
-                          prev.includes(prio) ? prev.filter(x => x !== prio) : maxReached ? prev : [...prev, prio]
-                        )}
-                        style={{
-                          padding: '4px 10px', borderRadius: 8,
-                          border: `1.5px solid ${sel ? C.terracotta : C.sable}`,
-                          backgroundColor: sel ? `${C.terracotta}14` : 'transparent',
-                          color: sel ? C.terracotta : C.grey,
-                          fontSize: 11, fontWeight: sel ? 700 : 500,
-                          cursor: (maxReached && !sel) ? 'default' : 'pointer',
-                          opacity: (maxReached && !sel) ? 0.4 : 1,
-                          fontFamily: 'inherit', transition: 'all 0.12s',
-                        }}
-                      >
-                        {sel ? '✓ ' : ''}{prio}
-                      </button>
-                    )
-                  })}
-                  {editPriorite.length >= 3 && (
-                    <span style={{ fontSize: 11, color: C.terracotta, fontWeight: 500, alignSelf: 'center' }}>Maximum atteint.</span>
-                  )}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
-                  {(p.priorites ?? []).map(item => (
-                    <span key={item} style={{
-                      display: 'inline-block',
-                      padding: '3px 10px', borderRadius: 20,
-                      backgroundColor: `${C.terracotta}14`,
-                      border: `1px solid ${C.terracotta}44`,
-                      fontSize: 11, fontWeight: 600, color: C.terracotta,
-                    }}>{item}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-            </div>
-
-
-            {/* Carte Liens */}
-            {(isEditing || (p.liens && p.liens.length > 0) || p.linkedin_url || p.portfolio_url) && (
-              <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '16px 18px', marginBottom: 12 }}>
-                <SLabel>Liens</SLabel>
-                {isEditing ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {editLiens.map((lien, i) => (
-                      <div key={i} style={{ backgroundColor: C.bg, borderRadius: 8, padding: '10px 12px', position: 'relative' as const }}>
-                        {editLiensErrs[i] && (
-                          <p style={{ margin: '0 0 6px', fontSize: 11, color: C.terracotta, lineHeight: 1.4 }}>{editLiensErrs[i]}</p>
-                        )}
-                        <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                          <input
-                            style={{ ...editInputStyle, fontSize: 12 }}
-                            value={lien.intitule}
-                            onChange={e => { const l = [...editLiens]; l[i] = { ...l[i], intitule: e.target.value }; setEditLiens(l) }}
-                            placeholder="Intitulé (LinkedIn, GitHub…)"
-                            maxLength={50}
-                          />
-                          <input
-                            style={{ ...editInputStyle, fontSize: 12 }}
-                            type="url"
-                            value={lien.url}
-                            onChange={e => { const l = [...editLiens]; l[i] = { ...l[i], url: e.target.value }; setEditLiens(l) }}
-                            placeholder="https://…"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { const errs = { ...editLiensErrs }; delete errs[i]; setEditLiensErrs(errs); setEditLiens(editLiens.filter((_, j) => j !== i)) }}
-                          style={{ position: 'absolute' as const, top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: C.grey, padding: 2, lineHeight: 1 }}
-                          title="Supprimer ce lien"
-                        >✕</button>
-                      </div>
-                    ))}
-                    {editLiens.length < 6 && (
-                      <button
-                        type="button"
-                        onClick={() => setEditLiens([...editLiens, { intitule: '', url: '' }])}
-                        style={{ padding: '7px 14px', borderRadius: 8, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center' as const }}
-                      >
-                        + Ajouter un lien {editLiens.length > 0 ? `(${editLiens.length}/6)` : ''}
-                      </button>
-                    )}
-                  </div>
-                ) : (() => {
-                  const liensAffiches = p.liens && p.liens.length > 0
-                    ? p.liens
-                    : [
-                      ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
-                      ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
-                    ]
-                  if (liensAffiches.length === 0) return null
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                      {liensAffiches.map((lien, i) => {
-                        let hostname = ''
-                        try { hostname = new URL(lien.url).hostname.replace(/^www\./, '') } catch {}
-                        return (
-                          <a
-                            key={i}
-                            href={lien.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '7px 12px', borderRadius: 8, backgroundColor: C.bg, border: `1px solid ${C.sable}`, textDecoration: 'none' }}
-                          >
-                            <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{lien.intitule}</span>
-                            <span style={{ fontSize: 11, color: C.grey, whiteSpace: 'nowrap' as const, flexShrink: 0 }}>{hostname} →</span>
-                          </a>
-                        )
-                      })}
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-
-          </div>
-
-          {/* ── COLONNE DROITE (défile) ───────────────────────────────────── */}
-          <div className="profil-right">
-
-      {/* ━━━ VIDÉO EN VEDETTE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {!isEditing && (videoPresentation || isOwner) && (
-        <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            {videoPresentation ? (
-              <div>
-                {/* Player 16:9 — contrôles custom non affectés par scaleX(-1) */}
-                <VideoPlayer
-                  src={videoPresentation}
-                  miroir={videoMiroir}
-                  frameStyle={{
-                    borderRadius: 16, aspectRatio: '16 / 9',
-                    boxShadow: '0 8px 36px rgba(36, 69, 58,0.14)',
-                    border: `1px solid ${C.sable}`,
-                    marginBottom: 16,
-                  }}
-                />
-                {/* Caption + boutons owner */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' as const }}>
-                  <div>
-                    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 4 }}>Présentation vidéo</div>
-                    <div style={{ fontSize: 11, color: C.grey }}>30 secondes pour faire connaissance.</div>
-                  </div>
-                  {isOwner && (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                      <button
-                        onClick={toggleVideoMiroir}
-                        disabled={togglingMiroir || uploadingVedette || deletingVideo}
-                        title={videoMiroir ? 'Désactiver le miroir' : 'Activer le miroir horizontal'}
-                        style={{
-                          padding: '6px 13px', borderRadius: 10,
-                          border: `1.5px solid ${videoMiroir ? C.vert : C.sable}`,
-                          backgroundColor: videoMiroir ? `${C.vert}18` : C.white,
-                          color: videoMiroir ? C.vert : C.grey,
-                          fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
-                          opacity: togglingMiroir || uploadingVedette || deletingVideo ? 0.5 : 1,
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        Miroir
-                      </button>
-                      <button
-                        onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
-                        disabled={uploadingVedette || deletingVideo}
-                        style={{
-                          padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${C.sable}`,
-                          backgroundColor: C.white, color: C.dark, fontSize: 12, fontWeight: 500,
-                          cursor: 'pointer', fontFamily: 'inherit',
-                          opacity: uploadingVedette || deletingVideo ? 0.5 : 1,
-                        }}
-                      >
-                        Remplacer
-                      </button>
-                      <button
-                        onClick={deleteVideoPresentation}
-                        disabled={uploadingVedette || deletingVideo}
-                        style={{
-                          padding: '6px 13px', borderRadius: 10, border: `1.5px solid #e88`,
-                          backgroundColor: C.white, color: '#c44', fontSize: 12, fontWeight: 500,
-                          cursor: 'pointer', fontFamily: 'inherit',
-                          opacity: uploadingVedette || deletingVideo ? 0.5 : 1,
-                        }}
-                      >
-                        {deletingVideo ? 'Suppression…' : 'Supprimer'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* isOwner && pas de vidéo — invitation */
-              <div style={{
-                backgroundColor: C.white, borderRadius: 14, padding: '16px 20px',
-                border: `1.5px dashed ${C.sable}`,
-              }}>
-                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark, marginBottom: 6 }}>
-                  Ajoutez votre vidéo de présentation
-                </div>
-                <p style={{ margin: '0 0 10px', fontSize: 13, color: C.grey, lineHeight: 1.55 }}>
-                  Les recruteurs regardent les vidéos en priorité. 30 à 60 secondes suffisent.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5, marginBottom: 14 }}>
-                  {[
-                    'Qui vous êtes et votre domaine d\'expertise',
-                    'Ce que vous recherchez comme prochain rôle',
-                    'Ce qui vous anime et vous différencie',
-                  ].map((tip, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <span style={{ width: 18, height: 18, borderRadius: '50%', backgroundColor: `${C.terracotta}18`, color: C.terracotta, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
-                      <span style={{ fontSize: 13, color: C.dark, lineHeight: 1.45 }}>{tip}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-                  <button
-                    onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
-                    disabled={uploadingVedette}
-                    style={{
-                      padding: '8px 16px', borderRadius: 10, border: 'none',
-                      backgroundColor: C.terracotta, color: C.white,
-                      fontSize: 13, fontWeight: 600, cursor: uploadingVedette ? 'default' : 'pointer',
-                      fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6,
-                      opacity: uploadingVedette ? 0.5 : 1,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>●</span> Enregistrer ma vidéo
-                  </button>
-                  <button
-                    onClick={() => vedetteVideoInputRef.current?.click()}
-                    disabled={uploadingVedette}
-                    style={{
-                      padding: '8px 16px', borderRadius: 10,
-                      border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
-                      color: C.dark, fontSize: 13, fontWeight: 500,
-                      cursor: uploadingVedette ? 'default' : 'pointer',
-                      fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6,
-                      opacity: uploadingVedette ? 0.5 : 1,
-                    }}
-                  >
-                    {uploadingVedette
-                      ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.15)', borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Envoi en cours…</>
-                      : 'Importer un fichier'
-                    }
-                  </button>
-                </div>
-                {uploadingVedette && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: C.grey }}>
-                    Les vidéos peuvent prendre quelques secondes selon votre connexion.
-                  </div>
-                )}
-              </div>
-            )}
-        </div>
-      )}
-
-
-        {/* ── EXPÉRIENCES ────────────────────────────────────────────────────── */}
-        {(isEditing || experiences.length > 0) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>Expériences professionnelles</SLabel>
-            {isEditing ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {editExperiences.map((exp, i) => (
-                  <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, fontWeight: 500, color: C.grey }}>Expérience {i + 1}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <button type="button" aria-label="Monter" onClick={() => setEditExperiences(moveUp(editExperiences, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
-                        <button type="button" aria-label="Descendre" onClick={() => setEditExperiences(moveDown(editExperiences, i))} disabled={i === editExperiences.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editExperiences.length - 1 ? 'default' : 'pointer', color: i === editExperiences.length - 1 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
-                        <button type="button" onClick={() => setEditExperiences(editExperiences.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: C.grey, padding: '0 4px', lineHeight: 1, fontFamily: 'inherit' }}>Supprimer</button>
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                      <input style={editInputStyle} value={exp.poste} onChange={e => updateExp(i, { poste: e.target.value })} placeholder="Poste" />
-                      <input style={editInputStyle} value={exp.entreprise} onChange={e => updateExp(i, { entreprise: e.target.value })} placeholder="Entreprise" />
-                      <input style={editInputStyle} value={exp.date_debut} onChange={e => updateExp(i, { date_debut: e.target.value })} placeholder="Début (ex : jan. 2022)" />
-                      <input style={editInputStyle} value={exp.date_fin} onChange={e => updateExp(i, { date_fin: e.target.value })} placeholder="Fin" disabled={exp.en_poste} />
-                    </div>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.grey, marginBottom: 8, cursor: 'pointer' }}>
-                      <input type="checkbox" checked={exp.en_poste} onChange={e => updateExp(i, { en_poste: e.target.checked, date_fin: e.target.checked ? '' : exp.date_fin })} />
-                      En poste actuellement
-                    </label>
-                    <MissionsTextArea
-                      value={exp.missions}
-                      onChange={v => updateExp(i, { missions: v })}
-                      rows={3}
-                      textareaStyle={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 72 }}
-                    />
-                  </div>
-                ))}
-                <button type="button" onClick={() => setEditExperiences([...editExperiences, { poste: '', entreprise: '', date_debut: '', date_fin: '', en_poste: false, missions: '' }])} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, cursor: 'pointer', border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.terracotta, fontSize: 13, fontWeight: 600 }}>
-                  + Ajouter une expérience
-                </button>
-              </div>
-            ) : (
-              <div style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  {experiences.map((exp, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 20, paddingLeft: 28, position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 5, width: 16, height: 16, borderRadius: '50%', backgroundColor: C.terracotta, border: `2.5px solid ${C.bg}`, flexShrink: 0 }} />
-                      <div style={{ flex: 1, backgroundColor: C.white, borderRadius: 14, padding: '16px 20px', border: `1px solid ${C.sable}` }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: C.dark, marginBottom: 2 }}>{exp.poste}</div>
-                        <div style={{ fontSize: 12, color: C.grey, marginBottom: exp.missions ? 10 : 0 }}>
-                          {exp.entreprise}
-                          {(exp.date_debut || exp.date_fin || exp.en_poste) && <span style={{ color: C.sable, margin: '0 6px' }}>·</span>}
-                          {exp.date_debut && <span>{exp.date_debut}</span>}
-                          {exp.date_debut && (exp.en_poste || exp.date_fin) && <span> — </span>}
-                          {exp.en_poste ? <span style={{ color: C.terracotta }}>En poste</span> : <span>{exp.date_fin}</span>}
-                        </div>
-                        {exp.missions && (
-                          <ul style={{ margin: 0, padding: '0 0 0 16px' }}>
-                            {exp.missions.split('\n').filter(Boolean).slice(0, 4).map((m, j) => (
-                              <li key={j} style={{ fontSize: 12, color: C.dark, lineHeight: 1.7 }}>{m.trim()}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* ── DIPLÔMES ───────────────────────────────────────────────────────── */}
-        {(isEditing || diplomes.length > 0) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>Formations</SLabel>
-            {isEditing ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {editDiplomes.map((d, i) => (
-                  <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '16px 18px', border: `1px solid ${C.sable}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                      <span style={{ fontSize: 11, fontWeight: 500, color: C.grey }}>Diplôme {i + 1}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <button type="button" aria-label="Monter" onClick={() => setEditDiplomes(moveUp(editDiplomes, i))} disabled={i === 0} style={{ width: 28, background: 'none', border: 'none', cursor: i === 0 ? 'default' : 'pointer', color: i === 0 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↑</button>
-                        <button type="button" aria-label="Descendre" onClick={() => setEditDiplomes(moveDown(editDiplomes, i))} disabled={i === editDiplomes.length - 1} style={{ width: 28, background: 'none', border: 'none', cursor: i === editDiplomes.length - 1 ? 'default' : 'pointer', color: i === editDiplomes.length - 1 ? C.sable : C.grey, fontSize: 15, lineHeight: 1, padding: 0, textAlign: 'center' as const }}>↓</button>
-                        <button type="button" onClick={() => setEditDiplomes(editDiplomes.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: C.grey, padding: '0 4px', lineHeight: 1, fontFamily: 'inherit' }}>Supprimer</button>
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <input style={editInputStyle} value={d.intitule} onChange={e => updateDip(i, { intitule: e.target.value })} placeholder="Intitulé du diplôme" />
-                      <input style={editInputStyle} value={d.ecole} onChange={e => updateDip(i, { ecole: e.target.value })} placeholder="École / Établissement" />
-                      <input style={editInputStyle} value={d.annee} onChange={e => updateDip(i, { annee: e.target.value })} placeholder="Année (ex : 2021)" />
-                      <input style={editInputStyle} value={d.mention ?? ''} onChange={e => updateDip(i, { mention: e.target.value })} placeholder="Mention (optionnel)" />
-                    </div>
-                  </div>
-                ))}
-                <button type="button" onClick={() => setEditDiplomes([...editDiplomes, { intitule: '', ecole: '', annee: '', mention: '' }])} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', borderRadius: 12, cursor: 'pointer', border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.terracotta, fontSize: 13, fontWeight: 600 }}>
-                  + Ajouter un diplôme
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {diplomes.map((d, i) => (
-                  <div key={i} style={{ backgroundColor: C.white, borderRadius: 14, padding: '14px 18px', border: `1px solid ${C.sable}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: C.dark }}>{d.intitule}</div>
-                      <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>
-                        {d.ecole}{d.annee && <> · {d.annee}</>}{d.mention && <> · <span style={{ color: C.terracotta }}>{d.mention}</span></>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* ── MON PROJET PHARE ───────────────────────────────────────────────── */}
-        {(isEditing || p.projet_phare) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>Mon projet phare</SLabel>
-            {isEditing ? (
-              <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '24px 28px', border: `1px solid ${C.sable}` }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <input style={editInputStyle} value={editProjetTitre} onChange={e => { const v = e.target.value; if (v.length <= MAX_PROJET_TITRE || v.length < editProjetTitre.length) setEditProjetTitre(v) }} placeholder="Titre du projet" />
-                    <SignatureCounter count={editProjetTitre.length} max={MAX_PROJET_TITRE} theme="dark" />
-                  </div>
-                  <div>
-                    <textarea style={{ ...editInputStyle, resize: 'vertical', lineHeight: 1.6, minHeight: 96 }} value={editProjetDesc} onChange={e => { const v = e.target.value; if (v.length <= MAX_PROJET_DESC || v.length < editProjetDesc.length) setEditProjetDesc(v) }} placeholder="Description du projet…" rows={4} />
-                    <SignatureCounter count={editProjetDesc.length} max={MAX_PROJET_DESC} theme="dark" />
-                  </div>
-                  <input style={editInputStyle} value={editProjetImpact} onChange={e => setEditProjetImpact(e.target.value)} placeholder="Résultat / Impact (ex : +67% d'engagement en 3 mois)" />
-                  <input style={editInputStyle} value={editProjetLien} onChange={e => setEditProjetLien(e.target.value)} placeholder="Lien du projet (https://…)" type="url" />
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>Images (max 5 · 5 MB)</div>
-                    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); processImageFiles(Array.from(e.dataTransfer.files)) }} style={{ border: `2px dashed ${C.sable}`, borderRadius: 10, padding: '14px 16px', backgroundColor: C.bg, textAlign: 'center' as const, marginBottom: 8, fontSize: 12, color: C.grey }}>
-                      {uploadingImages ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} />Upload en cours…</span> : 'Glissez des images ici'}
-                    </div>
-                    <button type="button" disabled={uploadingImages || editProjetImages.length >= 5} onClick={() => imageInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', opacity: (uploadingImages || editProjetImages.length >= 5) ? 0.5 : 1 }}>
-                      Ajouter des images{editProjetImages.length > 0 && <span style={{ color: C.grey }}>({editProjetImages.length}/5)</span>}
-                    </button>
-                    {editProjetImages.length > 0 && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: 6, marginTop: 8 }}>
-                        {editProjetImages.map((url, i) => (
-                          <div key={i} style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', aspectRatio: '16/9', backgroundColor: C.sable }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            <button type="button" onClick={() => setEditProjetImages(editProjetImages.filter((_, j) => j !== i))} style={{ position: 'absolute', top: 3, right: 3, width: 18, height: 18, borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.6)', color: C.white, border: 'none', cursor: 'pointer', fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>Vidéo (30 sec max · 50 MB)</div>
-                    <button type="button" disabled={uploadingVideo} onClick={() => videoInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: `1.5px solid ${C.sable}`, backgroundColor: C.bg, color: C.dark, fontSize: 12, fontWeight: 500, cursor: uploadingVideo ? 'default' : 'pointer', opacity: uploadingVideo ? 0.6 : 1 }}>
-                      {uploadingVideo ? <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: `2px solid rgba(0,0,0,0.12)`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.7s linear infinite' }} /> Upload en cours…</> : <>{editProjetVideo ? 'Changer la vidéo' : 'Ajouter une vidéo de présentation (30 sec max)'}</>}
-                    </button>
-                    {editProjetVideo && (
-                      <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.sable}` }}>
-                        <div style={{ backgroundColor: '#000' }}><video src={editProjetVideo} controls style={{ width: '100%', maxHeight: 200, display: 'block' }} /></div>
-                        <button type="button" onClick={() => setEditProjetVideo('')} style={{ display: 'block', width: '100%', padding: '7px', backgroundColor: C.bg, border: 'none', borderTop: `1px solid ${C.sable}`, color: C.grey, fontSize: 12, cursor: 'pointer' }}>Supprimer la vidéo</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div onClick={() => setProjetModal(true)} onMouseEnter={() => setProjetCardHover(true)} onMouseLeave={() => setProjetCardHover(false)} style={{ backgroundColor: C.vert, borderRadius: 18, padding: '28px 32px', cursor: 'pointer', filter: projetCardHover ? 'brightness(1.14)' : 'brightness(1)', transition: 'filter 0.18s' }}>
-                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.white, fontWeight: 600, marginBottom: 14 }}>{p.projet_titre || 'Projet phare'}</div>
-                <p style={{ margin: 0, fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_phare}</p>
-                <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Voir les détails du projet →</div>
-              </div>
-            )}
-          </div>
-        )}
-
-
-
-        {/* ── ENVIRONNEMENT RECHERCHÉ ────────────────────────────────────────── */}
-        {(isEditing || typeEntrepriseItems.length > 0) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>Environnement recherché</SLabel>
-            {isEditing && isOwner ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {Object.entries(ENVIRONNEMENT_MAP).map(([key, label]) => {
-                  const sel = editTypeEntreprise.includes(key)
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => {
-                        if (key === 'sans_pref') {
-                          setEditTypeEntreprise(sel ? [] : ['sans_pref'])
-                          return
-                        }
-                        if (sel) {
-                          setEditTypeEntreprise(editTypeEntreprise.filter(k => k !== key))
-                          return
-                        }
-                        const withoutSansPref = editTypeEntreprise.filter(k => k !== 'sans_pref')
-                        if (withoutSansPref.length >= 3) return
-                        setEditTypeEntreprise([...withoutSansPref, key])
-                      }}
-                      style={{
-                        padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: sel ? 600 : 400,
-                        backgroundColor: sel ? `${C.vert}12` : C.white,
-                        border: `1.5px solid ${sel ? C.vert : C.sable}`,
-                        color: sel ? C.vert : C.dark,
-                        cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                      }}
-                    >
-                      {sel ? '✓ ' : ''}{label}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {typeEntrepriseItems.map(item => (
-                  <span key={item} style={{
-                    padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-                    backgroundColor: C.white, border: `1px solid ${C.sable}`, color: C.dark,
-                  }}>
-                    {item}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* ── QUALITÉS ────────────────────────────────────────────────────────── */}
-        {(isEditing || qualites.length > 0 || qualitesProchesSel.length > 0 || unreadNotifCount > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>Qualités</SLabel>
-            {isEditing ? (
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 10px' }}>Mes qualités</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {editQualites.map(q => (
-                    <span key={q} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
-                      {q}<button type="button" onClick={() => setEditQualites(editQualites.filter(x => x !== q))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
-                    </span>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...editInputStyle, flex: 1 }} value={newQualite} onChange={e => setNewQualite(e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); const v = newQualite.trim(); if (v && !editQualites.includes(v)) { setEditQualites([...editQualites, v]); setNewQualite('') } }} placeholder="Ajouter une qualité… (Entrée pour valider)" />
-                  <button type="button" onClick={() => { const v = newQualite.trim(); if (v && !editQualites.includes(v)) { setEditQualites([...editQualites, v]); setNewQualite('') } }} style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>+</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {isOwner && unreadNotifCount > 0 && (
-                  <p style={{
-                    margin: '0 0 14px',
-                    padding: '11px 16px',
-                    borderRadius: 10,
-                    backgroundColor: `${C.terracotta}0F`,
-                    border: `1px solid ${C.terracotta}35`,
-                    fontSize: 13,
-                    color: C.terracotta,
-                    lineHeight: 1.55,
-                  }}>
-                    {unreadNotifCount === 1
-                      ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
-                      : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
-                  </p>
-                )}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {p.qualites_test && Object.entries(p.qualites_test)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([key, count]) => (
-                      <span key={key} style={{ display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}18`, color: C.vert, border: `1px solid ${C.vert}30`, fontSize: 12, fontWeight: 600 }}>
-                        {QUALITE_LABELS[key] ?? key}
-                        <span style={{ marginLeft: 5, fontSize: 10, opacity: 0.6, fontWeight: 400 }}>×{count}</span>
-                      </span>
-                    ))
-                  }
-                  {qualites.map(q => (
-                    <span key={q} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>{q}</span>
-                  ))}
-                  {qualitesProchesSel.map(s => (
-                    <span key={s.qualite} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500 }}>
-                      <LogoKapolia variante="sombre" avecTexte={false} taille={14} />
-                      {s.qualite}
-                    </span>
-                  ))}
-                </div>
-                {qualitesProchesSel.length > 0 && (
-                  <p style={{ margin: '8px 0 0', fontSize: 11, fontStyle: 'italic', color: C.grey }}>
-                    Les qualités marquées viennent de proches.
-                  </p>
-                )}
-              </>
-            )}
-            {isEditing && isOwner && (() => {
-              const limiteAtteinte = activeInvitations.length >= 4
-              const selMap   = new Map(editQualitesProches.map(s => [s.qualite, s.reponse_id]))
-              const totalSel = editQualitesProches.length
-              const unchanged =
-                totalSel === qualitesProchesSel.length &&
-                editQualitesProches.every(s =>
-                  qualitesProchesSel.some(c => c.qualite === s.qualite && c.reponse_id === s.reponse_id)
-                )
-              return (
-                <div>
-                  {/* Filet de séparation */}
-                  <div style={{ borderTop: `1px solid ${C.sable}`, margin: '20px 0 18px' }} />
-                  <p style={{ fontSize: 11, fontWeight: 600, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 14px' }}>Ce que mes proches disent de moi</p>
-
-                  {/* Bouton d'invitation */}
-                  <div style={{ marginBottom: 12 }}>
-                    <button
-                      onClick={() => setInvitModalOpen(true)}
-                      disabled={limiteAtteinte}
-                      style={{
-                        padding: '7px 16px', borderRadius: 8,
-                        border: `1.5px solid ${limiteAtteinte ? C.sable : C.terracotta}`,
-                        backgroundColor: C.white,
-                        color: limiteAtteinte ? C.grey : C.terracotta,
-                        fontSize: 13, fontWeight: 500,
-                        cursor: limiteAtteinte ? 'default' : 'pointer',
-                        fontFamily: 'inherit', opacity: limiteAtteinte ? 0.7 : 1,
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      Inviter un proche
-                    </button>
-                    {limiteAtteinte && (
-                      <p style={{ fontSize: 12, color: C.grey, margin: '6px 0 0', lineHeight: 1.5 }}>
-                        Vous avez déjà quatre invitations en attente. Supprimez-en une ou attendez qu'une expire.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Invitations en attente */}
-                  {activeInvitations.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
-                      {activeInvitations.map(inv => (
-                        <div key={inv.id} style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                          padding: '9px 12px', borderRadius: 8,
-                          backgroundColor: C.bg, border: `1px solid ${C.sable}`,
-                        }}>
-                          <span style={{ fontSize: 13, color: C.dark, flex: 1, lineHeight: 1.4 }}>
-                            {inv.label_proche} · {LIEN_LABELS[inv.lien] ?? inv.lien} · expire le {formatExpiry(inv.expire_at)}
-                          </span>
-                          <button
-                            onClick={() => supprimerInvitation(inv.id)}
-                            disabled={supprimantInvId === inv.id}
-                            style={{
-                              fontSize: 12, color: C.grey, background: 'none', border: 'none',
-                              cursor: supprimantInvId === inv.id ? 'default' : 'pointer',
-                              padding: '2px 0', flexShrink: 0, fontFamily: 'inherit',
-                            }}
-                          >
-                            {supprimantInvId === inv.id ? '...' : 'Supprimer'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Réponses — toutes les pastilles ensemble */}
-                  {reponsesProches.length > 0 && (() => {
-                    const flat = reponsesProches.flatMap(r =>
-                      r.qualites.map(q => ({ q, reponse_id: r.reponse_id, prenom: r.prenom_proche, lien: r.lien }))
-                    )
-                    return (
-                      <>
-                        <p style={{ fontSize: 12, color: C.grey, margin: '0 0 10px', lineHeight: 1.5 }}>
-                          Choisissez jusqu'à 3 qualités à afficher sur votre profil.
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-                          {flat.map(({ q, reponse_id, prenom }) => {
-                            const isChecked        = selMap.get(q) === reponse_id
-                            const isTakenElsewhere = selMap.has(q) && selMap.get(q) !== reponse_id
-                            const isDisabled       = isTakenElsewhere || (totalSel >= 3 && !isChecked)
-                            return (
-                              <label
-                                key={`${reponse_id}-${q}`}
-                                title={`Donnée par ${prenom}`}
-                                style={{
-                                  display: 'inline-flex', flexDirection: 'column', alignItems: 'center',
-                                  padding: '5px 12px 4px', borderRadius: 20,
-                                  backgroundColor: isChecked ? C.vert : C.white,
-                                  border: `1px solid ${isChecked ? C.vert : C.sable}`,
-                                  color: isChecked ? C.white : C.dark,
-                                  fontSize: 12, fontWeight: 500,
-                                  cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                  opacity: isDisabled && !isChecked ? 0.4 : 1,
-                                  transition: 'all 0.15s',
-                                  userSelect: 'none' as const,
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  disabled={isDisabled}
-                                  onChange={() => {
-                                    if (isChecked) {
-                                      setEditQualitesProches(prev =>
-                                        prev.filter(s => !(s.qualite === q && s.reponse_id === reponse_id))
-                                      )
-                                    } else if (!isDisabled) {
-                                      setEditQualitesProches(prev => [...prev, { reponse_id, qualite: q }])
-                                    }
-                                  }}
-                                  style={{ display: 'none' }}
-                                />
-                                {q}
-                                <span style={{ fontSize: 9, lineHeight: 1.3, marginTop: 1, opacity: isChecked ? 0.7 : 0.5 }}>{prenom}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                        <span style={{ fontSize: 11, color: C.grey }}>
-                          {totalSel}/3 sélectionnée{totalSel !== 1 ? 's' : ''}
-                        </span>
-                      </>
-                    )
-                  })()}
-                </div>
-              )
-            })()}
-          </div>
-        )}
-
-        {/* ── COMPÉTENCES ────────────────────────────────────────────────────── */}
-        {(isEditing || competencesAcquises.length > 0) && (
-          <div id="competences" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16, scrollMarginTop: 24 }}>
-            <SLabel>Compétences</SLabel>
-            {isEditing ? (() => {
-              const domain           = p.domaine ?? ''
-              const domainSuggs      = COMP_REF[domain] ?? []
-              const otherDomains     = DOMAINES.filter(d => d !== domain && !!COMP_REF[d])
-              const browseSuggs      = otherBrowseDomain ? (COMP_REF[otherBrowseDomain] ?? []) : []
-              const hasFreeTags      = editCompetences.some(c => !isFromRef(c))
-
-              const suggPill = (s: string): React.CSSProperties => {
-                const added = editCompetences.includes(s)
-                const full  = !added && editCompetences.length >= 15
-                return {
-                  padding: '5px 12px', borderRadius: 20, fontSize: 12,
-                  border: `1.5px solid ${added ? C.vert : C.sable}`,
-                  backgroundColor: added ? `${C.vert}12` : C.white,
-                  color: added ? C.vert : full ? C.sable : C.grey,
-                  cursor: full && !added ? 'default' : 'pointer',
-                  fontFamily: 'inherit', transition: 'all 0.15s',
-                }
-              }
-
-              return (
-                <div>
-                  {/* Tags sélectionnés */}
-                  {editCompetences.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                      {editCompetences.map(c => {
-                        const inRef = isFromRef(c)
-                        return (
-                          <span key={c} style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            padding: '5px 10px', borderRadius: 20, fontSize: 12, fontWeight: 500,
-                            backgroundColor: inRef ? `${C.vert}12` : C.chip,
-                            color: inRef ? C.vert : C.grey,
-                            border: `1.5px ${inRef ? 'solid' : 'dashed'} ${inRef ? `${C.vert}30` : C.sable}`,
-                          }}>
-                            {c}
-                            <button type="button" onClick={() => setEditCompetences(editCompetences.filter(x => x !== c))}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* Note explicative pour les compétences hors référentiel */}
-                  {hasFreeTags && (
-                    <p style={{ fontSize: 12, color: C.grey, marginBottom: 12, lineHeight: 1.5 }}>
-                      Les compétences en pointillés ne sont pas prises en compte dans le calcul de correspondance. Choisissez l'équivalent dans la liste pour qu'elles comptent.
-                    </p>
-                  )}
-
-                  {/* Suggestions du domaine courant */}
-                  {domainSuggs.length > 0 && (
-                    <div style={{ marginBottom: 12 }}>
-                      <p style={{ fontSize: 11, fontWeight: 500, color: C.grey, marginBottom: 8 }}>
-                        Suggestions pour « {domain} »
-                      </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {domainSuggs.map(s => {
-                          const full = !editCompetences.includes(s) && editCompetences.length >= 15
-                          return (
-                            <button key={s} type="button" onClick={() => !full && toggleEditCompetence(s)} style={suggPill(s)}>
-                              {editCompetences.includes(s) ? `✓ ${s}` : `+ ${s}`}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Autres domaines */}
-                  <button type="button"
-                    onClick={() => { setShowOtherDomains(v => !v); if (showOtherDomains) setOtherBrowseDomain(null) }}
-                    style={{ padding: '6px 13px', borderRadius: 20, fontSize: 12, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 10 }}>
-                    {showOtherDomains ? '— Réduire' : "+ Compétences d'autres domaines"}
-                  </button>
-
-                  {showOtherDomains && (
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                        {otherDomains.map(d => (
-                          <button key={d} type="button"
-                            onClick={() => setOtherBrowseDomain(d === otherBrowseDomain ? null : d)}
-                            style={{ padding: '5px 12px', borderRadius: 20, fontSize: 12, border: `1.5px solid ${d === otherBrowseDomain ? C.terracotta : C.sable}`, backgroundColor: d === otherBrowseDomain ? `${C.terracotta}10` : C.white, color: d === otherBrowseDomain ? C.terracotta : C.grey, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                            {d}
-                          </button>
-                        ))}
-                      </div>
-                      {otherBrowseDomain && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {browseSuggs.map(s => {
-                            const full = !editCompetences.includes(s) && editCompetences.length >= 15
-                            return (
-                              <button key={s} type="button" onClick={() => !full && toggleEditCompetence(s)} style={suggPill(s)}>
-                                {editCompetences.includes(s) ? `✓ ${s}` : `+ ${s}`}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Saisie libre */}
-                  {editCompetences.length < 15 && (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input style={{ ...editInputStyle, flex: 1 }} value={newCompetence}
-                        onChange={e => setNewCompetence(e.target.value)}
-                        onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }}
-                        placeholder="Autre compétence (saisie libre) — Entrée pour valider" />
-                      <button type="button"
-                        onClick={() => { const v = newCompetence.trim(); if (v && !editCompetences.includes(v)) { setEditCompetences([...editCompetences, v]); setNewCompetence('') } }}
-                        style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>+</button>
-                    </div>
-                  )}
-                  <p style={{ fontSize: 11, color: C.grey, marginTop: 6 }}>{editCompetences.length} / 15 compétences</p>
-                </div>
-              )
-            })() : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {competencesAcquises.map(s => <span key={s} style={{ padding: '5px 12px', borderRadius: 20, backgroundColor: C.sable, color: C.vert, border: `1px solid ${C.sable}`, fontSize: 12, fontWeight: 500 }}>{s}</span>)}
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* ── LANGUES ────────────────────────────────────────────────────────── */}
-        {(isEditing && isOwner ? true : langues.length > 0) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>Langues</SLabel>
-            {isEditing && isOwner ? (
-              <div>
-                {/* Menu déroulant d'ajout */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  <select
-                    value={selectingLangue}
-                    onChange={e => setSelectingLangue(e.target.value)}
-                    style={{ flex: 1, padding: '9px 12px', borderRadius: 8, fontFamily: 'inherit', border: `1px solid ${C.sable}`, backgroundColor: C.white, color: selectingLangue ? C.dark : C.grey, fontSize: 13, cursor: 'pointer', outline: 'none' }}
-                  >
-                    <option value="">Ajouter une langue…</option>
-                    {LANGUES.filter(l => !editLangues.some(e => e.startsWith(l.nom + ' — '))).map(l => (
-                      <option key={l.code} value={l.nom}>{l.nom}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    disabled={!selectingLangue}
-                    onClick={() => {
-                      if (!selectingLangue) return
-                      setEditLangues([...editLangues, `${selectingLangue} — Natif`])
-                      setSelectingLangue('')
-                    }}
-                    style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: selectingLangue ? C.vert : C.sable, color: C.white, fontSize: 18, cursor: selectingLangue ? 'pointer' : 'default', lineHeight: 1, transition: 'background 0.12s' }}
-                  >+</button>
-                </div>
-                {/* Langues ajoutées avec sélecteur de niveau */}
-                {editLangues.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {editLangues.map(entry => {
-                      const sepIdx = entry.indexOf(' — ')
-                      const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
-                      const niveau = sepIdx >= 0 ? entry.slice(sepIdx + 3) : 'Natif'
-                      return (
-                        <div key={nom} style={{ display: 'flex', alignItems: 'center', gap: 12, backgroundColor: C.white, borderRadius: 10, border: `1px solid ${C.sable}`, padding: '10px 14px' }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: C.dark, flex: 1 }}>{nom}</span>
-                          <select
-                            value={NIVEAUX_LANGUE.includes(niveau) ? niveau : 'Natif'}
-                            onChange={e => setEditLangues(editLangues.map(l =>
-                              l.startsWith(nom + ' — ') ? `${nom} — ${e.target.value}` : l
-                            ))}
-                            style={{ padding: '5px 10px', borderRadius: 8, fontFamily: 'inherit', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.dark, fontSize: 13, cursor: 'pointer', outline: 'none' }}
-                          >
-                            {NIVEAUX_LANGUE.map(n => <option key={n} value={n}>{n}</option>)}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setEditLangues(editLangues.filter(l => !l.startsWith(nom + ' — ')))}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 16, padding: '0 4px', lineHeight: 1 }}
-                          >✕</button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {langues.map((entry: string) => {
-                  const sepIdx = entry.indexOf(' — ')
-                  const nom    = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
-                  const niv    = sepIdx >= 0 ? entry.slice(sepIdx + 3) : ''
-                  return (
-                    <span key={entry} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                      {nom}{niv && <span style={{ color: C.grey, fontWeight: 400 }}> · {niv}</span>}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-
-        {/* ── CE QUI M'ANIME ────────────────────────────────────────────────── */}
-        {(isEditing && isOwner ? true : passions.length > 0) && (
-          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '18px', marginBottom: 16 }}>
-            <SLabel>{isOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel>
-            {isEditing && isOwner ? (
-              <div>
-                {/* Options prédéfinies */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                  {PASSIONS_SUGGESTIONS.map(nom => {
-                    const sel = editPassions.includes(nom)
-                    return (
-                      <button
-                        key={nom}
-                        type="button"
-                        onClick={() => setEditPassions(sel ? editPassions.filter(x => x !== nom) : [...editPassions, nom])}
-                        style={{
-                          padding: '6px 14px', borderRadius: 24, fontSize: 13, fontFamily: 'inherit',
-                          border: `1.5px solid ${sel ? C.vert : C.sable}`,
-                          backgroundColor: sel ? `${C.vert}12` : C.white,
-                          color: sel ? C.vert : C.dark,
-                          fontWeight: sel ? 600 : 400, cursor: 'pointer', transition: 'all 0.12s',
-                        }}
-                      >
-                        {nom}
-                      </button>
-                    )
-                  })}
-                </div>
-                {/* Tags personnalisés (valeurs hors suggestions prédéfinies) */}
-                {editPassions.filter(nom => !PASSIONS_SUGGESTIONS.includes(nom)).map(passion => (
-                  <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1px solid ${C.vert}25`, fontSize: 12, fontWeight: 500, marginRight: 6, marginBottom: 8 }}>
-                    {passion}<button type="button" onClick={() => setEditPassions(editPassions.filter(x => x !== passion))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, fontSize: 11, padding: 0, lineHeight: 1 }}>✕</button>
-                  </span>
-                ))}
-                {/* Champ libre pour passion personnalisée */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  <input
-                    style={{ ...editInputStyle, flex: 1 }}
-                    value={newPassion}
-                    onChange={e => setNewPassion(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key !== 'Enter') return
-                      e.preventDefault()
-                      const v = newPassion.trim()
-                      if (v && !editPassions.includes(v)) { setEditPassions([...editPassions, v]); setNewPassion('') }
-                    }}
-                    placeholder="Autre passion… (Entrée pour valider)"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { const v = newPassion.trim(); if (v && !editPassions.includes(v)) { setEditPassions([...editPassions, v]); setNewPassion('') } }}
-                    style={{ padding: '9px 16px', borderRadius: 8, border: 'none', backgroundColor: C.vert, color: C.white, fontSize: 18, cursor: 'pointer', lineHeight: 1 }}
-                  >+</button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {passions.map(passion => (
-                  <span key={passion} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 24, backgroundColor: C.white, border: `1px solid ${C.sable}`, fontSize: 13, color: C.dark, fontWeight: 500 }}>
-                    {passion}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-
-          </div>
-
-        </div>
-      </div>
-      )} {/* fin isEditing */}
 
       {/* ━━━ VUE LECTURE — mise en page une colonne ━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {!isEditing && (
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px 80px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* ── BANDEAU APERÇU RECRUTEUR ── */}
@@ -2813,7 +1446,7 @@ export default function ProfilView({
           )}
 
           {/* ── EN-TÊTE ── */}
-          <div style={{ backgroundColor: C.white, borderRadius: 16, boxShadow: CARD_SHADOW, padding: 22 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: 16, padding: 22, ...(enTeteIsOpen ? { border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` } : carteOuverte !== null ? { boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0)', pointerEvents: 'none' } : { boxShadow: CARD_SHADOW }) }}>
             <div className="profil-entete">
 
               {/* Portrait */}
@@ -2880,10 +1513,7 @@ export default function ProfilView({
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
                         Voir comme un recruteur
                       </button>
-                      <button className="profil-lien-action" onClick={startEdit}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        Modifier
-                      </button>
+                      {modifierBtn('presentation')}
                     </div>
                   ) : !apercuRecruteur ? (
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginLeft: 'auto' }}>
@@ -2934,7 +1564,7 @@ export default function ProfilView({
                     )}
                   </div>
                 ) : effectiveOwner ? (
-                  <button onClick={startEdit} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: 'transparent', color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start' }}>
+                  <button onClick={() => ouvrirCarte('presentation')} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: 'transparent', color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
                     Ajouter votre phrase
                   </button>
@@ -2958,7 +1588,7 @@ export default function ProfilView({
                       }
                     </span>
                   ) : effectiveOwner ? (
-                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       Indiquer votre disponibilité
                     </button>
@@ -2971,7 +1601,7 @@ export default function ProfilView({
                       {(p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' ou ')}
                     </span>
                   ) : effectiveOwner ? (
-                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       Indiquer le contrat recherché
                     </button>
@@ -2984,7 +1614,7 @@ export default function ProfilView({
                       {p.ville}
                     </span>
                   ) : effectiveOwner ? (
-                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       Indiquer votre ville
                     </button>
@@ -3005,7 +1635,7 @@ export default function ProfilView({
                       {(p.permis ?? []).map(v => PERMIS.find(x => x.value === v)?.label ?? v).join(', ')}
                     </span>
                   ) : effectiveOwner ? (
-                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       Ajouter vos permis
                     </button>
@@ -3040,11 +1670,32 @@ export default function ProfilView({
 
               </div>
             </div>
+            {enTeteIsOpen && effectiveOwner && (
+              <>
+                <p style={{ fontSize: 13.5, color: C.grey, margin: '16px 0 8px' }}>Modifiez votre présentation et vos informations de recherche.</p>
+                {cardFooter(carteOuverte!)}
+              </>
+            )}
           </div>
 
           {/* ── PARCOURS ── */}
-          {(experiences.length > 0 || diplomes.length > 0) && (
-            <CarteParcoursView experiences={experiences} diplomes={diplomes} />
+          {(effectiveOwner || experiences.length > 0 || diplomes.length > 0) && (
+            <div style={carteWrapStyle('parcours', '20px 22px')}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <SLabel20>Parcours</SLabel20>
+                {effectiveOwner && modifierBtn('parcours')}
+              </div>
+              {carteOuverte === 'parcours' ? (
+                <>
+                  <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Ajoutez ou modifiez vos expériences et formations.</p>
+                  {cardFooter('parcours')}
+                </>
+              ) : (
+                (experiences.length > 0 || diplomes.length > 0)
+                  ? <CarteParcoursView experiences={experiences} diplomes={diplomes} />
+                  : <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Ajoutez votre parcours professionnel et vos formations.</p>
+              )}
+            </div>
           )}
 
           {/* ── QUALITÉS ── */}
@@ -3062,70 +1713,90 @@ export default function ProfilView({
             const selIds = new Set(qualitesProchesSel.map(s => s.reponse_id))
             const uniqueProches = [...new Map(reponsesProches.filter(r => selIds.has(r.reponse_id)).map(r => [r.prenom_proche, r])).values()].map(r => r.prenom_proche)
             return (
-              <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-                <SLabel20>Qualités</SLabel20>
-                {effectiveOwner && unreadNotifCount > 0 && (
-                  <p style={{ margin: '0 0 14px', padding: '11px 16px', borderRadius: 10, backgroundColor: `${C.terracotta}0F`, border: `1px solid ${C.terracotta}35`, fontSize: 13, color: C.terracotta, lineHeight: 1.55 }}>
-                    {unreadNotifCount === 1
-                      ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
-                      : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
-                  </p>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                      Selon le questionnaire
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                      {testLabels.length > 0 ? testLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
-                    </div>
-                  </div>
-                  <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
-                      {uniqueProches.length > 0 ? (
-                        <span style={{ display: 'inline-flex', gap: 2, flexShrink: 0 }}>
-                          {uniqueProches.slice(0, 3).map((prenom, j) => (
-                            <span key={j} style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: `${C.vert}22`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: C.vert }}>
-                              {(prenom[0] ?? '?').toUpperCase()}
+              <div style={carteWrapStyle('qualites')}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <SLabel20>Qualités</SLabel20>
+                  {effectiveOwner && modifierBtn('qualites')}
+                </div>
+                {carteOuverte === 'qualites' ? (
+                  <>
+                    <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Choisissez vos qualités et sélectionnez celles reçues de vos proches.</p>
+                    {cardFooter('qualites')}
+                  </>
+                ) : (
+                  <>
+                    {effectiveOwner && unreadNotifCount > 0 && (
+                      <p style={{ margin: '0 0 14px', padding: '11px 16px', borderRadius: 10, backgroundColor: `${C.terracotta}0F`, border: `1px solid ${C.terracotta}35`, fontSize: 13, color: C.terracotta, lineHeight: 1.55 }}>
+                        {unreadNotifCount === 1
+                          ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
+                          : `Vous avez reçu ${unreadNotifCount} réponses de proches. Modifiez votre profil pour découvrir leurs mots.`}
+                      </p>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                      <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                          Selon le questionnaire
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                          {testLabels.length > 0 ? testLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                        </div>
+                      </div>
+                      <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                          {uniqueProches.length > 0 ? (
+                            <span style={{ display: 'inline-flex', gap: 2, flexShrink: 0 }}>
+                              {uniqueProches.slice(0, 3).map((prenom, j) => (
+                                <span key={j} style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: `${C.vert}22`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, color: C.vert }}>
+                                  {(prenom[0] ?? '?').toUpperCase()}
+                                </span>
+                              ))}
                             </span>
-                          ))}
-                        </span>
-                      ) : (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
-                        </svg>
-                      )}
-                      {effectiveOwner ? 'Selon vos proches' : 'Selon ses proches'}
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                          )}
+                          {effectiveOwner ? 'Selon vos proches' : 'Selon ses proches'}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                          {procheLabels.length > 0 ? procheLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                        </div>
+                      </div>
+                      <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                          {effectiveOwner ? 'Selon vous' : `Selon ${p.prenom}`}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
+                          {candidatLabels.length > 0 ? candidatLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                      {procheLabels.length > 0 ? procheLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: 11, color: C.grey }}>
+                      <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: C.vert, flexShrink: 0, display: 'inline-block' }} />
+                      Qualité commune à plusieurs sources
                     </div>
-                  </div>
-                  <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                      {effectiveOwner ? 'Selon vous' : `Selon ${p.prenom}`}
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                      {candidatLabels.length > 0 ? candidatLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: 11, color: C.grey }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: C.vert, flexShrink: 0, display: 'inline-block' }} />
-                  Qualité commune à plusieurs sources
-                </div>
+                  </>
+                )}
               </div>
             )
           })()}
 
           {/* ── COMPÉTENCES ── */}
           {(competencesAcquises.length > 0 || effectiveOwner) && (
-            <div id="competences" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px', scrollMarginTop: 24 }}>
-              <SLabel20>Compétences</SLabel20>
-              {competencesAcquises.length > 0 ? (
+            <div id="competences" style={{ ...carteWrapStyle('competences'), scrollMarginTop: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <SLabel20>Compétences</SLabel20>
+                {effectiveOwner && modifierBtn('competences')}
+              </div>
+              {carteOuverte === 'competences' ? (
+                <>
+                  <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Ajoutez vos compétences techniques ou transverses.</p>
+                  {cardFooter('competences')}
+                </>
+              ) : competencesAcquises.length > 0 ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                   {competencesAcquises.map(s => (
                     <span key={s} style={{ padding: '4px 10px', borderRadius: 7, backgroundColor: C.chip, color: C.chipTexte, fontSize: 13, fontWeight: 500 }}>{s}</span>
@@ -3134,7 +1805,7 @@ export default function ProfilView({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 13, color: C.grey }}>Ajoutez vos compétences techniques ou transverses.</span>
-                  <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                  <button onClick={() => ouvrirCarte('competences')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
                 </div>
               )}
             </div>
@@ -3142,9 +1813,17 @@ export default function ProfilView({
 
           {/* ── PROJET PHARE ── */}
           {(p.projet_phare || effectiveOwner) && (
-            <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-              <SLabel20>Mon projet phare</SLabel20>
-              {p.projet_phare ? (
+            <div style={carteWrapStyle('projet')}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <SLabel20>Mon projet phare</SLabel20>
+                {effectiveOwner && modifierBtn('projet')}
+              </div>
+              {carteOuverte === 'projet' ? (
+                <>
+                  <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Présentez votre réalisation la plus marquante.</p>
+                  {cardFooter('projet')}
+                </>
+              ) : p.projet_phare ? (
                 <div style={{ display: 'grid', gridTemplateColumns: p.projet_resultat ? '150px 1fr' : '1fr', gap: 16, alignItems: 'center' }}>
                   {p.projet_resultat && (
                     <div style={{ width: 120, height: 120, borderRadius: 14, backgroundColor: C.vert, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '12px 8px', flexShrink: 0 }}>
@@ -3164,7 +1843,7 @@ export default function ProfilView({
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
                   <span style={{ fontSize: 13, color: C.grey }}>Présentez votre réalisation la plus marquante.</span>
-                  <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                  <button onClick={() => ouvrirCarte('projet')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
                 </div>
               )}
             </div>
@@ -3176,9 +1855,17 @@ export default function ProfilView({
 
               {/* Ce qui compte */}
               {(effectiveOwner || (p.priorites && p.priorites.length > 0)) && (
-                <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-                  <SLabel17>Ce qui compte</SLabel17>
-                  {p.priorites && p.priorites.length > 0 ? (
+                <div style={carteWrapStyle('priorites')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <SLabel17>Ce qui compte</SLabel17>
+                    {effectiveOwner && modifierBtn('priorites')}
+                  </div>
+                  {carteOuverte === 'priorites' ? (
+                    <>
+                      <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Vos priorités en termes d&apos;environnement de travail.</p>
+                      {cardFooter('priorites')}
+                    </>
+                  ) : p.priorites && p.priorites.length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
                       {(p.priorites ?? []).map(item => (
                         <span key={item} style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 8, backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600 }}>{item}</span>
@@ -3187,7 +1874,7 @@ export default function ProfilView({
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ fontSize: 13, color: C.grey }}>Vos priorités en termes d&apos;environnement.</span>
-                      <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                      <button onClick={() => ouvrirCarte('priorites')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
                     </div>
                   )}
                 </div>
@@ -3195,9 +1882,17 @@ export default function ProfilView({
 
               {/* Ce qui anime */}
               {(effectiveOwner || passions.length > 0) && (
-                <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-                  <SLabel17>{effectiveOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
-                  {passions.length > 0 ? (
+                <div style={carteWrapStyle('passions')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <SLabel17>{effectiveOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
+                    {effectiveOwner && modifierBtn('passions')}
+                  </div>
+                  {carteOuverte === 'passions' ? (
+                    <>
+                      <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Vos passions en dehors du travail.</p>
+                      {cardFooter('passions')}
+                    </>
+                  ) : passions.length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
                       {passions.map(passion => (
                         <div key={passion} style={{ width: 96, padding: '12px 6px', borderRadius: 12, backgroundColor: C.bg, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 6 }}>
@@ -3211,7 +1906,7 @@ export default function ProfilView({
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ fontSize: 13, color: C.grey }}>Vos passions en dehors du travail.</span>
-                      <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                      <button onClick={() => ouvrirCarte('passions')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
                     </div>
                   )}
                 </div>
@@ -3219,9 +1914,17 @@ export default function ProfilView({
 
               {/* Liens */}
               {(effectiveOwner || liensAffiches.length > 0) && (
-                <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-                  <SLabel17>Liens</SLabel17>
-                  {liensAffiches.length > 0 ? (
+                <div style={carteWrapStyle('liens')}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <SLabel17>Liens</SLabel17>
+                    {effectiveOwner && modifierBtn('liens')}
+                  </div>
+                  {carteOuverte === 'liens' ? (
+                    <>
+                      <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Ajoutez votre LinkedIn, portfolio ou site web.</p>
+                      {cardFooter('liens')}
+                    </>
+                  ) : liensAffiches.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
                       {liensAffiches.map((lien, i) => {
                         let hostname = ''
@@ -3244,7 +1947,7 @@ export default function ProfilView({
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ fontSize: 13, color: C.grey }}>Ajoutez votre LinkedIn, portfolio ou site web.</span>
-                      <button onClick={startEdit} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
+                      <button onClick={() => ouvrirCarte('liens')} style={{ padding: '5px 14px', borderRadius: 8, border: 'none', backgroundColor: C.salaire, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Ajouter</button>
                     </div>
                   )}
                 </div>
@@ -3254,24 +1957,9 @@ export default function ProfilView({
           )}
 
         </div>
-      )}
-
-      {/* ━━━ BARRE FLOTTANTE ÉDITION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {isEditing && (
-        <div style={{ position: 'fixed', bottom: 0, left: 'var(--kapolia-sidebar-w)', right: 0, zIndex: 200, backgroundColor: C.dark, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '14px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Mode édition — modifications non sauvegardées</span>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={cancelEdit} style={{ padding: '8px 20px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Annuler</button>
-            <button onClick={saveEdit} disabled={saving} style={{ padding: '8px 22px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.65 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {saving && <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
-              {saving ? 'Sauvegarde…' : 'Sauvegarder'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ━━━ MODALE PROJET PHARE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-      {projetModal && !isEditing && (
+      {projetModal && (
         <div onClick={() => setProjetModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px, 4%, 40px)' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
@@ -3695,7 +2383,7 @@ export default function ProfilView({
         />
       )}
 
-      {effectiveOwner && <AssistantProfilPanel isEditing={isEditing} />}
+      {effectiveOwner && <AssistantProfilPanel isEditing={false} />}
     </main>
   )
 }

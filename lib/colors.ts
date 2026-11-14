@@ -30,6 +30,12 @@ export const C = {
   succes:        '#3E8E5E',
   attente:       '#C88A2A',
   erreur:        '#C0392B',
+
+  // Édition carte par carte
+  accent:        '#C2611F',              // bordure active / focus
+  lien:          '#A9541A',              // texte lien / bouton Modifier
+  peche:         'rgba(194,97,31,.08)',  // fond étiquette « En modification »
+  bord:          '#E5E8E5',              // bordure de champ (alias sable)
 } as const
 
 export const CARD_SHADOW = '0 1px 2px rgba(27, 48, 38, .06), 0 6px 16px rgba(27, 48, 38, .07)' as const
