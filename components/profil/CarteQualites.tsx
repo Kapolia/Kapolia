@@ -5,6 +5,7 @@ import { C } from '@/lib/colors'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import ChampSuggestions from '@/components/profil/ChampSuggestions'
 import { type ActiveInvitation } from '@/components/InvitationModal'
+import { reduitMouvement } from '@/lib/motion'
 
 type ReponseGroupe = {
   reponse_id:    string
@@ -131,13 +132,24 @@ export default function CarteQualites({
                 {r.qualites.map(q => {
                   const checked = editQualitesProches.some(s => s.reponse_id === r.reponse_id && s.qualite === q)
                   return (
-                    <button key={q} type="button" onClick={() => toggleProche(r.reponse_id, q)}
+                    <button key={q} type="button"
+                      onClick={e => {
+                        const wasChecked = editQualitesProches.some(s => s.reponse_id === r.reponse_id && s.qualite === q)
+                        toggleProche(r.reponse_id, q)
+                        if (!wasChecked && typeof window !== 'undefined' && !reduitMouvement()) {
+                          ;(e.currentTarget as HTMLElement).animate(
+                            [{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }],
+                            { duration: 280, easing: 'ease-in-out' }
+                          )
+                        }
+                      }}
                       style={{
                         padding: '4px 10px', borderRadius: 7, fontSize: 13, fontWeight: 500,
                         cursor: 'pointer', fontFamily: 'inherit',
                         border: checked ? '1.5px solid #BFD3C7' : `1px solid ${C.sable}`,
                         backgroundColor: checked ? C.salaire : C.white,
                         color: checked ? C.vert : C.dark,
+                        transition: 'background-color 180ms, color 180ms, border-color 180ms',
                       }}>
                       {q}
                     </button>

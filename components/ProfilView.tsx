@@ -29,6 +29,7 @@ import InvitationModal, { type ActiveInvitation } from '@/components/InvitationM
 import AssistantProfilPanel from '@/components/AssistantProfilPanel'
 import { C, CARD_RADIUS, CARD_SHADOW } from '@/lib/colors'
 import { sanitizeFilename, normalizeText } from '@/lib/storage-utils'
+import { EASE, reduitMouvement } from '@/lib/motion'
 
 
 function isFromRef(comp: string): boolean {
@@ -617,6 +618,7 @@ export default function ProfilView({
 
   const [carteOuverte, setCarteOuverte]     = useState<CarteType | null>(null)
   const [savingCarte, setSavingCarte]       = useState(false)
+  const [carteSaved,  setCarteSaved]        = useState<CarteType | null>(null)
   const [carteErreur, setCarteErreur]       = useState('')
   const [carteModifiee, setCarteModifiee]   = useState(false)
 
@@ -700,6 +702,8 @@ export default function ProfilView({
   const chunksRef            = useRef<Blob[]>([])
   const countdownTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const recordTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null)
+  const hasAnimated          = useRef(false)
+  const prevCarteRef         = useRef<CarteType | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -975,6 +979,69 @@ export default function ProfilView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── Animations d'entrée (blocs + pastilles) ───────────────────────────────
+  useEffect(() => {
+    if (loading || hasAnimated.current) return
+    hasAnimated.current = true
+    if (typeof window === 'undefined' || reduitMouvement()) return
+    requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLElement>('[data-profil-bloc]').forEach((el, i) => {
+        el.animate(
+          [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
+          { duration: 450, delay: i * 70, fill: 'both', easing: EASE }
+        )
+      })
+      document.querySelectorAll<HTMLElement>('[data-profil-pastille]').forEach((el, i) => {
+        el.animate(
+          [{ opacity: '0', transform: 'scale(0.92)' }, { opacity: '1', transform: 'scale(1)' }],
+          { duration: 350, delay: 250 + i * 45, fill: 'both', easing: EASE }
+        )
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading])
+
+  // ── Animation ouverture / fermeture de carte ──────────────────────────────
+  useEffect(() => {
+    const prev = prevCarteRef.current
+    prevCarteRef.current = carteOuverte
+    if (typeof window === 'undefined' || reduitMouvement()) return
+    const toKey = (c: CarteType | null) =>
+      (c === 'presentation' || c === 'recherche') ? 'presentation' : c
+    if (carteOuverte) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-carte="${toKey(carteOuverte)}"]`)
+        if (!el) return
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        el.animate(
+          [{ opacity: '0', transform: 'translateY(6px) scale(0.99)' }, { opacity: '1', transform: 'none' }],
+          { duration: 340, fill: 'both', easing: EASE }
+        )
+      })
+    } else if (prev) {
+      requestAnimationFrame(() => {
+        const el = document.querySelector<HTMLElement>(`[data-carte="${toKey(prev)}"]`)
+        if (el) el.animate(
+          [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
+          { duration: 300, fill: 'both', easing: EASE }
+        )
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carteOuverte])
+
+  // ── Liseré vert après enregistrement ─────────────────────────────────────
+  useEffect(() => {
+    if (!carteSaved || typeof window === 'undefined' || reduitMouvement()) return
+    const key = (carteSaved === 'presentation' || carteSaved === 'recherche') ? 'presentation' : carteSaved
+    const el = document.querySelector<HTMLElement>(`[data-carte="${key}"]`)
+    if (el) el.animate(
+      [{ boxShadow: `inset 0 0 0 2px ${C.succes}` }, { boxShadow: 'inset 0 0 0 2px transparent' }],
+      { duration: 1600, fill: 'both', easing: 'ease-out' }
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carteSaved])
+
   function ouvrirCarte(carte: CarteType) {
     if (carteModifiee) { setCarteErreur('Enregistrez ou annulez d\'abord vos changements.'); return }
     if (carte === 'presentation' || carte === 'recherche') {
@@ -1075,6 +1142,7 @@ export default function ProfilView({
 
   async function enregistrerCarte(carte: CarteType) {
     setSavingCarte(true); setCarteErreur('')
+    const saveStart = Date.now()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSavingCarte(false); return }
 
@@ -1094,8 +1162,12 @@ export default function ProfilView({
         }
         setEditLiensErrs({})
       }
+      const e1 = Date.now() - saveStart; if (e1 < 400) await new Promise(r => setTimeout(r, 400 - e1))
       setProfil(prev => prev ? { ...prev, liens: editLiens } : null)
-      setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false); showToast('Modifications enregistrées'); return
+      setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false)
+      setCarteSaved(carte)
+      setTimeout(() => { setCarteSaved(null); showToast('Modifications enregistrées') }, 2200)
+      return
     }
 
     let payload: Record<string, unknown> = {}
@@ -1140,6 +1212,7 @@ export default function ProfilView({
     else if (carte === 'passions') payload = { passions: editPassions }
 
     const { error } = await supabase.from('profils').update(payload).eq('user_id', user.id)
+    const e2 = Date.now() - saveStart; if (e2 < 400) await new Promise(r => setTimeout(r, 400 - e2))
     if (error) { setCarteErreur(error.message); setSavingCarte(false); return }
 
     if (carte === 'qualites') {
@@ -1153,7 +1226,9 @@ export default function ProfilView({
     }
 
     setProfil(prev => prev ? { ...prev, ...payload } : null)
-    setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false); showToast('Modifications enregistrées')
+    setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false)
+    setCarteSaved(carte)
+    setTimeout(() => { setCarteSaved(null); showToast('Modifications enregistrées') }, 2200)
   }
 
   async function processImageFiles(files: File[]) {
@@ -1424,20 +1499,29 @@ export default function ProfilView({
 
   function carteWrapStyle(carte: CarteType, padding?: string): React.CSSProperties {
     const p2 = padding ?? '20px 22px'
-    const base: React.CSSProperties = { backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: p2 }
+    const base: React.CSSProperties = { backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: p2, transition: 'opacity 300ms ease, filter 300ms ease' }
     if (carteOuverte === carte) return { ...base, border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` }
-    if (carteOuverte !== null) return { ...base, boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0)', pointerEvents: 'none' as const }
+    if (carteOuverte !== null) return { ...base, boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0.5)', pointerEvents: 'none' as const }
     return { ...base, boxShadow: CARD_SHADOW }
   }
 
   function modifierBtn(carte: CarteType) {
     const isOpen = carte === 'presentation' || carte === 'recherche' ? enTeteIsOpen : carteOuverte === carte
-    return isOpen
-      ? <span style={{ fontSize: 12, fontWeight: 700, color: C.lien, backgroundColor: C.peche, borderRadius: 6, padding: '2px 8px' }}>En modification</span>
-      : <button onClick={() => ouvrirCarte(carte)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.lien, padding: '2px 0', fontFamily: 'inherit' }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Modifier
-        </button>
+    if (isOpen) return (
+      <span style={{ fontSize: 12, fontWeight: 700, color: C.lien, backgroundColor: C.peche, borderRadius: 6, padding: '2px 8px' }}>En modification</span>
+    )
+    if (carteSaved === carte) return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: C.succes, animation: 'profil-saved-label 220ms ease both' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Enregistré
+      </span>
+    )
+    return (
+      <button onClick={() => ouvrirCarte(carte)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.lien, padding: '2px 0', fontFamily: 'inherit' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Modifier
+      </button>
+    )
   }
 
   function cardFooter(carte: CarteType) {
@@ -1446,7 +1530,7 @@ export default function ProfilView({
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.sable}` }}>
         <button onClick={annulerCarte} style={{ padding: '8px 18px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.grey, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
         <button onClick={() => enregistrerCarte(carte)} disabled={savingCarte} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 13, fontWeight: 600, cursor: savingCarte ? 'default' : 'pointer', opacity: savingCarte ? 0.75 : 1, fontFamily: 'inherit' }}>
-          {savingCarte && <span style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite', flexShrink: 0, display: 'inline-block' }} />}
+          {savingCarte && <span style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.6s linear infinite', flexShrink: 0, display: 'inline-block' }} />}
           {savingCarte ? 'Enregistrement' : 'Enregistrer'}
         </button>
       </div>
@@ -1460,6 +1544,9 @@ export default function ProfilView({
       <style suppressHydrationWarning>{`
         @keyframes kapolia-spin { to { transform: rotate(360deg); } }
         @keyframes kapolia-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+        @keyframes profil-halo { 0%{box-shadow:0 0 0 0 rgba(62,142,94,0)} 35%{box-shadow:0 0 6px 0 rgba(62,142,94,.45)} 100%{box-shadow:0 0 0 0 rgba(62,142,94,0)} }
+        @keyframes profil-saved-label { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:none} }
+        @media (prefers-reduced-motion: no-preference) { .profil-qualite-vert { animation: profil-halo 1.2s ease-out 900ms both; } }
         * { box-sizing: border-box; }
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
         .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:#A9541A; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
@@ -1518,7 +1605,7 @@ export default function ProfilView({
           )}
 
           {/* ── EN-TÊTE ── */}
-          <div style={{ backgroundColor: C.white, borderRadius: 16, padding: 22, ...(enTeteIsOpen ? { border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` } : carteOuverte !== null ? { boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0)', pointerEvents: 'none' } : { boxShadow: CARD_SHADOW }) }}>
+          <div data-profil-bloc="1" data-carte="presentation" style={{ backgroundColor: C.white, borderRadius: 16, padding: 22, transition: 'opacity 300ms ease, filter 300ms ease', ...(enTeteIsOpen ? { border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` } : carteOuverte !== null ? { boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0.5)', pointerEvents: 'none' } : { boxShadow: CARD_SHADOW }) }}>
             <div className="profil-entete">
 
               {/* Portrait */}
@@ -1647,7 +1734,7 @@ export default function ProfilView({
 
                   {/* Disponibilité */}
                   {p.disponibilite ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       {p.disponibilite === 'maintenant' ? 'Disponible maintenant'
                         : p.disponibilite === 'a_partir_de' ? (() => {
@@ -1668,7 +1755,7 @@ export default function ProfilView({
 
                   {/* Contrat */}
                   {(p.type_poste ?? []).length > 0 ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       {(p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' ou ')}
                     </span>
@@ -1681,7 +1768,7 @@ export default function ProfilView({
 
                   {/* Ville */}
                   {p.ville ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       {p.ville}
                     </span>
@@ -1694,7 +1781,7 @@ export default function ProfilView({
 
                   {/* Télétravail */}
                   {modeTravailLabel && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M3 12l2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
                       {modeTravailLabel}
                     </span>
@@ -1702,7 +1789,7 @@ export default function ProfilView({
 
                   {/* Permis */}
                   {(p.permis ?? []).length > 0 ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       {(p.permis ?? []).map(v => PERMIS.find(x => x.value === v)?.label ?? v).join(', ')}
                     </span>
@@ -1731,7 +1818,7 @@ export default function ProfilView({
                       return niv ? `${n} ${niv}` : n
                     }).join(', ')
                     return (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                      <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                         {texte}
                       </span>
@@ -1783,7 +1870,7 @@ export default function ProfilView({
 
           {/* ── PARCOURS ── */}
           {(effectiveOwner || experiences.length > 0 || diplomes.length > 0) && (
-            <div style={carteWrapStyle('parcours', '20px 22px')}>
+            <div data-profil-bloc="1" data-carte="parcours" style={carteWrapStyle('parcours', '20px 22px')}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <SLabel20>Parcours</SLabel20>
                 {effectiveOwner && modifierBtn('parcours')}
@@ -1822,7 +1909,7 @@ export default function ProfilView({
             const selIds = new Set(qualitesProchesSel.map(s => s.reponse_id))
             const uniqueProches = [...new Map(reponsesProches.filter(r => selIds.has(r.reponse_id)).map(r => [r.prenom_proche, r])).values()].map(r => r.prenom_proche)
             return (
-              <div style={carteWrapStyle('qualites')}>
+              <div data-profil-bloc="1" data-carte="qualites" style={carteWrapStyle('qualites')}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                   <SLabel20>Qualités</SLabel20>
                   {effectiveOwner && modifierBtn('qualites')}
@@ -1859,7 +1946,7 @@ export default function ProfilView({
                           Selon le questionnaire
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                          {testLabels.length > 0 ? testLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                          {testLabels.length > 0 ? testLabels.map(label => <span key={label} style={tagSt(label)} className={isCommun(label) ? 'profil-qualite-vert' : undefined}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
                         </div>
                       </div>
                       <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
@@ -1881,7 +1968,7 @@ export default function ProfilView({
                           {effectiveOwner ? 'Selon vos proches' : 'Selon ses proches'}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                          {procheLabels.length > 0 ? procheLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                          {procheLabels.length > 0 ? procheLabels.map(label => <span key={label} style={tagSt(label)} className={isCommun(label) ? 'profil-qualite-vert' : undefined}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
                         </div>
                       </div>
                       <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
@@ -1890,7 +1977,7 @@ export default function ProfilView({
                           {effectiveOwner ? 'Selon vous' : `Selon ${p.prenom}`}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
-                          {candidatLabels.length > 0 ? candidatLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
+                          {candidatLabels.length > 0 ? candidatLabels.map(label => <span key={label} style={tagSt(label)} className={isCommun(label) ? 'profil-qualite-vert' : undefined}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
                         </div>
                       </div>
                     </div>
@@ -1906,7 +1993,7 @@ export default function ProfilView({
 
           {/* ── COMPÉTENCES ── */}
           {(competencesAcquises.length > 0 || effectiveOwner) && (
-            <div id="competences" style={{ ...carteWrapStyle('competences'), scrollMarginTop: 24 }}>
+            <div id="competences" data-profil-bloc="1" data-carte="competences" style={{ ...carteWrapStyle('competences'), scrollMarginTop: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <SLabel20>Compétences</SLabel20>
                 {effectiveOwner && modifierBtn('competences')}
@@ -1937,7 +2024,7 @@ export default function ProfilView({
 
           {/* ── PROJET PHARE ── */}
           {(p.projet_phare || effectiveOwner) && (
-            <div style={carteWrapStyle('projet')}>
+            <div data-profil-bloc="1" data-carte="projet" style={carteWrapStyle('projet')}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <SLabel20>Mon projet phare</SLabel20>
                 {effectiveOwner && modifierBtn('projet')}
@@ -1995,7 +2082,7 @@ export default function ProfilView({
 
               {/* Ce qui compte */}
               {(effectiveOwner || (p.priorites && p.priorites.length > 0)) && (
-                <div style={carteWrapStyle('priorites')}>
+                <div data-profil-bloc="1" data-carte="priorites" style={carteWrapStyle('priorites')}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <SLabel17>Ce qui compte</SLabel17>
                     {effectiveOwner && modifierBtn('priorites')}
@@ -2026,7 +2113,7 @@ export default function ProfilView({
 
               {/* Ce qui anime */}
               {(effectiveOwner || passions.length > 0) && (
-                <div style={carteWrapStyle('passions')}>
+                <div data-profil-bloc="1" data-carte="passions" style={carteWrapStyle('passions')}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <SLabel17>{effectiveOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
                     {effectiveOwner && modifierBtn('passions')}
@@ -2062,7 +2149,7 @@ export default function ProfilView({
 
               {/* Liens */}
               {(effectiveOwner || liensAffiches.length > 0) && (
-                <div style={carteWrapStyle('liens')}>
+                <div data-profil-bloc="1" data-carte="liens" style={carteWrapStyle('liens')}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <SLabel17>Liens</SLabel17>
                     {effectiveOwner && modifierBtn('liens')}

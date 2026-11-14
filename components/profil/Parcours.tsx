@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { EASE, reduitMouvement } from '@/lib/motion'
 import { type ReactNode } from 'react'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { FONT_SERIF } from '@/lib/typography'
@@ -93,6 +94,33 @@ export default function CarteParcoursView({
   const cardRef                     = useRef<HTMLDivElement>(null)
   const itemRefs                    = useRef<Record<string, HTMLDivElement | null>>({})
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || reduitMouvement()) return
+    requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLElement>('[data-frise-seg]').forEach((el, i) => {
+        el.animate(
+          [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }],
+          { duration: 700, delay: 380 + i * 60, fill: 'both', easing: 'cubic-bezier(.3,.7,.2,1)' }
+        )
+      })
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!showAll || typeof window === 'undefined' || reduitMouvement()) return
+    experiences.slice(VISI).forEach((_, j) => {
+      const el = itemRefs.current[String(VISI + j)] as HTMLElement | null
+      if (!el) return
+      el.getAnimations().forEach(a => a.cancel())
+      el.animate(
+        [{ opacity: '0', transform: 'translateY(12px)' }, { opacity: '1', transform: 'none' }],
+        { duration: 450, delay: j * 50, fill: 'both', easing: EASE }
+      )
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAll])
+
   // ── Préparer les données pour calculerFrise ──────────────────────────────
   const postsForFrise: PosteParcours[] = []
   experiences.forEach((e, i) => {
@@ -133,11 +161,30 @@ export default function CarteParcoursView({
 
   function toggleAll() {
     if (showAll) {
-      setShowAll(false)
-      const card = cardRef.current
-      if (card && card.getBoundingClientRect().top < 0) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (typeof window === 'undefined' || reduitMouvement()) {
+        setShowAll(false)
+        return
       }
+      const hidden = experiences.slice(VISI)
+      if (hidden.length === 0) { setShowAll(false); return }
+      const items = hidden
+        .map((_, j) => itemRefs.current[String(VISI + j)] as HTMLElement | null)
+        .filter((el): el is HTMLElement => !!el)
+        .reverse()
+      items.forEach((el, i) => {
+        el.animate(
+          [{ opacity: '1', transform: 'none' }, { opacity: '0', transform: 'translateY(-8px)' }],
+          { duration: 220, delay: i * 30, easing: EASE }
+        )
+      })
+      const delay = 220 + (items.length - 1) * 30 + 50
+      setTimeout(() => {
+        setShowAll(false)
+        const card = cardRef.current
+        if (card && card.getBoundingClientRect().top < 0) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, delay)
     } else {
       setShowAll(true)
     }
@@ -198,6 +245,7 @@ export default function CarteParcoursView({
               return (
                 <button
                   key={seg.id}
+                  data-frise-seg="1"
                   aria-pressed={isActive}
                   onClick={() => handleSegClick(seg.id)}
                   style={{
@@ -246,6 +294,7 @@ export default function CarteParcoursView({
                 return (
                   <div
                     key={seg.id}
+                    data-frise-seg="1"
                     style={{
                       position: 'absolute',
                       left: `${seg.gauche}%`,
