@@ -8,7 +8,9 @@ import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES } from '@/lib/langues'
-import { COMP_REF, DOMAINES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
+import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
+import CartePresentation from '@/components/profil/CartePresentation'
+import CarteRecherche from '@/components/profil/CarteRecherche'
 import { anneesExperience, lireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
@@ -609,6 +611,11 @@ export default function ProfilView({
   const [carteErreur, setCarteErreur]       = useState('')
   const [carteModifiee, setCarteModifiee]   = useState(false)
 
+  const [editPrenom, setEditPrenom]                 = useState('')
+  const [editNom, setEditNom]                       = useState('')
+  const [editMetier, setEditMetier]                 = useState('')
+  const [editDomaine, setEditDomaine]               = useState('')
+  const [editExperience, setEditExperience]         = useState('')
   const [editSignature, setEditSignature]           = useState('')
   const [signatureExpanded, setSignatureExpanded]   = useState(false)
   const [editQualites, setEditQualites]             = useState<string[]>([])
@@ -653,7 +660,7 @@ export default function ProfilView({
   const [editTypeEntreprise, setEditTypeEntreprise] = useState<string[]>([])
   const [editPriorite, setEditPriorite]             = useState<string[]>([])
   const [editLangues, setEditLangues]               = useState<string[]>([])
-  const [selectingLangue, setSelectingLangue]       = useState('')
+
   const [editPassions, setEditPassions]             = useState<string[]>([])
   const [newPassion, setNewPassion]                 = useState('')
   const [uploadingVedette, setUploadingVedette]     = useState(false)
@@ -953,6 +960,8 @@ export default function ProfilView({
   function ouvrirCarte(carte: CarteType) {
     if (carteModifiee) { setCarteErreur('Enregistrez ou annulez d\'abord vos changements.'); return }
     if (carte === 'presentation' || carte === 'recherche') {
+      setEditPrenom(p.prenom ?? ''); setEditNom(p.nom ?? ''); setEditMetier(p.metier ?? '')
+      setEditDomaine(p.domaine ?? ''); setEditExperience(p.experience ?? '')
       setEditSignature(p.signature ?? ''); setEditDispo(p.disponibilite ?? ''); setEditDispoDate(p.dispo_date ?? '')
       setEditTypePoste([...(p.type_poste ?? [])]); setEditModeTravail(p.mode_travail ?? ''); setEditVille(p.ville ?? '')
       setEditTypeEntreprise([...(p.type_entreprise ?? [])]); setEditLangues([...(p.langues ?? [])]); setEditPermis([...(p.permis ?? [])])
@@ -1071,7 +1080,7 @@ export default function ProfilView({
     }
 
     let payload: Record<string, unknown> = {}
-    if (carte === 'presentation') payload = { signature: editSignature, disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, type_entreprise: editTypeEntreprise, langues: editLangues, permis: editPermis }
+    if (carte === 'presentation') payload = { prenom: editPrenom, nom: editNom, metier: editMetier || null, domaine: editDomaine || null, experience: editExperience || null, signature: editSignature }
     else if (carte === 'recherche') payload = { disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, type_entreprise: editTypeEntreprise, langues: editLangues, permis: editPermis }
     else if (carte === 'parcours') payload = { experiences: editExperiences, diplomes: editDiplomes }
     else if (carte === 'qualites') payload = { qualites: editQualites }
@@ -1672,7 +1681,38 @@ export default function ProfilView({
             </div>
             {enTeteIsOpen && effectiveOwner && (
               <>
-                <p style={{ fontSize: 13.5, color: C.grey, margin: '16px 0 8px' }}>Modifiez votre présentation et vos informations de recherche.</p>
+                {carteOuverte === 'presentation' ? (
+                  <CartePresentation
+                    profil={p}
+                    editPrenom={editPrenom} setEditPrenom={setEditPrenom}
+                    editNom={editNom} setEditNom={setEditNom}
+                    editMetier={editMetier} setEditMetier={setEditMetier}
+                    editDomaine={editDomaine} setEditDomaine={setEditDomaine}
+                    editExperience={editExperience} setEditExperience={setEditExperience}
+                    editSignature={editSignature} setEditSignature={setEditSignature}
+                    sigTextareaRef={sigTextareaRef}
+                    videoPresentation={p.video_presentation_url}
+                    uploadingVedette={uploadingVedette}
+                    deletingVideo={deletingVideo}
+                    onOpenAvatarModal={openAvatarModal}
+                    onOpenRecord={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
+                    vedetteVideoInputRef={vedetteVideoInputRef}
+                    onDeleteVideo={deleteVideoPresentation}
+                    onChange={() => setCarteModifiee(true)}
+                  />
+                ) : (
+                  <CarteRecherche
+                    editDispo={editDispo} setEditDispo={setEditDispo}
+                    editDispoDate={editDispoDate} setEditDispoDate={setEditDispoDate}
+                    editTypePoste={editTypePoste} setEditTypePoste={setEditTypePoste}
+                    editVille={editVille} setEditVille={setEditVille}
+                    editModeTravail={editModeTravail} setEditModeTravail={setEditModeTravail}
+                    editTypeEntreprise={editTypeEntreprise} setEditTypeEntreprise={setEditTypeEntreprise}
+                    editPermis={editPermis} setEditPermis={setEditPermis}
+                    editLangues={editLangues} setEditLangues={setEditLangues}
+                    onChange={() => setCarteModifiee(true)}
+                  />
+                )}
                 {cardFooter(carteOuverte!)}
               </>
             )}
