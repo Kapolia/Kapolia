@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import PanneauRdv from '@/components/PanneauRdv'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#C8C8C8' as const }
 
@@ -369,7 +369,7 @@ function ColonneJour({ evenements, weekend, onSelect }: {
 function SemaineVide() {
   return (
     <div style={{ padding: '64px 0', textAlign: 'center' }}>
-      <div style={{ fontSize: 16, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', color: C.dark, marginBottom: 8 }}>
+      <div style={{ fontSize: 16, fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', color: C.dark, marginBottom: 8 }}>
         Aucun rendez-vous cette semaine
       </div>
       <div style={{ fontSize: 13, color: C.grey, lineHeight: 1.65 }}>
@@ -565,7 +565,7 @@ export default function CalendrierPage() {
         flexShrink:      0,
       }}>
         <h1 style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600,
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 700,
           color: C.dark, margin: 0,
         }}>
           Calendrier

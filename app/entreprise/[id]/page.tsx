@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { scoreBreakdownCandidat, type ProfilMatch } from '@/lib/matching'
 import {
   EntrepriseVitrineContenu,
@@ -92,7 +92,7 @@ export default function EntrepriseVitrinePage() {
   if (fetchError) return (
     <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 'var(--kapolia-sidebar-w)' : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
+        <p style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, margin: '0 0 8px' }}>Une erreur est survenue</p>
         <p style={{ fontSize: 14, color: C.grey, margin: 0 }}>Impossible de charger cette page. Veuillez réessayer dans quelques instants.</p>
       </div>
     </div>
@@ -101,7 +101,7 @@ export default function EntrepriseVitrinePage() {
   if (notFound || !ep) return (
     <div style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: isConnected ? 'var(--kapolia-sidebar-w)' : 0 }}>
       <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
+        <h1 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 24, color: C.dark, margin: '0 0 10px' }}>Entreprise introuvable</h1>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px' }}>Cette page n'existe pas ou l'entreprise n'a pas encore configuré son profil.</p>
         <a href="/offres" style={{ padding: '11px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'none', display: 'inline-block' }}>Voir les offres</a>
       </div>

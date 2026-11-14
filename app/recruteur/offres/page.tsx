@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
 
@@ -136,7 +136,7 @@ function ConfirmModal({ message, onConfirm, onCancel }: { message: string; onCon
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 400, backgroundColor: 'rgba(26,26,26,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onCancel}>
       <div style={{ backgroundColor: C.white, borderRadius: 18, padding: '28px 32px', maxWidth: 380, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.16)', animation: 'kapolia-modal 0.18s ease' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, marginBottom: 10 }}>Confirmer la suppression</div>
+        <div style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, marginBottom: 10 }}>Confirmer la suppression</div>
         <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.65, margin: '0 0 22px' }}>{message}</p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onCancel} style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
@@ -172,7 +172,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
         {/* Top bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.bg, gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark }}>{offre.titre}</span>
+            <span style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 15, color: C.dark }}>{offre.titre}</span>
             <span style={{ padding: '2px 10px', borderRadius: 20, backgroundColor: `${C.grey}14`, fontSize: 11, color: C.grey, fontWeight: 600 }}>Aperçu</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -188,7 +188,7 @@ function OffreDetailModal({ offre, onClose, onEdit }: { offre: OffreRow; onClose
         <div style={{ padding: '28px 32px', borderBottom: `1px solid ${C.sable}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
             <div>
-              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 6px', fontWeight: 600 }}>{offre.titre}</h2>
+              <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 6px', fontWeight: 700 }}>{offre.titre}</h2>
               <div style={{ fontSize: 14, color: C.grey }}>
                 {[offre.ville].filter(Boolean).join(', ')}
                 {offre.mode_travail && <span style={{ color: modeColor, fontWeight: 500 }}> · {offre.mode_travail}</span>}
@@ -343,7 +343,7 @@ function OffreCard({ offre, selected, onSelect, onDetail, onViewCands, onArchive
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Clickable title */}
-            <button onClick={e => { e.stopPropagation(); onDetail() }} style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, lineHeight: 1.2, marginBottom: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textDecorationColor: 'transparent', textUnderlineOffset: 3, transition: 'text-decoration-color 0.15s', fontStyle: 'normal' }}
+            <button onClick={e => { e.stopPropagation(); onDetail() }} style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, lineHeight: 1.2, marginBottom: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textDecorationColor: 'transparent', textUnderlineOffset: 3, transition: 'text-decoration-color 0.15s', fontStyle: 'normal' }}
               onMouseEnter={e => (e.currentTarget.style.textDecorationColor = C.terracotta)}
               onMouseLeave={e => (e.currentTarget.style.textDecorationColor = 'transparent')}
             >
@@ -485,7 +485,7 @@ function EmptyState({ onPublish }: { onPublish: () => void }) {
       <div style={{ width: 64, height: 64, borderRadius: '50%', backgroundColor: `${C.terracotta}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={C.terracotta} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
       </div>
-      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark, margin: '0 0 10px' }}>Aucune offre publiée</h2>
+      <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 22, color: C.dark, margin: '0 0 10px' }}>Aucune offre publiée</h2>
       <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.7, margin: '0 0 28px' }}>Commencez à attirer les meilleurs talents en publiant votre première offre. C'est rapide et gratuit.</p>
       <button onClick={onPublish} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
         Publier ma première offre →
@@ -674,7 +674,7 @@ export default function MesOffresPage() {
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 16 }}>
             <div>
-              <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 3.5vw, 32px)', fontWeight: 600, color: C.dark, margin: '0 0 6px', lineHeight: 1.15 }}>Mes offres</h1>
+              <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 3.5vw, 32px)', fontWeight: 700, color: C.dark, margin: '0 0 6px', lineHeight: 1.15 }}>Mes offres</h1>
               {!loading && (
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 13, color: C.vert, fontWeight: 600 }}>● {stats.actives} active{stats.actives !== 1 ? 's' : ''}</span>
@@ -729,7 +729,7 @@ export default function MesOffresPage() {
         ) : displayed.length === 0 ? (
           <div style={{ backgroundColor: C.white, borderRadius: 18, border: `1px solid ${C.sable}`, padding: '60px 24px', textAlign: 'center' }}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>◎</div>
-            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, marginBottom: 6 }}>Aucune offre dans cette catégorie</div>
+            <div style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, marginBottom: 6 }}>Aucune offre dans cette catégorie</div>
             <div style={{ fontSize: 13, color: C.grey }}>Essayez un autre filtre ou modifiez votre recherche.</div>
           </div>
         ) : (

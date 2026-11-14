@@ -1,4 +1,4 @@
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_LOGO } from '@/lib/typography'
 import { C } from '@/lib/colors'
 
 export type Variante = 'sombre' | 'clair' | 'contour' | 'terracotta' | 'monochrome'
@@ -105,7 +105,7 @@ export default function LogoKapolia({
       {symbol}
       <span
         style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+          fontFamily: FONT_LOGO, letterSpacing: '-0.005em',
           fontWeight: 600,
           fontSize:   typeof taille === 'number' ? `${Math.round(taille * 0.56)}px` : undefined,
           color:      c.texte,

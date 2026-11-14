@@ -2,18 +2,18 @@
  * Constantes typographiques Kapolia.
  *
  * Utilisation dans les styles inline React :
- *   import { FONT_SANS, FONT_SERIF, FS, LH } from '@/lib/typography'
+ *   import { FONT_SANS, FONT_LOGO, FS, LH } from '@/lib/typography'
  *
- *   fontFamily: FONT_SERIF
+ *   fontFamily: FONT_SANS
  *   fontSize:   FS.h1
  *   lineHeight: LH.relaxed
  */
 
-/** Police sans-serif — corps de texte, interface, formulaires (variable 400–700) */
-export const FONT_SANS  = "'Source Sans 3', system-ui, sans-serif" as const
+/** Police sans-serif — tous les textes interface, titres, formulaires (variable 400–700) */
+export const FONT_SANS = "'Source Sans 3', system-ui, sans-serif" as const
 
-/** Police serif — titres, accents éditoriaux (poids 600 uniquement, letter-spacing -0.005em) */
-export const FONT_SERIF = "'Lora', Georgia, serif" as const
+/** Lora 600 uniquement, réservée au nom « Kapolia » du logo */
+export const FONT_LOGO = "'Lora', Georgia, serif" as const
 
 /**
  * Échelle de tailles en px.

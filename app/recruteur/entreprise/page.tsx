@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { PROFIL_SELECT, OFFRES_PREVIEW } from '@/components/EntrepriseVitrine'
 import { sanitizeFilename } from '@/lib/storage-utils'
 import { C as _C } from '@/lib/colors'
@@ -87,7 +87,7 @@ function LogoBlock({ url, nom, size = 76 }: { url: string | null; nom: string; s
   )
   return (
     <div style={{ width: size, height: size, borderRadius: Math.round(size / 5), backgroundColor: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1.5px solid rgba(255,255,255,0.2)' }}>
-      <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: Math.round(size * 0.42), fontWeight: 600, color: C.white }}>{(nom || 'E').charAt(0).toUpperCase()}</span>
+      <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: Math.round(size * 0.42), fontWeight: 600, color: C.white }}>{(nom || 'E').charAt(0).toUpperCase()}</span>
     </div>
   )
 }
@@ -95,7 +95,7 @@ function LogoBlock({ url, nom, size = 76 }: { url: string | null; nom: string; s
 function SCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 18, border: `1px solid ${C.sable}`, padding: '24px 28px', marginBottom: 16 }}>
-      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, margin: '0 0 18px' }}>{title}</h2>
+      <h2 style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 17, color: C.dark, margin: '0 0 18px' }}>{title}</h2>
       {children}
     </div>
   )
@@ -409,7 +409,7 @@ export default function RecruteurEntreprisePage() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(20px, 4vw, 28px)', color: C.dark, margin: '0 0 3px' }}>Modifier mon entreprise</h1>
+            <h1 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(20px, 4vw, 28px)', color: C.dark, margin: '0 0 3px' }}>Modifier mon entreprise</h1>
             <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Ces informations s'affichent sur votre vitrine publique et vos offres.</p>
           </div>
           <button onClick={() => setEditing(false)} style={{ backgroundColor: 'transparent', border: `1.5px solid ${C.sable}`, borderRadius: 10, padding: '8px 18px', fontSize: 13, color: C.grey, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
@@ -750,7 +750,7 @@ export default function RecruteurEntreprisePage() {
     <main style={{ backgroundColor: C.bg, minHeight: '100vh' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', padding: '60px 24px', textAlign: 'center' }}>
         <div style={{ width: 88, height: 88, borderRadius: 22, backgroundColor: C.sable, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, marginBottom: 28 }}>🏢</div>
-        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 30px)', color: C.dark, margin: '0 0 10px' }}>Votre vitrine entreprise</h1>
+        <h1 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 30px)', color: C.dark, margin: '0 0 10px' }}>Votre vitrine entreprise</h1>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 32px', lineHeight: 1.7, maxWidth: 420 }}>Renseignez le profil de votre entreprise pour qu'il s'affiche sur vos offres et votre page publique.</p>
         <button onClick={startEdit} style={{ backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 14, padding: '14px 36px', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Créer mon profil entreprise →</button>
       </div>
@@ -780,7 +780,7 @@ export default function RecruteurEntreprisePage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 22, flexWrap: 'wrap' }}>
             <LogoBlock url={profil.entreprise_logo_url} nom={nom} size={76} />
             <div style={{ flex: 1, minWidth: 200 }}>
-              <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(26px, 5vw, 42px)', color: C.white, margin: '0 0 10px', lineHeight: 1.1 }}>{nom}</h1>
+              <h1 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(26px, 5vw, 42px)', color: C.white, margin: '0 0 10px', lineHeight: 1.1 }}>{nom}</h1>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 26 }}>
                 {profil.entreprise_secteur && <span style={{ fontSize: 13, color: C.sable }}>⬡ {profil.entreprise_secteur}</span>}
                 {profil.entreprise_ville   && <span style={{ fontSize: 13, color: C.sable }}>◎ {profil.entreprise_ville}</span>}
@@ -798,14 +798,14 @@ export default function RecruteurEntreprisePage() {
         {profil.entreprise_mission && (
           <section style={{ marginBottom: 52, textAlign: 'center', padding: '0 24px' }}>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.terracotta, marginBottom: 14 }}>Notre mission</div>
-            <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(18px, 2.5vw, 24px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>« {profil.entreprise_mission} »</p>
+            <p style={{ fontFamily: FONT_SANS, fontWeight: 400, letterSpacing: '-0.005em', fontSize: 'clamp(18px, 2.5vw, 24px)', color: C.dark, lineHeight: 1.6, margin: 0, fontStyle: 'italic' }}>« {profil.entreprise_mission} »</p>
           </section>
         )}
 
         {/* Description */}
         {profil.entreprise_description && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Qui sommes-nous</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Qui sommes-nous</h2>
             {profil.entreprise_description.split('\n\n').filter(Boolean).map((para, i) => (
               <p key={i} style={{ fontSize: 15, color: '#3A3A3A', lineHeight: 1.75, margin: '0 0 14px' }}>{para}</p>
             ))}
@@ -817,7 +817,7 @@ export default function RecruteurEntreprisePage() {
           const embed = videoEmbedUrl(profil.entreprise_video_url!)
           return (
             <section style={{ marginBottom: 52 }}>
-              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
+              <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nous en vidéo</h2>
               {embed ? (
                 <div style={{ position: 'relative', paddingTop: '56.25%', borderRadius: 16, overflow: 'hidden', backgroundColor: C.dark }}>
                   <iframe src={embed} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
@@ -834,11 +834,11 @@ export default function RecruteurEntreprisePage() {
         {/* Chiffres clés */}
         {chiffres.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 20px' }}>En chiffres</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 20px' }}>En chiffres</h2>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(chiffres.length, 3)}, 1fr)`, gap: 14 }}>
               {chiffres.map(c => (
                 <div key={c.key} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 20px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 600, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
+                  <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 4vw, 32px)', color: C.vert, fontWeight: 700, marginBottom: 6, lineHeight: 1 }}>{profil[c.key] as string}</div>
                   <div style={{ fontSize: 11, color: C.grey, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{c.label}</div>
                 </div>
               ))}
@@ -849,14 +849,14 @@ export default function RecruteurEntreprisePage() {
         {/* Histoire */}
         {histoire.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 28px' }}>Notre histoire</h2>
             <div style={{ position: 'relative', paddingLeft: 28 }}>
               <div style={{ position: 'absolute', left: 7, top: 6, bottom: 6, width: 2, backgroundColor: C.sable }} />
               {histoire.map((etape, i) => (
                 <div key={i} style={{ position: 'relative', marginBottom: i < histoire.length - 1 ? 32 : 0 }}>
                   <div style={{ position: 'absolute', left: -25, top: 4, width: 10, height: 10, borderRadius: '50%', backgroundColor: C.terracotta, border: `2px solid ${C.bg}`, boxSizing: 'border-box' }} />
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.terracotta, letterSpacing: '0.07em', marginBottom: 4 }}>{etape.annee}</div>
-                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
+                  <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: etape.description ? 4 : 0 }}>{etape.titre}</div>
                   {etape.description && <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>{etape.description}</div>}
                 </div>
               ))}
@@ -867,7 +867,7 @@ export default function RecruteurEntreprisePage() {
         {/* Valeurs */}
         {valeurs.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nos valeurs</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Nos valeurs</h2>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {valeurs.map(v => <div key={v} style={{ padding: '13px 22px', borderRadius: 14, backgroundColor: C.vert, fontSize: 15, fontWeight: 600, color: C.bg }}>{v}</div>)}
             </div>
@@ -877,7 +877,7 @@ export default function RecruteurEntreprisePage() {
         {/* Avantages */}
         {avantages.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>La vie chez nous</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {avantages.map(a => (
                 <div key={a} style={{ backgroundColor: C.white, border: '1px solid #E3D9C6', borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -892,11 +892,11 @@ export default function RecruteurEntreprisePage() {
         {/* Témoignages */}
         {temoignages.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Ils en parlent</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
               {temoignages.map((t, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 16, padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SERIF, letterSpacing: '-0.005em' }}>"</div>
+                  <div style={{ fontSize: 28, color: C.terracotta, lineHeight: 1, fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em' }}>"</div>
                   <p style={{ fontSize: 14, color: '#3A3A3A', lineHeight: 1.7, fontStyle: 'italic', margin: 0, flex: 1 }}>{t.citation}</p>
                   <div style={{ fontSize: 12, color: C.grey, fontWeight: 500 }}>{t.poste}</div>
                 </div>
@@ -907,7 +907,7 @@ export default function RecruteurEntreprisePage() {
 
         {/* Offres */}
         <section style={{ marginBottom: 52 }}>
-          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>
+          <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>
             Offres actives {offres.length > 0 && <span style={{ fontSize: 16, color: C.grey, fontWeight: 400 }}>({offres.length})</span>}
           </h2>
           {offres.length === 0 ? (
@@ -920,7 +920,7 @@ export default function RecruteurEntreprisePage() {
               {(offresExpanded ? offres : offres.slice(0, OFFRES_PREVIEW)).map(o => (
                 <div key={o.id} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 150 }}>
-                    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
+                    <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 15, color: C.dark, fontWeight: 600, marginBottom: 5 }}>{o.titre}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                       {o.type_contrat && <span style={{ fontSize: 11, fontWeight: 700, color: C.vert, backgroundColor: `${C.vert}12`, padding: '2px 9px', borderRadius: 20 }}>{o.type_contrat}</span>}
                       {o.ville && <span style={{ fontSize: 12, color: C.grey }}>◎ {o.ville}{o.mode_travail ? ` · ${o.mode_travail}` : ''}</span>}
@@ -942,7 +942,7 @@ export default function RecruteurEntreprisePage() {
         {/* Presse */}
         {presse.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Dans la presse</h2>
+            <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(19px, 3vw, 25px)', color: C.dark, margin: '0 0 18px' }}>Dans la presse</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {presse.map((item, i) => (
                 <div key={i} style={{ backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 13 }}>

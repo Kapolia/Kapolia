@@ -30,7 +30,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { ouvrirConversation, trouverConversation } from '@/lib/conversations'
 import RdvBubble from '@/components/RdvBubble'
 import { notifRdvPropose } from '@/lib/actions/email-notifs'
@@ -155,7 +155,7 @@ function sortedConvs(c: LocalConv[]) {
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
 function Avatar({ i, bg, s = 38 }: { i: string; bg: string; s?: number }) {
-  return <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>{i}</div>
+  return <div style={{ width: s, height: s, borderRadius: '50%', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: s * 0.33, color: C.white, flexShrink: 0 }}>{i}</div>
 }
 
 // ─── Checkmarks ───────────────────────────────────────────────────────────────
@@ -427,12 +427,12 @@ function ProfilePanel({ profil, onClose }: { profil: CandidatProfil; onClose: ()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '14px 16px', borderBottom: `1px solid ${C.sable}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 14, color: C.dark }}>Profil candidat</span>
+        <span style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 14, color: C.dark }}>Profil candidat</span>
         <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', backgroundColor: C.bg, color: C.grey, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px' }}>
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: profil.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.white, margin: '0 auto 10px' }}>{profil.initiales}</div>
+          <div style={{ width: 60, height: 60, borderRadius: '50%', backgroundColor: profil.avatarBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.white, margin: '0 auto 10px' }}>{profil.initiales}</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>{profil.nom}</div>
           <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>{profil.domaine}</div>
           <div style={{ fontSize: 11, color: C.grey, marginTop: 2 }}>{profil.ville} · {profil.experienceAns}</div>
@@ -1159,7 +1159,7 @@ function MessagesPageInner() {
       <div style={{ width: 280, flexShrink: 0, height: '100%', backgroundColor: C.white, borderRight: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.sable}`, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, color: C.dark }}>Messages</span>
+            <span style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 17, color: C.dark }}>Messages</span>
             {totalUnread > 0 && <span style={{ padding: '1px 7px', borderRadius: 10, backgroundColor: C.terracotta, color: C.white, fontSize: 11, fontWeight: 700 }}>{totalUnread}</span>}
           </div>
           <div style={{ position: 'relative' }}>
@@ -1345,7 +1345,7 @@ function MessagesPageInner() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
           <div style={{ textAlign: 'center', maxWidth: 300 }}>
             <div style={{ width: 72, height: 72, borderRadius: '50%', backgroundColor: `${C.vert}18`, border: `2px solid ${C.vert}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 32 }}>✉️</div>
-            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
+            <div style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 19, color: C.dark, marginBottom: 10 }}>Votre messagerie</div>
             <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>Sélectionnez une conversation dans la liste pour afficher les messages.</div>
           </div>
         </div>

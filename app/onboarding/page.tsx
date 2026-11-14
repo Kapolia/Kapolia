@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import LogoKapolia from '@/components/LogoKapolia'
 import InvitationModal from '@/components/InvitationModal'
 import {
@@ -182,7 +182,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
         <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
         <span style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
           fontWeight: 600,
           fontSize: 14,
           color: C.vert,
@@ -231,8 +231,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
             Trouvez votre cap{' '}!
           </p>
           <h1 className="kv-title" style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-            fontWeight: 600,
+            fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+            fontWeight: 700,
             fontSize: 48,
             lineHeight: 1.06,
             color: '#22312B',
@@ -331,8 +331,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 10 }}>
             <span style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-              fontWeight: 600,
+              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+              fontWeight: 700,
               fontSize: 34,
               color: C.vert,
               lineHeight: 1,
@@ -498,8 +498,8 @@ function QualitesCarousel({
     return (
       <div>
         <p style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark,
-          margin: '0 0 10px', fontWeight: 600, lineHeight: 1.3,
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 22, color: C.dark,
+          margin: '0 0 10px', fontWeight: 700, lineHeight: 1.3,
         }}>
           Votre profil de qualités est prêt.
         </p>
@@ -578,8 +578,8 @@ function QualitesCarousel({
 
       {/* Texte de la situation */}
       <p style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark,
-        margin: '0 0 20px', lineHeight: 1.5, fontWeight: 600,
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, color: C.dark,
+        margin: '0 0 20px', lineHeight: 1.5, fontWeight: 700,
       }}>
         {situation.texte}
       </p>
@@ -733,8 +733,8 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
       {/* Titre */}
       <h1 className="final-title" style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-        fontWeight: 600,
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+        fontWeight: 700,
         lineHeight: 1.1,
         color: C.bg,
         textAlign: 'center',
@@ -768,7 +768,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
           textAlign: 'left',
         }}>
           <p style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+            fontFamily: FONT_SANS, letterSpacing: '-0.005em',
             fontWeight: 600,
             fontSize: 17,
             color: '#22312B',
@@ -900,11 +900,11 @@ function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: st
         Étape {num} sur {TOTAL}
       </p>
       <h2 style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
         fontSize: 'clamp(22px, 3.5vw, 32px)',
         color: C.dark, lineHeight: '1.35',
         marginBottom: sub ? '10px' : '28px',
-        fontWeight: 'normal',
+        fontWeight: 700,
       }}>
         {text}
       </h2>
@@ -2004,7 +2004,7 @@ function OnboardingPageInner() {
   if (isRefaire) return (
     <main style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header style={{ padding: '20px clamp(20px,5%,48px)', borderBottom: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
-        <span style={{ fontFamily: FONT_SERIF, fontSize: 20, fontWeight: 600, color: C.dark }}>Refaire le questionnaire</span>
+        <span style={{ fontFamily: FONT_SANS, fontSize: 20, fontWeight: 700, color: C.dark }}>Refaire le questionnaire</span>
         <a href="/profil" style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>Revenir à mon profil</a>
       </header>
       <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px clamp(20px,5%,48px)' }}>
@@ -2046,7 +2046,7 @@ function OnboardingPageInner() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${C.sable}`,
       }}>
-        <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
+        <span style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
         <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
           {step} / {TOTAL}
         </span>

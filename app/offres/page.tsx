@@ -4,7 +4,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef, useId } from 're
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { scoreBreakdownCandidat, profilSuffisantPourScoreCandidat, type ProfilMatch, type ScoreBreakdown } from '@/lib/matching'
 import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, TELETRAVAIL_OPTIONS, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, normaliserDebut } from '@/lib/referentiels'
 import { matchHoraires, matchPermis, matchAutres } from '@/lib/offres-filtres'
@@ -1695,7 +1695,7 @@ function AutresPillButton({
 function EmptyState() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '72px 24px', textAlign: 'center' }}>
-      <h3 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
+      <h3 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 8px' }}>
         Aucune offre pour le moment
       </h3>
       <p style={{ fontSize: 14, color: C.grey, margin: 0, maxWidth: 360, lineHeight: 1.65 }}>
@@ -1746,7 +1746,7 @@ function EmptyStateFilters({
       gap: 10,
     }}>
       <h3 style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
         fontSize: 17, fontWeight: 600,
         color: C.dark, margin: 0, lineHeight: 1.3,
       }}>
@@ -2457,8 +2457,8 @@ export default function OffresPage() {
 
             {/* Titre */}
             <h1 style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-              fontSize: 21, color: C.bg, fontWeight: 600,
+              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+              fontSize: 21, color: C.bg, fontWeight: 700,
               margin: '0 0 12px', lineHeight: 1.2,
             }}>
               Offres d&apos;emploi

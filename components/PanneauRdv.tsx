@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { notifRdvAnnule } from '@/lib/actions/email-notifs'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#C8C8C8' as const }
@@ -339,7 +339,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
           padding: '16px 20px', borderBottom: `1px solid ${C.sable}`,
           flexShrink: 0,
         }}>
-          <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, fontWeight: 600 }}>
+          <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, fontWeight: 600 }}>
             Rendez-vous
           </span>
           <div style={{ flex: 1 }} />

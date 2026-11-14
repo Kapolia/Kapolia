@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useLayoutEffect, Suspense } from 
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { largeurUtile } from '@/lib/largeur-utile'
@@ -586,7 +586,7 @@ function CeQuiVousAttend({ cand, conv, rdv, recruteurNom, offresProches, onRdvAc
         {preview && (
           <div style={{ borderLeft: `2px solid ${C.orange}`, paddingLeft: 12, marginBottom: 16 }}>
             <p style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: 15,
+              fontFamily: FONT_SANS, fontWeight: 400, fontStyle: 'italic', fontSize: 15,
               color: C.dark, margin: 0, lineHeight: 1.6,
               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
             }}>
@@ -736,7 +736,7 @@ function CandidaturePanel({ cand, convByOffre, rdvByConv, recruteurProfils, offr
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
           <EntrepriseLogo nom={entreprise || '?'} logoUrl={offre.entreprise_logo_url} size={48} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 23, fontWeight: 600, color: C.dark, margin: '0 0 5px', lineHeight: 1.2 }}>
+            <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 23, fontWeight: 700, color: C.dark, margin: '0 0 5px', lineHeight: 1.2 }}>
               {offre.titre}
             </h2>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
@@ -1282,7 +1282,7 @@ function CandidaturesPageInner() {
           backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW,
           padding: 40, maxWidth: 480, width: '100%', textAlign: 'center',
         }}>
-          <h2 style={{ fontFamily: FONT_SERIF, fontSize: 22, fontWeight: 600, color: C.dark, margin: '0 0 8px' }}>
+          <h2 style={{ fontFamily: FONT_SANS, fontSize: 22, fontWeight: 700, color: C.dark, margin: '0 0 8px' }}>
             Vous n&apos;avez pas encore postulé
           </h2>
           <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px', lineHeight: 1.6 }}>
@@ -1389,8 +1389,8 @@ function CandidaturesPageInner() {
   const header = (
     <div style={{ padding: isSplit ? '28px 28px 0' : '28px 20px 0', flexShrink: 0 }}>
       <h1 style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-        fontSize: 28, fontWeight: 600, color: C.dark,
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+        fontSize: 28, fontWeight: 700, color: C.dark,
         margin: '0 0 4px',
       }}>
         Mes candidatures

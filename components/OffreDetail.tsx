@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { PILL, PILL_SALARY } from '@/components/OffreCard'
@@ -197,7 +197,7 @@ function labelDebut(val: string | null | undefined): string | null {
 function Section({ title, children, first = false }: { title: string; children: React.ReactNode; first?: boolean }) {
   return (
     <div style={{ padding: '28px 32px', borderTop: first ? undefined : `1px solid ${C.sable}` }}>
-      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, margin: '0 0 18px', fontWeight: 600 }}>
+      <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, margin: '0 0 18px', fontWeight: 700 }}>
         {title}
       </h2>
       {children}
@@ -260,7 +260,7 @@ function PageApplyButton({ applied, appliedDate, applying, onApply, isConnected 
 
 function PanelSectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+    <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
       {children}
     </div>
   )
@@ -352,7 +352,7 @@ function GuestCTA({ offreId }: { offreId: string }) {
       padding: '28px 32px',
       marginTop: 40,
     }}>
-      <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, margin: '0 0 8px', fontWeight: 600 }}>
+      <p style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, margin: '0 0 8px', fontWeight: 700 }}>
         Vous souhaitez postuler ?
       </p>
       <p style={{ fontSize: 14, color: C.grey, margin: '0 0 20px', lineHeight: 1.65 }}>
@@ -505,7 +505,7 @@ export function OffreDetail({
           {/* Title row */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
             <h2 style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 600,
+              fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 700,
               color: ferme ? '#5E6761' : C.dark, margin: 0, lineHeight: 1.2, flex: 1,
             }}>
               {offre.titre}
@@ -873,7 +873,7 @@ export function OffreDetail({
           {/* Offres similaires */}
           {similaires && similaires.length > 0 && (
             <div style={{ padding: '20px 28px', borderTop: `1px solid ${C.sable}` }}>
-              <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
+              <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 14, fontWeight: 600, color: C.dark, marginBottom: 12 }}>
                 {similairesTitle ?? 'Offres similaires'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1029,7 +1029,7 @@ export function OffreDetail({
           gap: 20, flexWrap: 'wrap',
         }}>
           <div>
-            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 5 }}>
+            <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark, marginBottom: 5 }}>
               Ce poste vous intéresse ?
             </div>
             <div style={{ fontSize: 13, color: C.grey }}>
@@ -1067,7 +1067,7 @@ export function OffreDetail({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14 }}>
-                <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2, fontWeight: 600, flex: 1 }}>
+                <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 3vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2, fontWeight: 700, flex: 1 }}>
                   {offre.titre}
                 </h1>
                 {actionsRecruteur == null && (
@@ -1168,7 +1168,7 @@ export function OffreDetail({
         {!isConnected && <GuestCTA offreId={offre.id} />}
         {similaires && similaires.length > 0 && (
           <div style={{ marginTop: 40, paddingTop: 36, borderTop: `1px solid ${C.sable}` }}>
-            <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, margin: '0 0 20px', fontWeight: 600 }}>
+            <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, color: C.dark, margin: '0 0 20px', fontWeight: 700 }}>
               {similairesTitle ?? 'Offres similaires'}
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>

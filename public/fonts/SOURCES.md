@@ -9,10 +9,6 @@ sous-ensembles latin et latin-ext.
 |---|---|---|---|---|---|---|
 | Lora-600-latin.woff2 | Lora | 600 SemiBold | normal | Google Fonts CDN (fonts.gstatic.com, v37) | OFL-1.1 | 2026-11-04 |
 | Lora-600-latin-ext.woff2 | Lora | 600 SemiBold | normal | Google Fonts CDN (fonts.gstatic.com, v37) | OFL-1.1 | 2026-11-04 |
-| Lora-400-latin.woff2 | Lora | 400 Regular | normal | Google Fonts CDN (fonts.gstatic.com, v37) | OFL-1.1 | 2026-11-04 |
-| Lora-400-latin-ext.woff2 | Lora | 400 Regular | normal | Google Fonts CDN (fonts.gstatic.com, v37) | OFL-1.1 | 2026-11-04 |
-| Lora-400italic-latin.woff2 | Lora | 400 Regular | italic | Google Fonts CDN (fonts.gstatic.com, v37) | OFL-1.1 | 2026-11-04 |
-| Lora-400italic-latin-ext.woff2 | Lora | 400 Regular | italic | Google Fonts CDN (fonts.gstatic.com, v37) | OFL-1.1 | 2026-11-04 |
 | SourceSans3-latin.woff2 | Source Sans 3 | 400–700 (variable) | normal | Google Fonts CDN (fonts.gstatic.com, v20) | OFL-1.1 | 2026-11-04 |
 | SourceSans3-latin-ext.woff2 | Source Sans 3 | 400–700 (variable) | normal | Google Fonts CDN (fonts.gstatic.com, v20) | OFL-1.1 | 2026-11-04 |
 | SourceSans3-italic-latin.woff2 | Source Sans 3 | 400–700 (variable) | italic | Google Fonts CDN (fonts.gstatic.com, v20) | OFL-1.1 | 2026-11-04 |

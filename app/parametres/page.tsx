@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import Avatar from '@/components/Avatar'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 
@@ -62,7 +62,7 @@ function Toast({ msg, visible }: { msg: string; visible: boolean }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 600 }}>{children}</h2>
+  return <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 700 }}>{children}</h2>
 }
 
 function SectionSub({ children }: { children: React.ReactNode }) {
@@ -366,7 +366,7 @@ export default function ParametresPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 20,
       }}>
-        <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, cursor: 'pointer' }}>
+        <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, cursor: 'pointer' }}>
           Kapolia
         </div>
         <button onClick={() => router.push('/profil')} style={{
@@ -460,7 +460,7 @@ export default function ParametresPage() {
                 <Divider />
 
                 <div>
-                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, marginBottom: 16 }}>
+                  <div style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, marginBottom: 16 }}>
                     Changer le mot de passe
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -488,7 +488,7 @@ export default function ParametresPage() {
                 <Divider />
 
                 <div style={{ padding: '20px 22px', borderRadius: 14, backgroundColor: C.redBg, border: `1px solid ${C.erreur}25` }}>
-                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.erreur, marginBottom: 6 }}>Zone de danger</div>
+                  <div style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 15, color: C.erreur, marginBottom: 6 }}>Zone de danger</div>
                   <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px', lineHeight: 1.5 }}>
                     La suppression est permanente et irréversible. Vos messages, fichiers, candidatures et profil seront effacés.
                     Pour confirmer, tapez&nbsp;<strong style={{ color: C.dark }}>{DELETE_PHRASE}</strong> ci-dessous.

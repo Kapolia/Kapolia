@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import dynamic from 'next/dynamic'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 import { largeurUtile } from '@/lib/largeur-utile'
 
@@ -181,7 +181,7 @@ export function LieuRadiusPopover({
       )}
 
       {/* Title */}
-      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>
+      <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>
         Zone de recherche
       </div>
 

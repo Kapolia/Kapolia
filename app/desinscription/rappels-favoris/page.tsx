@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { verifierJeton } from '@/lib/rappels-favoris'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 
 function adminClient() {
@@ -32,9 +32,9 @@ const cardStyle: React.CSSProperties = {
 }
 
 const logoStyle: React.CSSProperties = {
-  fontFamily: FONT_SERIF,
+  fontFamily: FONT_SANS,
   fontSize: 20,
-  fontWeight: 600,
+  fontWeight: 700,
   color: C.vert,
   display: 'block',
   marginBottom: 28,
@@ -60,8 +60,8 @@ export default async function Page({
         <div style={cardStyle}>
           <span style={logoStyle}>Kapolia</span>
           <h1 style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.01em',
-            fontSize: 22, fontWeight: 600, color: C.dark, margin: '0 0 12px',
+            fontFamily: FONT_SANS, letterSpacing: '-0.01em',
+            fontSize: 22, fontWeight: 700, color: C.dark, margin: '0 0 12px',
           }}>
             Rappels de favoris désactivés
           </h1>
@@ -118,8 +118,8 @@ export default async function Page({
       <div style={cardStyle}>
         <span style={logoStyle}>Kapolia</span>
         <h1 style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.01em',
-          fontSize: 22, fontWeight: 600, color: C.dark, margin: '0 0 12px',
+          fontFamily: FONT_SANS, letterSpacing: '-0.01em',
+          fontSize: 22, fontWeight: 700, color: C.dark, margin: '0 0 12px',
         }}>
           Désactiver les rappels de favoris
         </h1>

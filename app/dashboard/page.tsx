@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { scoreBreakdownCandidat, profilSuffisantPourScoreCandidat, type ScoreBreakdown } from '@/lib/matching'
 import { fetchProfilsEntreprise } from '@/lib/enrichir-entreprise'
 import Avatar from '@/components/Avatar'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { useFavoris } from '@/lib/favoris-context'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
@@ -335,7 +335,7 @@ function SectionTitle({ title, link, href, onClick }: { title: string; link?: st
   const router = useRouter()
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-      <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0 }}>
+      <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0 }}>
         {title}
       </h2>
       {link && (
@@ -823,7 +823,7 @@ export default function DashboardPage() {
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
+                <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, color: C.dark, marginBottom: 3 }}>
                   {c.offres?.titre ?? 'Offre indisponible'}
                 </div>
                 <div style={{ fontSize: 12, color: C.grey, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -895,8 +895,8 @@ export default function DashboardPage() {
       <header style={{ padding: '28px 32px 0', ...animStyle(0) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <h1 style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-            fontSize: 34, fontWeight: 600,
+            fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+            fontSize: 34, fontWeight: 700,
             color: C.dark, margin: 0,
             lineHeight: 1.2,
           }}>
@@ -905,7 +905,7 @@ export default function DashboardPage() {
           <StatusToggle value={statusValue} onChange={handleStatusChange} />
         </div>
         <div style={{ maxWidth: 530, margin: '0 auto 28px' }}>
-          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, fontWeight: 600, color: C.dark, marginBottom: 4, textAlign: 'center' }}>
+          <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 4, textAlign: 'center' }}>
             Chercher un poste
           </div>
           <div style={{ fontSize: 12.5, color: C.grey, marginBottom: 12, textAlign: 'center' }}>
@@ -1171,7 +1171,7 @@ export default function DashboardPage() {
           <Card style={animStyle(actionItems.length > 0 ? 300 : 250)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0 }}>
+                <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: 0 }}>
                   Messages
                 </h2>
                 {unreadCount > 0 && (
@@ -1263,8 +1263,8 @@ export default function DashboardPage() {
 
             <div style={{ textAlign: 'center', padding: '12px 0 18px' }}>
               <div style={{
-                fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-                fontSize: 40, fontWeight: 600, color: C.vert, lineHeight: 1,
+                fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+                fontSize: 40, fontWeight: 700, color: C.vert, lineHeight: 1,
               }}>
                 {vueCount}
               </div>

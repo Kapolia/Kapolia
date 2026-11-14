@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import LogoKapolia from '@/components/LogoKapolia'
-import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ function WaitlistForm({ sombre = false }: { sombre?: boolean }) {
   if (statut === 'succes') {
     return (
       <div role="status" aria-live="polite" style={{ padding: '8px 0', textAlign: 'center' }}>
-        <p style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '20px', fontWeight: 600, color: sombre ? C.blanc : C.vert, margin: '0 0 8px' }}>
+        <p style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: '20px', fontWeight: 700, color: sombre ? C.blanc : C.vert, margin: '0 0 8px' }}>
           Votre inscription est confirmée.
         </p>
         <p style={{ fontFamily: FONT_SANS, fontSize: '14px', color: sombre ? C.sable : C.gris, margin: 0, lineHeight: 1.6 }}>
@@ -192,7 +192,7 @@ function ChiffreCle({ valeur, texte }: { valeur: string; texte: string }) {
       padding:         '28px 24px',
       flex:            '1 1 200px',
     }}>
-      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '38px', fontWeight: 600, color: C.terracotta, marginBottom: '10px' }}>
+      <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: '38px', fontWeight: 700, color: C.terracotta, marginBottom: '10px' }}>
         {valeur}
       </div>
       <p style={{ fontFamily: FONT_SANS, fontSize: '14px', color: C.texte, lineHeight: 1.6, margin: 0 }}>
@@ -266,9 +266,9 @@ export default function Home() {
             {/* Texte */}
             <div>
               <h1 style={{
-                fontFamily:   FONT_SERIF, letterSpacing: '-0.005em',
+                fontFamily:   FONT_SANS, letterSpacing: '-0.005em',
                 fontSize:     'clamp(30px, 3.8vw, 52px)',
-                fontWeight: 600,
+                fontWeight: 700,
                 color:        C.blanc,
                 lineHeight:   1.2,
                 margin:       '0 0 28px',
@@ -289,7 +289,7 @@ export default function Home() {
               padding:         '36px',
               boxShadow:       '0 8px 40px rgba(0,0,0,0.2)',
             }}>
-              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '20px', fontWeight: 600, color: C.texte, margin: '0 0 6px' }}>
+              <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: '20px', fontWeight: 700, color: C.texte, margin: '0 0 6px' }}>
                 Être prévenu en premier
               </h2>
               <p style={{ fontFamily: FONT_SANS, fontSize: '13px', color: C.gris, margin: '0 0 24px', lineHeight: 1.5 }}>
@@ -307,9 +307,9 @@ export default function Home() {
       <section style={{ backgroundColor: C.creme, padding: '96px 0' }}>
         <div className="kap-wrap">
           <h2 style={{
-            fontFamily:   FONT_SERIF, letterSpacing: '-0.005em',
+            fontFamily:   FONT_SANS, letterSpacing: '-0.005em',
             fontSize:     'clamp(24px, 3vw, 38px)',
-            fontWeight: 600,
+            fontWeight: 700,
             color:        C.texte,
             maxWidth:     '640px',
             lineHeight:   1.3,
@@ -346,7 +346,7 @@ export default function Home() {
           <p style={{ fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Pour les candidats
           </p>
-          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 600, color: C.texte, lineHeight: 1.3, margin: '0 0 40px' }}>
+          <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 40px' }}>
             Un profil vivant, pas une liste de dates.
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -365,7 +365,7 @@ export default function Home() {
           <p style={{ fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Pour les recruteurs
           </p>
-          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 600, color: C.texte, lineHeight: 1.3, margin: '0 0 24px' }}>
+          <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 24px' }}>
             Repérez les bons profils, pas les bons CV.
           </h2>
           <p style={{ fontFamily: FONT_SANS, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: '0 0 40px' }}>
@@ -389,7 +389,7 @@ export default function Home() {
           <p style={{ fontFamily: FONT_SANS, fontSize: '12px', fontWeight: 600, color: C.terracotta, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 16px' }}>
             Le Portrait Kapolia
           </p>
-          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 600, color: C.texte, lineHeight: 1.3, margin: '0 0 28px' }}>
+          <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 2.8vw, 36px)', fontWeight: 700, color: C.texte, lineHeight: 1.3, margin: '0 0 28px' }}>
             Votre profil, en une page, quand un document reste attendu.
           </h2>
           <p style={{ fontFamily: FONT_SANS, fontSize: '17px', color: C.texte, lineHeight: 1.8, margin: 0 }}>
@@ -406,7 +406,7 @@ export default function Home() {
       {/* ── 8. RAPPEL DU FORMULAIRE ──────────────────────────────────────────── */}
       <section style={{ backgroundColor: C.vert, padding: '96px 0' }}>
         <div className="kap-wrap" style={{ maxWidth: '520px', textAlign: 'center' }}>
-          <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 600, color: C.blanc, lineHeight: 1.3, margin: '0 0 12px' }}>
+          <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 700, color: C.blanc, lineHeight: 1.3, margin: '0 0 12px' }}>
             Rejoindre la liste d'attente
           </h2>
           <p style={{ fontFamily: FONT_SANS, fontSize: '16px', color: C.sable, lineHeight: 1.7, margin: '0 0 40px' }}>

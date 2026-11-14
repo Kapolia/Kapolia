@@ -5,7 +5,7 @@ import type { KeyboardEvent, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import RdvBubble from '@/components/RdvBubble'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
 import { sanitizeFilename, normalizeText } from '@/lib/storage-utils'
@@ -224,7 +224,7 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', maxWidth: 280 }}>
-        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
+        <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 8 }}>Aucun message pour le moment</div>
         <div style={{ fontSize: 14, color: C.grey, marginBottom: 24, lineHeight: 1.6 }}>Les recruteurs qui repèrent votre profil vous écriront ici.</div>
         <button onClick={onBrowse} style={{ padding: '10px 22px', borderRadius: 12, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
           Voir les offres
@@ -1218,7 +1218,7 @@ function CandidatMessagesPageInner() {
 
         <div style={{ padding: '24px 20px 14px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 14 }}>
-            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 24, fontWeight: 600, color: C.dark }}>Messages</span>
+            <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 24, fontWeight: 700, color: C.dark }}>Messages</span>
             {totalUnread > 0 && (
               <span style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte }}>
                 {totalUnread === 1 ? '1 non lu' : `${totalUnread} non lus`}

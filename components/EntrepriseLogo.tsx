@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 
 const LOGO_COLORS = [
@@ -28,7 +28,7 @@ export function EntrepriseLogo({ nom, logoUrl, size = 48 }: { nom: string; logoU
       {showFallback ? (
         <span style={{
           fontSize: Math.round(size * 0.44),
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontWeight: 600, color,
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontWeight: 600, color,
           lineHeight: 1, userSelect: 'none',
         }}>
           {initial}

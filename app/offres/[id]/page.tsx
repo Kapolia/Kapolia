@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { OffreDetail, type OffreData, type OffreSimilaire } from '@/components/OffreDetail'
 import { haversineKm } from '@/lib/geo'
 import { useFavoris } from '@/lib/favoris-context'
@@ -227,7 +227,7 @@ export default function OffreDetailPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px', fontWeight: 600 }}>
+          <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px', fontWeight: 700 }}>
             Offre indisponible
           </h1>
           <p style={{ fontSize: 14, color: C.grey, margin: '0 0 28px', lineHeight: 1.65 }}>

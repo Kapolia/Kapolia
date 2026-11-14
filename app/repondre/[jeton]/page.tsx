@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
 
-import { FONT_SERIF, FONT_SANS } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, dark: '#22312B' as const, grey: '#8A9A92' as const, border: '#D4C4A8' as const }
 
@@ -118,9 +118,9 @@ export default function RepondrePage() {
         {(actif || etat === 'envoi') && (
           <div>
             <h1 style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
               fontSize:   'clamp(20px, 5vw, 26px)',
-              fontWeight: 600,
+              fontWeight: 700,
               color:      C.vert,
               margin:     '0 0 16px',
               lineHeight: 1.25,
@@ -288,9 +288,9 @@ export default function RepondrePage() {
         {etat === 'succes' && (
           <div>
             <h1 style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
               fontSize:   32,
-              fontWeight: 600,
+              fontWeight: 700,
               color:      C.vert,
               margin:     '0 0 16px',
               lineHeight: 1.1,

@@ -3,7 +3,7 @@
 import { useState, useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 
 type DashData = {
@@ -65,7 +65,7 @@ function ActionCard({ label, count, detail, color, icon, onClick }: {
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, fontWeight: 600, color, lineHeight: 1 }}>
+        <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 26, fontWeight: 700, color, lineHeight: 1 }}>
           {count}
         </div>
         <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginTop: 4 }}>{label}</div>
@@ -84,7 +84,7 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
       backgroundColor: C.white, borderRadius: 16,
       border: `1px solid ${C.sable}`, padding: '22px 24px',
     }}>
-      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 34, fontWeight: 600, color: C.dark, lineHeight: 1 }}>
+      <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 34, fontWeight: 700, color: C.dark, lineHeight: 1 }}>
         {value}
       </div>
       <div style={{ fontSize: 13, fontWeight: 600, color: C.dark, marginTop: 10 }}>{label}</div>
@@ -247,7 +247,7 @@ export default function RecruteurDashboard() {
       <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
 
       <div style={{ maxWidth: 820, margin: '0 auto' }}>
-        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 600, color: C.dark, marginBottom: 40 }}>
+        <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 700, color: C.dark, marginBottom: 40 }}>
           Tableau de bord
         </h1>
 

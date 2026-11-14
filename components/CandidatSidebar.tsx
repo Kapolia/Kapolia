@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_LOGO } from '@/lib/typography'
 import { C, CARD_SHADOW } from '@/lib/colors'
 import { fetchRdvEnAttenteCount } from '@/lib/rdv-en-attente'
 import { reduitMouvement } from '@/lib/motion'
@@ -531,7 +531,7 @@ export default function CandidatSidebar({
           <LogoKapolia variante="contour" avecTexte={false} taille={36} />
           {!repliee && (
             <span style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+              fontFamily: FONT_LOGO, letterSpacing: '-0.005em',
               fontSize: 22, fontWeight: 600,
               color: C.sable,
               whiteSpace: 'nowrap' as const,

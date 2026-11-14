@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 
 type LienType = 'ami' | 'collegue' | 'ancien_manager' | 'famille' | 'autre'
@@ -141,8 +141,8 @@ export default function InvitationModal({
         }}
       >
         <h2 style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20,
-          color: C.dark, margin: '0 0 16px', fontWeight: 600,
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20,
+          color: C.dark, margin: '0 0 16px', fontWeight: 700,
         }}>
           Inviter un proche
         </h2>

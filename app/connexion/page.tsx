@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { safeNext, redirectAfterAuth, OAUTH_NEXT_KEY } from '@/lib/auth-redirect'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
@@ -185,10 +185,10 @@ export default function ConnexionPage() {
       }}>
 
         <h1 style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
           fontSize: 'clamp(24px, 4vw, 32px)',
           color: C.dark,
-          fontWeight: 600,
+          fontWeight: 700,
           margin: '0 0 6px',
           lineHeight: 1.15,
         }}>
@@ -383,7 +383,7 @@ export default function ConnexionPage() {
         marginTop: '32px',
         fontSize: '12px',
         color: C.lightGrey,
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+        fontFamily: FONT_SANS, fontWeight: 400, letterSpacing: '-0.005em',
         fontStyle: 'italic',
         textAlign: 'center',
       }}>

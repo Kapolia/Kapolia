@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import LogoKapolia from '@/components/LogoKapolia'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { safeNext, storeNext, OAUTH_TYPE_KEY, OAUTH_NEXT_KEY } from '@/lib/auth-redirect'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
@@ -209,10 +209,10 @@ export default function InscriptionPage() {
 
         {/* Header */}
         <h1 style={{
-          fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
           fontSize: 'clamp(22px, 4vw, 28px)',
           color: C.dark,
-          fontWeight: 600,
+          fontWeight: 700,
           margin: '0 0 28px',
         }}>
           Créez votre profil

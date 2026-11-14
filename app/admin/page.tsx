@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C as _C } from '@/lib/colors'
 const C = { ..._C, lightGrey: '#D0D0D0' as const, blue: '#2563EB' as const, sidebar: '#18211F' as const, sidebarHov: '#243330' as const, redBg: '#FDECEA' as const }
 
@@ -116,8 +116,8 @@ function StatCard({ label, value, icon, accent }: {
     }}>
       <div style={{ fontSize: '18px', marginBottom: '10px' }}>{icon}</div>
       <div style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-        fontSize: '34px', fontWeight: 600,
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+        fontSize: '34px', fontWeight: 700,
         color: accent, lineHeight: 1, marginBottom: '6px',
       }}>
         {value}
@@ -133,7 +133,7 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
       display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '16px',
     }}>
       <h2 style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '18px',
+        fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '18px',
         color: C.dark, margin: 0,
       }}>
         {title}
@@ -325,7 +325,7 @@ export default function AdminPage() {
           marginBottom: '8px',
         }}>
           <div style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: '18px',
+            fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '18px',
             color: C.white, marginBottom: '4px',
           }}>
             Kapolia

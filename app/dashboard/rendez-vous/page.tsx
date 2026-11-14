@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useLayoutEffect, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import { EntrepriseLogo } from '@/components/EntrepriseLogo'
 import AssistantPrepEntretien from '@/components/AssistantPrepEntretien'
@@ -488,7 +488,7 @@ function ColonneDate({ utc }: { utc: string }) {
   return (
     <div style={{ width: 132, flexShrink: 0, backgroundColor: C.vert, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 8px' }}>
       <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', textAlign: 'center', lineHeight: 1.3 }}>{wd}</div>
-      <div style={{ fontFamily: FONT_SERIF, fontWeight: 600, fontSize: 44, color: '#fff', lineHeight: 1.1, marginTop: 2 }}>{day}</div>
+      <div style={{ fontFamily: FONT_SANS, fontWeight: 700, fontSize: 44, color: '#fff', lineHeight: 1.1, marginTop: 2 }}>{day}</div>
       <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', textAlign: 'center', lineHeight: 1.3 }}>{mo}</div>
       <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', marginTop: 10 }}>{hm}</div>
     </div>
@@ -527,7 +527,7 @@ function FeaturedCard({ rdv, onPreparer, onAgenda, prepData }: {
             </span>
           </div>
         )}
-        <div style={{ fontFamily: FONT_SERIF, fontWeight: 600, fontSize: 21, color: C.dark, lineHeight: 1.2, marginBottom: 6 }}>
+        <div style={{ fontFamily: FONT_SANS, fontWeight: 700, fontSize: 21, color: C.dark, lineHeight: 1.2, marginBottom: 6 }}>
           {rdv.offreTitre || 'Poste non précisé'}
         </div>
         {contextParts.length > 0 && (
@@ -668,7 +668,7 @@ function PasseRow({ rdv, hasBorder }: { rdv: RdvRow; hasBorder: boolean }) {
 function EmptyState() {
   return (
     <div style={{ padding: '80px 24px', textAlign: 'center' }}>
-      <div style={{ fontSize: 19, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', color: C.dark, marginBottom: 8 }}>
+      <div style={{ fontSize: 19, fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', color: C.dark, marginBottom: 8 }}>
         Aucun rendez-vous pour le moment
       </div>
       <div style={{ fontSize: 14, color: C.grey, lineHeight: 1.65 }}>
@@ -975,7 +975,7 @@ export default function RendezVousPage() {
       <div ref={containerRef} style={{ maxWidth: 980, margin: '0 auto', padding: '28px 36px 60px' }}>
 
         {/* ── En-tête ──────────────────────────────────────────────────── */}
-        <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 600, color: C.dark, margin: '0 0 6px' }}>
+        <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 700, color: C.dark, margin: '0 0 6px' }}>
           Mes rendez-vous
         </h1>
         <div style={{ marginBottom: 28 }}>
@@ -998,7 +998,7 @@ export default function RendezVousPage() {
         {!loading && attente.length > 0 && (
           <section style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-              <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark }}>À confirmer</span>
+              <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark }}>À confirmer</span>
               <span style={{ fontSize: 13, color: C.grey, fontWeight: 400 }}>{attente.length}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1013,7 +1013,7 @@ export default function RendezVousPage() {
         {!loading && avenir.length > 0 && (
           <section style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 14 }}>
-              <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark }}>À venir</span>
+              <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 17, fontWeight: 600, color: C.dark }}>À venir</span>
               <span style={{ fontSize: 13, color: C.grey, fontWeight: 400 }}>{avenir.filter(r => r.statut !== 'annulee').length}</span>
             </div>
 

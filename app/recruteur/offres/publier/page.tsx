@@ -25,7 +25,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { GeoVilleInput, type GeoCoords } from '@/components/GeoVilleInput'
 import { DOMAINES, EXPERIENCES, TYPES_CONTRAT, COMP_REF, DUREES_CONTRAT, TEMPS_TRAVAIL, HORAIRES, PERMIS, TELETRAVAIL_OPTIONS, labelDe } from '@/lib/referentiels'
 import { LANGUES } from '@/lib/langues'
@@ -83,7 +83,7 @@ type PreviewData = {
 function SLabel({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>{children}</div>
+      <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 15, fontWeight: 600, color: C.dark }}>{children}</div>
       {sub && <div style={{ fontSize: 12, color: C.grey, marginTop: 3 }}>{sub}</div>}
     </div>
   )
@@ -246,7 +246,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: `1px solid ${C.sable}`, backgroundColor: C.bg }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 16 }}>👁</span>
-            <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 15, color: C.dark }}>Aperçu candidat</span>
+            <span style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 15, color: C.dark }}>Aperçu candidat</span>
             <span style={{ padding: '2px 10px', borderRadius: 20, backgroundColor: `${C.grey}18`, fontSize: 11, color: C.grey, fontWeight: 600 }}>Vue simulée</span>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: `1px solid ${C.sable}`, backgroundColor: C.white, color: C.grey, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
@@ -256,7 +256,7 @@ function PreviewModal({ d, onClose }: { d: PreviewData; onClose: () => void }) {
         <div style={{ padding: '28px 32px', borderBottom: `1px solid ${C.sable}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 14 }}>
             <div>
-              <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 24, color: C.dark, margin: '0 0 6px', fontWeight: 600 }}>
+              <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 24, color: C.dark, margin: '0 0 6px', fontWeight: 700 }}>
                 {d.titre || <span style={{ color: C.lightGrey }}>Titre du poste</span>}
               </h2>
               <div style={{ fontSize: 14, color: C.grey }}>
@@ -407,7 +407,7 @@ function SuccessScreen({ titre, isDraft, isEdit, router, onReset }: { titre: str
             : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.terracotta} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
           }
         </div>
-        <h2 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px' }}>
+        <h2 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 26, color: C.dark, margin: '0 0 10px' }}>
           {isDraft ? 'Brouillon sauvegardé !' : isEdit ? 'Offre mise à jour !' : 'Offre publiée !'}
         </h2>
         <p style={{ fontSize: 14, color: C.grey, margin: '0 0 8px', lineHeight: 1.65 }}>
@@ -443,7 +443,7 @@ function OffrePreviewCard({ d }: { d: PreviewData }) {
       <div style={{ padding: '20px 24px', borderBottom: `1px solid ${C.sable}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
           <div>
-            <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 18, fontWeight: 600, color: C.dark, marginBottom: 3 }}>{d.titre || <span style={{ color: C.lightGrey }}>Titre du poste</span>}</div>
+            <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, fontWeight: 700, color: C.dark, marginBottom: 3 }}>{d.titre || <span style={{ color: C.lightGrey }}>Titre du poste</span>}</div>
             <div style={{ fontSize: 12, color: C.grey }}>{[d.ville, d.pays].filter(Boolean).join(', ')}{d.modeTravail && <span style={{ color: modeColor, fontWeight: 500 }}> · {d.modeTravail}</span>}</div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end', flexShrink: 0 }}>
@@ -792,7 +792,7 @@ function PublierOffrePageInner() {
 
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.terracotta, textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: 6 }}>{editId ? 'Modifier l\'offre' : `Étape ${step} / ${STEP_LABELS.length}`}</div>
-          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 3.5vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2 }}>
+          <h1 style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 'clamp(22px, 3.5vw, 30px)', color: C.dark, margin: 0, lineHeight: 1.2 }}>
             {['Informations générales', 'Localisation & mode de travail', 'Description du poste', 'Avantages & publication'][step - 1]}
           </h1>
           <p style={{ fontSize: 14, color: C.grey, margin: '6px 0 0', lineHeight: 1.5 }}>
@@ -919,7 +919,7 @@ function PublierOffrePageInner() {
                 <div style={{ marginTop: 20, backgroundColor: C.bg, borderRadius: 12, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>Jours de télétravail par semaine</span>
-                    <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 600, color: C.terracotta }}>{joursRemote}</span>
+                    <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 22, fontWeight: 700, color: C.terracotta }}>{joursRemote}</span>
                   </div>
                   <input type="range" min={1} max={4} step={1} value={joursRemote} onChange={e => setJoursRemote(Number(e.target.value))} style={{ width: '100%', cursor: 'pointer' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
@@ -1099,7 +1099,7 @@ function PublierOffrePageInner() {
             {/* F1 — Aperçu + compact preview */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark }}>Aperçu de votre annonce</div>
+                <div style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 16, color: C.dark }}>Aperçu de votre annonce</div>
                 <button type="button" onClick={() => setPreviewOpen(true)}
                   style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 10, border: `1.5px solid ${C.terracotta}`, backgroundColor: `${C.terracotta}0D`, color: C.terracotta, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                   👁 Aperçu de l'annonce

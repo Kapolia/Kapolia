@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { EASE, reduitMouvement } from '@/lib/motion'
 import { type ReactNode } from 'react'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import {
   calculerFrise,
   lireMoisAnnee,
@@ -74,7 +74,7 @@ function toPosteParcours(e: ParcoursExp, id: string): PosteParcours | null {
 
 function SLabel20({ children }: { children: ReactNode }) {
   return (
-    <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600, color: C.dark, marginBottom: 14 }}>
+    <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 700, color: C.dark, marginBottom: 14 }}>
       {children}
     </div>
   )

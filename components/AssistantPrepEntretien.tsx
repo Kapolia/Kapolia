@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 import { formatDateAnalyse } from '@/lib/rdv-format'
 
@@ -146,7 +146,7 @@ export default function AssistantPrepEntretien({
           }}>
             Assistant Kapolia
           </div>
-          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, lineHeight: 1.3 }}>
+          <div style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, lineHeight: 1.3 }}>
             {question}
           </div>
           {dateLabel && (

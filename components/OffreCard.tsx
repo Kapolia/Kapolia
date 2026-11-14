@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { type GeoCoords } from '@/components/GeoVilleInput'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { haversineKm } from '@/lib/geo'
 import { type ScoreBreakdown } from '@/lib/matching'
 import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
@@ -187,7 +187,7 @@ export function OffreCard({
           </div>
           <div style={{ flex: 1, minWidth: 0, opacity: ferme ? 0.55 : undefined }}>
             <div style={{
-              fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.3,
+              fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600, lineHeight: 1.3,
               color: isSelected ? C.terracotta : hov ? C.terracotta : C.dark,
               transition: 'color 0.15s',
             }}>
@@ -289,7 +289,7 @@ export function OffreCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600,
+            fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 16, fontWeight: 600,
             color: hov ? C.terracotta : C.dark,
             margin: '0 0 4px', lineHeight: 1.3, transition: 'color 0.15s',
           }}>

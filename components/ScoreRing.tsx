@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
 
 const LIGHT_GREY = '#D0D0D0'
@@ -27,7 +27,7 @@ export function ScoreRing({ score, size = 54, delay = 0 }: { score: number; size
           style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(0.22,1,0.36,1)' }} />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-        <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: numSize, fontWeight: 600, color, lineHeight: 1 }}>{score}%</span>
+        <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: numSize, fontWeight: 600, color, lineHeight: 1 }}>{score}%</span>
         <span style={{ fontSize: labelSize, color: C.grey, lineHeight: 1 }}>match</span>
       </div>
     </div>

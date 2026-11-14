@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matching'
 import { offreAvecTeletravail } from '@/lib/referentiels'
 import {
@@ -97,7 +97,7 @@ function Card({ title, children, style }: { title?: string; children: React.Reac
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '24px 28px', boxShadow: '0 1px 8px rgba(0,0,0,0.04)', ...style }}>
       {title && (
-        <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 20 }}>
+        <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, fontWeight: 600, marginBottom: 20 }}>
           {title}
         </div>
       )}
@@ -110,7 +110,7 @@ function KpiCard({ icon, value, label, sub, color }: { icon: string; value: stri
   return (
     <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '24px 28px', flex: '1 1 190px', boxShadow: '0 1px 8px rgba(0,0,0,0.04)' }}>
       <div style={{ fontSize: 22, marginBottom: 12 }}>{icon}</div>
-      <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 36, fontWeight: 600, color: color ?? C.dark, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 36, fontWeight: 700, color: color ?? C.dark, lineHeight: 1 }}>{value}</div>
       <div style={{ fontSize: 13, color: C.grey, marginTop: 6, fontWeight: 500 }}>{label}</div>
       {sub && <div style={{ fontSize: 11, color: C.terracotta, marginTop: 4 }}>{sub}</div>}
     </div>
@@ -410,7 +410,7 @@ export default function StatistiquesPage() {
       {/* ── HEADER ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, color: C.dark, margin: '0 0 4px', fontWeight: 600 }}>
+          <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 28, color: C.dark, margin: '0 0 4px', fontWeight: 700 }}>
             Statistiques
           </h1>
           <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Vue d'ensemble de vos recrutements</p>
@@ -457,7 +457,7 @@ export default function StatistiquesPage() {
       {noData ? (
         <div style={{ backgroundColor: C.white, borderRadius: 20, border: `1px solid ${C.sable}`, padding: '80px 40px', textAlign: 'center' }}>
           <div style={{ fontSize: 36, marginBottom: 16 }}>◈</div>
-          <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucune offre publiée</div>
+          <div style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, marginBottom: 8 }}>Aucune offre publiée</div>
           <div style={{ fontSize: 13, color: C.grey, marginBottom: 28 }}>Créez votre première offre pour commencer à recevoir des candidatures et voir vos statistiques.</div>
           <button
             onClick={() => router.push('/recruteur/offres/publier')}
@@ -607,7 +607,7 @@ export default function StatistiquesPage() {
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '14px', fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 600, color: C.terracotta }}>
+                      <td style={{ padding: '14px', fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20, fontWeight: 700, color: C.terracotta }}>
                         {o.candCount}
                       </td>
                       <td style={{ padding: '14px' }}>
@@ -647,7 +647,7 @@ export default function StatistiquesPage() {
               ].map(m => (
                 <div key={m.label} style={{ flex: '1 1 180px', backgroundColor: C.bg, borderRadius: 14, padding: '20px 22px', border: `1px solid ${C.sable}` }}>
                   <div style={{ fontSize: 20, marginBottom: 10 }}>{m.icon}</div>
-                  <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 600, color: m.color, lineHeight: 1 }}>{m.value}</div>
+                  <div style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 28, fontWeight: 700, color: m.color, lineHeight: 1 }}>{m.value}</div>
                   <div style={{ fontSize: 12, color: C.grey, marginTop: 6, fontWeight: 500 }}>{m.label}</div>
                   <div style={{ fontSize: 11, color: C.lightGrey, marginTop: 3 }}>{m.sub}</div>
                 </div>

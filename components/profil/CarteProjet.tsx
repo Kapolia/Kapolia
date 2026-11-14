@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react'
 import { C } from '@/lib/colors'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 
 const LABEL_S: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: C.grey, marginBottom: 5, display: 'block' }
 const HELP_S: React.CSSProperties = { fontSize: 12.5, color: C.grey, marginTop: 4, display: 'block' }
@@ -109,7 +109,7 @@ export default function CarteProjet({
           <div style={{ width: 100, minHeight: 100, borderRadius: 12, backgroundColor: editResultat ? C.vert : C.sable, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 8px', flexShrink: 0 }}>
             {editResultat ? (
               <>
-                <span style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.02em', fontSize: 24, fontWeight: 600, color: C.white, lineHeight: 1, textAlign: 'center', wordBreak: 'break-word' as const }}>{editResultat}</span>
+                <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.02em', fontSize: 24, fontWeight: 700, color: C.white, lineHeight: 1, textAlign: 'center', wordBreak: 'break-word' as const }}>{editResultat}</span>
                 {editImpact && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 5, lineHeight: 1.3, textAlign: 'center' as const }}>{editImpact}</span>}
               </>
             ) : (

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SERIF } from '@/lib/typography'
+import { FONT_SANS } from '@/lib/typography'
 import { useFavoris } from '@/lib/favoris-context'
 import { OffreCard, type OffreCardData } from '@/components/OffreCard'
 import { OffreDetail, type OffreData, type OffreSimilaire } from '@/components/OffreDetail'
@@ -99,8 +99,8 @@ function EmptyFavoris({ onBrowse }: { onBrowse: () => void }) {
         </svg>
       </div>
       <h2 style={{
-        fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-        fontSize: 22, fontWeight: 600, color: C.dark,
+        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+        fontSize: 22, fontWeight: 700, color: C.dark,
         margin: '0 0 8px',
       }}>
         Aucune offre sauvegardée pour l&apos;instant
@@ -860,7 +860,7 @@ export default function FavorisPage() {
           <>
             <div ref={groupTitleExpireesRef} style={{ overflow: 'hidden' }}>
               <div style={{
-                fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
+                fontFamily: FONT_SANS, letterSpacing: '-0.005em',
                 fontSize: 15, fontWeight: 600, color: C.dark,
                 paddingTop: hasOuverts ? 20 : 0, paddingBottom: 8,
               }}>
@@ -921,8 +921,8 @@ export default function FavorisPage() {
       <div style={{ padding: isSplit ? '28px 28px 0' : '32px 24px 0', flexShrink: 0 }}>
         <div style={{ marginBottom: 12 }}>
           <h1 style={{
-            fontFamily: FONT_SERIF, letterSpacing: '-0.005em',
-            fontSize: 30, fontWeight: 600, color: C.dark,
+            fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+            fontSize: 30, fontWeight: 700, color: C.dark,
             margin: 0, lineHeight: 1.15,
           }}>
             Mes favoris
