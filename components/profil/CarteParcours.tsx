@@ -188,7 +188,7 @@ export default function CarteParcours({ editExperiences, setEditExperiences, edi
             return (
               <div key={i} style={{
                 border: `1px solid ${C.sable}`, borderRadius: 11, padding: '14px 16px',
-                backgroundColor: isAVerifier ? '#FBF3EC' : '#FCFDFC',
+                backgroundColor: isAVerifier ? C.peche : C.white,
               }}>
                 {/* En-tête encadré */}
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
@@ -205,10 +205,10 @@ export default function CarteParcours({ editExperiences, setEditExperiences, edi
                 {/* Avertissement date_a_verifier */}
                 {isAVerifier && (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 12, padding: '8px 10px', backgroundColor: 'rgba(194,97,31,.06)', borderRadius: 8 }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A3C12" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.orangeTexte} strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true">
                       <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
                     </svg>
-                    <span style={{ fontSize: 13.5, color: '#7A3C12', lineHeight: 1.5 }}>
+                    <span style={{ fontSize: 13.5, color: C.orangeTexte, lineHeight: 1.5 }}>
                       Nous n&apos;avons pas pu lire les dates de ce poste, &laquo;&nbsp;{exp.date_debut}&nbsp;&raquo;.
                       Indiquez l&apos;année de début et l&apos;année de fin pour qu&apos;il apparaisse sur la frise. Le mois est facultatif.
                     </span>
@@ -295,7 +295,7 @@ export default function CarteParcours({ editExperiences, setEditExperiences, edi
         <div style={{ fontSize: 16, fontWeight: 700, color: C.dark, marginBottom: 12 }}>Formations</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {editDiplomes.map((d, i) => (
-            <div key={i} style={{ border: `1px solid ${C.sable}`, borderRadius: 11, padding: '14px 16px', backgroundColor: '#FCFDFC' }}>
+            <div key={i} style={{ border: `1px solid ${C.sable}`, borderRadius: 11, padding: '14px 16px', backgroundColor: C.white }}>
 
               {/* En-tête */}
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
@@ -325,7 +325,7 @@ export default function CarteParcours({ editExperiences, setEditExperiences, edi
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }}>
                 <div>
                   <label style={LABEL_S}>Année de début <span style={{ fontWeight: 400 }}>(facultative)</span></label>
-                  <select value={d.debut_annee ?? ''} onChange={e => updateDip(i, { debut_annee: e.target.value ? Number(e.target.value) : null })} style={SELECT_S}>
+                  <select value={d.annee_debut ?? (d.debut_annee ? String(d.debut_annee) : '')} onChange={e => updateDip(i, { annee_debut: e.target.value || null, debut_annee: null })} style={SELECT_S}>
                     <option value="">—</option>
                     {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
@@ -346,7 +346,7 @@ export default function CarteParcours({ editExperiences, setEditExperiences, edi
                 </label>
               </div>
 
-              {!d.debut_annee && (
+              {!d.annee_debut && !d.debut_annee && (
                 <span style={HELP_S}>Sans année de début, la formation s&apos;affiche à son année d&apos;obtention.</span>
               )}
             </div>

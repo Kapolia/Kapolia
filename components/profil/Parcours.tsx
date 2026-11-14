@@ -132,7 +132,8 @@ export default function CarteParcoursView({
   diplomes.forEach((d, i) => {
     const finN = d.annee ? parseInt(d.annee, 10) : (d.en_cours ? new Date().getFullYear() : NaN)
     if (isNaN(finN)) return
-    const debut: DateMois | null = d.debut_annee != null ? { annee: d.debut_annee, mois: null } : null
+    const debutN = d.annee_debut ? parseInt(d.annee_debut, 10) : (d.debut_annee ?? null)
+    const debut: DateMois | null = debutN != null && !isNaN(debutN) ? { annee: debutN, mois: null } : null
     formationsForFrise.push({
       id: `f${i}`,
       intitule: d.intitule,
@@ -445,7 +446,7 @@ export default function CarteParcoursView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {diplomes.map((d, i) => {
               const finA = d.annee || ''
-              const debA = d.debut_annee ? String(d.debut_annee) : ''
+              const debA = d.annee_debut ?? (d.debut_annee ? String(d.debut_annee) : '')
               let dateStr: string
               if (d.en_cours) {
                 dateStr = debA ? `${debA} à aujourd'hui` : "aujourd'hui"

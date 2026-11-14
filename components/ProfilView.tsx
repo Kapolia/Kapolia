@@ -922,7 +922,7 @@ export default function ProfilView({
       <div style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 22, color: C.dark }}>Profil introuvable</div>
       <div style={{ fontSize: 14, color: C.grey }}>Ce profil n'existe pas ou n'est plus accessible.</div>
       <button onClick={() => router.back()} style={{ marginTop: 8, padding: '10px 24px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-        ← Retour
+        Retour
       </button>
     </main>
   )
@@ -1193,9 +1193,9 @@ export default function ProfilView({
         const diff = (b.debut_annee ?? 0) - (a.debut_annee ?? 0)
         return diff !== 0 ? diff : (b.debut_mois ?? 0) - (a.debut_mois ?? 0)
       })
-      const diploToSave = editDiplomes.map(d => ({
-        ...d,
-        annee_debut: d.debut_annee ? String(d.debut_annee) : null,
+      const diploToSave = editDiplomes.map(({ debut_annee, ...rest }) => ({
+        ...rest,
+        annee_debut: rest.annee_debut ?? (debut_annee ? String(debut_annee) : null),
       }))
       payload = { experiences: expsToSave, diplomes: diploToSave }
     }
@@ -1549,8 +1549,8 @@ export default function ProfilView({
         @media (prefers-reduced-motion: no-preference) { .profil-qualite-vert { animation: profil-halo 1.2s ease-out 900ms both; } }
         * { box-sizing: border-box; }
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
-        .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:#A9541A; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
-        .profil-lien-action:hover { background:#FBF3EC; }
+        .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:${C.lien}; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
+        .profil-lien-action:hover { background:${C.peche}; }
 .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
         .profil-entete-portrait { width: 200px; height: 244px; flex-shrink: 0; }
         .profil-col3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -2237,7 +2237,7 @@ export default function ProfilView({
             {projetLien && (
               <div>
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Lien</div>
-                <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Voir le projet en ligne →</a>
+                <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Voir le projet en ligne</a>
                 <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>{projetLien.length > 60 ? projetLien.slice(0, 60) + '…' : projetLien}</div>
               </div>
             )}
@@ -2310,7 +2310,7 @@ export default function ProfilView({
             <div style={{ marginTop: 28, display: 'flex', gap: 10 }}>
               <button onClick={() => setAvatarModal(false)} style={{ flex: 1, padding: '11px', borderRadius: 12, border: `1.5px solid ${C.sable}`, backgroundColor: 'transparent', color: C.dark, fontSize: 14, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
               <button onClick={saveAvatar} disabled={uploadingAvatar || (avatarTab === 'photo' && !avatarFile) || (avatarTab === 'avatar' && !selectedEmoji)} style={{ flex: 2, padding: '11px', borderRadius: 12, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 14, fontWeight: 600, cursor: uploadingAvatar ? 'default' : 'pointer', opacity: (uploadingAvatar || (avatarTab === 'photo' && !avatarFile) || (avatarTab === 'avatar' && !selectedEmoji)) ? 0.55 : 1, fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                {uploadingAvatar && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
+                {uploadingAvatar && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite' }} />}
                 {uploadingAvatar ? 'Sauvegarde…' : 'Sauvegarder'}
               </button>
             </div>
@@ -2336,7 +2336,7 @@ export default function ProfilView({
               <span style={{ fontSize: 13, fontWeight: 600, color: C.white, letterSpacing: '0.02em' }}>
                 {recordPhase === 'playback' ? 'Prévisualisation' : 'Présentation vidéo'}
               </span>
-              <button onClick={closeRecordModal} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, lineHeight: 1 }}>✕</button>
+              <button onClick={closeRecordModal} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, lineHeight: 1 }}>×</button>
             </div>
 
             {/* Video area — landscape 16:9 */}
@@ -2394,7 +2394,7 @@ export default function ProfilView({
 
                   {/* Red dot */}
                   {recordPhase === 'recording' && (
-                    <div style={{ position: 'absolute', top: 16, left: 14, width: 9, height: 9, borderRadius: '50%', backgroundColor: '#E74C3C', boxShadow: '0 0 0 3px rgba(231,76,60,0.3)', animation: 'kapolia-pulse 1.2s ease-in-out infinite' }} />
+                    <div style={{ position: 'absolute', top: 16, left: 14, width: 9, height: 9, borderRadius: '50%', backgroundColor: C.erreur, boxShadow: `0 0 0 3px ${C.erreur}4d`, animation: 'kapolia-pulse 1.2s ease-in-out infinite' }} />
                   )}
                 </>
               )}
@@ -2425,7 +2425,7 @@ export default function ProfilView({
               )}
 
               {recordPhase === 'recording' && (
-                <button onClick={stopRecording} style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: '#E74C3C', color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button onClick={stopRecording} style={{ padding: '12px', borderRadius: 14, border: 'none', backgroundColor: C.erreur, color: C.white, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   ■ Arrêter
                 </button>
               )}
@@ -2496,7 +2496,7 @@ export default function ProfilView({
               style={{
                 width: '100%', boxSizing: 'border-box',
                 padding: '10px 14px', borderRadius: 8,
-                border: '1.5px solid #E0D8CF', fontSize: 14,
+                border: `1.5px solid ${C.sable}`, fontSize: 14,
                 marginBottom: 16, fontFamily: 'inherit', outline: 'none',
               }}
             />
@@ -2559,7 +2559,7 @@ export default function ProfilView({
                 disabled={downloadingPortrait}
                 style={{
                   padding: '9px 20px', borderRadius: 10,
-                  border: '1.5px solid #E0D8CF', background: 'white',
+                  border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
                   fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
                 }}
               >
@@ -2598,15 +2598,15 @@ export default function ProfilView({
                 style={{
                   padding: '9px 20px', borderRadius: 10,
                   border: 'none', backgroundColor: C.terracotta,
-                  color: 'white', fontSize: 13, fontWeight: 600,
+                  color: C.white, fontSize: 13, fontWeight: 600,
                   cursor: downloadingPortrait ? 'default' : 'pointer',
                   fontFamily: 'inherit', opacity: downloadingPortrait ? 0.6 : 1,
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}
               >
                 {downloadingPortrait
-                  ? <><span style={{ display: 'inline-block', width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: 'white', animation: 'kapolia-spin 0.7s linear infinite' }} />Génération...</>
-                  : '↓ Télécharger le PDF'}
+                  ? <><span style={{ display: 'inline-block', width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.7s linear infinite' }} />Génération...</>
+                  : 'Télécharger le PDF'}
               </button>
             </div>
           </div>

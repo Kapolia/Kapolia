@@ -369,12 +369,13 @@ function QualitesCarousel({
   writeDate?:     boolean
   onRefaireDone?: () => void
 }) {
-  const [idx,        setIdx]        = useState(0)
-  const [selections, setSelections] = useState<Record<number, (1|2|3|4)[]>>({})
-  const [savingIdx,  setSavingIdx]  = useState<number | null>(null)
-  const [phase,      setPhase]      = useState<'quiz' | 'done'>('quiz')
-  const [flashId,    setFlashId]    = useState<number | null>(null)
-  const [loading,    setLoading]    = useState(true)
+  const [idx,         setIdx]        = useState(0)
+  const [selections,  setSelections] = useState<Record<number, (1|2|3|4)[]>>({})
+  const [savingIdx,   setSavingIdx]  = useState<number | null>(null)
+  const [phase,       setPhase]      = useState<'quiz' | 'done'>('quiz')
+  const [flashId,     setFlashId]    = useState<number | null>(null)
+  const [loading,     setLoading]    = useState(true)
+  const [updateError, setUpdateError] = useState('')
 
   // Charge les réponses existantes
   useEffect(() => {
@@ -460,10 +461,15 @@ function QualitesCarousel({
         .filter((a): a is TestAnswer => a !== null)
       const resultats    = calculerQualites(allAnswers)
       const qualitesTest = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
-      await supabase.from('profils').update({
+      const { error: profilErr } = await supabase.from('profils').update({
         qualites_test: qualitesTest,
         ...(writeDate ? { test_qualites_fait_le: new Date().toISOString() } : {}),
       }).eq('user_id', userId)
+      if (profilErr) {
+        setUpdateError("L'enregistrement n'a pas abouti, réessayez.")
+        setSavingIdx(null)
+        return
+      }
       setPhase('done')
       if (onRefaireDone) { onRefaireDone() } else { onComplete(true) }
     }
@@ -649,6 +655,10 @@ function QualitesCarousel({
            : 'Voir mes résultats'}
         </button>
       </div>
+
+      {updateError && (
+        <p style={{ fontSize: 13, color: C.erreur, margin: '10px 0 0', textAlign: 'center' }}>{updateError}</p>
+      )}
 
       {/* Indicateur de progression globale (nombre de situations répondues) */}
       {answeredCount > 0 && answeredCount < TOTAL_SITUATIONS && (
@@ -1995,7 +2005,7 @@ function OnboardingPageInner() {
     <main style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <header style={{ padding: '20px clamp(20px,5%,48px)', borderBottom: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
         <span style={{ fontFamily: FONT_SERIF, fontSize: 20, fontWeight: 600, color: C.dark }}>Refaire le questionnaire</span>
-        <a href="/profil" style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>← Revenir à mon profil</a>
+        <a href="/profil" style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>Revenir à mon profil</a>
       </header>
       <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px clamp(20px,5%,48px)' }}>
         <div style={{ width: '100%', maxWidth: 560 }}>
