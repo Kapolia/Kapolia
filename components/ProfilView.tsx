@@ -8,7 +8,8 @@ import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES } from '@/lib/langues'
-import { COMP_REF, DOMAINES, PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
+import { COMP_REF, DOMAINES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
+import { anneesExperience, lireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
@@ -81,6 +82,8 @@ type Profil = {
   video_miroir?: boolean | null
   qualites_test?: Record<string, number> | null
   liens?: Lien[] | null
+  metier?: string | null
+  permis?: string[] | null
 }
 
 // Colonnes sélectionnées selon le contexte d'affichage.
@@ -98,6 +101,7 @@ const COLONNES_PROPRIETAIRE = [
   'avatar_url', 'avatar_type', 'telephone', 'linkedin_url', 'portfolio_url',
   'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
   'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
+  'metier', 'permis',
   'email_notifications', 'messages_recruteurs', 'visible_candidatheque',
 ].join(', ')
 
@@ -111,6 +115,7 @@ const COLONNES_VISITEUR = [
   'avatar_url', 'avatar_type', 'linkedin_url', 'portfolio_url',
   'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
   'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
+  'metier', 'permis',
 ].join(', ')
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
@@ -897,6 +902,18 @@ export default function ProfilView({
       ...(p.linkedin_url ? [{ intitule: 'LinkedIn', url: p.linkedin_url }] : []),
       ...(p.portfolio_url ? [{ intitule: 'Portfolio', url: p.portfolio_url }] : []),
     ]
+  const anneesExp: number = (() => {
+    const postes: PosteParcours[] = []
+    for (const e of experiences) {
+      const debut = lireMoisAnnee(e.date_debut)
+      if (!debut) continue
+      if (e.en_poste) { postes.push({ id: '', poste: e.poste, entreprise: e.entreprise, debut, fin: null, enPoste: true }); continue }
+      const fin = lireMoisAnnee(e.date_fin)
+      if (!fin) continue
+      postes.push({ id: '', poste: e.poste, entreprise: e.entreprise, debut, fin, enPoste: false })
+    }
+    return anneesExperience(postes)
+  })()
 
   function showToast(msg: string) {
     setToastMsg(msg); setToastVisible(true)
@@ -1368,6 +1385,8 @@ export default function ProfilView({
         @keyframes kapolia-pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
         * { box-sizing: border-box; }
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
+        .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:#A9541A; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
+        .profil-lien-action:hover { background:#FBF3EC; }
         .profil-layout { display: flex; gap: 20px; align-items: flex-start; }
         .profil-left { width: 360px; flex-shrink: 0; position: sticky; top: 20px; }
         .profil-right { flex: 1; min-width: 0; }
@@ -2790,73 +2809,44 @@ export default function ProfilView({
               </div>
 
               {/* Info */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
-                <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 30, fontWeight: 600, color: C.dark, margin: 0, lineHeight: 1.2 }}>
-                  {p.prenom} {p.nom}
-                </h1>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
-                {/* Poste actuel ou domaine */}
-                {(() => {
-                  const cur = experiences.find(e => e.en_poste)
-                  const lat = cur ?? experiences[0]
-                  const title = lat?.poste
-                    ? lat.poste + (lat.entreprise ? ' · ' + lat.entreprise : '')
-                    : (p.domaine ?? null)
-                  return title ? <div style={{ fontSize: 14, color: C.grey, fontWeight: 500 }}>{title}</div> : null
-                })()}
-
-                {/* Activité */}
-                {activity.label && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' as const }}>
-                    {activity.isActif && (
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        padding: '2px 8px', borderRadius: 20,
-                        backgroundColor: `${C.succes}22`,
-                        border: `1px solid ${C.succes}44`,
-                        fontSize: 11, fontWeight: 700, color: C.succes, letterSpacing: '0.06em',
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: C.succes, flexShrink: 0 }} />
-                        Actif
-                      </span>
-                    )}
-                    <span style={{ fontSize: 12, color: C.grey }}>{activity.label}</span>
-                  </div>
-                )}
-
-                {/* Boutons action */}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginTop: 4 }}>
+                {/* Nom + liens action */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap' as const, gap: 8 }}>
+                  <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 30, fontWeight: 600, color: C.dark, margin: 0, lineHeight: 1.2 }}>
+                    {p.prenom} {p.nom}
+                  </h1>
                   {isOwner ? (
-                    <>
-                      <button onClick={startEdit} style={{
-                        padding: '8px 20px', borderRadius: 10, border: 'none',
-                        backgroundColor: C.terracotta, color: C.white,
-                        fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                      }}>Modifier mon profil</button>
-                      <button
-                        className="btn-portrait"
-                        onClick={() => {
-                          const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
-                          setPortraitTitle(saved ?? p.domaine ?? '')
-                          setPortraitWithPhoto(false)
-                          const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
-                          setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
-                          const hasPhone = !!(p.telephone)
-                          const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
-                          setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
-                          setPortraitModal(true)
-                        }}
-                        style={{
-                          padding: '8px 20px', borderRadius: 10,
-                          border: `1px solid ${C.sable}`, backgroundColor: C.white,
-                          color: C.dark, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                          fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
-                          transition: 'opacity 0.15s',
-                        }}
-                      >↓ Mon portrait en PDF</button>
-                    </>
+                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginLeft: 'auto', maxWidth: 440 }}>
+                      <button className="profil-lien-action" onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new Event('ouvrir-assistant-profil'))}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
+                        {"Qu'est-ce qui manque ?"}
+                      </button>
+                      <button className="profil-lien-action" onClick={() => {
+                        const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
+                        setPortraitTitle(saved ?? p.domaine ?? '')
+                        setPortraitWithPhoto(false)
+                        const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
+                        setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
+                        const hasPhone = !!(p.telephone)
+                        const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
+                        setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
+                        setPortraitModal(true)
+                      }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 3v13m-5-5 5 5 5-5M3 20h18"/></svg>
+                        Portrait PDF
+                      </button>
+                      <button className="profil-lien-action">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Voir comme un recruteur
+                      </button>
+                      <button className="profil-lien-action" onClick={startEdit}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Modifier
+                      </button>
+                    </div>
                   ) : (
-                    <>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginLeft: 'auto' }}>
                       <ScoreCircle score={83} size={58} />
                       <button
                         onClick={async () => {
@@ -2867,108 +2857,146 @@ export default function ProfilView({
                           router.push(`/recruteur/messages?new=${userId}`)
                         }}
                         disabled={writingMsg}
-                        style={{
-                          padding: '8px 18px', borderRadius: 10, border: 'none',
-                          backgroundColor: C.terracotta, color: C.white,
-                          fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer',
-                          fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1,
-                        }}
+                        style={{ padding: '8px 18px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer', fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1 }}
                       >{writingMsg ? '…' : 'Écrire'}</button>
-                      <button onClick={() => setSaved(s => !s)} style={{
-                        padding: '8px 18px', borderRadius: 10,
-                        border: `1.5px solid ${saved ? C.vert : C.sable}`,
-                        backgroundColor: saved ? `${C.vert}12` : C.white,
-                        color: saved ? C.vert : C.grey,
-                        fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s',
-                      }}>
+                      <button onClick={() => setSaved(s => !s)} style={{ padding: '8px 18px', borderRadius: 10, border: `1.5px solid ${saved ? C.vert : C.sable}`, backgroundColor: saved ? `${C.vert}12` : C.white, color: saved ? C.vert : C.grey, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
                         {saved ? 'Sauvegardé' : 'Sauvegarder'}
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
+
+                {/* Métier */}
+                {(() => {
+                  const titre = p.metier?.trim() || experiences.find(e => e.en_poste)?.poste || experiences[0]?.poste || null
+                  return titre ? <div style={{ fontSize: 18, fontWeight: 600, color: C.dark, marginTop: 4 }}>{titre}</div> : null
+                })()}
+
+                {/* Domaine · N ans d'expérience */}
+                {(() => {
+                  const domaine = p.domaine ?? ''
+                  if (anneesExp < 1) return domaine ? <div style={{ fontSize: 14.5, color: C.grey, marginTop: 3 }}>{domaine}</div> : null
+                  const expStr = anneesExp === 1 ? "1 an d'expérience" : `${anneesExp} ans d'expérience`
+                  if (!domaine) return <div style={{ fontSize: 14.5, color: C.grey, marginTop: 3 }}>{expStr}</div>
+                  return <div style={{ fontSize: 14.5, color: C.grey, marginTop: 3 }}>{domaine} · {expStr}</div>
+                })()}
 
                 {/* Signature */}
                 {p.signature ? (
-                  <div style={{ marginTop: 2 }}>
-                    <p style={{
-                      margin: 0,
-                      fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic',
-                      fontSize: 15, color: C.grey, lineHeight: 1.6,
-                      ...(signatureExpanded ? {} : {
-                        display: '-webkit-box', WebkitLineClamp: 3,
-                        WebkitBoxOrient: 'vertical' as const, overflow: 'hidden',
-                      }),
-                    }}>« {p.signature} »</p>
+                  <div style={{ marginTop: 10 }}>
+                    <p style={{ margin: 0, fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontStyle: 'italic', fontSize: 15, color: C.grey, lineHeight: 1.6, ...(signatureExpanded ? {} : { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }) }}>
+                      {`« ${p.signature} »`}
+                    </p>
                     {p.signature.length > 120 && (
-                      <button
-                        onClick={() => setSignatureExpanded(v => !v)}
-                        style={{ background: 'none', border: 'none', padding: 0, marginTop: 4, color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}
-                      >{signatureExpanded ? 'voir moins' : 'voir plus'}</button>
+                      <button onClick={() => setSignatureExpanded(v => !v)} style={{ background: 'none', border: 'none', padding: 0, marginTop: 4, color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                        {signatureExpanded ? 'voir moins' : 'voir plus'}
+                      </button>
                     )}
                   </div>
                 ) : isOwner ? (
-                  <button onClick={startEdit} style={{
-                    padding: '7px 14px', borderRadius: 8, border: `1.5px dashed ${C.sable}`,
-                    backgroundColor: 'transparent', color: C.grey, fontSize: 13, cursor: 'pointer',
-                    fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start',
-                  }}>+ Ajouter une phrase signature</button>
+                  <button onClick={startEdit} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: 'transparent', color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
+                    Ajouter votre phrase
+                  </button>
                 ) : null}
 
                 {/* Pastilles */}
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginTop: 2 }}>
-                  {p.disponibilite && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: dispo.color, flexShrink: 0 }} />
-                      {dispo.label}
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 18 }}>
+
+                  {/* Disponibilité */}
+                  {p.disponibilite ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      {p.disponibilite === 'maintenant' ? 'Disponible maintenant'
+                        : p.disponibilite === 'a_partir_de' ? (() => {
+                          if (!p.dispo_date) return 'Disponible prochainement'
+                          const d = new Date(p.dispo_date + 'T00:00:00')
+                          return `À partir de ${MOIS_FR[d.getMonth()]} ${d.getFullYear()}`
+                        })()
+                        : p.disponibilite === 'en_poste' ? "En poste, à l'écoute"
+                        : 'Pas disponible pour le moment'
+                      }
+                    </span>
+                  ) : isOwner ? (
+                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                      Indiquer votre disponibilité
+                    </button>
+                  ) : null}
+
+                  {/* Contrat */}
+                  {(p.type_poste ?? []).length > 0 ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                      {(p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' ou ')}
+                    </span>
+                  ) : isOwner ? (
+                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                      Indiquer le contrat recherché
+                    </button>
+                  ) : null}
+
+                  {/* Ville */}
+                  {p.ville ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                      {p.ville}
+                    </span>
+                  ) : isOwner ? (
+                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                      Indiquer votre ville
+                    </button>
+                  ) : null}
+
+                  {/* Télétravail */}
+                  {modeTravailLabel && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M3 12l2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
+                      {modeTravailLabel}
                     </span>
                   )}
-                  {(p.type_poste ?? []).length > 0 && (
-                    <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
-                      {typePosteLabel}
+
+                  {/* Permis */}
+                  {(p.permis ?? []).length > 0 ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                      {(p.permis ?? []).map(v => PERMIS.find(x => x.value === v)?.label ?? v).join(', ')}
                     </span>
-                  )}
-                  {(p.ville || modeTravailLabel) && (
-                    <span style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
-                      {[p.ville, modeTravailLabel].filter(Boolean).join(' · ')}
-                    </span>
-                  )}
-                  {langues.map((entry, li) => {
-                    const sep = entry.indexOf(' — ')
-                    const nom = sep >= 0 ? entry.slice(0, sep) : entry
-                    const niv = sep >= 0 ? entry.slice(sep + 3) : ''
+                  ) : isOwner ? (
+                    <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                      Ajouter vos permis
+                    </button>
+                  ) : null}
+
+                  {/* Langues */}
+                  {(() => {
+                    const restantes = langues
+                      .map(entry => {
+                        const sep = entry.indexOf(' — ')
+                        const nom = sep >= 0 ? entry.slice(0, sep) : entry
+                        const niv = sep >= 0 ? entry.slice(sep + 3) : ''
+                        if (nom.toLowerCase() === 'français' && niv.toLowerCase() === 'natif') return null
+                        return { nom, niv }
+                      })
+                      .filter((x): x is { nom: string; niv: string } => x !== null)
+                    if (restantes.length === 0) return null
+                    const texte = restantes.map((x, i) => {
+                      const n = i === 0 ? x.nom : x.nom.toLowerCase()
+                      const niv = x.niv.toLowerCase()
+                      return niv ? `${n} ${niv}` : n
+                    }).join(', ')
                     return (
-                      <span key={li} style={{ padding: '4px 10px', borderRadius: 10, backgroundColor: C.bg, border: `1px solid ${C.sable}`, fontSize: 12, color: C.dark, fontWeight: 500 }}>
-                        {nom}{niv ? ` · ${niv}` : ''}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        {texte}
                       </span>
                     )
-                  })}
-                  {isOwner && !p.disponibilite && (
-                    <button onClick={startEdit} style={{ padding: '4px 10px', borderRadius: 10, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      + Disponibilité
-                    </button>
-                  )}
-                </div>
+                  })()}
 
-                {/* Gestion vidéo — propriétaire avec vidéo */}
-                {isOwner && videoPresentation && (
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
-                    <button
-                      onClick={toggleVideoMiroir}
-                      disabled={togglingMiroir || uploadingVedette || deletingVideo}
-                      style={{ padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${videoMiroir ? C.vert : C.sable}`, backgroundColor: videoMiroir ? `${C.vert}18` : C.white, color: videoMiroir ? C.vert : C.grey, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: (togglingMiroir || uploadingVedette || deletingVideo) ? 0.5 : 1, transition: 'all 0.15s' }}
-                    >Miroir</button>
-                    <button
-                      onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
-                      disabled={uploadingVedette || deletingVideo}
-                      style={{ padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.dark, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: (uploadingVedette || deletingVideo) ? 0.5 : 1 }}
-                    >Remplacer</button>
-                    <button
-                      onClick={deleteVideoPresentation}
-                      disabled={uploadingVedette || deletingVideo}
-                      style={{ padding: '6px 13px', borderRadius: 10, border: `1.5px solid ${C.erreur}44`, backgroundColor: C.white, color: C.erreur, fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', opacity: (uploadingVedette || deletingVideo) ? 0.5 : 1 }}
-                    >{deletingVideo ? 'Suppression…' : 'Supprimer'}</button>
-                  </div>
-                )}
+                </div>
 
               </div>
             </div>

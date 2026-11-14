@@ -40,6 +40,12 @@ export default function AssistantProfilPanel({ isEditing }: { isEditing: boolean
     return () => { mounted = false }
   }, [])
 
+  useEffect(() => {
+    function ouvrir() { setOpen(true) }
+    window.addEventListener('ouvrir-assistant-profil', ouvrir)
+    return () => window.removeEventListener('ouvrir-assistant-profil', ouvrir)
+  }, [])
+
   if (isEditing) return null
 
   async function lancer() {
