@@ -654,6 +654,7 @@ export default function ProfilView({
   const [uploadingVedette, setUploadingVedette]     = useState(false)
   const [deletingVideo, setDeletingVideo]           = useState(false)
   const [togglingMiroir, setTogglingMiroir]         = useState(false)
+  const [apercuRecruteur, setApercuRecruteur]       = useState(false)
 
   // Recording modal state
   const [recordModal, setRecordModal]     = useState(false)
@@ -899,6 +900,7 @@ export default function ProfilView({
   )
 
   const p = profil!
+  const effectiveOwner = isOwner && !apercuRecruteur
 
   const initials         = getInitials(p.prenom, p.nom)
   const dispo            = getDispoStatus(p.disponibilite, p.dispo_date)
@@ -2799,6 +2801,17 @@ export default function ProfilView({
       {!isEditing && (
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px 80px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+          {/* ── BANDEAU APERÇU RECRUTEUR ── */}
+          {apercuRecruteur && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', backgroundColor: C.salaire, borderRadius: 11 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: C.vert }}>Vous voyez votre profil tel qu&apos;un recruteur le voit.</span>
+              <button
+                onClick={() => { setApercuRecruteur(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                style={{ padding: '6px 14px', borderRadius: 8, border: 'none', backgroundColor: C.white, color: C.vert, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+              >Revenir à mon profil</button>
+            </div>
+          )}
+
           {/* ── EN-TÊTE ── */}
           <div style={{ backgroundColor: C.white, borderRadius: 16, boxShadow: CARD_SHADOW, padding: 22 }}>
             <div className="profil-entete">
@@ -2817,7 +2830,7 @@ export default function ProfilView({
                       display: 'flex', alignItems: 'center', gap: 5,
                     }}
                   >▶ Vidéo</button>
-                ) : isOwner ? (
+                ) : effectiveOwner ? (
                   <button
                     className="btn-portrait"
                     onClick={() => { setRecordPhase('preview'); setRecordError(''); setRecordModal(true) }}
@@ -2843,7 +2856,7 @@ export default function ProfilView({
                   <h1 style={{ fontFamily: FONT_SERIF, letterSpacing: '-0.005em', fontSize: 30, fontWeight: 600, color: C.dark, margin: 0, lineHeight: 1.2 }}>
                     {p.prenom} {p.nom}
                   </h1>
-                  {isOwner ? (
+                  {effectiveOwner ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginLeft: 'auto', maxWidth: 440 }}>
                       <button className="profil-lien-action" onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new Event('ouvrir-assistant-profil'))}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
@@ -2863,7 +2876,7 @@ export default function ProfilView({
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 3v13m-5-5 5 5 5-5M3 20h18"/></svg>
                         Portrait PDF
                       </button>
-                      <button className="profil-lien-action">
+                      <button className="profil-lien-action" onClick={() => { setApercuRecruteur(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
                         Voir comme un recruteur
                       </button>
@@ -2872,7 +2885,7 @@ export default function ProfilView({
                         Modifier
                       </button>
                     </div>
-                  ) : (
+                  ) : !apercuRecruteur ? (
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginLeft: 'auto' }}>
                       <ScoreCircle score={83} size={58} />
                       <button
@@ -2890,7 +2903,7 @@ export default function ProfilView({
                         {saved ? 'Sauvegardé' : 'Sauvegarder'}
                       </button>
                     </div>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Métier */}
@@ -2920,7 +2933,7 @@ export default function ProfilView({
                       </button>
                     )}
                   </div>
-                ) : isOwner ? (
+                ) : effectiveOwner ? (
                   <button onClick={startEdit} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: 'transparent', color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
                     Ajouter votre phrase
@@ -2944,7 +2957,7 @@ export default function ProfilView({
                         : 'Pas disponible pour le moment'
                       }
                     </span>
-                  ) : isOwner ? (
+                  ) : effectiveOwner ? (
                     <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       Indiquer votre disponibilité
@@ -2957,7 +2970,7 @@ export default function ProfilView({
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       {(p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' ou ')}
                     </span>
-                  ) : isOwner ? (
+                  ) : effectiveOwner ? (
                     <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       Indiquer le contrat recherché
@@ -2970,7 +2983,7 @@ export default function ProfilView({
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       {p.ville}
                     </span>
-                  ) : isOwner ? (
+                  ) : effectiveOwner ? (
                     <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       Indiquer votre ville
@@ -2991,7 +3004,7 @@ export default function ProfilView({
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       {(p.permis ?? []).map(v => PERMIS.find(x => x.value === v)?.label ?? v).join(', ')}
                     </span>
-                  ) : isOwner ? (
+                  ) : effectiveOwner ? (
                     <button onClick={startEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       Ajouter vos permis
@@ -3035,7 +3048,7 @@ export default function ProfilView({
           )}
 
           {/* ── QUALITÉS ── */}
-          {(isOwner || qualites.length > 0 || qualitesProchesSel.length > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (() => {
+          {(effectiveOwner || qualites.length > 0 || qualitesProchesSel.length > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (() => {
             const testLabels = Object.entries(p.qualites_test ?? {}).sort((a, b) => b[1] - a[1]).map(([k]) => QUALITE_LABELS[k] ?? k)
             const procheLabels = qualitesProchesSel.map(s => s.qualite)
             const candidatLabels = qualites
@@ -3051,7 +3064,7 @@ export default function ProfilView({
             return (
               <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
                 <SLabel20>Qualités</SLabel20>
-                {isOwner && unreadNotifCount > 0 && (
+                {effectiveOwner && unreadNotifCount > 0 && (
                   <p style={{ margin: '0 0 14px', padding: '11px 16px', borderRadius: 10, backgroundColor: `${C.terracotta}0F`, border: `1px solid ${C.terracotta}35`, fontSize: 13, color: C.terracotta, lineHeight: 1.55 }}>
                     {unreadNotifCount === 1
                       ? 'Un proche vous a répondu. Modifiez votre profil pour découvrir ses mots.'
@@ -3084,7 +3097,7 @@ export default function ProfilView({
                           <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
                         </svg>
                       )}
-                      {isOwner ? 'Selon vos proches' : 'Selon ses proches'}
+                      {effectiveOwner ? 'Selon vos proches' : 'Selon ses proches'}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
                       {procheLabels.length > 0 ? procheLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
@@ -3093,7 +3106,7 @@ export default function ProfilView({
                   <div style={{ backgroundColor: C.bg, borderRadius: 10, padding: '10px 10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 12.5, fontWeight: 600, color: C.grey }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill={C.vert} stroke="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                      {isOwner ? 'Selon vous' : `Selon ${p.prenom}`}
+                      {effectiveOwner ? 'Selon vous' : `Selon ${p.prenom}`}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 5 }}>
                       {candidatLabels.length > 0 ? candidatLabels.map(label => <span key={label} style={tagSt(label)}>{label}</span>) : <span style={{ fontSize: 12, color: C.grey, fontStyle: 'italic' }}>—</span>}
@@ -3109,7 +3122,7 @@ export default function ProfilView({
           })()}
 
           {/* ── COMPÉTENCES ── */}
-          {(competencesAcquises.length > 0 || isOwner) && (
+          {(competencesAcquises.length > 0 || effectiveOwner) && (
             <div id="competences" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px', scrollMarginTop: 24 }}>
               <SLabel20>Compétences</SLabel20>
               {competencesAcquises.length > 0 ? (
@@ -3128,7 +3141,7 @@ export default function ProfilView({
           )}
 
           {/* ── PROJET PHARE ── */}
-          {(p.projet_phare || isOwner) && (
+          {(p.projet_phare || effectiveOwner) && (
             <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
               <SLabel20>Mon projet phare</SLabel20>
               {p.projet_phare ? (
@@ -3158,11 +3171,11 @@ export default function ProfilView({
           )}
 
           {/* ── GRILLE 3 COLONNES ── */}
-          {(isOwner || (p.priorites && p.priorites.length > 0) || passions.length > 0 || liensAffiches.length > 0) && (
+          {(effectiveOwner || (p.priorites && p.priorites.length > 0) || passions.length > 0 || liensAffiches.length > 0) && (
             <div className="profil-col3">
 
               {/* Ce qui compte */}
-              {(isOwner || (p.priorites && p.priorites.length > 0)) && (
+              {(effectiveOwner || (p.priorites && p.priorites.length > 0)) && (
                 <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
                   <SLabel17>Ce qui compte</SLabel17>
                   {p.priorites && p.priorites.length > 0 ? (
@@ -3181,9 +3194,9 @@ export default function ProfilView({
               )}
 
               {/* Ce qui anime */}
-              {(isOwner || passions.length > 0) && (
+              {(effectiveOwner || passions.length > 0) && (
                 <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
-                  <SLabel17>{isOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
+                  <SLabel17>{effectiveOwner ? "Ce qui m'anime" : "Ce qui l'anime"}</SLabel17>
                   {passions.length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
                       {passions.map(passion => (
@@ -3205,7 +3218,7 @@ export default function ProfilView({
               )}
 
               {/* Liens */}
-              {(isOwner || liensAffiches.length > 0) && (
+              {(effectiveOwner || liensAffiches.length > 0) && (
                 <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
                   <SLabel17>Liens</SLabel17>
                   {liensAffiches.length > 0 ? (
@@ -3672,7 +3685,7 @@ export default function ProfilView({
         </div>
       )}
 
-      {isOwner && (
+      {effectiveOwner && (
         <InvitationModal
           open={invitModalOpen}
           onClose={() => setInvitModalOpen(false)}
@@ -3682,7 +3695,7 @@ export default function ProfilView({
         />
       )}
 
-      {isOwner && <AssistantProfilPanel isEditing={isEditing} />}
+      {effectiveOwner && <AssistantProfilPanel isEditing={isEditing} />}
     </main>
   )
 }
