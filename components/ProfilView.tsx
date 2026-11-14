@@ -12,6 +12,7 @@ import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS } from
 import CartePresentation from '@/components/profil/CartePresentation'
 import CarteRecherche from '@/components/profil/CarteRecherche'
 import CarteParcours, { type ParcoursExpEdit, type ParcoursDiplomeEdit } from '@/components/profil/CarteParcours'
+import CarteQualites from '@/components/profil/CarteQualites'
 import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
@@ -1793,7 +1794,18 @@ export default function ProfilView({
                 </div>
                 {carteOuverte === 'qualites' ? (
                   <>
-                    <p style={{ fontSize: 13.5, color: C.grey, margin: '0 0 16px' }}>Choisissez vos qualités et sélectionnez celles reçues de vos proches.</p>
+                    <CarteQualites
+                      testLabels={testLabels}
+                      hasTest={!!(p.qualites_test && Object.keys(p.qualites_test).length > 0)}
+                      reponsesProches={reponsesProches}
+                      activeInvitations={activeInvitations}
+                      editQualites={editQualites}
+                      setEditQualites={setEditQualites}
+                      editQualitesProches={editQualitesProches}
+                      setEditQualitesProches={setEditQualitesProches}
+                      onInviter={() => setInvitModalOpen(true)}
+                      onChange={() => setCarteModifiee(true)}
+                    />
                     {cardFooter('qualites')}
                   </>
                 ) : (

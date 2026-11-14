@@ -124,6 +124,33 @@ function IconBienEtre({ size = 20 }: IconProps) {
   )
 }
 
+function IconVehicules({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="11" width="22" height="8" rx="2"/><path d="M5 11V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4"/>
+      <circle cx="8" cy="19" r="2"/><circle cx="16" cy="19" r="2"/>
+    </svg>
+  )
+}
+
+function IconBricolage({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>
+  )
+}
+
+function IconEngagement({ size = 20 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  )
+}
+
 function IconGenerique({ size = 20 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -183,6 +210,18 @@ const FAMILLES: { test: (n: string) => boolean; Icone: (p: IconProps) => React.R
   {
     test: n => /yoga|danse|méditation|meditation|bien-être|bien etre|pilates|sophrolog|relaxation|mindfulness|zumba|salsa|tango/i.test(n),
     Icone: IconBienEtre,
+  },
+  {
+    test: n => /moto|auto|voiture|véhicule|vehicule|mécani|mecani|karting|garage/i.test(n),
+    Icone: IconVehicules,
+  },
+  {
+    test: n => /bricol|menuis|diy|réparation|reparation|couture|tricot/i.test(n),
+    Icone: IconBricolage,
+  },
+  {
+    test: n => /bénévol|benevol|association|solidar|humanitaire/i.test(n),
+    Icone: IconEngagement,
   },
 ]
 
