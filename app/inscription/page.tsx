@@ -7,15 +7,8 @@ import LogoKapolia from '@/components/LogoKapolia'
 import { FONT_SANS } from '@/lib/typography'
 import { safeNext, storeNext, OAUTH_TYPE_KEY, OAUTH_NEXT_KEY } from '@/lib/auth-redirect'
 import { C as _C } from '@/lib/colors'
+import { isValidEmail } from '@/lib/validation'
 const C = { ..._C, lightGrey: '#D0D0D0' as const }
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-
-// ─── Validation ───────────────────────────────────────────────────────────────
-
-function isValidEmail(v: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 

@@ -1,21 +1,28 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useRef } from 'react'
+import { flushSync } from 'react-dom'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import LogoKapolia from '@/components/LogoKapolia'
+import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
-import { C as _C } from '@/lib/colors'
-const C = { ..._C, lightGrey: '#D0D0D0' as const }
+import { reduitMouvement } from '@/lib/motion'
+import { isValidEmail } from '@/lib/validation'
+import AuthShell from '@/components/auth/AuthShell'
+import AuthField from '@/components/auth/AuthField'
+import { AuthButtonPrimary } from '@/components/auth/AuthButton'
+import ErreurDepliable from '@/components/auth/ErreurDepliable'
 
 export default function MotDePasseOubliePage() {
-  const router = useRouter()
   const [email,       setEmail]       = useState('')
   const [sending,     setSending]     = useState(false)
   const [sent,        setSent]        = useState(false)
   const [serverError, setServerError] = useState('')
 
-  const canSubmit = email.trim().length > 0 && !sending
+  const cardRef    = useRef<HTMLDivElement>(null)
+  const formWrapRef = useRef<HTMLDivElement>(null)
+
+  const canSubmit = isValidEmail(email.trim()) && !sending
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,202 +37,165 @@ export default function MotDePasseOubliePage() {
     setSending(false)
 
     if (error) {
-      // resetPasswordForEmail renvoie 200 même si l'email n'existe pas.
-      // Une vraie erreur ici = problème technique (réseau, rate-limit…).
       setServerError('Une erreur est survenue. Vérifiez votre connexion et réessayez.')
       return
     }
 
-    setSent(true)
+    await playTransition()
+  }
+
+  async function playTransition() {
+    if (reduitMouvement()) {
+      setSent(true)
+      return
+    }
+
+    const formEl = formWrapRef.current
+    const cardEl = cardRef.current
+
+    // Phase 1 : fondu de sortie du formulaire (140 ms)
+    if (formEl) {
+      formEl.style.transition = 'opacity 140ms ease, transform 140ms ease'
+      void formEl.offsetWidth
+      formEl.style.opacity = '0'
+      formEl.style.transform = 'translateX(-10px)'
+    }
+    await new Promise<void>(r => setTimeout(r, 140))
+
+    if (!cardEl) {
+      setSent(true)
+      return
+    }
+
+    // Hauteur avant le changement de contenu
+    const startH = cardEl.offsetHeight
+
+    // Phase 2 : switch synchrone puis animation de la hauteur (280 ms)
+    flushSync(() => setSent(true))
+    const endH = cardEl.offsetHeight
+
+    if (startH !== endH) {
+      cardEl.style.height = `${startH}px`
+      cardEl.style.overflow = 'hidden'
+      void cardEl.offsetWidth
+      cardEl.style.transition = 'height 280ms cubic-bezier(.2,.8,.2,1)'
+      cardEl.style.height = `${endH}px`
+
+      await new Promise<void>(r => setTimeout(r, 285))
+      cardEl.style.height = ''
+      cardEl.style.overflow = ''
+      cardEl.style.transition = ''
+    }
   }
 
   return (
-    <main style={{
-      minHeight: '100vh',
-      backgroundColor: C.bg,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: 'clamp(40px, 6%, 72px) clamp(20px, 5%, 40px)',
-    }}>
-      <style suppressHydrationWarning>
-        {`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}
-      </style>
-
-      <a href="/" style={{ marginBottom: '40px', textDecoration: 'none' }}>
-        <LogoKapolia variante="sombre" taille={40} />
-      </a>
-
-      <div style={{
-        width: '100%',
-        maxWidth: '440px',
-        backgroundColor: C.white,
-        borderRadius: '24px',
-        padding: 'clamp(28px, 5%, 44px)',
-        boxShadow: '0 2px 24px rgba(26,26,26,0.07)',
-      }}>
-
-        {!sent ? (
-          <>
+    <AuthShell cardRef={cardRef}>
+      {!sent ? (
+        <div ref={formWrapRef}>
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="auth-stagger"
+            style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
+          >
             <h1 style={{
-              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-              fontSize: 'clamp(22px, 4vw, 28px)',
-              color: C.dark,
+              margin: 0,
+              fontSize: '28px',
               fontWeight: 700,
-              margin: '0 0 10px',
+              color: C.dark,
+              fontFamily: FONT_SANS,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.15,
             }}>
               Mot de passe oublié
             </h1>
-            <p style={{ margin: '0 0 28px', fontSize: '14px', color: C.grey, lineHeight: 1.65 }}>
+
+            <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
               Indiquez l'adresse e-mail de votre compte. Nous vous enverrons un lien pour choisir un nouveau mot de passe.
             </p>
 
-            <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: C.dark, letterSpacing: '0.02em' }}>
-                  Adresse e-mail
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); setServerError('') }}
-                  placeholder="vous@exemple.fr"
-                  autoFocus
-                  autoComplete="email"
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    fontSize: '15px',
-                    borderRadius: '12px',
-                    border: `1.5px solid ${email ? C.sable : C.lightGrey}`,
-                    backgroundColor: C.white,
-                    color: C.dark,
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    fontFamily: 'inherit',
-                    transition: 'border-color 0.15s',
-                  }}
-                />
-              </div>
+            <AuthField
+              label="Adresse e-mail"
+              value={email}
+              onChange={v => { setEmail(v); setServerError('') }}
+              type="email"
+              placeholder="vous@exemple.fr"
+              autoComplete="email"
+            />
 
-              {serverError && (
-                <div style={{
-                  padding: '11px 14px',
-                  borderRadius: '10px',
-                  backgroundColor: '#fdf2f2',
-                  border: `1px solid ${C.erreur}30`,
-                  color: C.erreur,
-                  fontSize: '13px',
-                  lineHeight: 1.5,
-                }}>
-                  {serverError}
-                </div>
-              )}
+            <ErreurDepliable message={serverError} />
 
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  borderRadius: '14px',
-                  border: 'none',
-                  backgroundColor: canSubmit ? C.terracotta : C.sable,
-                  color: canSubmit ? C.white : C.grey,
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  cursor: canSubmit ? 'pointer' : 'default',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  fontFamily: 'inherit',
-                }}
+            <AuthButtonPrimary type="submit" disabled={!canSubmit} loading={sending}>
+              {sending ? 'Envoi' : 'Envoyer le lien'}
+            </AuthButtonPrimary>
+
+            <p style={{ margin: 0, textAlign: 'center', fontSize: '14px', color: C.grey }}>
+              <Link
+                href="/connexion"
+                style={{ color: C.orangeTexte, fontWeight: 600, textDecoration: 'none' }}
               >
-                {sending && (
-                  <span style={{
-                    display: 'inline-block',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '50%',
-                    border: '2px solid rgba(255,255,255,0.35)',
-                    borderTopColor: '#fff',
-                    animation: 'kapolia-spin 0.7s linear infinite',
-                    flexShrink: 0,
-                  }} />
-                )}
-                {sending ? 'Envoi…' : 'Envoyer le lien'}
-              </button>
-            </form>
-
-            <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: C.grey }}>
-              <a href="/connexion" style={{ color: C.terracotta, fontWeight: '600', textDecoration: 'none' }}>
-                ← Retour à la connexion
-              </a>
+                Retour à la connexion
+              </Link>
             </p>
-          </>
-        ) : (
-          <>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              backgroundColor: `${C.vert}14`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '20px',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke={C.vert} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </div>
+          </form>
+        </div>
+      ) : (
+        <div
+          className="auth-stagger-delayed"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+            textAlign: 'center',
+          }}
+        >
+          <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+            <circle
+              className="mdp-circle"
+              cx="26" cy="26" r="22"
+              stroke={C.succes}
+              strokeWidth="2"
+              fill="none"
+              transform="rotate(-90 26 26)"
+            />
+            <path
+              className="mdp-check"
+              d="M14 27 L22 35 L38 18"
+              stroke={C.succes}
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
 
-            <h1 style={{
-              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-              fontSize: 'clamp(20px, 3.5vw, 26px)',
-              color: C.dark,
-              fontWeight: 700,
-              margin: '0 0 12px',
-            }}>
-              Email envoyé
-            </h1>
-            <p style={{ margin: '0 0 28px', fontSize: '14px', color: C.grey, lineHeight: 1.7 }}>
-              Si un compte existe avec cette adresse, vous recevrez un e-mail de réinitialisation dans quelques instants.
-              Pensez à vérifier vos spams.
-            </p>
+          <h1 style={{
+            margin: 0,
+            fontSize: '24px',
+            fontWeight: 700,
+            color: C.dark,
+            fontFamily: FONT_SANS,
+            letterSpacing: '-0.01em',
+          }}>
+            E-mail envoyé
+          </h1>
 
-            <button
-              onClick={() => router.push('/connexion')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: C.terracotta,
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                padding: 0,
-                fontFamily: 'inherit',
-              }}
+          <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
+            Si un compte existe avec cette adresse, vous recevrez un lien dans quelques instants.
+            Pensez à vérifier vos courriers indésirables.
+          </p>
+
+          <p style={{ margin: 0, fontSize: '14px' }}>
+            <Link
+              href="/connexion"
+              style={{ color: C.orangeTexte, fontWeight: 600, textDecoration: 'none' }}
             >
-              ← Retour à la connexion
-            </button>
-          </>
-        )}
-      </div>
-
-      <p style={{
-        marginTop: '32px',
-        fontSize: '12px',
-        color: C.lightGrey,
-        fontFamily: FONT_SANS, fontWeight: 400, letterSpacing: '-0.005em',
-        fontStyle: 'italic',
-        textAlign: 'center',
-      }}>
-        « Trouvez votre cap. »
-      </p>
-    </main>
+              Retour à la connexion
+            </Link>
+          </p>
+        </div>
+      )}
+    </AuthShell>
   )
 }

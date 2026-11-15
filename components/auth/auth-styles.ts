@@ -235,18 +235,57 @@ export const AUTH_STYLES: string = `
     line-height: 1.5;
   }
 
+  /* ── Entrée échelonnée retardée (état envoyé) ───────────────────── */
+
+  .auth-stagger-delayed > * {
+    animation: auth-stagger-in 380ms cubic-bezier(.2,.7,.2,1) both;
+  }
+  .auth-stagger-delayed > *:nth-child(1) { animation-delay: 300ms; }
+  .auth-stagger-delayed > *:nth-child(2) { animation-delay: 355ms; }
+  .auth-stagger-delayed > *:nth-child(3) { animation-delay: 410ms; }
+  .auth-stagger-delayed > *:nth-child(4) { animation-delay: 465ms; }
+  .auth-stagger-delayed > *:nth-child(5) { animation-delay: 520ms; }
+  .auth-stagger-delayed > *:nth-child(6) { animation-delay: 575ms; }
+
+  /* ── SVG confirmation e-mail ─────────────────────────────────────── */
+
+  @keyframes mdp-circle-draw {
+    from { stroke-dashoffset: 138; }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  @keyframes mdp-check-draw {
+    from { stroke-dashoffset: 35; }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  .mdp-circle {
+    stroke-dasharray: 138;
+    stroke-dashoffset: 0;
+    animation: mdp-circle-draw 500ms cubic-bezier(.4,0,.2,1) both;
+  }
+
+  .mdp-check {
+    stroke-dasharray: 35;
+    stroke-dashoffset: 0;
+    animation: mdp-check-draw 300ms cubic-bezier(.4,0,.2,1) 400ms both;
+  }
+
   /* ── prefers-reduced-motion ──────────────────────────────────────── */
 
   @media (prefers-reduced-motion: reduce) {
-    .auth-needle            { animation: none; }
-    .auth-stagger > *       { animation: none; opacity: 1; transform: none; }
-    .auth-input-wrap--shake { animation: none; }
-    .auth-input             { transition: none; }
-    .auth-eye-icon          { transition: none; }
-    .auth-btn-primary       { transition: none; }
-    .auth-btn-google        { transition: none; }
+    .auth-needle                { animation: none; }
+    .auth-stagger > *           { animation: none; opacity: 1; transform: none; }
+    .auth-stagger-delayed > *   { animation: none; opacity: 1; transform: none; }
+    .auth-input-wrap--shake     { animation: none; }
+    .auth-input                 { transition: none; }
+    .auth-eye-icon              { transition: none; }
+    .auth-btn-primary           { transition: none; }
+    .auth-btn-google            { transition: none; }
     .auth-err-wrap,
-    .auth-err-wrap--open    { transition: none; }
-    .auth-spinner           { animation: none; }
+    .auth-err-wrap--open        { transition: none; }
+    .auth-spinner               { animation: none; }
+    .mdp-circle                 { animation: none; stroke-dashoffset: 0; }
+    .mdp-check                  { animation: none; stroke-dashoffset: 0; }
   }
 `

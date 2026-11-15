@@ -1,10 +1,18 @@
+'use client'
+
+import type { RefObject } from 'react'
 import Link from 'next/link'
 import { FONT_SANS } from '@/lib/typography'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
 import LogoKapolia from '@/components/LogoKapolia'
 import { AUTH_STYLES } from './auth-styles'
 
-export default function AuthShell({ children }: { children: React.ReactNode }) {
+interface AuthShellProps {
+  children: React.ReactNode
+  cardRef?: RefObject<HTMLDivElement | null>
+}
+
+export default function AuthShell({ children, cardRef }: AuthShellProps) {
   return (
     <main
       className="auth-page"
@@ -27,6 +35,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
       </Link>
 
       <div
+        ref={cardRef}
         className="auth-card"
         style={{
           width: '100%',
