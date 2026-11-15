@@ -379,7 +379,7 @@ export default function CarteParcoursView({
           const dateAVerifier = !debutMois
           const duree = dateAVerifier ? null : dureeTexte(debutMois!, finMois, exp.en_poste)
           const missions = exp.missions
-            ? exp.missions.split('\n').filter(Boolean).slice(0, 2)
+            ? exp.missions.split('\n').filter(Boolean).slice(0, 5)
             : []
 
           return (

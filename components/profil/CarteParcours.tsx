@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { C } from '@/lib/colors'
 import { type EntrepriseKapolia, normaliserNomEntreprise } from '@/lib/entreprises-kapolia'
 
@@ -111,66 +111,52 @@ function EntrepriseInput({ value, onChange, entreprises }: { value: string; onCh
   )
 }
 
+const MAX_MISSIONS_EDIT = 5
+
 function MissionsEditor({ missions, onChange }: { missions: string[]; onChange: (m: string[]) => void }) {
-  const [pendingFocus, setPendingFocus] = useState<number | null>(null)
-  const refs = useRef<(HTMLInputElement | null)[]>([])
+  const [raw, setRaw]         = useState(() => missions.join('\n'))
+  const [tooMany, setTooMany] = useState(false)
 
-  useEffect(() => {
-    if (pendingFocus !== null) {
-      refs.current[pendingFocus]?.focus()
-      setPendingFocus(null)
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const val   = e.target.value
+    const lines = val.split('\n')
+    const count = lines.filter(l => l.trim()).length
+    if (count > MAX_MISSIONS_EDIT) {
+      let kept = 0
+      const truncated: string[] = []
+      for (const l of lines) {
+        if (l.trim()) kept++
+        if (kept > MAX_MISSIONS_EDIT) break
+        truncated.push(l)
+      }
+      setRaw(truncated.join('\n'))
+      onChange(truncated)
+      setTooMany(true)
+    } else {
+      setRaw(val)
+      onChange(lines)
+      setTooMany(false)
     }
-  }, [pendingFocus, missions.length])
-
-  function addMission() {
-    onChange([...missions, ''])
-    setPendingFocus(missions.length)
-  }
-
-  function updateMission(i: number, val: string) {
-    const next = [...missions]; next[i] = val; onChange(next)
-  }
-
-  function removeMission(i: number) {
-    onChange(missions.filter((_, j) => j !== i))
   }
 
   return (
     <div>
       <label style={LABEL_S}>Missions</label>
-      {missions.length === 0 ? (
-        <p style={{ fontSize: 13, color: C.grey, margin: '0 0 8px', fontStyle: 'italic' }}>
-          Aucune mission pour ce poste. Deux ou trois lignes suffisent.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-          {missions.map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <input
-                ref={el => { refs.current[i] = el }}
-                value={m}
-                onChange={e => updateMission(i, e.target.value)}
-                style={{
-                  flex: 1, fontSize: 13.5, padding: '6px 10px',
-                  border: `1px solid ${C.sable}`, borderRadius: 8, outline: 'none',
-                  fontFamily: 'inherit', color: C.dark, backgroundColor: C.white,
-                  boxSizing: 'border-box',
-                }}
-              />
-              <button type="button" onClick={() => removeMission(i)} aria-label="Retirer cette mission"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, padding: 4, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <button type="button" onClick={addMission}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent', color: C.grey, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
-        + Ajouter une mission
-      </button>
+      <textarea
+        value={raw}
+        onChange={handleChange}
+        rows={MAX_MISSIONS_EDIT}
+        style={{
+          width: '100%', fontSize: 13.5, padding: '7px 10px',
+          border: `1px solid ${C.sable}`, borderRadius: 9, outline: 'none',
+          fontFamily: 'inherit', color: C.dark, backgroundColor: C.white,
+          boxSizing: 'border-box', resize: 'none', lineHeight: 1.6, display: 'block',
+        }}
+      />
+      {tooMany
+        ? <span style={{ fontSize: 12.5, color: C.erreur, marginTop: 4, display: 'block' }}>5 missions au plus.</span>
+        : <span style={{ fontSize: 12.5, color: C.grey, marginTop: 4, display: 'block' }}>Une mission par ligne, 5 au plus.</span>
+      }
     </div>
   )
 }

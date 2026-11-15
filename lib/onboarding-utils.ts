@@ -4,7 +4,7 @@ import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_
 
 export const ONBOARDING_TOTAL = 14  // nombre d'étapes affiché à l'écran
 export const LAST_STEP        = 15  // dernier numéro d'étape réel (navigation, onboarding_step BDD)
-export const MAX_MISSIONS     = 4
+export const MAX_MISSIONS     = 5
 
 // L'étape 6 a été supprimée : le numéro affiché saute de 5 à 6 (step 7 → display 6, etc.)
 export function displayStepNum(step: number): number {
