@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { C } from '@/lib/colors'
 import { PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
 import { GeoVilleInput } from '@/components/GeoVilleInput'
@@ -14,6 +14,8 @@ type Props = {
   editPermis: string[]; setEditPermis: (v: string[]) => void
   editLangues: string[]; setEditLangues: (v: string[]) => void
   onChange: () => void
+  champMisEnAvant?: string | null
+  actif?: boolean
 }
 
 const DISPO_OPT = [
@@ -79,9 +81,35 @@ export default function CarteRecherche({
   editTypePoste, setEditTypePoste, editVille, setEditVille,
   editModeTravail, setEditModeTravail,
   editPermis, setEditPermis, editLangues, setEditLangues, onChange,
+  champMisEnAvant, actif,
 }: Props) {
   const [lignes, setLignes] = useState<LigneLangue[]>(() => parseLignes(editLangues))
   const [autresOuverts, setAutresOuverts] = useState(() => editPermis.some(v => PERMIS_AUTRES.some(p => p.value === v)))
+
+  useEffect(() => {
+    if (!actif || !champMisEnAvant) return
+    let clearTimer: ReturnType<typeof setTimeout>
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`cr-${champMisEnAvant}`)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      if (champMisEnAvant === 'ville') {
+        const inp = el.querySelector<HTMLInputElement>('input')
+        inp?.focus()
+      }
+      el.style.borderRadius = '8px'
+      el.style.outline = `2px solid ${C.orange}`
+      el.style.boxShadow = '0 0 0 3px rgba(194,97,31,.12)'
+      el.style.transition = 'outline 0.5s, box-shadow 0.5s'
+      clearTimer = setTimeout(() => {
+        el.style.outline = ''
+        el.style.boxShadow = ''
+        el.style.transition = ''
+        el.style.borderRadius = ''
+      }, 1500)
+    }, 50)
+    return () => { clearTimeout(timer); clearTimeout(clearTimer) }
+  }, [champMisEnAvant, actif])
 
   function updateLignes(next: LigneLangue[]) {
     setLignes(next)
@@ -129,7 +157,7 @@ export default function CarteRecherche({
       </p>
 
       {/* Disponibilité */}
-      <div>
+      <div id="cr-dispo">
         <label style={LABEL_S}>Disponibilité</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {DISPO_OPT.map(o => (
@@ -154,7 +182,7 @@ export default function CarteRecherche({
       </div>
 
       {/* Contrat recherché */}
-      <div>
+      <div id="cr-contrat">
         <label style={LABEL_S}>Contrat recherché</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {TYPE_POSTE_OPT.map(o => (
@@ -165,7 +193,7 @@ export default function CarteRecherche({
       </div>
 
       {/* Lieu */}
-      <div>
+      <div id="cr-ville">
         <label style={LABEL_S}>Lieu</label>
         <GeoVilleInput
           value={editVille}
@@ -175,7 +203,7 @@ export default function CarteRecherche({
       </div>
 
       {/* Télétravail */}
-      <div>
+      <div id="cr-teletravail">
         <label style={LABEL_S}>Télétravail</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {PREFERENCES_TELETRAVAIL.map(o => (
@@ -186,7 +214,7 @@ export default function CarteRecherche({
       </div>
 
       {/* Permis et habilitations */}
-      <div>
+      <div id="cr-permis">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
           <span style={{ fontSize: 12.5, fontWeight: 500, color: C.grey }}>Permis et habilitations</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: C.orange, backgroundColor: C.salaire, borderRadius: 4, padding: '1px 6px' }}>Nouveau</span>
@@ -219,7 +247,7 @@ export default function CarteRecherche({
       </div>
 
       {/* Langues */}
-      <div>
+      <div id="cr-langues">
         <label style={LABEL_S}>Langues</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {lignes.map((ligne, i) => (

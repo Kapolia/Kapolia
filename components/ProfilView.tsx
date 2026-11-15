@@ -675,6 +675,8 @@ export default function ProfilView({
   const [deletingVideo, setDeletingVideo]           = useState(false)
   const [togglingMiroir, setTogglingMiroir]         = useState(false)
   const [apercuRecruteur, setApercuRecruteur]       = useState(false)
+  const [ongletEntete, setOngletEntete]             = useState<'vous' | 'recherche'>('vous')
+  const [champMisEnAvant, setChampMisEnAvant]       = useState<string | null>(null)
 
   // Recording modal state
   const [recordModal, setRecordModal]     = useState(false)
@@ -1045,6 +1047,7 @@ export default function ProfilView({
       setEditSignature(p.signature ?? ''); setEditDispo(p.disponibilite ?? ''); setEditDispoDate(p.dispo_date ?? '')
       setEditTypePoste([...(p.type_poste ?? [])]); setEditModeTravail(p.mode_travail ?? ''); setEditVille(p.ville ?? '')
       setEditLangues([...(p.langues ?? [])]); setEditPermis([...(p.permis ?? [])])
+      setOngletEntete(carte === 'recherche' ? 'recherche' : 'vous')
     } else if (carte === 'parcours') {
       setEditExperiences(JSON.parse(JSON.stringify(p.experiences ?? [])))
       setEditDiplomes(JSON.parse(JSON.stringify(p.diplomes ?? [])))
@@ -1071,7 +1074,7 @@ export default function ProfilView({
   }
 
   function annulerCarte() {
-    setCarteModifiee(false); setCarteErreur(''); setCarteOuverte(null)
+    setCarteModifiee(false); setCarteErreur(''); setCarteOuverte(null); setChampMisEnAvant(null)
   }
 
   function toggleEditCompetence(comp: string) {
@@ -1223,6 +1226,28 @@ export default function ProfilView({
     setProfil(prev => prev ? { ...prev, ...payload } : null)
     setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false)
     setCarteSaved(carte)
+    setTimeout(() => { setCarteSaved(null); showToast('Modifications enregistrées') }, 2200)
+  }
+
+  async function enregistrerEntete() {
+    setSavingCarte(true); setCarteErreur('')
+    const saveStart = Date.now()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingCarte(false); return }
+    const payload: Record<string, unknown> = {
+      prenom: editPrenom, nom: editNom, metier: editMetier || null,
+      domaine: editDomaine || null, experience: editExperience || null, signature: editSignature,
+      disponibilite: editDispo || null,
+      dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null,
+      type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille,
+      langues: editLangues, permis: editPermis,
+    }
+    const { error } = await supabase.from('profils').update(payload).eq('user_id', user.id)
+    const elapsed = Date.now() - saveStart; if (elapsed < 400) await new Promise(r => setTimeout(r, 400 - elapsed))
+    if (error) { setCarteErreur(error.message); setSavingCarte(false); return }
+    setProfil(prev => prev ? { ...prev, ...payload } : null)
+    setCarteModifiee(false); setCarteOuverte(null); setSavingCarte(false); setChampMisEnAvant(null)
+    setCarteSaved('presentation')
     setTimeout(() => { setCarteSaved(null); showToast('Modifications enregistrées') }, 2200)
   }
 
@@ -1492,6 +1517,15 @@ export default function ProfilView({
 
   const enTeteIsOpen = carteOuverte === 'presentation' || carteOuverte === 'recherche'
 
+  function ouvrirRechercheChamp(champ: string) {
+    if (enTeteIsOpen) {
+      setOngletEntete('recherche')
+    } else {
+      ouvrirCarte('recherche')
+    }
+    setChampMisEnAvant(champ)
+  }
+
   function carteWrapStyle(carte: CarteType, padding?: string): React.CSSProperties {
     const p2 = padding ?? '20px 22px'
     const base: React.CSSProperties = { backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: p2, transition: 'opacity 300ms ease, filter 300ms ease' }
@@ -1520,11 +1554,12 @@ export default function ProfilView({
   }
 
   function cardFooter(carte: CarteType) {
+    const onSave = (carte === 'presentation' || carte === 'recherche') ? enregistrerEntete : () => enregistrerCarte(carte)
     return <>
       {carteErreur && <p style={{ fontSize: 13, color: C.erreur, margin: '12px 0 0' }}>{carteErreur}</p>}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.sable}` }}>
         <button onClick={annulerCarte} style={{ padding: '8px 18px', borderRadius: 10, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: C.grey, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Annuler</button>
-        <button onClick={() => enregistrerCarte(carte)} disabled={savingCarte} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 13, fontWeight: 600, cursor: savingCarte ? 'default' : 'pointer', opacity: savingCarte ? 0.75 : 1, fontFamily: 'inherit' }}>
+        <button onClick={onSave} disabled={savingCarte} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 20px', borderRadius: 10, border: 'none', backgroundColor: C.orange, color: C.white, fontSize: 13, fontWeight: 600, cursor: savingCarte ? 'default' : 'pointer', opacity: savingCarte ? 0.75 : 1, fontFamily: 'inherit' }}>
           {savingCarte && <span style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: C.white, animation: 'kapolia-spin 0.6s linear infinite', flexShrink: 0, display: 'inline-block' }} />}
           {savingCarte ? 'Enregistrement' : 'Enregistrer'}
         </button>
@@ -1546,6 +1581,8 @@ export default function ProfilView({
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
         .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:${C.lien}; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
         .profil-lien-action:hover { background:${C.peche}; }
+        .pastille-modifiable .pastille-crayon { opacity: 0; transition: opacity 0.15s; }
+        .pastille-modifiable:hover .pastille-crayon { opacity: 1; }
 .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
         .profil-entete-portrait { width: 200px; height: 244px; flex-shrink: 0; }
         .profil-col3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -1729,7 +1766,7 @@ export default function ProfilView({
 
                   {/* Disponibilité */}
                   {p.disponibilite ? (
-                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
+                    <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('dispo') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       {p.disponibilite === 'maintenant' ? 'Disponible maintenant'
                         : p.disponibilite === 'a_partir_de' ? (() => {
@@ -1740,58 +1777,67 @@ export default function ProfilView({
                         : p.disponibilite === 'en_poste' ? "En poste, à l'écoute"
                         : 'Pas disponible pour le moment'
                       }
+                      {effectiveOwner && <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
                     </button>
                   ) : effectiveOwner ? (
-                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button className="pastille-modifiable" onClick={() => ouvrirRechercheChamp('dispo')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       Indiquer votre disponibilité
+                      <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
                   ) : null}
 
                   {/* Contrat */}
                   {(p.type_poste ?? []).length > 0 ? (
-                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
+                    <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('contrat') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       {(p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' ou ')}
+                      {effectiveOwner && <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
                     </button>
                   ) : effectiveOwner ? (
-                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button className="pastille-modifiable" onClick={() => ouvrirRechercheChamp('contrat')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       Indiquer le contrat recherché
+                      <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
                   ) : null}
 
                   {/* Ville */}
                   {p.ville ? (
-                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
+                    <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('ville') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       {p.ville}
+                      {effectiveOwner && <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
                     </button>
                   ) : effectiveOwner ? (
-                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button className="pastille-modifiable" onClick={() => ouvrirRechercheChamp('ville')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       Indiquer votre ville
+                      <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
                   ) : null}
 
                   {/* Télétravail */}
                   {modeTravailLabel && (
-                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
+                    <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('teletravail') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M3 12l2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
                       {modeTravailLabel}
+                      {effectiveOwner && <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
                     </button>
                   )}
 
                   {/* Permis */}
                   {(p.permis ?? []).length > 0 ? (
-                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
+                    <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('permis') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       {(p.permis ?? []).map(v => [...PERMIS, ...PERMIS_AUTRES].find(x => x.value === v)?.label ?? v).join(', ')}
+                      {effectiveOwner && <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
                     </button>
                   ) : effectiveOwner ? (
-                    <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <button className="pastille-modifiable" onClick={() => ouvrirRechercheChamp('permis')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       Ajouter vos permis
+                      <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </button>
                   ) : null}
 
@@ -1812,7 +1858,13 @@ export default function ProfilView({
                       const niv = x.niv.toLowerCase()
                       return niv ? `${n} ${niv}` : n
                     }).join(', ')
-                    return (
+                    return effectiveOwner ? (
+                      <button data-profil-pastille="1" className="pastille-modifiable" onClick={() => ouvrirRechercheChamp('langues')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        {texte}
+                        <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                    ) : (
                       <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                         {texte}
@@ -1826,7 +1878,24 @@ export default function ProfilView({
             </div>
             {enTeteIsOpen && effectiveOwner && (
               <>
-                {carteOuverte === 'presentation' ? (
+                <div style={{ borderTop: `1px solid ${C.sable}`, marginTop: 20, paddingTop: 16 }}>
+                  <div role="tablist" style={{ display: 'inline-flex', gap: 2, backgroundColor: C.chip, borderRadius: 10, padding: 3, marginBottom: 12 }}>
+                    {(['vous', 'recherche'] as const).map(tab => (
+                      <button key={tab} role="tab" aria-selected={ongletEntete === tab}
+                        onClick={() => setOngletEntete(tab)}
+                        style={{
+                          padding: '7px 14px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                          border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                          backgroundColor: ongletEntete === tab ? C.white : 'transparent',
+                          color: ongletEntete === tab ? C.dark : C.grey,
+                          boxShadow: ongletEntete === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        }}>
+                        {tab === 'vous' ? 'Vous' : 'Votre recherche'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div hidden={ongletEntete !== 'vous'}>
                   <CartePresentation
                     profil={p}
                     editPrenom={editPrenom} setEditPrenom={setEditPrenom}
@@ -1845,7 +1914,8 @@ export default function ProfilView({
                     onDeleteVideo={deleteVideoPresentation}
                     onChange={() => setCarteModifiee(true)}
                   />
-                ) : (
+                </div>
+                <div hidden={ongletEntete !== 'recherche'}>
                   <CarteRecherche
                     editDispo={editDispo} setEditDispo={setEditDispo}
                     editDispoDate={editDispoDate} setEditDispoDate={setEditDispoDate}
@@ -1855,9 +1925,11 @@ export default function ProfilView({
                     editPermis={editPermis} setEditPermis={setEditPermis}
                     editLangues={editLangues} setEditLangues={setEditLangues}
                     onChange={() => setCarteModifiee(true)}
+                    champMisEnAvant={champMisEnAvant}
+                    actif={ongletEntete === 'recherche'}
                   />
-                )}
-                {cardFooter(carteOuverte!)}
+                </div>
+                {cardFooter('presentation')}
               </>
             )}
           </div>
