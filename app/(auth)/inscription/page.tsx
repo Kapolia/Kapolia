@@ -9,7 +9,6 @@ import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
 import { isValidEmail } from '@/lib/validation'
 import { evaluerMotDePasse } from '@/lib/robustesse-mot-de-passe'
-import AuthShell from '@/components/auth/AuthShell'
 import AuthField from '@/components/auth/AuthField'
 import { AuthButtonPrimary, AuthButtonGoogle } from '@/components/auth/AuthButton'
 import ErreurDepliable from '@/components/auth/ErreurDepliable'
@@ -107,13 +106,12 @@ export default function InscriptionPage() {
   }
 
   return (
-    <AuthShell>
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-        className="auth-stagger"
-        style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
-      >
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="auth-stagger"
+      style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
+    >
         <h1 style={{
           margin: 0,
           fontSize: '28px',
@@ -194,7 +192,6 @@ export default function InscriptionPage() {
             Se connecter
           </Link>
         </p>
-      </form>
-    </AuthShell>
+    </form>
   )
 }

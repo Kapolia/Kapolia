@@ -8,7 +8,6 @@ import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
 import { reduitMouvement } from '@/lib/motion'
 import { isValidEmail } from '@/lib/validation'
-import AuthShell from '@/components/auth/AuthShell'
 import AuthField from '@/components/auth/AuthField'
 import { AuthButtonPrimary } from '@/components/auth/AuthButton'
 import ErreurDepliable from '@/components/auth/ErreurDepliable'
@@ -19,8 +18,8 @@ export default function MotDePasseOubliePage() {
   const [sent,        setSent]        = useState(false)
   const [serverError, setServerError] = useState('')
 
-  const cardRef    = useRef<HTMLDivElement>(null)
-  const formWrapRef = useRef<HTMLDivElement>(null)
+  const wrapRef     = useRef<HTMLDivElement | null>(null)
+  const formWrapRef = useRef<HTMLDivElement | null>(null)
 
   const canSubmit = isValidEmail(email.trim()) && !sending
 
@@ -51,45 +50,45 @@ export default function MotDePasseOubliePage() {
     }
 
     const formEl = formWrapRef.current
-    const cardEl = cardRef.current
+    const wrapEl = wrapRef.current
 
     // Phase 1 : fondu de sortie du formulaire (140 ms)
     if (formEl) {
       formEl.style.transition = 'opacity 140ms ease, transform 140ms ease'
       void formEl.offsetWidth
-      formEl.style.opacity = '0'
+      formEl.style.opacity   = '0'
       formEl.style.transform = 'translateX(-10px)'
     }
     await new Promise<void>(r => setTimeout(r, 140))
 
-    if (!cardEl) {
+    if (!wrapEl) {
       setSent(true)
       return
     }
 
     // Hauteur avant le changement de contenu
-    const startH = cardEl.offsetHeight
+    const startH = wrapEl.offsetHeight
 
     // Phase 2 : switch synchrone puis animation de la hauteur (280 ms)
     flushSync(() => setSent(true))
-    const endH = cardEl.offsetHeight
+    const endH = wrapEl.offsetHeight
 
     if (startH !== endH) {
-      cardEl.style.height = `${startH}px`
-      cardEl.style.overflow = 'hidden'
-      void cardEl.offsetWidth
-      cardEl.style.transition = 'height 280ms cubic-bezier(.2,.8,.2,1)'
-      cardEl.style.height = `${endH}px`
+      wrapEl.style.height   = `${startH}px`
+      wrapEl.style.overflow = 'hidden'
+      void wrapEl.offsetWidth
+      wrapEl.style.transition = 'height 280ms cubic-bezier(.2,.8,.2,1)'
+      wrapEl.style.height     = `${endH}px`
 
       await new Promise<void>(r => setTimeout(r, 285))
-      cardEl.style.height = ''
-      cardEl.style.overflow = ''
-      cardEl.style.transition = ''
+      wrapEl.style.height     = ''
+      wrapEl.style.overflow   = ''
+      wrapEl.style.transition = ''
     }
   }
 
   return (
-    <AuthShell cardRef={cardRef}>
+    <div ref={wrapRef}>
       {!sent ? (
         <div ref={formWrapRef}>
           <form
@@ -196,6 +195,6 @@ export default function MotDePasseOubliePage() {
           </p>
         </div>
       )}
-    </AuthShell>
+    </div>
   )
 }

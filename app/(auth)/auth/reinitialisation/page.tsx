@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
 import { evaluerMotDePasse } from '@/lib/robustesse-mot-de-passe'
-import AuthShell from '@/components/auth/AuthShell'
 import AuthField from '@/components/auth/AuthField'
 import { AuthButtonPrimary } from '@/components/auth/AuthButton'
 import ErreurDepliable from '@/components/auth/ErreurDepliable'
@@ -93,17 +92,12 @@ export default function ReinitialisationPage() {
   }
 
   if (status === 'checking') {
-    return (
-      <AuthShell>
-        <AuthSpinner />
-      </AuthShell>
-    )
+    return <AuthSpinner />
   }
 
   if (status === 'invalid') {
     return (
-      <AuthShell>
-        <div
+      <div
           className="auth-stagger"
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
@@ -138,14 +132,12 @@ export default function ReinitialisationPage() {
             </Link>
           </p>
         </div>
-      </AuthShell>
     )
   }
 
   if (status === 'already_connected') {
     return (
-      <AuthShell>
-        <div
+      <div
           className="auth-stagger"
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
@@ -163,14 +155,12 @@ export default function ReinitialisationPage() {
             Aller à mon espace
           </AuthButtonPrimary>
         </div>
-      </AuthShell>
     )
   }
 
   if (status === 'success') {
     return (
-      <AuthShell>
-        <div
+      <div
           className="auth-stagger"
           style={{
             display: 'flex', flexDirection: 'column',
@@ -204,13 +194,11 @@ export default function ReinitialisationPage() {
             Votre mot de passe a bien été modifié. Vous allez être redirigé vers la page de connexion…
           </p>
         </div>
-      </AuthShell>
     )
   }
 
   return (
-    <AuthShell>
-      <form
+    <form
         onSubmit={handleSubmit}
         noValidate
         className="auth-stagger"
@@ -257,7 +245,6 @@ export default function ReinitialisationPage() {
         >
           {status === 'saving' ? 'Enregistrement…' : 'Enregistrer le mot de passe'}
         </AuthButtonPrimary>
-      </form>
-    </AuthShell>
+    </form>
   )
 }

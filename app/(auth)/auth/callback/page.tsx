@@ -12,7 +12,6 @@ import {
 } from '@/lib/auth-redirect'
 import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
-import AuthShell from '@/components/auth/AuthShell'
 import { AuthButtonPrimary } from '@/components/auth/AuthButton'
 import ErreurDepliable from '@/components/auth/ErreurDepliable'
 import ChoixTypeCompte from '@/components/auth/ChoixTypeCompte'
@@ -161,17 +160,12 @@ export default function AuthCallbackPage() {
   }
 
   if (status.kind === 'loading' || status.kind === 'saving_type') {
-    return (
-      <AuthShell>
-        <AuthSpinner label="Connexion en cours…" />
-      </AuthShell>
-    )
+    return <AuthSpinner label="Connexion en cours…" />
   }
 
   if (status.kind === 'error') {
     return (
-      <AuthShell>
-        <div
+      <div
           className="auth-stagger"
           style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
@@ -201,13 +195,11 @@ export default function AuthCallbackPage() {
             Retour à la connexion
           </AuthButtonPrimary>
         </div>
-      </AuthShell>
     )
   }
 
   return (
-    <AuthShell>
-      <div
+    <div
         className="auth-stagger"
         style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
       >
@@ -227,6 +219,5 @@ export default function AuthCallbackPage() {
           Continuer
         </AuthButtonPrimary>
       </div>
-    </AuthShell>
   )
 }

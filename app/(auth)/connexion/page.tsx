@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
 import { safeNext, redirectAfterAuth, OAUTH_NEXT_KEY } from '@/lib/auth-redirect'
-import AuthShell from '@/components/auth/AuthShell'
 import AuthField from '@/components/auth/AuthField'
 import { AuthButtonPrimary, AuthButtonGoogle } from '@/components/auth/AuthButton'
 import ErreurDepliable from '@/components/auth/ErreurDepliable'
@@ -117,13 +116,12 @@ export default function ConnexionPage() {
   }
 
   return (
-    <AuthShell>
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-        className="auth-stagger"
-        style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
-      >
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="auth-stagger"
+      style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
+    >
         <h1 style={{
           margin: 0,
           fontSize: '28px',
@@ -196,7 +194,6 @@ export default function ConnexionPage() {
             Créer un compte
           </Link>
         </p>
-      </form>
-    </AuthShell>
+    </form>
   )
 }
