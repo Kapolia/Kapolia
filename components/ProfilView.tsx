@@ -8,7 +8,7 @@ import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES } from '@/lib/langues'
-import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
+import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
 import CartePresentation from '@/components/profil/CartePresentation'
 import CarteRecherche from '@/components/profil/CarteRecherche'
 import CarteParcours, { type ParcoursExpEdit, type ParcoursDiplomeEdit } from '@/components/profil/CarteParcours'
@@ -1795,7 +1795,7 @@ export default function ProfilView({
                   {(p.permis ?? []).length > 0 ? (
                     <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
-                      {(p.permis ?? []).map(v => PERMIS.find(x => x.value === v)?.label ?? v).join(', ')}
+                      {(p.permis ?? []).map(v => [...PERMIS, ...PERMIS_AUTRES].find(x => x.value === v)?.label ?? v).join(', ')}
                     </button>
                   ) : effectiveOwner ? (
                     <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>

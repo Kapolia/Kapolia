@@ -93,6 +93,15 @@ export const PERMIS: { value: string; label: string }[] = [
   { value: 'CACES', label: 'CACES' },
 ]
 
+export const PERMIS_AUTRES: { value: string; label: string }[] = [
+  { value: 'A',                 label: 'Permis A' },
+  { value: 'BE',                label: 'Permis BE' },
+  { value: 'C1',                label: 'Permis C1' },
+  { value: 'FIMO_FCO',          label: 'FIMO / FCO' },
+  { value: 'HABILITATION_ELEC', label: 'Habilitation électrique' },
+  { value: 'VTC_TAXI',          label: 'Carte VTC ou taxi' },
+]
+
 // Renvoie le label d'une valeur dans un référentiel, ou null si inconnue.
 // Accepte un tableau de chaînes (TYPES_CONTRAT), un tableau { value, label }
 // ou un objet clé → label (TELETRAVAIL).

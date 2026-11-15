@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react'
 import { C } from '@/lib/colors'
-import { PREFERENCES_TELETRAVAIL, PERMIS } from '@/lib/referentiels'
+import { PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
 import { GeoVilleInput } from '@/components/GeoVilleInput'
 import { LANGUES } from '@/lib/langues'
 
@@ -90,6 +90,7 @@ export default function CarteRecherche({
   editPermis, setEditPermis, editLangues, setEditLangues, onChange,
 }: Props) {
   const [lignes, setLignes] = useState<LigneLangue[]>(() => parseLignes(editLangues))
+  const [autresOuverts, setAutresOuverts] = useState(() => editPermis.some(v => PERMIS_AUTRES.some(p => p.value === v)))
 
   function updateLignes(next: LigneLangue[]) {
     setLignes(next)
@@ -219,6 +220,22 @@ export default function CarteRecherche({
           <ChoixBtn label="Aucun permis" selected={editPermis.includes('aucun')}
             onClick={() => togglePermis('aucun')} />
         </div>
+
+        {autresOuverts && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+            {PERMIS_AUTRES.map(p => (
+              <ChoixBtn key={p.value} label={p.label} selected={editPermis.includes(p.value)}
+                onClick={() => togglePermis(p.value)} />
+            ))}
+          </div>
+        )}
+
+        <button type="button" onClick={() => setAutresOuverts(v => !v)} style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: C.lien, fontFamily: 'inherit' }}>
+          {autresOuverts ? 'Moins de choix' : 'Autres permis et habilitations'}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            {autresOuverts ? <path d="M18 15l-6-6-6 6" /> : <path d="M6 9l6 6 6-6" />}
+          </svg>
+        </button>
 
       </div>
 
