@@ -29,4 +29,27 @@ export const PASSIONS_SUGGESTIONS: string[] = [
   'Ski de fond', 'Ski de randonnée', 'Spéléologie', 'Sport automobile',
   'Taekwondo', 'Tir à l\'arc', 'Tir sportif', 'Trampoline', 'Ultimate',
   'Beach-volley', 'Wakeboard', 'Water-polo', 'Zumba',
+  // Musique et arts
+  'Batterie', 'Basse', 'Chant', 'Chorale', 'Violon', 'Violoncelle',
+  'Saxophone', 'Trompette', 'Flûte', 'Ukulélé', 'Production musicale', 'DJ',
+  'Concerts', 'Opéra', 'Sculpture', 'Poterie', 'Céramique', 'Gravure',
+  'Calligraphie', 'Street art', 'Graphisme', 'Vidéo', 'Montage vidéo',
+  'Improvisation', 'Stand-up', 'Comédie musicale',
+  // Loisirs créatifs
+  'Tricot', 'Crochet', 'Broderie', 'Scrapbooking', 'Menuiserie',
+  'Bricolage', 'Restauration de meubles', 'Maquettisme', 'Origami',
+  // Lecture et culture
+  'BD', 'Mangas', 'Poésie', 'Histoire', 'Philosophie',
+  'Musées', 'Patrimoine', 'Généalogie', 'Séries', 'Documentaires', 'Langues étrangères',
+  // Jeux et esprit
+  'Échecs', 'Jeux vidéo', 'Jeux de rôle', 'Puzzles', 'Escape games', 'Mots croisés', 'Magie',
+  // Sciences et technique
+  'Programmation', 'Robotique', 'Électronique', 'Intelligence artificielle',
+  'Mécanique', 'Automobile', 'Aviation', 'Sciences', 'Drones', 'Impression 3D',
+  // Cuisine et art de vivre
+  'Œnologie', 'Barbecue', 'Boulangerie', 'Café', 'Thé',
+  'Gastronomie', 'Mode', 'Décoration', 'Brocante', 'Collection',
+  // Nature et engagement
+  'Animaux', 'Ornithologie', 'Permaculture', 'Écologie', 'Camping',
+  'Bivouac', 'Associatif', 'Engagement citoyen', 'Humanitaire',
 ]
