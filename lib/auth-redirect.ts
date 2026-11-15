@@ -20,10 +20,10 @@ export type Profil = {
 
 export function redirectAfterAuth(
   router: AppRouterInstance,
-  profil: Profil,
+  profil: NonNullable<Profil>,
   nextUrl: string | null,
 ) {
-  if (!profil || profil.type_compte === 'recruteur') {
+  if (profil.type_compte === 'recruteur') {
     router.replace('/recruteur')
     return
   }

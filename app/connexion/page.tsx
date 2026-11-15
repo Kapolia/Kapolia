@@ -68,14 +68,31 @@ export default function ConnexionPage() {
       return
     }
 
-    const { data: profil } = await supabase
+    const { data: profil, error: profilError } = await supabase
       .from('profils')
       .select('type_compte, onboarding_completed')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
+
+    if (profilError) {
+      console.error('[connexion] profil read error', profilError.code, profilError.message)
+      setServerError('Connexion impossible pour le moment. Vérifiez votre connexion internet et réessayez.')
+      setSubmitting(false)
+      return
+    }
+
+    if (!profil) {
+      const { error: signOutError } = await supabase.auth.signOut()
+      if (signOutError) {
+        console.error('[connexion] signOut error (compte sans profil)', signOutError.code, signOutError.message)
+      }
+      setServerError('Votre compte est incomplet. Contactez-nous pour le rétablir.')
+      setSubmitting(false)
+      return
+    }
 
     const next = safeNext(new URLSearchParams(window.location.search).get('next'))
-    redirectAfterAuth(router, profil ?? null, next)
+    redirectAfterAuth(router, profil, next)
   }
 
   async function handleGoogleSignIn() {
