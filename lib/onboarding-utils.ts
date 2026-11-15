@@ -2,13 +2,21 @@
 
 import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_POSTE } from '@/lib/referentiels'
 
-export const ONBOARDING_TOTAL = 14  // nombre d'étapes affiché à l'écran
-export const LAST_STEP        = 15  // dernier numéro d'étape réel (navigation, onboarding_step BDD)
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+export const ONBOARDING_TOTAL = 9                               // nombre d'écrans affichés
+export const STEP_OFFSET      = 100                             // décalage DB : écran n → valeur 100+n
+export const LAST_STEP        = STEP_OFFSET + ONBOARDING_TOTAL  // 109, valeur stockée en fin de parcours
 export const MAX_MISSIONS     = 5
 
-// L'étape 6 a été supprimée : le numéro affiché saute de 5 à 6 (step 7 → display 6, etc.)
-export function displayStepNum(step: number): number {
-  return step >= 7 ? step - 1 : step
+// Convertit un numéro d'écran (1–9) en valeur stockée en base (101–109).
+export function screenToStep(screen: number): number {
+  return screen + STEP_OFFSET
+}
+
+// Convertit une valeur base (101–109) en numéro d'écran (1–9).
+export function stepToScreen(step: number): number {
+  return step - STEP_OFFSET
 }
 
 export { _DOMAINES as DOMAINES, _TYPES_POSTE as TYPES_POSTE }
@@ -48,7 +56,7 @@ export type OnboardingFormData = {
   nom: string
   domaine: string
   experience: string
-  parcours: string
+  parcours: string        // colonne signature — chargée depuis la base, plus modifiée par l'onboarding
   projet: string
   projet_titre: string
   passions: string[]
@@ -57,6 +65,7 @@ export type OnboardingFormData = {
   typePoste: string[]
   lieu: string
   ville: string
+  permis: string[]
   priorite: string[]
   experiences: Experience[]
   diplomes: Diplome[]
@@ -68,80 +77,96 @@ export const EMPTY_FORM: OnboardingFormData = {
   prenom: '', nom: '', domaine: '', experience: '', parcours: '',
   projet: '', projet_titre: '', passions: [],
   disponibilite: '', dispo_date: '',
-  typePoste: [], lieu: '', ville: '', priorite: [],
+  typePoste: [], lieu: '', ville: '', permis: [], priorite: [],
   experiences: [], diplomes: [], competences_acquises: [], langues: [],
 }
 
-// Retourne la première étape OBLIGATOIRE non encore remplie.
-// Utilisé en fallback quand onboarding_step n'est pas encore enregistré en base.
-// step5Done doit être passé depuis la page (résolu via test_qualites en base).
-export function firstIncompleteStep(d: OnboardingFormData, step5Done = false): number {
+// Retourne le premier écran OBLIGATOIRE non encore rempli (numéro 1–9).
+// step3Done doit être passé depuis la page (résolu via test_qualites en base).
+export function firstIncompleteStep(d: OnboardingFormData, step3Done = false): number {
   if (!d.prenom.trim() || !d.nom.trim()) return 1
-  if (!d.domaine)                         return 2
-  if (!d.experience)                      return 3
-  if (!step5Done)                         return 5
-  if (!d.typePoste.length)                return 9
-  if (!d.lieu)                            return 10
-  if (!d.disponibilite)                   return 12
-  return LAST_STEP
+  if (!d.domaine || !d.experience)       return 2
+  if (!step3Done)                        return 3
+  // écran 4 facultatif (projet, passions)
+  const dispoOk = !!d.disponibilite && (d.disponibilite !== 'a_partir_de' || !!d.dispo_date)
+  if (!d.typePoste.length || !d.lieu || !dispoOk) return 5
+  // écrans 6, 7, 8 facultatifs
+  return 9  // dernier écran
 }
 
-// Construit le payload partiel pour l'étape courante.
+// Convertit une valeur onboarding_step (base) en numéro d'écran (1–9).
+// Gère les nouvelles valeurs 101–109 et les anciennes 1–15.
+// Table de correspondance anciens → nouveaux :
+//   1 → 1 ; 2–3 → 2 ; 4–6 → 3 ; 7–8 → 4 ; 9/10/12 → 5 ; 11 → 6 ; 13 → 7 ; 14 → 8 ; 15+ → 9
+export function convertSavedStep(savedStep: number): number {
+  if (savedStep >= 101 && savedStep <= 109) return stepToScreen(savedStep)
+  if (savedStep <= 1)   return 1
+  if (savedStep <= 3)   return 2
+  if (savedStep <= 6)   return 3
+  if (savedStep <= 8)   return 4
+  if (savedStep === 11) return 6
+  if (savedStep <= 12)  return 5   // 9, 10, 12 (11 déjà traité)
+  if (savedStep === 13) return 7
+  if (savedStep === 14) return 8
+  return 9                          // 15 et au-delà
+}
+
+// Construit le payload partiel pour l'écran courant (numéros 1–9).
 // N'inclut QUE les champs effectivement renseignés pour ne jamais écraser
 // une valeur déjà enregistrée lors d'une session précédente.
 // Ne contient jamais onboarding_completed.
 export function buildStepPayload(
-  step: number,
+  screen: number,
   d: OnboardingFormData,
   maxStep: number,
 ): Record<string, unknown> | null {
   const base: Record<string, unknown> = { onboarding_step: maxStep }
-  switch (step) {
+  switch (screen) {
     case 1:
       if (!d.prenom.trim() && !d.nom.trim()) return null
       return { ...base, prenom: d.prenom, nom: d.nom }
-    case 2:
-      return d.domaine ? { ...base, domaine: d.domaine } : null
-    case 3:
-      return d.experience ? { ...base, experience: d.experience } : null
-    case 4:
-      return d.parcours.trim() ? { ...base, signature: d.parcours } : null
-    case 5:
-      return null  // Step 5 saves via test_qualites (QualitesCarousel handles its own persistence)
-    case 6:
-      return null
-    case 7:
-      return d.projet.trim() ? { ...base, projet_phare: d.projet, projet_titre: d.projet_titre.trim() || null } : null
-    case 8:
-      return d.passions.length ? { ...base, passions: d.passions } : null
-    case 9:
-      return d.typePoste.length ? { ...base, type_poste: d.typePoste } : null
-    case 10: {
+    case 2: {
       const p: Record<string, unknown> = { ...base }
-      if (d.lieu)         p.mode_travail = d.lieu
-      if (d.ville.trim()) p.ville     = d.ville
+      if (d.domaine)    p.domaine    = d.domaine
+      if (d.experience) p.experience = d.experience
       return Object.keys(p).length > 1 ? p : null
     }
-    case 11:
-      return d.priorite.length ? { ...base, priorites: d.priorite } : null
-    case 12: {
-      if (!d.disponibilite) return null
-      return {
-        ...base,
-        disponibilite: d.disponibilite,
-        dispo_date: d.disponibilite === 'a_partir_de' ? (d.dispo_date || null) : null,
+    case 3:
+      return null  // persisté par QualitesCarousel via test_qualites
+    case 4: {
+      const p: Record<string, unknown> = { ...base }
+      if (d.projet.trim()) {
+        p.projet_phare = d.projet
+        p.projet_titre = d.projet_titre.trim() || null
       }
+      if (d.passions.length) p.passions = d.passions
+      return Object.keys(p).length > 1 ? p : null
     }
-    case 13:
+    case 5: {
+      const p: Record<string, unknown> = { ...base }
+      if (d.typePoste.length) p.type_poste   = d.typePoste
+      if (d.lieu)             p.mode_travail = d.lieu
+      if (d.ville.trim())     p.ville        = d.ville
+      if (d.permis.length)    p.permis       = d.permis
+      if (d.disponibilite) {
+        p.disponibilite = d.disponibilite
+        p.dispo_date    = d.disponibilite === 'a_partir_de' ? (d.dispo_date || null) : null
+      }
+      return Object.keys(p).length > 1 ? p : null
+    }
+    case 6:
+      return d.priorite.length ? { ...base, priorites: d.priorite } : null
+    case 7:
       return d.experiences.length ? { ...base, experiences: d.experiences } : null
-    case 14:
+    case 8:
       return d.diplomes.length ? { ...base, diplomes: d.diplomes } : null
+    case 9: {
+      const p: Record<string, unknown> = { ...base }
+      if (d.competences_acquises.length) p.competences_acquises = d.competences_acquises
+      if (d.langues.length)              p.langues              = d.langues
+      return Object.keys(p).length > 1 ? p : null
+    }
     default:
       return null
   }
-}
-
-// Corrige un savedStep enregistré sur l'étape 6 supprimée : reprend à 7.
-export function resumeStepFrom(savedStep: number): number {
-  return savedStep === 6 ? 7 : savedStep
 }

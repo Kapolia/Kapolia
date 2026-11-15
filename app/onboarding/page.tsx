@@ -12,10 +12,10 @@ import {
   DOMAINES,
   EXPERIENCES,
   TYPES_POSTE,
-  displayStepNum,
+  screenToStep,
+  convertSavedStep,
   firstIncompleteStep,
   buildStepPayload,
-  resumeStepFrom,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
 import {
@@ -28,7 +28,7 @@ import type { TestAnswer } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
-import { COMP_REF, PREFERENCES_TELETRAVAIL } from '@/lib/referentiels'
+import { COMP_REF, PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
 import { C } from '@/lib/colors'
 
 // ─── Post-signup redirect ─────────────────────────────────────────────────────
@@ -55,39 +55,33 @@ function readPostSignupNext(): string | null {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLOCKS = [
-  { label: 'Identité & Parcours',       steps: [1, 2, 3, 4] },
-  { label: 'Personnalité & Soft skills', steps: [5] },
-  { label: 'Projets & Hobbies',          steps: [7, 8] },
-  { label: 'Cap & Préférences',           steps: [9, 10, 11, 12] },
-  { label: 'Parcours professionnel',      steps: [13, 14, 15] },
+  { label: 'Identité & Parcours',   steps: [1, 2] },
+  { label: 'Personnalité',           steps: [3] },
+  { label: 'Projets & Préférences', steps: [4, 5, 6] },
+  { label: 'Parcours professionnel', steps: [7, 8] },
+  { label: 'Compétences & Langues', steps: [9] },
 ]
 
-const OPTIONAL_STEPS = new Set([4, 7, 8, 11, 13, 14, 15])
-const LONG_OPTIONAL  = new Set([13, 14, 15])
+const OPTIONAL_STEPS = new Set([4, 6, 7, 8])
+const LONG_OPTIONAL  = new Set([7, 8])
 
 const TRANSITIONS: Record<number, string> = {
-  5:  'Voyons à présent ce qui vous définit, au-delà de votre parcours.',
-  7:  'Parlons de ce que vous avez construit.',
-  9:  'Votre profil prend forme. Précisons ce que vous recherchez.',
-  13: "Presque terminé. Il ne reste qu'à détailler votre parcours professionnel.",
+  3: 'Voyons à présent ce qui vous définit, au-delà de votre parcours.',
+  4: 'Parlons de ce qui vous anime et de ce que vous avez construit.',
+  7: "Presque terminé. Il ne reste qu'à détailler votre parcours professionnel.",
+  9: 'Votre profil prend forme. Ajoutons ce que vous savez faire.',
 }
 
 const MICRO_TEXTS: Record<number, string> = {
-  1:  'Votre prénom et votre nom apparaissent sur votre profil tel que les recruteurs le verront.',
-  2:  'Votre domaine oriente les offres que nous vous proposons, et aide les recruteurs de votre secteur à vous repérer.',
-  3:  "Votre niveau d'expérience affine les offres que nous vous présentons, pour rester au plus près de là où vous en êtes.",
-  4:  "C'est souvent la première section que lisent les recruteurs. Formations, reconversions, expériences marquantes : racontez votre parcours avec vos mots, sans format imposé.",
-  5:  "Neuf situations de travail, quatre réponses chacune. Choisissez les deux qui vous ressemblent le plus.",
-  6:  "Startup, grand groupe, indépendant… Votre réponse nous aide à vous présenter des entreprises dont le fonctionnement vous conviendra.",
-  7:  "Une réalisation concrète marque plus qu'une liste de compétences. Qu'elle soit professionnelle, personnelle ou associative, racontez celle dont vous êtes fier et ce qu'elle dit de vous.",
-  8:  "Sur Kapolia, les recruteurs s'intéressent à qui vous êtes, aussi en dehors du travail. Vos centres d'intérêt créent parfois de vrais points communs.",
-  9:  'Cette information nous permet de ne vous présenter que des opportunités correspondant réellement à votre situation.',
-  10: 'Votre préférence pour le télétravail. Votre ville est demandée juste en dessous.',
-  11: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
-  12: 'Indiquez où vous en êtes dans votre recherche. Les recruteurs sauront ainsi à quel moment vous pourriez les rejoindre.',
-  13: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
-  14: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
-  15: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
+  1: 'Votre prénom et votre nom apparaissent sur votre profil tel que les recruteurs le verront.',
+  2: "Votre domaine oriente les offres que nous vous proposons. Votre niveau d'expérience affine les opportunités qui vous correspondent.",
+  3: "Neuf situations de travail, quatre réponses chacune. Choisissez les deux qui vous ressemblent le plus.",
+  4: "Vos projets et centres d'intérêt créent parfois de vrais points communs avec les recruteurs.",
+  5: "Précisez vos préférences de contrat, de lieu et de disponibilité pour affiner vos opportunités.",
+  6: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
+  7: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
+  8: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
+  9: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
 }
 
 
@@ -885,14 +879,13 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 // ─── Sous-composants ──────────────────────────────────────────────────────────
 
 function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: string }) {
-  const displayNum = displayStepNum(num)
   return (
     <>
       <p style={{
         fontSize: '11px', color: C.terracotta, fontWeight: '700',
         marginBottom: '10px', letterSpacing: '0.1em', textTransform: 'uppercase',
       }}>
-        Étape {displayNum} sur {TOTAL}
+        Étape {num} sur {TOTAL}
       </p>
       <h2 style={{
         fontFamily: FONT_SANS, letterSpacing: '-0.005em',
@@ -1325,12 +1318,12 @@ function OnboardingPageInner() {
   const [showWelcome, setShowWelcome] = useState(true)
   const [showFinal,   setShowFinal]   = useState(false)
   const [step, setStep] = useState(1)
-  const [step5Complete, setStep5Complete] = useState(false)
+  const [step3Complete, setStep3Complete] = useState(false)
   const [data, setData] = useState<FormData>({
     prenom: '', nom: '', domaine: '', experience: '', parcours: '',
     projet: '', projet_titre: '', passions: [],
     disponibilite: '', dispo_date: '',
-    typePoste: [], lieu: '', ville: '', priorite: [],
+    typePoste: [], lieu: '', ville: '', permis: [], priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
   const [saving,        setSaving]        = useState(false)
@@ -1338,8 +1331,9 @@ function OnboardingPageInner() {
   const [loadingResume, setLoadingResume] = useState(true)
   const [userId,        setUserId]        = useState('')
   const [emailConfirme, setEmailConfirme] = useState(true)
-  // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière
-  const maxStepRef = useRef(1)
+  // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière.
+  // Stocke la valeur DB (101–109), pas le numéro d'écran (1–9).
+  const maxStepRef = useRef(screenToStep(1))
 
   useEffect(() => {
     async function resumeIfNeeded() {
@@ -1352,7 +1346,7 @@ function OnboardingPageInner() {
       const [{ data: profil }, { count: testCount }] = await Promise.all([
         supabase
           .from('profils')
-          .select('prenom, nom, domaine, experience, signature, type_entreprise, valeur, projet_phare, projet_titre, passions, type_poste, mode_travail, ville, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
+          .select('prenom, nom, domaine, experience, signature, type_entreprise, valeur, projet_phare, projet_titre, passions, type_poste, mode_travail, ville, permis, priorites, disponibilite, dispo_date, experiences, diplomes, competences_acquises, langues, onboarding_step')
           .eq('user_id', user.id)
           .single(),
         supabase
@@ -1362,7 +1356,7 @@ function OnboardingPageInner() {
       ])
 
       const allTestDone = (testCount ?? 0) >= SITUATIONS[CURRENT_VERSION].length
-      if (allTestDone) setStep5Complete(true)
+      if (allTestDone) setStep3Complete(true)
 
       if (profil?.prenom) {
         const p = profil as Record<string, unknown>
@@ -1378,6 +1372,7 @@ function OnboardingPageInner() {
           typePoste:            Array.isArray(p.type_poste) ? p.type_poste as string[] : [],
           lieu:                 (p.mode_travail as string)  || '',
           ville:                (p.ville as string)        || '',
+          permis:               Array.isArray(p.permis) ? p.permis as string[] : [],
           priorite:             Array.isArray(p.priorites) ? p.priorites as string[] : [],
           disponibilite:        (p.disponibilite as string) || '',
           dispo_date:           (p.dispo_date as string)   || '',
@@ -1386,10 +1381,11 @@ function OnboardingPageInner() {
           competences_acquises: Array.isArray(p.competences_acquises) ? p.competences_acquises as string[] : [],
           langues:              Array.isArray(p.langues) ? p.langues as string[] : [],
         }
-        // Reprend exactement au step enregistré, avec firstIncompleteStep en fallback
-        const savedStep = typeof p.onboarding_step === 'number' ? p.onboarding_step : 0
-        const resumeAt  = savedStep > 1 ? resumeStepFrom(savedStep) : firstIncompleteStep(filled, allTestDone)
-        maxStepRef.current = Math.max(resumeAt, 1)
+        // Reprend exactement au step enregistré, avec firstIncompleteStep en filet de sécurité
+        const savedStep    = typeof p.onboarding_step === 'number' ? p.onboarding_step : 0
+        const convertedScreen = savedStep > 1 ? convertSavedStep(savedStep) : 1
+        const resumeAt     = Math.min(convertedScreen, firstIncompleteStep(filled, allTestDone))
+        maxStepRef.current = Math.max(screenToStep(resumeAt), screenToStep(1))
         setData(filled)
         setStep(resumeAt)
         setShowWelcome(false)
@@ -1408,24 +1404,23 @@ function OnboardingPageInner() {
 
   function isValid(): boolean {
     switch (step) {
-      case 1:  return data.prenom.trim().length > 0 && data.nom.trim().length > 0
-      case 2:  return data.domaine.length > 0
-      case 3:  return data.experience.length > 0
-      case 4:  return true
-      case 5:  return step5Complete
-      case 6:  return true
-      case 7: {
+      case 1: return data.prenom.trim().length > 0 && data.nom.trim().length > 0
+      case 2: return data.domaine.length > 0 && data.experience.length > 0
+      case 3: return step3Complete
+      case 4: {
         const hasDesc = data.projet.trim().length > 0
         return !hasDesc || data.projet_titre.trim().length > 0
       }
+      case 5: return (
+        data.typePoste.length > 0 &&
+        data.lieu.length > 0 &&
+        data.disponibilite.length > 0 &&
+        (data.disponibilite !== 'a_partir_de' || data.dispo_date.length > 0)
+      )
+      case 6:  return true
+      case 7:  return true
       case 8:  return true
-      case 9:  return data.typePoste.length > 0
-      case 10: return data.lieu.length > 0
-      case 11: return true
-      case 12: return data.disponibilite.length > 0
-      case 13: return true
-      case 14: return true
-      case 15: return true
+      case 9:  return true
       default: return false
     }
   }
@@ -1444,14 +1439,14 @@ function OnboardingPageInner() {
   }
 
   async function handleNext() {
-    if (step < LAST_STEP) {
-      const nextStep = step === 5 ? 7 : step + 1
-      maxStepRef.current = Math.max(maxStepRef.current, nextStep)
+    if (step < TOTAL) {
+      const nextScreen = step + 1
+      maxStepRef.current = Math.max(maxStepRef.current, screenToStep(nextScreen))
       saveStep(step)   // fire-and-forget
-      setStep(nextStep)
+      setStep(nextScreen)
       return
     }
-    // Étape finale : upsert complet + onboarding_completed = true
+    // Écran final (9) : upsert complet + onboarding_completed = true
     setSaving(true)
     setSaveError(null)
     try {
@@ -1464,13 +1459,13 @@ function OnboardingPageInner() {
         nom: data.nom,
         domaine: data.domaine,
         experience: data.experience,
-        signature: data.parcours,
         projet_phare: data.projet,
         projet_titre: data.projet_titre || null,
         passions: data.passions,
         type_poste: data.typePoste,
         mode_travail: data.lieu,
         ville: data.ville || null,
+        permis: data.permis,
         priorites: data.priorite,
         disponibilite: data.disponibilite,
         dispo_date: data.disponibilite === 'a_partir_de' ? data.dispo_date || null : null,
@@ -1490,15 +1485,15 @@ function OnboardingPageInner() {
   }
 
   function handleBack() {
-    if (step > 1) setStep(s => s === 7 ? 5 : s - 1)
+    if (step > 1) setStep(s => s - 1)
     // Pas de save : le retour arrière ne modifie pas la progression en base
   }
 
   function handleSkip() {
-    if (step < LAST_STEP) {
-      const nextStep = step === 5 ? 7 : step + 1
-      maxStepRef.current = Math.max(maxStepRef.current, nextStep)
-      setStep(nextStep)
+    if (step < TOTAL) {
+      const nextScreen = step + 1
+      maxStepRef.current = Math.max(maxStepRef.current, screenToStep(nextScreen))
+      setStep(nextScreen)
     } else {
       handleNext()
     }
@@ -1520,8 +1515,8 @@ function OnboardingPageInner() {
       case 2:
         return (
           <>
-            <QuestionLabel num={step} text="Dans quel domaine exercez-vous ?" sub={MICRO_TEXTS[step]} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <QuestionLabel num={step} text="Votre domaine et votre expérience" sub={MICRO_TEXTS[step]} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {DOMAINES.map(d => (
                 <button key={d} onClick={() => set('domaine', d)} style={{
                   padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
@@ -1535,13 +1530,9 @@ function OnboardingPageInner() {
                 </button>
               ))}
             </div>
-          </>
-        )
-
-      case 3:
-        return (
-          <>
-            <QuestionLabel num={step} text="Où en êtes-vous dans votre parcours ?" sub={MICRO_TEXTS[step]} />
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              Niveau d'expérience
+            </p>
             {EXPERIENCES.map(e => (
               <ChoiceCard key={e.key} label={e.key} desc={e.desc}
                 selected={data.experience === e.key} onClick={() => set('experience', e.key)} />
@@ -1549,36 +1540,18 @@ function OnboardingPageInner() {
           </>
         )
 
-      case 4:
-        return (
-          <>
-            <QuestionLabel num={step} text="Racontez-nous votre parcours." sub={MICRO_TEXTS[step]} />
-            <VoiceTextArea
-              value={data.parcours}
-              onChange={v => {
-                const next = v
-                if (next.length <= MAX_SIGNATURE || next.length < data.parcours.length) {
-                  set('parcours', next)
-                }
-              }}
-              placeholder="Formations, expériences, reconversions, particularités… Soyez vous-même."
-            />
-            <SignatureCounter count={data.parcours.length} max={MAX_SIGNATURE} theme="light" />
-          </>
-        )
-
-      case 5:
+      case 3:
         return (
           <QualitesCarousel
             userId={userId}
-            onComplete={done => setStep5Complete(done)}
+            onComplete={done => setStep3Complete(done)}
           />
         )
 
-      case 7:
+      case 4:
         return (
           <>
-            <QuestionLabel num={step} text="Quel est le projet dont vous êtes le plus fier ?" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel num={step} text="Votre projet phare et vos passions" sub={MICRO_TEXTS[step]} />
             <input
               type="text"
               value={data.projet_titre}
@@ -1586,7 +1559,7 @@ function OnboardingPageInner() {
                 const v = e.target.value
                 if (v.length <= MAX_PROJET_TITRE || v.length < data.projet_titre.length) set('projet_titre', v)
               }}
-              placeholder="Titre du projet"
+              placeholder="Titre du projet (facultatif)"
               style={{
                 width: '100%', boxSizing: 'border-box' as const,
                 padding: '12px 16px', borderRadius: 10,
@@ -1607,13 +1580,10 @@ function OnboardingPageInner() {
               />
               <SignatureCounter count={data.projet.length} max={MAX_PROJET_DESC} theme="light" />
             </div>
-          </>
-        )
-
-      case 8:
-        return (
-          <>
-            <QuestionLabel num={step} text="Quelles sont vos passions en dehors du travail ?" sub={MICRO_TEXTS[step]} />
+            <div style={{ height: 24 }} />
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              Centres d'intérêt
+            </p>
             <TagInput
               tags={data.passions}
               onAddTag={tag => set('passions', [...data.passions, tag])}
@@ -1625,14 +1595,26 @@ function OnboardingPageInner() {
           </>
         )
 
-      case 9: {
+      case 5: {
+        const showDate   = data.disponibilite === 'a_partir_de'
+        const allPermis  = [...PERMIS, ...PERMIS_AUTRES]
+        const togglePermis = (val: string) => {
+          if (val === 'aucun') { set('permis', ['aucun']); return }
+          const without = data.permis.filter(v => v !== 'aucun' && v !== val)
+          if (data.permis.includes(val)) set('permis', without)
+          else set('permis', [...without, val])
+        }
         return (
           <>
-            <QuestionLabel num={step} text="Quel type de contrat recherchez-vous ?" sub={MICRO_TEXTS[step]} />
-            <p style={{ fontSize: '13px', color: C.grey, marginBottom: '16px', marginTop: '-14px' }}>
+            <QuestionLabel num={step} text="Vos préférences de recherche" sub={MICRO_TEXTS[step]} />
+
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+              Type de contrat
+            </p>
+            <p style={{ fontSize: '13px', color: C.grey, marginBottom: '12px', marginTop: 0 }}>
               Vous pouvez en sélectionner plusieurs.
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {TYPES_POSTE.map(t => {
                 const selected = data.typePoste.includes(t.key)
                 return (
@@ -1658,29 +1640,83 @@ function OnboardingPageInner() {
                 )
               })}
             </div>
-          </>
-        )
-      }
 
-      case 10:
-        return (
-          <>
-            <QuestionLabel num={step} text="Sur place ou à distance ?" sub={MICRO_TEXTS[step]} />
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+              Lieu de travail
+            </p>
             {LIEUX.map(l => (
               <ChoiceCard key={l.key} label={l.label} desc={l.description}
                 selected={data.lieu === l.key} onClick={() => set('lieu', l.key)} />
             ))}
-            <div style={{ marginTop: '4px' }}>
+            <div style={{ marginTop: '4px', marginBottom: '24px' }}>
               <StyledInput
                 value={data.ville}
                 onChange={v => set('ville', v)}
                 placeholder="Votre ville, région ou zone géographique"
               />
             </div>
+
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+              Disponibilité
+            </p>
+            {DISPOS.map(d => (
+              <ChoiceCard key={d.key} label={d.label} desc={d.desc}
+                selected={data.disponibilite === d.key} onClick={() => set('disponibilite', d.key)} />
+            ))}
+            {showDate && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="date"
+                  value={data.dispo_date}
+                  onChange={e => set('dispo_date', e.target.value)}
+                  min={new Date().toISOString().slice(0, 10)}
+                  style={{
+                    width: '100%', padding: '13px 16px', fontSize: '16px',
+                    borderRadius: '12px', border: `2px solid ${data.dispo_date ? C.terracotta : C.sable}`,
+                    backgroundColor: C.white, color: C.dark, outline: 'none',
+                    boxSizing: 'border-box', fontFamily: 'inherit',
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ marginTop: '24px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                Permis & habilitations (facultatif)
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                {allPermis.map(p => {
+                  const sel = data.permis.includes(p.value)
+                  return (
+                    <button key={p.value} onClick={() => togglePermis(p.value)} style={{
+                      padding: '8px 16px', borderRadius: '24px', fontFamily: 'inherit',
+                      border: `2px solid ${sel ? C.terracotta : C.sable}`,
+                      backgroundColor: sel ? 'rgba(194, 97, 31,0.08)' : C.white,
+                      color: sel ? C.terracotta : C.dark,
+                      fontSize: '14px', fontWeight: sel ? '600' : '400',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}>
+                      {p.label}
+                    </button>
+                  )
+                })}
+                <button onClick={() => togglePermis('aucun')} style={{
+                  padding: '8px 16px', borderRadius: '24px', fontFamily: 'inherit',
+                  border: `2px solid ${data.permis.includes('aucun') ? C.terracotta : C.sable}`,
+                  backgroundColor: data.permis.includes('aucun') ? 'rgba(194, 97, 31,0.08)' : C.white,
+                  color: data.permis.includes('aucun') ? C.terracotta : C.dark,
+                  fontSize: '14px', fontWeight: data.permis.includes('aucun') ? '600' : '400',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}>
+                  Aucun
+                </button>
+              </div>
+            </div>
           </>
         )
+      }
 
-      case 11: {
+      case 6: {
         const maxReached = data.priorite.length >= 3
         return (
           <>
@@ -1715,36 +1751,7 @@ function OnboardingPageInner() {
         )
       }
 
-      case 12: {
-        const showDate = data.disponibilite === 'a_partir_de'
-        return (
-          <>
-            <QuestionLabel num={step} text="Quelle est votre disponibilité ?" sub={MICRO_TEXTS[step]} />
-            {DISPOS.map(d => (
-              <ChoiceCard key={d.key} label={d.label} desc={d.desc}
-                selected={data.disponibilite === d.key} onClick={() => set('disponibilite', d.key)} />
-            ))}
-            {showDate && (
-              <div style={{ marginTop: 8 }}>
-                <input
-                  type="date"
-                  value={data.dispo_date}
-                  onChange={e => set('dispo_date', e.target.value)}
-                  min={new Date().toISOString().slice(0, 10)}
-                  style={{
-                    width: '100%', padding: '13px 16px', fontSize: '16px',
-                    borderRadius: '12px', border: `2px solid ${data.dispo_date ? C.terracotta : C.sable}`,
-                    backgroundColor: C.white, color: C.dark, outline: 'none',
-                    boxSizing: 'border-box', fontFamily: 'inherit',
-                  }}
-                />
-              </div>
-            )}
-          </>
-        )
-      }
-
-      case 13: {
+      case 7: {
         const addExp = () => set('experiences', [
           ...data.experiences,
           { poste: '', entreprise: '', date_debut: '', date_fin: '', en_poste: false, missions: '' },
@@ -1817,7 +1824,7 @@ function OnboardingPageInner() {
         )
       }
 
-      case 14: {
+      case 8: {
         const addDiplome = () => set('diplomes', [
           ...data.diplomes,
           { intitule: '', ecole: '', annee: '', mention: '' },
@@ -1865,7 +1872,7 @@ function OnboardingPageInner() {
         )
       }
 
-      case 15:
+      case 9:
         return (
           <>
             <QuestionLabel num={step} text="Compétences et langues" sub={MICRO_TEXTS[step]} />
@@ -2001,7 +2008,7 @@ function OnboardingPageInner() {
       }}>
         <span style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
         <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
-          {displayStepNum(step)} / {TOTAL}
+          {step} / {TOTAL}
         </span>
       </header>
 
@@ -2027,7 +2034,7 @@ function OnboardingPageInner() {
         </div>
         <div style={{ height: '3px', backgroundColor: C.sable, borderRadius: '2px', overflow: 'hidden' }}>
           <div style={{
-            height: '100%', width: `${(displayStepNum(step) / TOTAL) * 100}%`,
+            height: '100%', width: `${(step / TOTAL) * 100}%`,
             backgroundColor: C.terracotta, borderRadius: '2px', transition: 'width 0.4s ease',
           }} />
         </div>
