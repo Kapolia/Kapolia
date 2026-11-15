@@ -2004,6 +2004,7 @@ export default function ProfilView({
                     valeurs={editCompetences}
                     onChange={setEditCompetences}
                     onMark={() => setCarteModifiee(true)}
+                    domaine={p.domaine ?? ''}
                   />
                   {cardFooter('competences')}
                 </>
