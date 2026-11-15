@@ -1818,7 +1818,7 @@ export default function ProfilView({
                   ) : null}
 
                   {/* Télétravail */}
-                  {modeTravailLabel && (
+                  {modeTravailLabel && p.mode_travail !== 'flexible' && (
                     <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('teletravail') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M3 12l2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
                       {modeTravailLabel}
@@ -1830,7 +1830,7 @@ export default function ProfilView({
                   {(p.permis ?? []).length > 0 ? (
                     <button data-profil-pastille="1" className={effectiveOwner ? 'pastille-modifiable' : undefined} onClick={effectiveOwner ? () => ouvrirRechercheChamp('permis') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
-                      {(p.permis ?? []).map(v => [...PERMIS, ...PERMIS_AUTRES].find(x => x.value === v)?.label ?? v).join(', ')}
+                      {(p.permis ?? []).map(v => v === 'aucun' ? 'Pas de permis' : ([...PERMIS, ...PERMIS_AUTRES].find(x => x.value === v)?.label ?? v)).join(', ')}
                       {effectiveOwner && <svg className="pastille-crayon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.lien} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
                     </button>
                   ) : effectiveOwner ? (
