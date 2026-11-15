@@ -137,12 +137,6 @@ const COLONNES_VISITEUR = [
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
 
-const ENVIRONNEMENT_MAP: Record<string, string> = {
-  startup: 'Startup agile', scaleup: 'Scale-up', corporate: 'Grand groupe', indep: 'Indépendant(e)',
-  sans_pref: 'Sans préférence',
-}
-
-
 const TYPE_POSTE_MAP: Record<string, string> = {
   cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance / Mission', alternance: 'Alternance / Stage', ouvert: 'Ouvert(e) à tout',
 }
@@ -671,7 +665,6 @@ export default function ProfilView({
   const [editLiens, setEditLiens]                   = useState<Lien[]>([])
   const [editLiensErrs, setEditLiensErrs]           = useState<Record<number, string>>({})
   const [editPermis, setEditPermis]                 = useState<string[]>([])
-  const [editTypeEntreprise, setEditTypeEntreprise] = useState<string[]>([])
   const [editPriorite, setEditPriorite]             = useState<string[]>([])
   const [editLangues, setEditLangues]               = useState<string[]>([])
 
@@ -823,7 +816,6 @@ export default function ProfilView({
           ...(profil.linkedin_url ? [{ intitule: 'LinkedIn', url: profil.linkedin_url }] : []),
           ...(profil.portfolio_url ? [{ intitule: 'Portfolio', url: profil.portfolio_url }] : []),
         ])
-        setEditTypeEntreprise([...(profil.type_entreprise ?? [])])
         setEditLangues([...(profil.langues ?? [])])
         setEditPassions([...(profil.passions ?? [])])
         setEditPermis([...(profil.permis ?? [])])
@@ -1006,7 +998,6 @@ export default function ProfilView({
 
   const initials         = getInitials(p.prenom, p.nom)
   const dispo            = getDispoStatus(p.disponibilite, p.dispo_date)
-  const typeEntrepriseItems = (p.type_entreprise ?? []).filter(k => k !== 'sans_pref').map(k => ENVIRONNEMENT_MAP[k] ?? k)
   const typePosteLabel      = (p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' · ') || '—'
   const modeTravailLabel    = LIEU_MAP[p.mode_travail ?? ''] ?? p.mode_travail ?? ''
   const qualites            = p.qualites ?? []
@@ -1053,7 +1044,7 @@ export default function ProfilView({
       setEditDomaine(p.domaine ?? ''); setEditExperience(p.experience ?? '')
       setEditSignature(p.signature ?? ''); setEditDispo(p.disponibilite ?? ''); setEditDispoDate(p.dispo_date ?? '')
       setEditTypePoste([...(p.type_poste ?? [])]); setEditModeTravail(p.mode_travail ?? ''); setEditVille(p.ville ?? '')
-      setEditTypeEntreprise([...(p.type_entreprise ?? [])]); setEditLangues([...(p.langues ?? [])]); setEditPermis([...(p.permis ?? [])])
+      setEditLangues([...(p.langues ?? [])]); setEditPermis([...(p.permis ?? [])])
     } else if (carte === 'parcours') {
       setEditExperiences(JSON.parse(JSON.stringify(p.experiences ?? [])))
       setEditDiplomes(JSON.parse(JSON.stringify(p.diplomes ?? [])))
@@ -1176,7 +1167,7 @@ export default function ProfilView({
 
     let payload: Record<string, unknown> = {}
     if (carte === 'presentation') payload = { prenom: editPrenom, nom: editNom, metier: editMetier || null, domaine: editDomaine || null, experience: editExperience || null, signature: editSignature }
-    else if (carte === 'recherche') payload = { disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, type_entreprise: editTypeEntreprise, langues: editLangues, permis: editPermis }
+    else if (carte === 'recherche') payload = { disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, langues: editLangues, permis: editPermis }
     else if (carte === 'parcours') {
       const finErr = editExperiences.some(exp => {
         if (exp.en_poste || !exp.debut_annee || !exp.fin_annee) return false
@@ -1861,7 +1852,6 @@ export default function ProfilView({
                     editTypePoste={editTypePoste} setEditTypePoste={setEditTypePoste}
                     editVille={editVille} setEditVille={setEditVille}
                     editModeTravail={editModeTravail} setEditModeTravail={setEditModeTravail}
-                    editTypeEntreprise={editTypeEntreprise} setEditTypeEntreprise={setEditTypeEntreprise}
                     editPermis={editPermis} setEditPermis={setEditPermis}
                     editLangues={editLangues} setEditLangues={setEditLangues}
                     onChange={() => setCarteModifiee(true)}

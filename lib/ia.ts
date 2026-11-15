@@ -46,7 +46,6 @@ export type ContexteProfil = {
   ville:                  boolean
   type_poste:             number
   mode_travail:           boolean
-  type_entreprise:        number
   disponibilite:          boolean
   langues:                number
   signature:              { presente: boolean; longueur: number }
@@ -69,7 +68,6 @@ type RawProfil = {
   ville?:                  string | null
   type_poste?:             string[] | null
   mode_travail?:           string | null
-  type_entreprise?:        string[] | null
   disponibilite?:          string | null
   langues?:                string[] | null
   signature?:              string | null
@@ -97,7 +95,6 @@ export function buildContexteProfil(profil: RawProfil, nbQualitesProches: number
     ville:                  str(profil.ville),
     type_poste:             arr(profil.type_poste),
     mode_travail:           str(profil.mode_travail),
-    type_entreprise:        arr(profil.type_entreprise),
     disponibilite:          str(profil.disponibilite),
     langues:                arr(profil.langues),
     signature:              { presente: str(profil.signature), longueur: profil.signature?.trim().length ?? 0 },
@@ -127,7 +124,6 @@ function contexteProfilVersTexte(c: ContexteProfil): string {
     `Ville : ${o(c.ville, 'renseignée', 'non renseignée')}`,
     `Type de contrat recherché : ${c.type_poste > 0 ? `${c.type_poste} choix renseignés` : 'non renseigné'}`,
     `Mode de travail (remote/hybride) : ${o(c.mode_travail, 'renseigné', 'non renseigné')}`,
-    `Type d'entreprise recherché : ${c.type_entreprise > 0 ? `${c.type_entreprise} choix renseignés` : 'non renseigné'}`,
     `Disponibilité : ${o(c.disponibilite, 'renseignée', 'non renseignée')}`,
     `Langues : ${c.langues > 0 ? na(c.langues, 'renseignée', 'renseignées') : 'non renseignées'}`,
     `Phrase de présentation (parcours) : ${c.signature.presente ? `renseignée (${c.signature.longueur} caractères)` : 'non renseignée'}`,

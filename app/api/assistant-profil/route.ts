@@ -18,7 +18,7 @@ function adminClient() {
 }
 
 const PROFIL_COLUMNS = [
-  'domaine', 'ville', 'type_poste', 'mode_travail', 'type_entreprise',
+  'domaine', 'ville', 'type_poste', 'mode_travail',
   'disponibilite', 'langues', 'signature', 'projet_titre', 'projet_phare',
   'projet_impact', 'passions', 'linkedin_url', 'portfolio_url',
   'video_presentation_url', 'avatar_url', 'experiences', 'diplomes',

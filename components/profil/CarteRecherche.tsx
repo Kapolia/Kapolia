@@ -11,7 +11,6 @@ type Props = {
   editTypePoste: string[]; setEditTypePoste: (v: string[]) => void
   editVille: string; setEditVille: (v: string) => void
   editModeTravail: string; setEditModeTravail: (v: string) => void
-  editTypeEntreprise: string[]; setEditTypeEntreprise: (v: string[]) => void
   editPermis: string[]; setEditPermis: (v: string[]) => void
   editLangues: string[]; setEditLangues: (v: string[]) => void
   onChange: () => void
@@ -30,14 +29,6 @@ const TYPE_POSTE_OPT = [
   { key: 'freelance',  label: 'Freelance / Mission' },
   { key: 'alternance', label: 'Alternance / Stage' },
   { key: 'ouvert',     label: 'Ouvert(e) à tout' },
-]
-
-const ENVIRONNEMENT_OPT = [
-  { key: 'startup',   label: 'Startup agile' },
-  { key: 'scaleup',   label: 'Scale-up' },
-  { key: 'corporate', label: 'Grand groupe' },
-  { key: 'indep',     label: 'Indépendant(e)' },
-  { key: 'sans_pref', label: 'Sans préférence' },
 ]
 
 const MOIS = [
@@ -86,7 +77,7 @@ function parseLignes(arr: string[]): LigneLangue[] {
 export default function CarteRecherche({
   editDispo, setEditDispo, editDispoDate, setEditDispoDate,
   editTypePoste, setEditTypePoste, editVille, setEditVille,
-  editModeTravail, setEditModeTravail, editTypeEntreprise, setEditTypeEntreprise,
+  editModeTravail, setEditModeTravail,
   editPermis, setEditPermis, editLangues, setEditLangues, onChange,
 }: Props) {
   const [lignes, setLignes] = useState<LigneLangue[]>(() => parseLignes(editLangues))
@@ -192,18 +183,6 @@ export default function CarteRecherche({
               onClick={() => { setEditModeTravail(editModeTravail === o.key ? '' : o.key); onChange() }} />
           ))}
         </div>
-      </div>
-
-      {/* Environnement souhaité */}
-      <div>
-        <label style={LABEL_S}>Environnement souhaité</label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {ENVIRONNEMENT_OPT.map(o => (
-            <ChoixBtn key={o.key} label={o.label} selected={editTypeEntreprise.includes(o.key)}
-              onClick={() => toggleMulti(editTypeEntreprise, setEditTypeEntreprise, o.key)} />
-          ))}
-        </div>
-        <span style={HELP_S}>Sert à la correspondance avec les offres.</span>
       </div>
 
       {/* Permis et habilitations */}

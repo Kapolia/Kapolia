@@ -36,7 +36,6 @@ type Profil = {
   passions?: string[]
   type_poste?: string[]
   mode_travail?: string
-  type_entreprise?: string[]
   projet_phare?: string
   projet_titre?: string
   projet_impact?: string
@@ -211,7 +210,6 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
     label: 'Ma recherche', weight: 0.20,
     fields: [
       { key: 'type_poste',    label: 'Type de poste',         suggestion: 'Précisez le type de poste recherché' },
-      { key: 'type_entreprise', label: 'Type d\'entreprise',   suggestion: 'Précisez le type d\'entreprise qui vous correspond' },
       { key: 'mode_travail',   label: 'Mode de travail',      suggestion: 'Précisez votre mode de travail préféré' },
       { key: 'disponibilite', label: 'Disponibilité',         suggestion: 'Confirmez votre disponibilité' },
       { key: 'langues',       label: 'Langues',               suggestion: 'Renseignez vos langues' },
@@ -249,7 +247,7 @@ const COMPLETION_SECTIONS: CompletionSection[] = [
 const SUGGESTION_PRIORITY: (keyof Profil)[] = [
   'video_presentation_url',
   'signature', 'valeur', 'projet_titre', 'projet_phare', 'projet_impact',
-  'type_poste', 'disponibilite', 'langues', 'type_entreprise', 'mode_travail',
+  'type_poste', 'disponibilite', 'langues', 'mode_travail',
   'experiences', 'qualites', 'competences_acquises', 'passions', 'diplomes',
   'ville', 'avatar_url',
 ]
