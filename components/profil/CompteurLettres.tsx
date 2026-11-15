@@ -7,7 +7,7 @@ export type CompteurRef = { trembler: () => void }
 
 type Props = { longueur: number; max: number }
 
-const R = 9       // rayon du cercle (SVG 18 px)
+const R = 8       // rayon du cercle (viewBox 20 px, r=8 → 2 px de marge)
 const PERIM = 2 * Math.PI * R
 
 const CompteurLettres = forwardRef<CompteurRef, Props>(function CompteurLettres({ longueur, max }, ref) {
@@ -16,7 +16,6 @@ const CompteurLettres = forwardRef<CompteurRef, Props>(function CompteurLettres(
 
   // ── Anneau ────────────────────────────────────────────────────────────────
   const arcAnime  = useRessort(ratio, RESSORT_SUIVI)
-  const dash      = arcAnime * PERIM
   const couleurArc = pct >= 100 ? C.erreur : pct >= 80 ? C.attente : C.vert
 
   // ── Échelle de l'anneau à 100 % ──────────────────────────────────────────
@@ -80,21 +79,22 @@ const CompteurLettres = forwardRef<CompteurRef, Props>(function CompteurLettres(
       </div>
 
       {/* Anneau SVG */}
-      <svg width="18" height="18" viewBox="0 0 18 18" style={{ transform: `scale(${echelleAnneau})`, flexShrink: 0 }} aria-hidden="true">
-        {/* fond */}
-        <circle cx="9" cy="9" r={R} fill="none" stroke={C.sable} strokeWidth="2" />
-        {/* arc */}
-        <circle
-          cx="9" cy="9" r={R}
-          fill="none"
-          stroke={couleurArc}
-          strokeWidth="2"
-          strokeDasharray={`${dash} ${PERIM}`}
-          strokeDashoffset={PERIM / 4}
-          strokeLinecap="round"
-          style={{ transition: 'stroke 0.2s' }}
-        />
-      </svg>
+      <span style={{ transform: `scale(${echelleAnneau})`, transformOrigin: 'center', display: 'inline-flex', flexShrink: 0 }}>
+        <svg width="18" height="18" viewBox="0 0 20 20" shapeRendering="geometricPrecision" aria-hidden="true">
+          <circle cx="10" cy="10" r={R} fill="none" stroke={C.sable} strokeWidth="2.2" />
+          <circle
+            cx="10" cy="10" r={R}
+            fill="none"
+            stroke={couleurArc}
+            strokeWidth="2.2"
+            strokeDasharray={PERIM}
+            strokeDashoffset={PERIM * (1 - arcAnime)}
+            strokeLinecap="round"
+            transform="rotate(-90 10 10)"
+            style={{ transition: 'stroke 0.2s' }}
+          />
+        </svg>
+      </span>
 
       {/* Annonce screen reader */}
       <span aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
