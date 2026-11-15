@@ -4,7 +4,7 @@ import { C } from '@/lib/colors'
 import { DOMAINES, EXPERIENCES } from '@/lib/referentiels'
 import Avatar, { type AvatarProfil } from '@/components/Avatar'
 
-const MAX_PHRASE = 140
+const MAX_PHRASE = 200
 
 type Props = {
   profil: AvatarProfil
@@ -149,7 +149,7 @@ export default function CartePresentation({
 
         {/* Phrase */}
         <div>
-          <label style={LABEL_S}>Votre phrase</label>
+          <label style={LABEL_S}>Votre accroche</label>
           <textarea
             ref={sigTextareaRef}
             value={editSignature}
@@ -168,7 +168,7 @@ export default function CartePresentation({
             }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 }}>
-            <span style={HELP_S}>Une phrase qui dit ce que vous apportez.</span>
+            <span style={HELP_S}>Ce que vous apportez, en une ou deux phrases.</span>
             <span style={{ fontSize: 12.5, color: editSignature.length >= MAX_PHRASE ? C.erreur : C.grey, flexShrink: 0, marginLeft: 8 }}>
               {editSignature.length} sur {MAX_PHRASE}
             </span>

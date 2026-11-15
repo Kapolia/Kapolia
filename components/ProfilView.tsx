@@ -1738,7 +1738,7 @@ export default function ProfilView({
 
                   {/* Disponibilité */}
                   {p.disponibilite ? (
-                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                       {p.disponibilite === 'maintenant' ? 'Disponible maintenant'
                         : p.disponibilite === 'a_partir_de' ? (() => {
@@ -1749,7 +1749,7 @@ export default function ProfilView({
                         : p.disponibilite === 'en_poste' ? "En poste, à l'écoute"
                         : 'Pas disponible pour le moment'
                       }
-                    </span>
+                    </button>
                   ) : effectiveOwner ? (
                     <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -1759,10 +1759,10 @@ export default function ProfilView({
 
                   {/* Contrat */}
                   {(p.type_poste ?? []).length > 0 ? (
-                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                       {(p.type_poste ?? []).map(k => TYPE_POSTE_MAP[k] ?? k).join(' ou ')}
-                    </span>
+                    </button>
                   ) : effectiveOwner ? (
                     <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
@@ -1772,10 +1772,10 @@ export default function ProfilView({
 
                   {/* Ville */}
                   {p.ville ? (
-                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
                       {p.ville}
-                    </span>
+                    </button>
                   ) : effectiveOwner ? (
                     <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
@@ -1785,18 +1785,18 @@ export default function ProfilView({
 
                   {/* Télétravail */}
                   {modeTravailLabel && (
-                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M3 12l2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6"/></svg>
                       {modeTravailLabel}
-                    </span>
+                    </button>
                   )}
 
                   {/* Permis */}
                   {(p.permis ?? []).length > 0 ? (
-                    <span data-profil-pastille="1" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark }}>
+                    <button data-profil-pastille="1" onClick={effectiveOwner ? () => ouvrirCarte('recherche') : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, backgroundColor: C.bg, fontSize: 14, fontWeight: 600, color: C.dark, border: 'none', cursor: effectiveOwner ? 'pointer' : 'default', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.vert} strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
                       {(p.permis ?? []).map(v => PERMIS.find(x => x.value === v)?.label ?? v).join(', ')}
-                    </span>
+                    </button>
                   ) : effectiveOwner ? (
                     <button onClick={() => ouvrirCarte('recherche')} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: C.white, color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 17H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14l3 5v5a2 2 0 0 1-2 2h-2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
