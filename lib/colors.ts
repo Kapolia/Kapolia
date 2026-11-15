@@ -28,6 +28,7 @@ export const C = {
 
   // États (inchangés)
   succes:        '#3E8E5E',
+  succesFonce:   '#2F7A50',
   attente:       '#C88A2A',
   erreur:        '#C0392B',
 

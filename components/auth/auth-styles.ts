@@ -235,6 +235,39 @@ export const AUTH_STYLES: string = `
     line-height: 1.5;
   }
 
+  /* ── Cartes de choix de compte ──────────────────────────────────── */
+
+  .choix-carte {
+    transition: border-color 150ms, background-color 150ms;
+  }
+  .choix-round {
+    transition: border-color 150ms;
+  }
+  .choix-dot {
+    transition: transform 220ms cubic-bezier(.3,1.6,.5,1);
+  }
+
+  /* ── Barre de robustesse ─────────────────────────────────────────── */
+
+  @keyframes barre-label-pulse {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  .barre-fill {
+    height: 100%;
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 320ms cubic-bezier(.2,.7,.2,1), background-color 300ms;
+  }
+  .barre-fill--allume {
+    transform: scaleX(1);
+  }
+  .barre-label--pulse {
+    animation: barre-label-pulse 400ms cubic-bezier(.2,.7,.2,1) both;
+  }
+
   /* ── Entrée échelonnée retardée (état envoyé) ───────────────────── */
 
   .auth-stagger-delayed > * {
@@ -287,5 +320,10 @@ export const AUTH_STYLES: string = `
     .auth-spinner               { animation: none; }
     .mdp-circle                 { animation: none; stroke-dashoffset: 0; }
     .mdp-check                  { animation: none; stroke-dashoffset: 0; }
+    .choix-carte                { transition: none; }
+    .choix-round                { transition: none; }
+    .choix-dot                  { transition: none; }
+    .barre-fill                 { transition: none; }
+    .barre-label--pulse         { animation: none; }
   }
 `
