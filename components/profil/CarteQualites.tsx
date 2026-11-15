@@ -199,6 +199,7 @@ export default function CarteQualites({
             max={5}
             placeholder="Ajoutez une qualité…"
             libre
+            listeAuClic
           />
           <p style={{ fontSize: 12.5, color: C.grey, margin: 0 }}>
             Choisir dans la liste permet de montrer, en vert sur votre profil, les qualités que vos proches ou le questionnaire citent aussi.
