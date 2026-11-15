@@ -19,6 +19,7 @@ import CartePriorites from '@/components/profil/CartePriorites'
 import CartePassions from '@/components/profil/CartePassions'
 import CarteLiens from '@/components/profil/CarteLiens'
 import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
+import { chargerEntreprisesKapolia, type EntrepriseKapolia } from '@/lib/entreprises-kapolia'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
 import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
@@ -675,6 +676,7 @@ export default function ProfilView({
   const [editLangues, setEditLangues]               = useState<string[]>([])
 
   const [editPassions, setEditPassions]             = useState<string[]>([])
+  const [entreprisesKapolia, setEntreprisesKapolia] = useState<EntrepriseKapolia[]>([])
   const [newPassion, setNewPassion]                 = useState('')
   const [uploadingVedette, setUploadingVedette]     = useState(false)
   const [deletingVideo, setDeletingVideo]           = useState(false)
@@ -704,6 +706,8 @@ export default function ProfilView({
   const recordTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasAnimated          = useRef(false)
   const prevCarteRef         = useRef<CarteType | null>(null)
+
+  useEffect(() => { chargerEntreprisesKapolia().then(setEntreprisesKapolia) }, [])
 
   useEffect(() => {
     async function load() {
@@ -1883,12 +1887,13 @@ export default function ProfilView({
                     editDiplomes={editDiplomes as ParcoursDiplomeEdit[]}
                     setEditDiplomes={v => setEditDiplomes(v as ProfilDiplome[])}
                     onChange={() => setCarteModifiee(true)}
+                    entreprisesKapolia={entreprisesKapolia}
                   />
                   {cardFooter('parcours')}
                 </>
               ) : (
                 (experiences.length > 0 || diplomes.length > 0)
-                  ? <CarteParcoursView experiences={experiences} diplomes={diplomes} />
+                  ? <CarteParcoursView experiences={experiences} diplomes={diplomes} entreprisesKapolia={entreprisesKapolia} />
                   : <p style={{ fontSize: 13, color: C.grey, margin: 0 }}>Ajoutez votre parcours professionnel et vos formations.</p>
               )}
             </div>

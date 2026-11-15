@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useRef, useEffect } from 'react'
 import { C } from '@/lib/colors'
+import { type EntrepriseKapolia, normaliserNomEntreprise } from '@/lib/entreprises-kapolia'
 
 export type ParcoursExpEdit = {
   poste: string
@@ -32,6 +33,7 @@ type Props = {
   editDiplomes: ParcoursDiplomeEdit[]
   setEditDiplomes: (v: ParcoursDiplomeEdit[]) => void
   onChange: () => void
+  entreprisesKapolia?: EntrepriseKapolia[]
 }
 
 const ANNEE_MIN = 1960
@@ -72,6 +74,40 @@ function FieldInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'st
         boxSizing: 'border-box',
       }}
     />
+  )
+}
+
+function EntrepriseInput({ value, onChange, entreprises }: { value: string; onChange: (v: string) => void; entreprises: EntrepriseKapolia[] }) {
+  const [open, setOpen] = useState(false)
+  const norm = normaliserNomEntreprise(value)
+  const suggestions = value.length >= 3
+    ? entreprises.filter(e => normaliserNomEntreprise(e.nom).includes(norm)).slice(0, 6)
+    : []
+  return (
+    <div style={{ position: 'relative' }}>
+      <FieldInput
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && suggestions.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 9, boxShadow: '0 4px 16px rgba(0,0,0,.08)', marginTop: 4, overflow: 'hidden' }}>
+          {suggestions.map(e => (
+            <div key={e.nom}
+              onMouseDown={() => { onChange(e.nom); setOpen(false) }}
+              onMouseEnter={ev => { (ev.currentTarget as HTMLDivElement).style.backgroundColor = C.bg }}
+              onMouseLeave={ev => { (ev.currentTarget as HTMLDivElement).style.backgroundColor = C.white }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 13.5, color: C.dark, backgroundColor: C.white }}>
+              {e.logoUrl && (
+                <img src={e.logoUrl} alt="" width={20} height={20} style={{ objectFit: 'contain', borderRadius: 3, flexShrink: 0, border: `1px solid ${C.sable}` }} />
+              )}
+              {e.nom}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -139,7 +175,7 @@ function MissionsEditor({ missions, onChange }: { missions: string[]; onChange: 
   )
 }
 
-export default function CarteParcours({ editExperiences, setEditExperiences, editDiplomes, setEditDiplomes, onChange }: Props) {
+export default function CarteParcours({ editExperiences, setEditExperiences, editDiplomes, setEditDiplomes, onChange, entreprisesKapolia }: Props) {
 
   function updateExp(i: number, patch: Partial<ParcoursExpEdit>) {
     const arr = [...editExperiences]; arr[i] = { ...arr[i], ...patch }; setEditExperiences(arr); onChange()
@@ -223,7 +259,7 @@ export default function CarteParcours({ editExperiences, setEditExperiences, edi
                   </div>
                   <div>
                     <label style={LABEL_S}>Entreprise</label>
-                    <FieldInput value={exp.entreprise} onChange={e => updateExp(i, { entreprise: e.target.value })} />
+                    <EntrepriseInput value={exp.entreprise} onChange={v => updateExp(i, { entreprise: v })} entreprises={entreprisesKapolia ?? []} />
                   </div>
                 </div>
 

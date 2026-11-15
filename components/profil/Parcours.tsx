@@ -13,6 +13,7 @@ import {
   type FormationParcours,
   type DateMois,
 } from '@/lib/parcours'
+import { type EntrepriseKapolia, normaliserNomEntreprise } from '@/lib/entreprises-kapolia'
 
 // ─── Types locaux ─────────────────────────────────────────────────────────────
 
@@ -85,9 +86,11 @@ function SLabel20({ children }: { children: ReactNode }) {
 export default function CarteParcoursView({
   experiences,
   diplomes,
+  entreprisesKapolia,
 }: {
   experiences: ParcoursExp[]
   diplomes: ParcoursDiplome[]
+  entreprisesKapolia?: EntrepriseKapolia[]
 }) {
   const [showAll, setShowAll]       = useState(false)
   const [activeId, setActiveId]     = useState<string | null>(null)
@@ -192,6 +195,11 @@ export default function CarteParcoursView({
     } else {
       setShowAll(true)
     }
+  }
+
+  const logoMap = new Map<string, string>()
+  for (const e of (entreprisesKapolia ?? [])) {
+    if (e.logoUrl) logoMap.set(normaliserNomEntreprise(e.nom), e.logoUrl)
   }
 
   const nbCaches  = Math.max(0, experiences.length - VISI)
@@ -356,6 +364,7 @@ export default function CarteParcoursView({
           const color      = POSTE_COLORS[i % POSTE_COLORS.length]
           const ini        = initiales(exp.entreprise)
           const isActive   = activeId === String(i)
+          const logoUrl    = logoMap.get(normaliserNomEntreprise(exp.entreprise || ''))
 
           const debutMois: DateMois | null =
             exp.debut_annee != null
@@ -390,9 +399,16 @@ export default function CarteParcoursView({
               }}
             >
               {/* Logo entreprise */}
-              <div style={{ width: 40, height: 40, borderRadius: 9, backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>{ini}</span>
-              </div>
+              {logoUrl ? (
+                <div style={{ width: 40, height: 40, borderRadius: 9, border: `1px solid ${C.sable}`, backgroundColor: C.white, overflow: 'hidden', flexShrink: 0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoUrl} alt="" width={40} height={40} style={{ objectFit: 'cover', display: 'block' }} />
+                </div>
+              ) : (
+                <div style={{ width: 40, height: 40, borderRadius: 9, backgroundColor: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ color: 'white', fontSize: 13, fontWeight: 700 }}>{ini}</span>
+                </div>
+              )}
 
               {/* Contenu */}
               <div style={{ minWidth: 0 }}>
