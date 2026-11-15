@@ -111,7 +111,7 @@ export default function MotDePasseOubliePage() {
             </h1>
 
             <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
-              Indiquez l'adresse e-mail de votre compte. Nous vous enverrons un lien pour choisir un nouveau mot de passe.
+              {'Indiquez l\'adresse e-mail de votre compte. Nous vous enverrons un lien pour choisir un nouveau mot de passe.'}
             </p>
 
             <AuthField

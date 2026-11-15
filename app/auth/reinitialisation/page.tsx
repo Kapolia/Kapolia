@@ -2,120 +2,58 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import LogoKapolia from '@/components/LogoKapolia'
+import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
-import { C as _C } from '@/lib/colors'
-const C = { ..._C, lightGrey: '#D0D0D0' as const }
-
-// ─── Palette ──────────────────────────────────────────────────────────────────
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { evaluerMotDePasse } from '@/lib/robustesse-mot-de-passe'
+import AuthShell from '@/components/auth/AuthShell'
+import AuthField from '@/components/auth/AuthField'
+import { AuthButtonPrimary } from '@/components/auth/AuthButton'
+import ErreurDepliable from '@/components/auth/ErreurDepliable'
+import BarreRobustesse from '@/components/auth/BarreRobustesse'
+import AuthSpinner from '@/components/auth/AuthSpinner'
 
 type Status =
-  | 'checking'          // attente de la réponse auth (échange de code en cours)
-  | 'ready'             // session PASSWORD_RECOVERY confirmée — formulaire actif
-  | 'invalid'           // pas de session de récupération valide (lien expiré/inexistant)
-  | 'already_connected' // l'utilisateur a une session normale — pas de lien de récup valide
-  | 'saving'            // updateUser en cours
-  | 'success'           // mot de passe mis à jour
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function EyeIcon({ open }: { open: boolean }) {
-  return open ? (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ) : (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke={C.grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  )
-}
-
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main style={{
-      minHeight: '100vh',
-      backgroundColor: C.bg,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: 'clamp(40px, 6%, 72px) clamp(20px, 5%, 40px)',
-    }}>
-      <style suppressHydrationWarning>
-        {`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}
-      </style>
-      <a href="/" style={{ marginBottom: '40px', textDecoration: 'none' }}>
-        <LogoKapolia variante="sombre" taille={40} />
-      </a>
-      <div style={{
-        width: '100%',
-        maxWidth: '440px',
-        backgroundColor: C.white,
-        borderRadius: '24px',
-        padding: 'clamp(28px, 5%, 44px)',
-        boxShadow: '0 2px 24px rgba(26,26,26,0.07)',
-      }}>
-        {children}
-      </div>
-      <p style={{
-        marginTop: '32px',
-        fontSize: '12px',
-        color: C.lightGrey,
-        fontFamily: FONT_SANS, fontWeight: 400, letterSpacing: '-0.005em',
-        fontStyle: 'italic',
-        textAlign: 'center',
-      }}>
-        « Trouvez votre cap. »
-      </p>
-    </main>
-  )
-}
-
-// ─── Page principale ──────────────────────────────────────────────────────────
+  | 'checking'
+  | 'ready'
+  | 'invalid'
+  | 'already_connected'
+  | 'saving'
+  | 'success'
 
 export default function ReinitialisationPage() {
-  const router  = useRouter()
-  const [status,       setStatus]       = useState<Status>('checking')
-  const [password,     setPassword]     = useState('')
-  const [confirm,      setConfirm]      = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm,  setShowConfirm]  = useState(false)
-  const [serverError,  setServerError]  = useState('')
+  const router = useRouter()
+  const [status,      setStatus]      = useState<Status>('checking')
+  const [password,    setPassword]    = useState('')
+  const [confirm,     setConfirm]     = useState('')
+  const [serverError, setServerError] = useState('')
+
+  const { niveau, conseil } = evaluerMotDePasse(password)
+
+  const confirmError = confirm !== '' && confirm !== password
+    ? 'Les mots de passe ne correspondent pas'
+    : ''
+
+  const canSubmit = status === 'ready' && niveau >= 2 && confirm === password
 
   useEffect(() => {
-    // Y a-t-il un code de récupération dans l'URL ?
-    // Si oui : Supabase échange le code → attend l'event PASSWORD_RECOVERY.
-    // Si non : INITIAL_SESSION suffit à déterminer l'état.
     const hasCode = new URLSearchParams(window.location.search).has('code')
 
-    // Stocke la session reçue dans INITIAL_SESSION pour le timeout handler
     let initialSessionPresent = false
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        // Session de récupération valide — afficher le formulaire
         if (timeoutId) clearTimeout(timeoutId)
         setStatus('ready')
       } else if (event === 'INITIAL_SESSION') {
         initialSessionPresent = Boolean(session)
         if (!hasCode) {
-          // Pas de code dans l'URL : la session actuelle est la réponse définitive
           setStatus(session ? 'already_connected' : 'invalid')
         }
-        // Si hasCode : on attend PASSWORD_RECOVERY ou le timeout
       }
     })
 
-    // Timeout de sécurité : si l'échange de code échoue (lien expiré, réseau…),
-    // PASSWORD_RECOVERY ne viendra jamais — on montre l'état invalide après 5 s.
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     if (hasCode) {
       timeoutId = setTimeout(() => {
@@ -136,7 +74,7 @@ export default function ReinitialisationPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (status !== 'ready') return
-    if (password.length < 8 || password !== confirm) return
+    if (niveau < 2 || password !== confirm) return
 
     setStatus('saving')
     setServerError('')
@@ -149,311 +87,177 @@ export default function ReinitialisationPage() {
       return
     }
 
-    // On déconnecte après le changement : l'utilisateur se reconnecte avec le nouveau mdp.
     await supabase.auth.signOut()
     setStatus('success')
     setTimeout(() => router.replace('/connexion'), 2500)
   }
 
-  const passwordOk = password.length >= 8
-  const confirmOk  = confirm === password && passwordOk
-  const canSubmit  = status === 'ready' && confirmOk
-
-  // ── Spinner (attente échange de code) ─────────────────────────────────────
-
   if (status === 'checking') {
     return (
-      <Shell>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            border: `3px solid ${C.sable}`, borderTopColor: C.terracotta,
-            animation: 'kapolia-spin 0.8s linear infinite',
-          }} />
-        </div>
-      </Shell>
+      <AuthShell>
+        <AuthSpinner />
+      </AuthShell>
     )
   }
-
-  // ── Lien invalide / expiré ────────────────────────────────────────────────
 
   if (status === 'invalid') {
     return (
-      <Shell>
-        <div style={{
-          width: '48px', height: '48px', borderRadius: '50%',
-          backgroundColor: '#fdf2f2',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: '20px',
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke={C.erreur} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </div>
-        <h1 style={{
-          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-          fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: 700,
-          margin: '0 0 12px',
-        }}>
-          Lien invalide ou expiré
-        </h1>
-        <p style={{ margin: '0 0 28px', fontSize: '14px', color: C.grey, lineHeight: 1.7 }}>
-          Ce lien de réinitialisation est invalide ou a expiré.
-          Les liens de réinitialisation sont valables pendant 1 heure.
-        </p>
-        <a
-          href="/mot-de-passe-oublie"
-          style={{
-            display: 'block',
-            width: '100%',
-            padding: '13px',
-            borderRadius: '14px',
-            border: 'none',
-            backgroundColor: C.terracotta,
-            color: C.white,
-            fontSize: '14px',
-            fontWeight: '600',
-            textAlign: 'center',
-            textDecoration: 'none',
-            boxSizing: 'border-box',
-          }}
+      <AuthShell>
+        <div
+          className="auth-stagger"
+          style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
-          Demander un nouveau lien
-        </a>
-        <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '13px', color: C.grey }}>
-          <a href="/connexion" style={{ color: C.terracotta, fontWeight: '600', textDecoration: 'none' }}>
-            Retour à la connexion
-          </a>
-        </p>
-      </Shell>
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%',
+            backgroundColor: '#FBF1F0',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+              stroke={C.erreur} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h1 style={{
+            margin: 0, fontSize: '24px', fontWeight: 700,
+            color: C.dark, fontFamily: FONT_SANS,
+            letterSpacing: '-0.01em', lineHeight: 1.2,
+          }}>
+            Lien invalide ou expiré
+          </h1>
+          <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
+            Ce lien de réinitialisation est invalide ou a expiré. Les liens sont valables pendant 1 heure.
+          </p>
+          <AuthButtonPrimary type="button" onClick={() => router.push('/mot-de-passe-oublie')}>
+            Demander un nouveau lien
+          </AuthButtonPrimary>
+          <p style={{ margin: 0, textAlign: 'center', fontSize: '14px', color: C.grey }}>
+            <Link href="/connexion" style={{ color: C.orangeTexte, fontWeight: 600, textDecoration: 'none' }}>
+              Retour à la connexion
+            </Link>
+          </p>
+        </div>
+      </AuthShell>
     )
   }
-
-  // ── Déjà connecté (session normale, pas de récupération) ─────────────────
 
   if (status === 'already_connected') {
     return (
-      <Shell>
-        <h1 style={{
-          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-          fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: 700,
-          margin: '0 0 12px',
-        }}>
-          Vous êtes déjà connecté
-        </h1>
-        <p style={{ margin: '0 0 28px', fontSize: '14px', color: C.grey, lineHeight: 1.7 }}>
-          Vous avez une session active. Ce lien de réinitialisation n'est pas applicable à votre session actuelle.
-          Si vous souhaitez changer votre mot de passe, rendez-vous dans vos paramètres.
-        </p>
-        <a
-          href="/profil"
-          style={{
-            display: 'block',
-            width: '100%',
-            padding: '13px',
-            borderRadius: '14px',
-            border: 'none',
-            backgroundColor: C.terracotta,
-            color: C.white,
-            fontSize: '14px',
-            fontWeight: '600',
-            textAlign: 'center',
-            textDecoration: 'none',
-            boxSizing: 'border-box',
-          }}
+      <AuthShell>
+        <div
+          className="auth-stagger"
+          style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
         >
-          Aller à mon espace
-        </a>
-      </Shell>
+          <h1 style={{
+            margin: 0, fontSize: '24px', fontWeight: 700,
+            color: C.dark, fontFamily: FONT_SANS,
+            letterSpacing: '-0.01em', lineHeight: 1.2,
+          }}>
+            Vous êtes déjà connecté
+          </h1>
+          <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
+            {'Vous avez une session active. Ce lien de réinitialisation n\'est pas applicable à votre session actuelle. Si vous souhaitez changer votre mot de passe, rendez-vous dans vos paramètres.'}
+          </p>
+          <AuthButtonPrimary type="button" onClick={() => router.push('/profil')}>
+            Aller à mon espace
+          </AuthButtonPrimary>
+        </div>
+      </AuthShell>
     )
   }
-
-  // ── Succès ────────────────────────────────────────────────────────────────
 
   if (status === 'success') {
     return (
-      <Shell>
-        <div style={{
-          width: '48px', height: '48px', borderRadius: '50%',
-          backgroundColor: `${C.vert}14`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: '20px',
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke={C.vert} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
+      <AuthShell>
+        <div
+          className="auth-stagger"
+          style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', textAlign: 'center', gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
+              <circle
+                cx="26" cy="26" r="22"
+                stroke={C.succes} strokeWidth="2.5" fill="none"
+                transform="rotate(-90 26 26)"
+                className="mdp-circle"
+              />
+              <path
+                d="M14 27 L22 35 L38 18"
+                stroke={C.succes} strokeWidth="2.5" fill="none"
+                strokeLinecap="round" strokeLinejoin="round"
+                className="mdp-check"
+              />
+            </svg>
+          </div>
+          <h1 style={{
+            margin: 0, fontSize: '24px', fontWeight: 700,
+            color: C.dark, fontFamily: FONT_SANS,
+            letterSpacing: '-0.01em', lineHeight: 1.2,
+          }}>
+            Mot de passe mis à jour
+          </h1>
+          <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
+            Votre mot de passe a bien été modifié. Vous allez être redirigé vers la page de connexion…
+          </p>
         </div>
-        <h1 style={{
-          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-          fontSize: 'clamp(20px, 3.5vw, 26px)',
-          color: C.dark, fontWeight: 700,
-          margin: '0 0 12px',
-        }}>
-          Mot de passe mis à jour
-        </h1>
-        <p style={{ margin: 0, fontSize: '14px', color: C.grey, lineHeight: 1.7 }}>
-          Votre mot de passe a bien été modifié. Vous allez être redirigé vers la page de connexion…
-        </p>
-      </Shell>
+      </AuthShell>
     )
   }
 
-  // ── Formulaire (status === 'ready' | 'saving') ────────────────────────────
-
   return (
-    <Shell>
-      <h1 style={{
-        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-        fontSize: 'clamp(22px, 4vw, 28px)',
-        color: C.dark, fontWeight: 700,
-        margin: '0 0 10px',
-      }}>
-        Nouveau mot de passe
-      </h1>
-      <p style={{ margin: '0 0 28px', fontSize: '14px', color: C.grey, lineHeight: 1.65 }}>
-        Choisissez un mot de passe d'au moins 8 caractères.
-      </p>
-
-      <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-        {/* Nouveau mot de passe */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: C.dark, letterSpacing: '0.02em' }}>
-            Nouveau mot de passe
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={e => { setPassword(e.target.value); setServerError('') }}
-              placeholder="••••••••"
-              autoFocus
-              autoComplete="new-password"
-              style={{
-                width: '100%',
-                padding: '12px 44px 12px 14px',
-                fontSize: '15px',
-                borderRadius: '12px',
-                border: `1.5px solid ${password && !passwordOk ? C.erreur : password ? C.sable : C.lightGrey}`,
-                backgroundColor: C.white,
-                color: C.dark,
-                outline: 'none',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-                transition: 'border-color 0.15s',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(s => !s)}
-              style={{ position: 'absolute', right: '13px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
-              aria-label={showPassword ? 'Masquer' : 'Afficher'}
-            >
-              <EyeIcon open={showPassword} />
-            </button>
-          </div>
-          {password && !passwordOk && (
-            <span style={{ fontSize: '12px', color: C.erreur }}>8 caractères minimum</span>
+    <AuthShell>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="auth-stagger"
+        style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}
+      >
+        <h1 style={{
+          margin: 0, fontSize: '28px', fontWeight: 700,
+          color: C.dark, fontFamily: FONT_SANS,
+          letterSpacing: '-0.01em', lineHeight: 1.15,
+        }}>
+          Nouveau mot de passe
+        </h1>
+        <p style={{ margin: 0, fontSize: '15px', color: C.grey, lineHeight: 1.5 }}>
+          Choisissez un nouveau mot de passe.
+        </p>
+        <AuthField
+          label="Nouveau mot de passe"
+          value={password}
+          onChange={v => { setPassword(v); setServerError('') }}
+          type="password"
+          placeholder="••••••••"
+          autoComplete="new-password"
+        >
+          <BarreRobustesse niveau={niveau} conseil={conseil} />
+        </AuthField>
+        <AuthField
+          label="Confirmer le mot de passe"
+          value={confirm}
+          onChange={v => { setConfirm(v); setServerError('') }}
+          type="password"
+          placeholder="••••••••"
+          autoComplete="new-password"
+          error={!!confirmError}
+        >
+          {confirmError && (
+            <span style={{ fontSize: '13px', color: C.erreur }}>{confirmError}</span>
           )}
-        </div>
-
-        {/* Confirmation */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: C.dark, letterSpacing: '0.02em' }}>
-            Confirmer le mot de passe
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type={showConfirm ? 'text' : 'password'}
-              value={confirm}
-              onChange={e => { setConfirm(e.target.value); setServerError('') }}
-              placeholder="••••••••"
-              autoComplete="new-password"
-              style={{
-                width: '100%',
-                padding: '12px 44px 12px 14px',
-                fontSize: '15px',
-                borderRadius: '12px',
-                border: `1.5px solid ${confirm && confirm !== password ? C.erreur : confirm ? C.sable : C.lightGrey}`,
-                backgroundColor: C.white,
-                color: C.dark,
-                outline: 'none',
-                boxSizing: 'border-box',
-                fontFamily: 'inherit',
-                transition: 'border-color 0.15s',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm(s => !s)}
-              style={{ position: 'absolute', right: '13px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
-              aria-label={showConfirm ? 'Masquer' : 'Afficher'}
-            >
-              <EyeIcon open={showConfirm} />
-            </button>
-          </div>
-          {confirm && confirm !== password && (
-            <span style={{ fontSize: '12px', color: C.erreur }}>Les mots de passe ne correspondent pas</span>
-          )}
-        </div>
-
-        {serverError && (
-          <div style={{
-            padding: '11px 14px',
-            borderRadius: '10px',
-            backgroundColor: '#fdf2f2',
-            border: `1px solid ${C.erreur}30`,
-            color: C.erreur,
-            fontSize: '13px',
-            lineHeight: 1.5,
-          }}>
-            {serverError}
-          </div>
-        )}
-
-        <button
+        </AuthField>
+        <ErreurDepliable message={serverError} />
+        <AuthButtonPrimary
           type="submit"
           disabled={!canSubmit}
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '14px',
-            border: 'none',
-            backgroundColor: canSubmit ? C.terracotta : C.sable,
-            color: canSubmit ? C.white : C.grey,
-            fontSize: '15px',
-            fontWeight: '600',
-            cursor: canSubmit ? 'pointer' : 'default',
-            transition: 'all 0.2s',
-            marginTop: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            fontFamily: 'inherit',
-          }}
+          loading={status === 'saving'}
         >
-          {status === 'saving' && (
-            <span style={{
-              display: 'inline-block',
-              width: '16px', height: '16px',
-              borderRadius: '50%',
-              border: '2px solid rgba(255,255,255,0.35)',
-              borderTopColor: '#fff',
-              animation: 'kapolia-spin 0.7s linear infinite',
-              flexShrink: 0,
-            }} />
-          )}
           {status === 'saving' ? 'Enregistrement…' : 'Enregistrer le mot de passe'}
-        </button>
-
+        </AuthButtonPrimary>
       </form>
-    </Shell>
+    </AuthShell>
   )
 }
