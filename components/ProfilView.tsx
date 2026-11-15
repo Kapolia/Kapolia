@@ -1581,6 +1581,8 @@ export default function ProfilView({
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
         .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:${C.lien}; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
         .profil-lien-action:hover { background:${C.peche}; }
+        .profil-entete-actions { display:flex; flex-direction:column; align-items:flex-start; gap:2px; margin-left:auto; }
+        @media (max-width: 760px) { .profil-entete-actions { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; } }
         .pastille-modifiable .pastille-crayon { opacity: 0; transition: opacity 0.15s; }
         .pastille-modifiable:hover .pastille-crayon { opacity: 1; }
 .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
@@ -1681,11 +1683,7 @@ export default function ProfilView({
                     {p.prenom} {p.nom}
                   </h1>
                   {effectiveOwner ? (
-                    <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginLeft: 'auto', maxWidth: 440 }}>
-                      <button className="profil-lien-action" onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new Event('ouvrir-assistant-profil'))}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
-                        {"Qu'est-ce qui manque ?"}
-                      </button>
+                    <div className="profil-entete-actions">
                       <button className="profil-lien-action" onClick={() => {
                         const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
                         setPortraitTitle(saved ?? p.domaine ?? '')
