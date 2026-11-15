@@ -2591,7 +2591,7 @@ export default function OffresPage() {
               width: '32%', minWidth: 280,
               overflowY: 'auto',
               borderRight: `1px solid ${C.sable}`,
-              padding: '24px 24px 60px 20px',
+              padding: '24px 30px 60px 30px',
               backgroundColor: C.bg,
               position: 'relative',
               WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 28px)',
