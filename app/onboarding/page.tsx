@@ -8,9 +8,11 @@ import LogoKapolia from '@/components/LogoKapolia'
 import InvitationModal from '@/components/InvitationModal'
 import {
   ONBOARDING_TOTAL as TOTAL,
+  LAST_STEP,
   DOMAINES,
   EXPERIENCES,
   TYPES_POSTE,
+  displayStepNum,
   firstIncompleteStep,
   buildStepPayload,
   resumeStepFrom,
@@ -883,7 +885,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 // ─── Sous-composants ──────────────────────────────────────────────────────────
 
 function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: string }) {
-  const displayNum = num >= 7 ? num - 1 : num
+  const displayNum = displayStepNum(num)
   return (
     <>
       <p style={{
@@ -1442,7 +1444,7 @@ function OnboardingPageInner() {
   }
 
   async function handleNext() {
-    if (step < TOTAL) {
+    if (step < LAST_STEP) {
       const nextStep = step === 5 ? 7 : step + 1
       maxStepRef.current = Math.max(maxStepRef.current, nextStep)
       saveStep(step)   // fire-and-forget
@@ -1477,7 +1479,7 @@ function OnboardingPageInner() {
         competences_acquises: data.competences_acquises,
         langues: data.langues,
         onboarding_completed: true,
-        onboarding_step: TOTAL,
+        onboarding_step: LAST_STEP,
       }, { onConflict: 'user_id' })
       if (error) throw error
       setShowFinal(true)
@@ -1493,7 +1495,7 @@ function OnboardingPageInner() {
   }
 
   function handleSkip() {
-    if (step < TOTAL) {
+    if (step < LAST_STEP) {
       const nextStep = step === 5 ? 7 : step + 1
       maxStepRef.current = Math.max(maxStepRef.current, nextStep)
       setStep(nextStep)
@@ -1999,7 +2001,7 @@ function OnboardingPageInner() {
       }}>
         <span style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
         <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
-          {step} / {TOTAL}
+          {displayStepNum(step)} / {TOTAL}
         </span>
       </header>
 
@@ -2025,7 +2027,7 @@ function OnboardingPageInner() {
         </div>
         <div style={{ height: '3px', backgroundColor: C.sable, borderRadius: '2px', overflow: 'hidden' }}>
           <div style={{
-            height: '100%', width: `${((step >= 7 ? step - 1 : step) / TOTAL) * 100}%`,
+            height: '100%', width: `${(displayStepNum(step) / TOTAL) * 100}%`,
             backgroundColor: C.terracotta, borderRadius: '2px', transition: 'width 0.4s ease',
           }} />
         </div>
@@ -2099,7 +2101,7 @@ function OnboardingPageInner() {
                   }} />
                   Enregistrement…
                 </>
-              ) : step === TOTAL ? 'Terminer' : 'Suivant'}
+              ) : step === LAST_STEP ? 'Terminer' : 'Suivant'}
             </button>
           </div>
         </div>

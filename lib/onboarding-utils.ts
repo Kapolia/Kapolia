@@ -2,8 +2,14 @@
 
 import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_POSTE } from '@/lib/referentiels'
 
-export const ONBOARDING_TOTAL = 14
+export const ONBOARDING_TOTAL = 14  // nombre d'étapes affiché à l'écran
+export const LAST_STEP        = 15  // dernier numéro d'étape réel (navigation, onboarding_step BDD)
 export const MAX_MISSIONS     = 4
+
+// L'étape 6 a été supprimée : le numéro affiché saute de 5 à 6 (step 7 → display 6, etc.)
+export function displayStepNum(step: number): number {
+  return step >= 7 ? step - 1 : step
+}
 
 export { _DOMAINES as DOMAINES, _TYPES_POSTE as TYPES_POSTE }
 
@@ -77,7 +83,7 @@ export function firstIncompleteStep(d: OnboardingFormData, step5Done = false): n
   if (!d.typePoste.length)                return 9
   if (!d.lieu)                            return 10
   if (!d.disponibilite)                   return 12
-  return ONBOARDING_TOTAL
+  return LAST_STEP
 }
 
 // Construit le payload partiel pour l'étape courante.

@@ -3,7 +3,9 @@ import {
   firstIncompleteStep,
   buildStepPayload,
   resumeStepFrom,
+  displayStepNum,
   ONBOARDING_TOTAL,
+  LAST_STEP,
   EMPTY_FORM,
 } from '@/lib/onboarding-utils'
 import type { OnboardingFormData } from '@/lib/onboarding-utils'
@@ -71,8 +73,8 @@ describe('firstIncompleteStep', () => {
     expect(firstIncompleteStep(d, true)).toBe(12)
   })
 
-  it('returns ONBOARDING_TOTAL (14) when all required fields filled and step5Done=true', () => {
-    expect(firstIncompleteStep(FULL, true)).toBe(ONBOARDING_TOTAL)
+  it('returns LAST_STEP (15) when all required fields filled and step5Done=true', () => {
+    expect(firstIncompleteStep(FULL, true)).toBe(LAST_STEP)
   })
 })
 
@@ -226,6 +228,16 @@ describe('buildStepPayload', () => {
   it('onboarding_step reflects the maxStep passed, not the current step', () => {
     const result = buildStepPayload(2, { ...EMPTY_FORM, domaine: 'Tech' }, 10)
     expect(result?.onboarding_step).toBe(10)
+  })
+})
+
+// ─── LAST_STEP vs ONBOARDING_TOTAL ───────────────────────────────────────────
+
+describe('LAST_STEP / ONBOARDING_TOTAL / displayStepNum', () => {
+  it('la dernière étape est 15 et l\'affichage dit 14', () => {
+    expect(LAST_STEP).toBe(15)
+    expect(ONBOARDING_TOTAL).toBe(14)
+    expect(displayStepNum(LAST_STEP)).toBe(ONBOARDING_TOTAL)
   })
 })
 
