@@ -65,7 +65,10 @@ export default function LogoKapolia({
         ? <circle cx="21" cy="21" r={isSmall ? 20 : 18} fill={c.disque} />
         : <circle cx="21" cy="21" r={isSmall ? 20 : 18} fill="none" stroke={c.bordure!} strokeWidth={isSmall ? '2.4' : '1.6'} />
       }
-      <g className={needleClassName}>
+      <g
+        className={needleClassName}
+        style={needleClassName ? { transformBox: 'view-box', transformOrigin: 'center' } : undefined}
+      >
         <path
           d="M14 29 L21 12 L28 29"
           fill="none"
