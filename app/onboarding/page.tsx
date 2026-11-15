@@ -13,6 +13,7 @@ import {
   TYPES_POSTE,
   firstIncompleteStep,
   buildStepPayload,
+  resumeStepFrom,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
 import {
@@ -53,7 +54,7 @@ function readPostSignupNext(): string | null {
 
 const BLOCKS = [
   { label: 'Identité & Parcours',       steps: [1, 2, 3, 4] },
-  { label: 'Personnalité & Soft skills', steps: [5, 6] },
+  { label: 'Personnalité & Soft skills', steps: [5] },
   { label: 'Projets & Hobbies',          steps: [7, 8] },
   { label: 'Cap & Préférences',           steps: [9, 10, 11, 12] },
   { label: 'Parcours professionnel',      steps: [13, 14, 15] },
@@ -86,15 +87,6 @@ const MICRO_TEXTS: Record<number, string> = {
   14: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
   15: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
 }
-
-
-const ENVIRONNEMENTS = [
-  { key: 'startup',   label: 'Startup agile',   desc: 'Rythme rapide, polyvalence' },
-  { key: 'scaleup',   label: 'Scale-up',         desc: 'Croissance forte, structuration en cours' },
-  { key: 'corporate', label: 'Grand groupe',     desc: 'Structure, expertise, ressources' },
-  { key: 'indep',     label: 'Indépendant(e)',   desc: 'Autonomie totale, projets variés' },
-  { key: 'sans_pref', label: 'Sans préférence',  desc: "L'environnement n'est pas un critère prioritaire" },
-]
 
 
 const LIEUX = PREFERENCES_TELETRAVAIL
@@ -891,13 +883,14 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 // ─── Sous-composants ──────────────────────────────────────────────────────────
 
 function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: string }) {
+  const displayNum = num >= 7 ? num - 1 : num
   return (
     <>
       <p style={{
         fontSize: '11px', color: C.terracotta, fontWeight: '700',
         marginBottom: '10px', letterSpacing: '0.1em', textTransform: 'uppercase',
       }}>
-        Étape {num} sur {TOTAL}
+        Étape {displayNum} sur {TOTAL}
       </p>
       <h2 style={{
         fontFamily: FONT_SANS, letterSpacing: '-0.005em',
@@ -1333,7 +1326,7 @@ function OnboardingPageInner() {
   const [step5Complete, setStep5Complete] = useState(false)
   const [data, setData] = useState<FormData>({
     prenom: '', nom: '', domaine: '', experience: '', parcours: '',
-    environnement: [], projet: '', projet_titre: '', passions: [],
+    projet: '', projet_titre: '', passions: [],
     disponibilite: '', dispo_date: '',
     typePoste: [], lieu: '', ville: '', priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
@@ -1377,7 +1370,6 @@ function OnboardingPageInner() {
           domaine:              (p.domaine as string)      || '',
           experience:           (p.experience as string)   || '',
           parcours:             (p.signature as string)    || '',
-          environnement:        Array.isArray(p.type_entreprise) ? p.type_entreprise as string[] : [],
           projet:               (p.projet_phare as string) || '',
           projet_titre:         (p.projet_titre as string)  || '',
           passions:             Array.isArray(p.passions) ? p.passions as string[] : [],
@@ -1394,7 +1386,7 @@ function OnboardingPageInner() {
         }
         // Reprend exactement au step enregistré, avec firstIncompleteStep en fallback
         const savedStep = typeof p.onboarding_step === 'number' ? p.onboarding_step : 0
-        const resumeAt  = savedStep > 1 ? savedStep : firstIncompleteStep(filled, allTestDone)
+        const resumeAt  = savedStep > 1 ? resumeStepFrom(savedStep) : firstIncompleteStep(filled, allTestDone)
         maxStepRef.current = Math.max(resumeAt, 1)
         setData(filled)
         setStep(resumeAt)
@@ -1419,7 +1411,7 @@ function OnboardingPageInner() {
       case 3:  return data.experience.length > 0
       case 4:  return true
       case 5:  return step5Complete
-      case 6:  return data.environnement.length > 0
+      case 6:  return true
       case 7: {
         const hasDesc = data.projet.trim().length > 0
         return !hasDesc || data.projet_titre.trim().length > 0
@@ -1451,11 +1443,10 @@ function OnboardingPageInner() {
 
   async function handleNext() {
     if (step < TOTAL) {
-      // maxStepRef ne régresse jamais : si l'utilisateur est revenu en arrière,
-      // on enregistre quand même le step le plus avancé jamais atteint.
-      maxStepRef.current = Math.max(maxStepRef.current, step + 1)
+      const nextStep = step === 5 ? 7 : step + 1
+      maxStepRef.current = Math.max(maxStepRef.current, nextStep)
       saveStep(step)   // fire-and-forget
-      setStep(s => s + 1)
+      setStep(nextStep)
       return
     }
     // Étape finale : upsert complet + onboarding_completed = true
@@ -1472,7 +1463,6 @@ function OnboardingPageInner() {
         domaine: data.domaine,
         experience: data.experience,
         signature: data.parcours,
-        type_entreprise: data.environnement,
         projet_phare: data.projet,
         projet_titre: data.projet_titre || null,
         passions: data.passions,
@@ -1498,16 +1488,15 @@ function OnboardingPageInner() {
   }
 
   function handleBack() {
-    if (step > 1) setStep(s => s - 1)
+    if (step > 1) setStep(s => s === 7 ? 5 : s - 1)
     // Pas de save : le retour arrière ne modifie pas la progression en base
   }
 
   function handleSkip() {
     if (step < TOTAL) {
-      // "Passer" avance sans sauvegarder l'étape courante (champ intentionnellement vide)
-      // mais on met à jour le maxStep pour que la reprise ne revienne pas en arrière
-      maxStepRef.current = Math.max(maxStepRef.current, step + 1)
-      setStep(s => s + 1)
+      const nextStep = step === 5 ? 7 : step + 1
+      maxStepRef.current = Math.max(maxStepRef.current, nextStep)
+      setStep(nextStep)
     } else {
       handleNext()
     }
@@ -1583,44 +1572,6 @@ function OnboardingPageInner() {
             onComplete={done => setStep5Complete(done)}
           />
         )
-
-      case 6: {
-        const MAX_ENVS = 3
-        function toggleEnv(key: string) {
-          const current = data.environnement
-          if (key === 'sans_pref') {
-            set('environnement', current.includes('sans_pref') ? [] : ['sans_pref'])
-            return
-          }
-          if (current.includes(key)) {
-            set('environnement', current.filter(k => k !== key))
-            return
-          }
-          const withoutSansPref = current.filter(k => k !== 'sans_pref')
-          if (withoutSansPref.length >= MAX_ENVS) return
-          set('environnement', [...withoutSansPref, key])
-        }
-        const atMax = data.environnement.filter(k => k !== 'sans_pref').length >= MAX_ENVS
-        return (
-          <>
-            <QuestionLabel num={step} text="Dans quel type d'entreprise vous épanouissez-vous ?" sub={MICRO_TEXTS[step]} />
-            {ENVIRONNEMENTS.map(e => {
-              const sel      = data.environnement.includes(e.key)
-              const isDisabled = !sel && e.key !== 'sans_pref' && (atMax || data.environnement.includes('sans_pref'))
-              return (
-                <ChoiceCard key={e.key} label={e.label} desc={e.desc}
-                  selected={sel} disabled={isDisabled}
-                  onClick={() => toggleEnv(e.key)} />
-              )
-            })}
-            {atMax && (
-              <p style={{ fontSize: 13, color: C.grey, margin: '4px 0 0' }}>
-                Maximum de {MAX_ENVS} environnements atteint.
-              </p>
-            )}
-          </>
-        )
-      }
 
       case 7:
         return (
@@ -2074,7 +2025,7 @@ function OnboardingPageInner() {
         </div>
         <div style={{ height: '3px', backgroundColor: C.sable, borderRadius: '2px', overflow: 'hidden' }}>
           <div style={{
-            height: '100%', width: `${(step / TOTAL) * 100}%`,
+            height: '100%', width: `${((step >= 7 ? step - 1 : step) / TOTAL) * 100}%`,
             backgroundColor: C.terracotta, borderRadius: '2px', transition: 'width 0.4s ease',
           }} />
         </div>

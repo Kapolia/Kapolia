@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   firstIncompleteStep,
   buildStepPayload,
+  resumeStepFrom,
   ONBOARDING_TOTAL,
   EMPTY_FORM,
 } from '@/lib/onboarding-utils'
@@ -12,7 +13,7 @@ import type { OnboardingFormData } from '@/lib/onboarding-utils'
 const FULL: OnboardingFormData = {
   prenom: 'Alice', nom: 'Martin', domaine: 'Tech & Ingénierie',
   experience: '2–5 ans', parcours: 'Mon parcours',
-  environnement: ['startup'], projet: 'Mon projet phare', projet_titre: 'Mon titre de projet',
+  projet: 'Mon projet phare', projet_titre: 'Mon titre de projet',
   passions: ['Musique'],
   disponibilite: 'maintenant', dispo_date: '',
   typePoste: ['cdi'], lieu: 'hybride', ville: 'Paris',
@@ -55,27 +56,22 @@ describe('firstIncompleteStep', () => {
     expect(firstIncompleteStep(d, false)).toBe(5)
   })
 
-  it('returns 6 when steps 1–5 complete (step5Done=true) but environnement missing', () => {
+  it('returns 9 when steps 1–5 complete (step5Done=true) but typePoste empty', () => {
     const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans' }
-    expect(firstIncompleteStep(d, true)).toBe(6)
+    expect(firstIncompleteStep(d, true)).toBe(9)
   })
 
-  it('returns 10 when steps 1–6 complete but typePoste empty', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', environnement: ['startup'] }
+  it('returns 10 when steps 1–9 complete but lieu missing', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', typePoste: ['cdi'] }
     expect(firstIncompleteStep(d, true)).toBe(10)
   })
 
-  it('returns 11 when steps 1–10 complete but lieu missing', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', environnement: ['startup'], typePoste: ['cdi'] }
-    expect(firstIncompleteStep(d, true)).toBe(11)
+  it('returns 12 when steps 1–10 complete but disponibilite missing', () => {
+    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', typePoste: ['cdi'], lieu: 'hybride' }
+    expect(firstIncompleteStep(d, true)).toBe(12)
   })
 
-  it('returns 13 when steps 1–11 complete but disponibilite missing', () => {
-    const d = { ...EMPTY_FORM, prenom: 'Alice', nom: 'Martin', domaine: 'Tech', experience: '2–5 ans', environnement: ['startup'], typePoste: ['cdi'], lieu: 'hybride' }
-    expect(firstIncompleteStep(d, true)).toBe(13)
-  })
-
-  it('returns ONBOARDING_TOTAL (15) when all required fields filled and step5Done=true', () => {
+  it('returns ONBOARDING_TOTAL (14) when all required fields filled and step5Done=true', () => {
     expect(firstIncompleteStep(FULL, true)).toBe(ONBOARDING_TOTAL)
   })
 })
@@ -126,23 +122,9 @@ describe('buildStepPayload', () => {
     expect(buildStepPayload(5, FULL, MAX)).toBeNull()
   })
 
-  it('returns payload for step 6 with type_entreprise as array', () => {
-    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['startup'] }, MAX)
-    expect(result).toMatchObject({ type_entreprise: ['startup'], onboarding_step: MAX })
-  })
-
-  it('returns payload for step 6 with multiple values', () => {
-    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['startup', 'scaleup'] }, MAX)
-    expect(result).toMatchObject({ type_entreprise: ['startup', 'scaleup'], onboarding_step: MAX })
-  })
-
-  it('returns payload for step 6 with sans_pref', () => {
-    const result = buildStepPayload(6, { ...EMPTY_FORM, environnement: ['sans_pref'] }, MAX)
-    expect(result).toMatchObject({ type_entreprise: ['sans_pref'], onboarding_step: MAX })
-  })
-
-  it('returns null for step 6 when environnement is empty', () => {
+  it('returns null for step 6 (étape supprimée)', () => {
     expect(buildStepPayload(6, EMPTY_FORM, MAX)).toBeNull()
+    expect(buildStepPayload(6, FULL, MAX)).toBeNull()
   })
 
   it('returns null for step 7 when projet is empty', () => {
@@ -244,5 +226,20 @@ describe('buildStepPayload', () => {
   it('onboarding_step reflects the maxStep passed, not the current step', () => {
     const result = buildStepPayload(2, { ...EMPTY_FORM, domaine: 'Tech' }, 10)
     expect(result?.onboarding_step).toBe(10)
+  })
+})
+
+// ─── resumeStepFrom ───────────────────────────────────────────────────────────
+
+describe('resumeStepFrom', () => {
+  it('une reprise à 6 donne 7', () => {
+    expect(resumeStepFrom(6)).toBe(7)
+  })
+
+  it('les autres étapes restent inchangées', () => {
+    expect(resumeStepFrom(1)).toBe(1)
+    expect(resumeStepFrom(5)).toBe(5)
+    expect(resumeStepFrom(7)).toBe(7)
+    expect(resumeStepFrom(15)).toBe(15)
   })
 })

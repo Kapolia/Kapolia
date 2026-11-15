@@ -2,7 +2,7 @@
 
 import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_POSTE } from '@/lib/referentiels'
 
-export const ONBOARDING_TOTAL = 15
+export const ONBOARDING_TOTAL = 14
 export const MAX_MISSIONS     = 4
 
 export { _DOMAINES as DOMAINES, _TYPES_POSTE as TYPES_POSTE }
@@ -43,7 +43,6 @@ export type OnboardingFormData = {
   domaine: string
   experience: string
   parcours: string
-  environnement: string[]
   projet: string
   projet_titre: string
   passions: string[]
@@ -61,7 +60,7 @@ export type OnboardingFormData = {
 
 export const EMPTY_FORM: OnboardingFormData = {
   prenom: '', nom: '', domaine: '', experience: '', parcours: '',
-  environnement: [], projet: '', projet_titre: '', passions: [],
+  projet: '', projet_titre: '', passions: [],
   disponibilite: '', dispo_date: '',
   typePoste: [], lieu: '', ville: '', priorite: [],
   experiences: [], diplomes: [], competences_acquises: [], langues: [],
@@ -75,10 +74,9 @@ export function firstIncompleteStep(d: OnboardingFormData, step5Done = false): n
   if (!d.domaine)                         return 2
   if (!d.experience)                      return 3
   if (!step5Done)                         return 5
-  if (!d.environnement.length)            return 6
-  if (!d.typePoste.length)                return 10
-  if (!d.lieu)                            return 11
-  if (!d.disponibilite)                   return 13
+  if (!d.typePoste.length)                return 9
+  if (!d.lieu)                            return 10
+  if (!d.disponibilite)                   return 12
   return ONBOARDING_TOTAL
 }
 
@@ -105,7 +103,7 @@ export function buildStepPayload(
     case 5:
       return null  // Step 5 saves via test_qualites (QualitesCarousel handles its own persistence)
     case 6:
-      return d.environnement.length ? { ...base, type_entreprise: d.environnement } : null
+      return null
     case 7:
       return d.projet.trim() ? { ...base, projet_phare: d.projet, projet_titre: d.projet_titre.trim() || null } : null
     case 8:
@@ -135,4 +133,9 @@ export function buildStepPayload(
     default:
       return null
   }
+}
+
+// Corrige un savedStep enregistré sur l'étape 6 supprimée : reprend à 7.
+export function resumeStepFrom(savedStep: number): number {
+  return savedStep === 6 ? 7 : savedStep
 }
