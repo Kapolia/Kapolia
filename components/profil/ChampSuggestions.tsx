@@ -12,6 +12,7 @@ type Props = {
   placeholder: string
   libre: boolean
   icone?: (v: string) => React.ReactNode
+  listeAuClic?: boolean
 }
 
 function highlight(s: string, input: string): React.ReactNode {
@@ -26,7 +27,7 @@ function highlight(s: string, input: string): React.ReactNode {
   )
 }
 
-export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone }: Props) {
+export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic }: Props) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(-1)
@@ -40,8 +41,10 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
   const full = valeurs.length >= max
   const norm = normalizeText(input)
   const matched = input.length > 0
-    ? suggestions.filter(s => normalizeText(s).includes(norm)).slice(0, 6)
-    : []
+    ? suggestions.filter(s => normalizeText(s).includes(norm)).slice(0, 8)
+    : listeAuClic
+      ? suggestions
+      : []
   const hasLibre = libre && input.trim().length > 0
   const totalOpts = matched.length + (hasLibre ? 1 : 0)
 
@@ -139,7 +142,7 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
           disabled={full}
           placeholder={placeholder}
           onChange={e => { setInput(e.target.value); setOpen(true); setIndex(-1) }}
-          onFocus={() => { if (input) setOpen(true) }}
+          onFocus={() => { if (input || listeAuClic) setOpen(true) }}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={handleKey}
           style={{
@@ -158,6 +161,7 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
             backgroundColor: C.white, border: `1px solid ${C.sable}`,
             borderRadius: 9, boxShadow: '0 4px 16px rgba(0,0,0,.08)',
             marginTop: 4, overflow: 'hidden',
+            ...(listeAuClic && input.length === 0 ? { maxHeight: 240, overflowY: 'auto' as const } : {}),
           }}>
             {matched.map((s, i) => {
               const already = valeurs.includes(s)

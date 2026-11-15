@@ -23,6 +23,7 @@ export default function CartePriorites({ valeurs, onChange, onMark }: Props) {
       max={3}
       placeholder="Écrivez ce qui compte pour vous"
       libre
+      listeAuClic
     />
   )
 }

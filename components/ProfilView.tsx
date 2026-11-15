@@ -21,7 +21,7 @@ import CarteLiens from '@/components/profil/CarteLiens'
 import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
-import { iconePassion, PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
+import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
@@ -1500,7 +1500,7 @@ export default function ProfilView({
   function carteWrapStyle(carte: CarteType, padding?: string): React.CSSProperties {
     const p2 = padding ?? '20px 22px'
     const base: React.CSSProperties = { backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: p2, transition: 'opacity 300ms ease, filter 300ms ease' }
-    if (carteOuverte === carte) return { ...base, border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` }
+    if (carteOuverte === carte) return { ...base, border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)`, position: 'relative' as const, zIndex: 5 }
     if (carteOuverte !== null) return { ...base, boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0.5)', pointerEvents: 'none' as const }
     return { ...base, boxShadow: CARD_SHADOW }
   }
@@ -1605,7 +1605,7 @@ export default function ProfilView({
           )}
 
           {/* ── EN-TÊTE ── */}
-          <div data-profil-bloc="1" data-carte="presentation" style={{ backgroundColor: C.white, borderRadius: 16, padding: 22, transition: 'opacity 300ms ease, filter 300ms ease', ...(enTeteIsOpen ? { border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)` } : carteOuverte !== null ? { boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0.5)', pointerEvents: 'none' } : { boxShadow: CARD_SHADOW }) }}>
+          <div data-profil-bloc="1" data-carte="presentation" style={{ backgroundColor: C.white, borderRadius: 16, padding: 22, transition: 'opacity 300ms ease, filter 300ms ease', ...(enTeteIsOpen ? { border: `1.5px solid ${C.accent}`, boxShadow: `0 0 0 4px rgba(194,97,31,.08)`, position: 'relative' as const, zIndex: 5 } : carteOuverte !== null ? { boxShadow: CARD_SHADOW, opacity: 0.4, filter: 'saturate(0.5)', pointerEvents: 'none' } : { boxShadow: CARD_SHADOW }) }}>
             <div className="profil-entete">
 
               {/* Portrait */}
@@ -2053,9 +2053,11 @@ export default function ProfilView({
               ) : p.projet_phare ? (
                 <div style={{ display: 'grid', gridTemplateColumns: p.projet_resultat ? '150px 1fr' : '1fr', gap: 16, alignItems: 'center' }}>
                   {p.projet_resultat && (
-                    <div style={{ width: 120, height: 120, borderRadius: 14, backgroundColor: C.vert, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '12px 8px', flexShrink: 0 }}>
+                    <div style={{ width: 150, minHeight: 120, height: 'auto', borderRadius: 14, backgroundColor: C.vert, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', padding: '12px 8px', flexShrink: 0 }}>
                       <span style={{ fontFamily: FONT_SANS, letterSpacing: '-0.02em', fontSize: 38, fontWeight: 700, color: C.white, lineHeight: 1 }}>{p.projet_resultat}</span>
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 5, lineHeight: 1.3, textAlign: 'center' as const }}>résultat clé</span>
+                      {p.projet_impact && (
+                        <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 5, lineHeight: 1.3, textAlign: 'center' as const, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }}>{p.projet_impact}</span>
+                      )}
                     </div>
                   )}
                   <div>
@@ -2130,11 +2132,8 @@ export default function ProfilView({
                   ) : passions.length > 0 ? (
                     <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8 }}>
                       {passions.map(passion => (
-                        <div key={passion} style={{ width: 96, padding: '12px 6px', borderRadius: 12, backgroundColor: C.bg, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: C.salaire, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            {iconePassion(passion)}
-                          </div>
-                          <span style={{ fontSize: 13.5, fontWeight: 600, color: C.dark, textAlign: 'center' as const, lineHeight: 1.3, wordBreak: 'break-word' as const }}>{passion}</span>
+                        <div key={passion} style={{ padding: '6px 10px', borderRadius: 8, backgroundColor: C.bg }}>
+                          <span style={{ fontSize: 13.5, fontWeight: 600, color: C.dark }}>{passion}</span>
                         </div>
                       ))}
                     </div>
@@ -2210,7 +2209,7 @@ export default function ProfilView({
             </div>
             {projetVideoUrl && (
               <div style={{ marginBottom: 28 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Présentation du projet (30 sec)</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Vidéo du projet</div>
                 <div style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}><video src={projetVideoUrl} controls style={{ width: '100%', maxHeight: 320, display: 'block' }} /></div>
               </div>
             )}

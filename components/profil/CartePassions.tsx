@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import ChampSuggestions from '@/components/profil/ChampSuggestions'
-import { iconePassion, PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
+import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 
 type Props = {
   valeurs: string[]
@@ -18,7 +18,6 @@ export default function CartePassions({ valeurs, onChange, onMark }: Props) {
       max={5}
       placeholder="Écrivez une passion"
       libre
-      icone={iconePassion}
     />
   )
 }

@@ -176,7 +176,7 @@ export default function CarteQualites({
             valeurs={editQualites}
             onChange={v => { setEditQualites(v); onChange() }}
             suggestions={SUGGESTIONS_QUALITES}
-            max={3}
+            max={5}
             placeholder="Ajoutez une qualité…"
             libre
           />

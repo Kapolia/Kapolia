@@ -186,6 +186,27 @@ describe('calculerFrise cas 6 — 2 lignes', () => {
   })
 })
 
+// ─── calculerFrise — cas 7 : formations année seule, lignes distinctes ────────
+// Licence 2019→2022 et Master 2022→2024 (mois null → fin = juin).
+// Licence finit juin 2022, Master commence en 2022 → se chevauchent → lignes diff.
+
+describe('calculerFrise cas 7 — formations année seule, lignes distinctes', () => {
+  const postes = [
+    p('a', 2017, null, 2020, null),
+    p('b', 2020, null, null, null, true),
+  ]
+  const formations = [
+    f('l', 2019, null, 2022, null),
+    f('m', 2022, null, 2024, null),
+  ]
+  const r = calculerFrise(postes, formations, NOW)
+
+  it('2 segments de formation visibles', () => expect(r.formations).toHaveLength(2))
+  it('formations sur lignes différentes', () => {
+    expect(new Set(r.formations.map(s => s.ligne)).size).toBe(2)
+  })
+})
+
 // ─── calculerFrise — cas 10 : un seul poste ──────────────────────────────────
 
 describe('calculerFrise cas 10 — un seul poste', () => {

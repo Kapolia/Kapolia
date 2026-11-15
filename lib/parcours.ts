@@ -185,7 +185,11 @@ export function calculerFrise(
   // helpers
   const fpDec  = (p: PosteParcours) => p.enPoste || !p.fin ? finCarriere : versDecimal(p.fin, 'fin')
   const fpAnnee = (p: PosteParcours) => p.enPoste || !p.fin ? anneeActuelle : p.fin.annee
-  const ffDec  = (f: FormationParcours) => f.enCours ? finCarriere : versDecimal(f.fin, 'fin')
+  const ffDec = (f: FormationParcours) => {
+    if (f.enCours) return finCarriere
+    const { annee, mois } = f.fin
+    return mois === null ? annee + 5 / 12 : annee + (mois - 1) / 12
+  }
 
   // d. seuil
   let seuil: number | null = null
@@ -274,13 +278,30 @@ export function calculerFrise(
     ? formations.filter(f => f.enCours || f.fin.annee > seuil!)
     : [...formations]
 
+  const formationLineEnds: number[] = []
+  const formationLigneMap = new Map<string, number>()
+  const fSorted = [...fvis].sort((a, b) => {
+    const dA = a.debut !== null ? versDecimal(a.debut, 'debut') : vs
+    const dB = b.debut !== null ? versDecimal(b.debut, 'debut') : vs
+    return dA - dB
+  })
+  for (const fm of fSorted) {
+    const deb = fm.debut !== null ? versDecimal(fm.debut, 'debut') : vs
+    const effDeb = resserre && seuil !== null ? Math.max(deb, seuil) : deb
+    const fin = ffDec(fm)
+    let l = formationLineEnds.findIndex(e => e <= effDeb)
+    if (l < 0) { l = formationLineEnds.length; formationLineEnds.push(fin) } else { formationLineEnds[l] = fin }
+    formationLigneMap.set(fm.id, l)
+  }
+
   const formationSegs: FriseSegment[] = fvis.map(f => {
     const deb    = f.debut !== null ? versDecimal(f.debut, 'debut') : vs
     const fin    = ffDec(f)
     const effDeb = resserre && seuil !== null ? Math.max(deb, seuil) : deb
     const gauche = toG(effDeb)
     const largeur = toW(effDeb, fin)
-    return { id: f.id, gauche, largeur, ligne: 0, depuis: null, libelle: lbl(largeur) }
+    const ligne  = formationLigneMap.get(f.id) ?? 0
+    return { id: f.id, gauche, largeur, ligne, depuis: null, libelle: lbl(largeur) }
   })
 
   // j. graduations

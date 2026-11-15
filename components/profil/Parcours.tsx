@@ -148,6 +148,9 @@ export default function CarteParcoursView({
     ? Math.max(...frise.segments.map(s => s.ligne)) + 1
     : 1
   const friseH  = frise.visible ? 30 + (nbLines - 1) * 24 : 0
+  const nbFormationLines = frise.formations.length > 0
+    ? Math.max(...frise.formations.map(s => s.ligne)) + 1
+    : 0
 
   // ── Interactions ──────────────────────────────────────────────────────────
   function handleSegClick(segId: string) {
@@ -195,13 +198,11 @@ export default function CarteParcoursView({
   const visibles  = showAll ? experiences : experiences.slice(0, VISI)
 
   return (
-    <div ref={cardRef} style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, boxShadow: CARD_SHADOW, padding: '20px 22px' }}>
+    <div ref={cardRef}>
       <style suppressHydrationWarning>{`
         .parcours-frise { display: block; }
         @media (max-width: 768px) { .parcours-frise { display: none; } }
       `}</style>
-
-      <SLabel20>Parcours</SLabel20>
 
       {/* ── FRISE ── */}
       {frise.visible && (
@@ -286,7 +287,7 @@ export default function CarteParcoursView({
 
           {/* Ligne formations */}
           {frise.formations.length > 0 && (
-            <div style={{ position: 'relative', height: 22, marginTop: 5 }}>
+            <div style={{ position: 'relative', height: nbFormationLines * 22 + Math.max(0, nbFormationLines - 1) * 4, marginTop: 5 }}>
               {frise.formations.map(seg => {
                 const dIdx = parseInt(seg.id.slice(1), 10)
                 const d    = diplomes[dIdx]
@@ -300,7 +301,8 @@ export default function CarteParcoursView({
                       position: 'absolute',
                       left: `${seg.gauche}%`,
                       width: `max(6px, ${seg.largeur}%)`,
-                      top: 0, bottom: 0,
+                      top: seg.ligne * 26,
+                      height: 22,
                       borderRadius: 3,
                       backgroundColor: C.white,
                       border: '1.5px solid #9DB8A9',
