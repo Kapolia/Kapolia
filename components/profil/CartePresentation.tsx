@@ -1,8 +1,9 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { C } from '@/lib/colors'
 import { DOMAINES, EXPERIENCES } from '@/lib/referentiels'
 import Avatar, { type AvatarProfil } from '@/components/Avatar'
+import CompteurLettres, { type CompteurRef } from '@/components/profil/CompteurLettres'
 
 const MAX_PHRASE = 200
 
@@ -77,6 +78,7 @@ export default function CartePresentation({
 }: Props) {
   const [sigFocused, setSigFocused] = useState(false)
   const [videoDuration, setVideoDuration] = useState<number | null>(null)
+  const compteurRef = useRef<CompteurRef>(null)
 
   function chg() { onChange() }
 
@@ -158,6 +160,15 @@ export default function CartePresentation({
             onFocus={() => setSigFocused(true)}
             onBlur={() => setSigFocused(false)}
             onChange={e => { setEditSignature(e.target.value); chg() }}
+            onKeyDown={e => {
+              if (editSignature.length >= MAX_PHRASE && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const ta = e.currentTarget
+                if (ta.selectionStart === ta.selectionEnd) {
+                  e.preventDefault()
+                  compteurRef.current?.trembler()
+                }
+              }
+            }}
             style={{
               fontSize: 14, padding: '8px 11px',
               border: `1px solid ${sigFocused ? C.orange : C.sable}`,
@@ -169,9 +180,7 @@ export default function CartePresentation({
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4 }}>
             <span style={HELP_S}>Ce que vous apportez, en une ou deux phrases.</span>
-            <span style={{ fontSize: 12.5, color: editSignature.length >= MAX_PHRASE ? C.erreur : C.grey, flexShrink: 0, marginLeft: 8 }}>
-              {editSignature.length} sur {MAX_PHRASE}
-            </span>
+            <CompteurLettres ref={compteurRef} longueur={editSignature.length} max={MAX_PHRASE} />
           </div>
         </div>
 

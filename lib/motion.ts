@@ -1,5 +1,62 @@
 export const EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)'
 
+// ── Ressort ───────────────────────────────────────────────────────────────────
+
+export const RESSORT_SUIVI = { raideur: 900, amortissement: 50 }
+export const RESSORT_POSE  = { raideur: 280, amortissement: 22 }
+export const RESSORT_POP   = { raideur: 520, amortissement: 16 }
+
+import { useRef, useState, useEffect } from 'react'
+
+export function useRessort(
+  cible: number,
+  { raideur, amortissement }: { raideur: number; amortissement: number }
+): number {
+  const [valeur, setValeur] = useState(cible)
+  const etat = useRef({ x: cible, v: 0 })
+  const rafRef = useRef<number | null>(null)
+  const prevT = useRef<number | null>(null)
+  const cibleRef = useRef(cible)
+
+  useEffect(() => { cibleRef.current = cible }, [cible])
+
+  useEffect(() => {
+    const amorti = reduitMouvement()
+      ? 2 * Math.sqrt(raideur)
+      : amortissement
+
+    function tick(t: number) {
+      const dt = prevT.current !== null ? Math.min((t - prevT.current) / 1000, 1 / 30) : 0
+      prevT.current = t
+      const pas = dt / 4
+      let { x, v } = etat.current
+      const c = cibleRef.current
+      for (let i = 0; i < 4; i++) {
+        const a = -raideur * (x - c) - amorti * v
+        v += a * pas
+        x += v * pas
+      }
+      etat.current = { x, v }
+      setValeur(x)
+      if (Math.abs(x - c) > 0.001 || Math.abs(v) > 0.001) {
+        rafRef.current = requestAnimationFrame(tick)
+      } else {
+        etat.current = { x: c, v: 0 }
+        setValeur(c)
+        rafRef.current = null
+        prevT.current = null
+      }
+    }
+
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    prevT.current = null
+    rafRef.current = requestAnimationFrame(tick)
+    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current) }
+  }, [cible, raideur, amortissement])
+
+  return valeur
+}
+
 export function reduitMouvement(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
