@@ -68,6 +68,11 @@ export function versDecimal(d: DateMois, borne: 'debut' | 'fin'): number {
   return d.annee + (d.mois - 1) / 12
 }
 
+// Début de formation sans mois = septembre (rentrée scolaire)
+function fdDebutDec(debut: DateMois): number {
+  return debut.mois === null ? debut.annee + 8 / 12 : debut.annee + (debut.mois - 1) / 12
+}
+
 // ── 2. Durée en texte ─────────────────────────────────────────────────────────
 
 export function dureeTexte(
@@ -155,7 +160,7 @@ export type ResultatFrise = {
   nbAnciens: number
   segments: FriseSegment[]
   formations: FriseSegment[]
-  graduations: { annee: number; gauche: number }[]
+  graduations: { annee: number; gauche: number; tick?: number }[]
 }
 
 export function calculerFrise(
@@ -175,7 +180,7 @@ export function calculerFrise(
   // b. débutCarrière = plus petit début postes + formations
   const tousDebuts = [
     ...postes.map(p => versDecimal(p.debut, 'debut')),
-    ...formations.filter(f => f.debut !== null).map(f => versDecimal(f.debut!, 'debut')),
+    ...formations.filter(f => f.debut !== null).map(f => fdDebutDec(f.debut!)),
   ]
   const debutCarriere = Math.min(...tousDebuts)
 
@@ -281,12 +286,12 @@ export function calculerFrise(
   const formationLineEnds: number[] = []
   const formationLigneMap = new Map<string, number>()
   const fSorted = [...fvis].sort((a, b) => {
-    const dA = a.debut !== null ? versDecimal(a.debut, 'debut') : vs
-    const dB = b.debut !== null ? versDecimal(b.debut, 'debut') : vs
+    const dA = a.debut !== null ? fdDebutDec(a.debut) : vs
+    const dB = b.debut !== null ? fdDebutDec(b.debut) : vs
     return dA - dB
   })
   for (const fm of fSorted) {
-    const deb = fm.debut !== null ? versDecimal(fm.debut, 'debut') : vs
+    const deb = fm.debut !== null ? fdDebutDec(fm.debut) : vs
     const effDeb = resserre && seuil !== null ? Math.max(deb, seuil) : deb
     const fin = ffDec(fm)
     let l = formationLineEnds.findIndex(e => e <= effDeb)
@@ -295,7 +300,7 @@ export function calculerFrise(
   }
 
   const formationSegs: FriseSegment[] = fvis.map(f => {
-    const deb    = f.debut !== null ? versDecimal(f.debut, 'debut') : vs
+    const deb    = f.debut !== null ? fdDebutDec(f.debut) : vs
     const fin    = ffDec(f)
     const effDeb = resserre && seuil !== null ? Math.max(deb, seuil) : deb
     const gauche = toG(effDeb)
@@ -312,10 +317,10 @@ export function calculerFrise(
   const gradBase = resserre && seuil !== null ? seuil : Math.ceil(debutCarriere)
   const firstGrad = Math.ceil(gradBase / step) * step
 
-  const grads: { annee: number; gauche: number }[] = []
+  const grads: { annee: number; gauche: number; tick?: number }[] = []
   if (resserre && seuil !== null) grads.push({ annee: seuil, gauche: 6 })
   for (let yr = firstGrad; yr <= anneeActuelle; yr += step) {
-    grads.push({ annee: yr, gauche: toG(yr) })
+    grads.push({ annee: yr, gauche: toG(yr + 0.5), tick: toG(yr) })
   }
 
   return { visible, resserre, seuil, nbAnciens, segments, formations: formationSegs, graduations: grads }

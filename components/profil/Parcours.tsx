@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, Fragment } from 'react'
 import { EASE, reduitMouvement } from '@/lib/motion'
 import { type ReactNode } from 'react'
 import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
@@ -326,21 +326,25 @@ export default function CarteParcoursView({
           {/* Axe avec graduations */}
           <div style={{ position: 'relative', marginTop: frise.formations.length > 0 ? 3 : 2, borderTop: `1px solid ${C.sable}`, height: 18 }}>
             {frise.graduations.map(g => (
-              <span
-                key={g.annee}
-                style={{
-                  position: 'absolute',
-                  left: `${g.gauche}%`,
-                  transform: 'translateX(-50%)',
-                  fontSize: 11.5,
-                  color: C.grey,
-                  top: 2,
-                  whiteSpace: 'nowrap',
-                  userSelect: 'none' as const,
-                }}
-              >
-                {g.annee}
-              </span>
+              <Fragment key={g.annee}>
+                {g.tick != null && (
+                  <span style={{ position: 'absolute', left: `${g.tick}%`, top: 0, width: 1, height: 4, backgroundColor: C.sable, display: 'block' }} />
+                )}
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: `${g.gauche}%`,
+                    transform: 'translateX(-50%)',
+                    fontSize: 11.5,
+                    color: C.grey,
+                    top: 6,
+                    whiteSpace: 'nowrap',
+                    userSelect: 'none' as const,
+                  }}
+                >
+                  {g.annee}
+                </span>
+              </Fragment>
             ))}
           </div>
         </div>
