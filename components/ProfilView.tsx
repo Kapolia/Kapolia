@@ -1537,7 +1537,7 @@ export default function ProfilView({
   function modifierBtn(carte: CarteType) {
     const isOpen = carte === 'presentation' || carte === 'recherche' ? enTeteIsOpen : carteOuverte === carte
     if (isOpen) return (
-      <span style={{ fontSize: 12, fontWeight: 700, color: C.lien, backgroundColor: C.peche, borderRadius: 6, padding: '2px 8px' }}>En modification</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: C.lien, backgroundColor: C.peche, borderRadius: 6, padding: '6px 8px' }}>En modification</span>
     )
     if (carteSaved === carte) return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: C.succes, animation: 'profil-saved-label 220ms ease both' }}>
@@ -1546,8 +1546,8 @@ export default function ProfilView({
       </span>
     )
     return (
-      <button onClick={() => ouvrirCarte(carte)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: C.lien, padding: '2px 0', fontFamily: 'inherit' }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      <button className="profil-lien-action" onClick={() => ouvrirCarte(carte)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         Modifier
       </button>
     )
@@ -1581,8 +1581,10 @@ export default function ProfilView({
         .btn-portrait:hover:not(:disabled) { opacity: 0.8; }
         .profil-lien-action { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:8px; border:none; background:transparent; color:${C.lien}; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:background 0.15s; }
         .profil-lien-action:hover { background:${C.peche}; }
-        .profil-entete-actions { display:flex; flex-direction:column; align-items:flex-start; gap:2px; margin-left:auto; }
-        @media (max-width: 760px) { .profil-entete-actions { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; } }
+        .profil-info-grille { display:grid; grid-template-columns:1fr auto; column-gap:8px; align-items:start; min-width:0; }
+        .profil-col2 { grid-column:2; grid-row:1 / span 4; }
+        .profil-entete-actions { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+        @media (max-width: 760px) { .profil-info-grille { grid-template-columns:1fr; } .profil-col2 { grid-column:1 !important; grid-row:auto !important; } .profil-entete-actions { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; } }
         .pastille-modifiable .pastille-crayon { opacity: 0; transition: opacity 0.15s; }
         .pastille-modifiable:hover .pastille-crayon { opacity: 1; }
 .profil-entete { display: grid; grid-template-columns: 200px 1fr; gap: 26px; align-items: flex-start; }
@@ -1675,74 +1677,71 @@ export default function ProfilView({
               </div>
 
               {/* Info */}
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <div className="profil-info-grille">
 
-                {/* Nom + liens action */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap' as const, gap: 8 }}>
-                  <h1 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 30, fontWeight: 700, color: C.dark, margin: 0, lineHeight: 1.2 }}>
-                    {p.prenom} {p.nom}
-                  </h1>
-                  {effectiveOwner ? (
-                    <div className="profil-entete-actions">
-                      <button className="profil-lien-action" onClick={() => {
-                        const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
-                        setPortraitTitle(saved ?? p.domaine ?? '')
-                        setPortraitWithPhoto(false)
-                        const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
-                        setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
-                        const hasPhone = !!(p.telephone)
-                        const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
-                        setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
-                        setPortraitModal(true)
-                      }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 3v13m-5-5 5 5 5-5M3 20h18"/></svg>
-                        Portrait PDF
-                      </button>
-                      <button className="profil-lien-action" onClick={() => { setApercuRecruteur(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-                        Voir comme un recruteur
-                      </button>
-                      {modifierBtn('presentation')}
-                    </div>
-                  ) : !apercuRecruteur ? (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginLeft: 'auto' }}>
-                      <ScoreCircle score={83} size={58} />
-                      <button
-                        onClick={async () => {
-                          setWritingMsg(true)
-                          const existing = await trouverConversation(userId)
-                          setWritingMsg(false)
-                          if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
-                          router.push(`/recruteur/messages?new=${userId}`)
-                        }}
-                        disabled={writingMsg}
-                        style={{ padding: '8px 18px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer', fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1 }}
-                      >{writingMsg ? '…' : 'Écrire'}</button>
-                      <button onClick={() => setSaved(s => !s)} style={{ padding: '8px 18px', borderRadius: 10, border: `1.5px solid ${saved ? C.vert : C.sable}`, backgroundColor: saved ? `${C.vert}12` : C.white, color: saved ? C.vert : C.grey, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
-                        {saved ? 'Sauvegardé' : 'Sauvegarder'}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+                <h1 style={{ gridColumn: 1, gridRow: 1, fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 30, fontWeight: 700, color: C.dark, margin: 0, lineHeight: 1.2 }}>
+                  {p.prenom} {p.nom}
+                </h1>
+                {effectiveOwner ? (
+                  <div className="profil-entete-actions profil-col2">
+                    <button className="profil-lien-action" onClick={() => {
+                      const saved = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_title_${userId}`) : null
+                      setPortraitTitle(saved ?? p.domaine ?? '')
+                      setPortraitWithPhoto(false)
+                      const savedEmail = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_email_${userId}`) : null
+                      setPortraitShowEmail(savedEmail !== null ? savedEmail === 'true' : true)
+                      const hasPhone = !!(p.telephone)
+                      const savedPhone = typeof window !== 'undefined' ? localStorage.getItem(`kapolia_portrait_phone_${userId}`) : null
+                      setPortraitShowPhone(hasPhone ? (savedPhone !== null ? savedPhone === 'true' : true) : false)
+                      setPortraitModal(true)
+                    }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 3v13m-5-5 5 5 5-5M3 20h18"/></svg>
+                      Portrait PDF
+                    </button>
+                    <button className="profil-lien-action" onClick={() => { setApercuRecruteur(true); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                      Voir comme un recruteur
+                    </button>
+                    {modifierBtn('presentation')}
+                  </div>
+                ) : !apercuRecruteur ? (
+                  <div className="profil-col2" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center' }}>
+                    <ScoreCircle score={83} size={58} />
+                    <button
+                      onClick={async () => {
+                        setWritingMsg(true)
+                        const existing = await trouverConversation(userId)
+                        setWritingMsg(false)
+                        if (existing) { router.push(`/recruteur/messages?conv=${existing}`); return }
+                        router.push(`/recruteur/messages?new=${userId}`)
+                      }}
+                      disabled={writingMsg}
+                      style={{ padding: '8px 18px', borderRadius: 10, border: 'none', backgroundColor: C.terracotta, color: C.white, fontSize: 13, fontWeight: 600, cursor: writingMsg ? 'default' : 'pointer', fontFamily: 'inherit', opacity: writingMsg ? 0.7 : 1 }}
+                    >{writingMsg ? '…' : 'Écrire'}</button>
+                    <button onClick={() => setSaved(s => !s)} style={{ padding: '8px 18px', borderRadius: 10, border: `1.5px solid ${saved ? C.vert : C.sable}`, backgroundColor: saved ? `${C.vert}12` : C.white, color: saved ? C.vert : C.grey, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
+                      {saved ? 'Sauvegardé' : 'Sauvegarder'}
+                    </button>
+                  </div>
+                ) : null}
 
                 {/* Métier */}
                 {(() => {
                   const titre = p.metier?.trim() || experiences.find(e => e.en_poste)?.poste || experiences[0]?.poste || null
-                  return titre ? <div style={{ fontSize: 18, fontWeight: 600, color: C.dark, marginTop: 4 }}>{titre}</div> : null
+                  return titre ? <div style={{ gridColumn: 1, gridRow: 2, fontSize: 18, fontWeight: 600, color: C.dark, marginTop: 6 }}>{titre}</div> : null
                 })()}
 
                 {/* Domaine · N ans d'expérience */}
                 {(() => {
                   const domaine = p.domaine ?? ''
-                  if (anneesExp < 1) return domaine ? <div style={{ fontSize: 14.5, color: C.grey, marginTop: 3 }}>{domaine}</div> : null
+                  if (anneesExp < 1) return domaine ? <div style={{ gridColumn: 1, gridRow: 3, fontSize: 14.5, color: C.grey, marginTop: 2 }}>{domaine}</div> : null
                   const expStr = anneesExp === 1 ? "1 an d'expérience" : `${anneesExp} ans d'expérience`
-                  if (!domaine) return <div style={{ fontSize: 14.5, color: C.grey, marginTop: 3 }}>{expStr}</div>
-                  return <div style={{ fontSize: 14.5, color: C.grey, marginTop: 3 }}>{domaine} · {expStr}</div>
+                  if (!domaine) return <div style={{ gridColumn: 1, gridRow: 3, fontSize: 14.5, color: C.grey, marginTop: 2 }}>{expStr}</div>
+                  return <div style={{ gridColumn: 1, gridRow: 3, fontSize: 14.5, color: C.grey, marginTop: 2 }}>{domaine} · {expStr}</div>
                 })()}
 
                 {/* Signature */}
                 {p.signature ? (
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ gridColumn: 1, gridRow: 4, marginTop: 12 }}>
                     <p style={{ margin: 0, fontFamily: FONT_SANS, fontWeight: 400, letterSpacing: '-0.005em', fontStyle: 'italic', fontSize: 15, color: C.grey, lineHeight: 1.6, ...(signatureExpanded ? {} : { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }) }}>
                       {`« ${p.signature} »`}
                     </p>
@@ -1753,14 +1752,14 @@ export default function ProfilView({
                     )}
                   </div>
                 ) : effectiveOwner ? (
-                  <button onClick={() => ouvrirCarte('presentation')} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: 'transparent', color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start' }}>
+                  <button onClick={() => ouvrirCarte('presentation')} style={{ gridColumn: 1, gridRow: 4, marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E2C6AE', backgroundColor: 'transparent', color: C.orangeTexte, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const, alignSelf: 'flex-start' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 2v4m0 12v4M2 12h4m12 0h4M4.93 4.93l2.83 2.83m8.49 8.49 2.83 2.83M4.93 19.07l2.83-2.83m8.49-8.49 2.83-2.83"/></svg>
                     Ajouter votre phrase
                   </button>
                 ) : null}
 
                 {/* Pastilles */}
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 18 }}>
+                <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 18 }}>
 
                   {/* Disponibilité */}
                   {p.disponibilite ? (
