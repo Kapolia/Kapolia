@@ -2201,46 +2201,74 @@ export default function ProfilView({
       {/* ━━━ MODALE PROJET PHARE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
       {projetModal && (
         <div onClick={() => setProjetModal(false)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 20, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', padding: 'clamp(24px, 4%, 40px)' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
-              <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 22, color: C.dark, margin: 0, fontWeight: 700, lineHeight: 1.3 }}>{p.projet_titre || 'Projet phare'}</h2>
-              <button onClick={() => setProjetModal(false)} style={{ flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <style suppressHydrationWarning>{`
+            .pj-inner { padding: 28px; }
+            @media (max-width: 760px) {
+              .pj-inner { padding: 22px 18px; }
+              .pj-titre { font-size: 21px !important; }
+              .pj-imgs  { grid-template-columns: repeat(3,1fr) !important; }
+            }
+          `}</style>
+          <div className="pj-inner" onClick={e => e.stopPropagation()} style={{ backgroundColor: C.white, borderRadius: 18, width: '100%', maxWidth: 760, maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20, boxSizing: 'border-box' as const }}>
+
+            {/* En-tête */}
+            <div style={{ position: 'relative', paddingRight: 48 }}>
+              <div style={{ fontSize: 14, color: C.grey, marginBottom: 6 }}>Projet phare</div>
+              <h2 className="pj-titre" style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 24, fontWeight: 700, color: C.dark, margin: 0, lineHeight: 1.25 }}>{p.projet_titre || 'Projet phare'}</h2>
+              <button onClick={() => setProjetModal(false)} style={{ position: 'absolute', top: 0, right: 0, flexShrink: 0, width: 36, height: 36, borderRadius: '50%', border: `1px solid ${C.sable}`, backgroundColor: C.bg, color: C.grey, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            {projetVideoUrl && (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Vidéo du projet</div>
-                <div style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}><video src={projetVideoUrl} controls style={{ width: '100%', maxHeight: 320, display: 'block' }} /></div>
+
+            {/* Bloc chiffre / impact */}
+            {(p.projet_resultat || projetImpact) && (
+              <div style={{ borderRadius: 14, backgroundColor: C.vert, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                {p.projet_resultat ? (
+                  <>
+                    <span style={{ fontFamily: FONT_SANS, fontSize: 44, fontWeight: 700, color: C.white, lineHeight: 1, flexShrink: 0 }}>{p.projet_resultat}</span>
+                    {projetImpact && <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)', lineHeight: 1.45 }}>{projetImpact}</span>}
+                  </>
+                ) : (
+                  <span style={{ fontSize: 15, fontWeight: 600, color: C.white }}>{projetImpact}</span>
+                )}
               </div>
             )}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Description</div>
-              <p style={{ margin: 0, fontSize: 14, color: C.dark, lineHeight: 1.75 }}>{p.projet_phare}</p>
-              {projetImpact && <div style={{ marginTop: 14 }}><span style={{ display: 'inline-block', padding: '5px 14px', borderRadius: 20, backgroundColor: `${C.terracotta}15`, color: C.terracotta, fontSize: 13, fontWeight: 700 }}>{projetImpact}</span></div>}
-            </div>
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Images</div>
-              {projetImages.length > 0 ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+
+            {/* Vidéo */}
+            {projetVideoUrl && (
+              <div style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}>
+                <video src={projetVideoUrl} controls style={{ width: '100%', maxHeight: 360, display: 'block' }} />
+              </div>
+            )}
+
+            {/* Description */}
+            {p.projet_phare && (
+              <p style={{ margin: 0, fontSize: 15.5, color: C.dark, lineHeight: 1.65, maxWidth: '62ch' }}>{p.projet_phare}</p>
+            )}
+
+            {/* Images */}
+            {projetImages.length > 0 && (
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.grey, marginBottom: 8 }}>Images</div>
+                <div className="pj-imgs" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
                   {projetImages.map((url, i) => (
-                    <div key={i} onClick={() => setZoomImage(url)} style={{ borderRadius: 10, overflow: 'hidden', cursor: 'zoom-in', aspectRatio: '16/9', backgroundColor: C.sable }}>
+                    <div key={i} onClick={() => setZoomImage(url)} style={{ borderRadius: 10, overflow: 'hidden', cursor: 'zoom-in', aspectRatio: '4/3', backgroundColor: C.sable }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div style={{ padding: 20, textAlign: 'center' as const, color: C.grey, fontSize: 13, backgroundColor: C.bg, borderRadius: 10 }}>Aucune image ajoutée</div>
-              )}
-            </div>
-            {projetLien && (
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: C.grey, marginBottom: 10 }}>Lien</div>
-                <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 12, backgroundColor: C.vert, color: C.white, fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Voir le projet en ligne</a>
-                <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>{projetLien.length > 60 ? projetLien.slice(0, 60) + '…' : projetLien}</div>
               </div>
             )}
+
+            {/* Lien */}
+            {projetLien && (
+              <a href={projetLien} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 14.5, fontWeight: 600, color: C.lien, textDecoration: 'none' }}>
+                Voir le projet en ligne
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            )}
+
           </div>
         </div>
       )}
