@@ -219,7 +219,7 @@ export default function CarteRecherche({
           <ChoixBtn label="Aucun permis" selected={editPermis.includes('aucun')}
             onClick={() => togglePermis('aucun')} />
         </div>
-        <span style={HELP_S}>Les offres qui demandent un permis que vous n&apos;avez pas vous seront signalées.</span>
+
       </div>
 
       {/* Langues */}
