@@ -8,7 +8,7 @@ import { trouverConversation } from '@/lib/conversations'
 import Avatar from '@/components/Avatar'
 import LogoKapolia from '@/components/LogoKapolia'
 import { LANGUES } from '@/lib/langues'
-import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
+import { COMP_REF, DOMAINES, EXPERIENCES, PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES, TYPES_POSTE } from '@/lib/referentiels'
 import CartePresentation from '@/components/profil/CartePresentation'
 import CarteRecherche from '@/components/profil/CarteRecherche'
 import CarteParcours, { type ParcoursExpEdit, type ParcoursDiplomeEdit } from '@/components/profil/CarteParcours'
@@ -137,9 +137,7 @@ const COLONNES_VISITEUR = [
 
 // ─── Lookup maps ──────────────────────────────────────────────────────────────
 
-const TYPE_POSTE_MAP: Record<string, string> = {
-  cdi: 'CDI', cdd: 'CDD', freelance: 'Freelance / Mission', alternance: 'Alternance / Stage', ouvert: 'Ouvert(e) à tout',
-}
+const TYPE_POSTE_MAP = Object.fromEntries(TYPES_POSTE.map(t => [t.key, t.label]))
 
 const LIEU_MAP: Record<string, string> = Object.fromEntries(
   PREFERENCES_TELETRAVAIL.map(p => [p.key, p.label])

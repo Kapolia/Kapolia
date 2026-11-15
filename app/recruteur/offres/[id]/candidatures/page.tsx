@@ -16,7 +16,7 @@ import { supabase } from '@/lib/supabase'
 import { FONT_SANS } from '@/lib/typography'
 import { trouverConversation } from '@/lib/conversations'
 import { scoreRecruteur, type ProfilMatch, type OffreMatch } from '@/lib/matching'
-import { offreAvecTeletravail } from '@/lib/referentiels'
+import { offreAvecTeletravail, TYPES_POSTE } from '@/lib/referentiels'
 import { ScoreRing } from '@/components/ScoreRing'
 import { getStatut } from '@/lib/statuts'
 import { notifStatutCandidature } from '@/lib/actions/email-notifs'
@@ -350,7 +350,7 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {p?.experience && <div style={{ fontSize: 12, color: C.dark }}>⌛ {p.experience}</div>}
               {p?.ville      && <div style={{ fontSize: 12, color: C.dark }}>◎ {p.ville}</div>}
-              {(p?.type_poste ?? []).length > 0 && <div style={{ fontSize: 12, color: C.dark }}>◈ Cherche {(p!.type_poste!).map(k => ({ cdi:'CDI',cdd:'CDD',freelance:'Freelance',alternance:'Alternance',stage:'Stage',ouvert:'Tout type' })[k] ?? k).join(' · ')}</div>}
+              {(p?.type_poste ?? []).length > 0 && <div style={{ fontSize: 12, color: C.dark }}>◈ Cherche {(p!.type_poste!).map(k => TYPES_POSTE.find(t => t.key === k)?.label ?? k).join(' · ')}</div>}
             </div>
           </div>
         )}

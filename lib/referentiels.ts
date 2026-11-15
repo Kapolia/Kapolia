@@ -161,9 +161,12 @@ export function normaliserDebut(
 export const TYPES_POSTE: { key: string; label: string }[] = [
   { key: 'cdi',        label: 'CDI' },
   { key: 'cdd',        label: 'CDD' },
-  { key: 'freelance',  label: 'Freelance / Mission' },
-  { key: 'alternance', label: 'Alternance / Stage' },
-  { key: 'ouvert',     label: 'Ouvert(e) à tout' },
+  { key: 'interim',    label: 'Intérim' },
+  { key: 'saisonnier', label: 'Saisonnier' },
+  { key: 'freelance',  label: 'Freelance' },
+  { key: 'alternance', label: 'Alternance' },
+  { key: 'stage',      label: 'Stage' },
+  { key: 'ouvert',     label: 'Tous les contrats' },
 ]
 
 // Référentiel de compétences par domaine — source unique partagée entre le formulaire

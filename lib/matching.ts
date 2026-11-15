@@ -89,8 +89,11 @@ const COMP_REF_SET: Set<string> = new Set(Object.values(COMP_REF).flat())
 const CONTRAT_MAP: Record<string, string[]> = {
   cdi:        ['CDI'],
   cdd:        ['CDD'],
+  interim:    ['Intérim'],
+  saisonnier: ['Saisonnier'],
   freelance:  ['Freelance'],
-  alternance: ['Alternance', 'Stage'],
+  alternance: ['Alternance'],
+  stage:      ['Stage'],
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

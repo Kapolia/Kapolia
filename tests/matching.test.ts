@@ -94,6 +94,41 @@ describe('offre Occasionnel × profil (villes différentes → 0 pour tous)', ()
 
 })
 
+// ─── Contrats : intérim, saisonnier, stage ────────────────────────────────────
+
+function contrat(typePoste: string[], typeContrat: string) {
+  const profil: ProfilMatch = { domaine: 'Tech & Ingénierie', experience: '3-5 ans', mode_travail: null, type_poste: typePoste }
+  const offre:  OffreMatch  = { domaine: 'Tech & Ingénierie', experience: '3-5 ans', mode_travail: null, type_contrat: typeContrat }
+  return scoreBreakdownCandidat(profil, offre).contrat
+}
+
+describe('contrats interim et saisonnier', () => {
+  it('candidat interim × offre Intérim → score plein', () => {
+    expect(contrat(['interim'], 'Intérim')?.earned).toBeGreaterThan(0)
+  })
+  it('candidat saisonnier × offre Saisonnier → score plein', () => {
+    expect(contrat(['saisonnier'], 'Saisonnier')?.earned).toBeGreaterThan(0)
+  })
+  it('candidat cdi × offre Intérim → 0', () => {
+    expect(contrat(['cdi'], 'Intérim')?.earned).toBe(0)
+  })
+  it('candidat cdi × offre Saisonnier → 0', () => {
+    expect(contrat(['cdi'], 'Saisonnier')?.earned).toBe(0)
+  })
+})
+
+describe('stage séparé de alternance', () => {
+  it('candidat stage × offre Stage → score plein', () => {
+    expect(contrat(['stage'], 'Stage')?.earned).toBeGreaterThan(0)
+  })
+  it('candidat alternance seul × offre Stage → 0', () => {
+    expect(contrat(['alternance'], 'Stage')?.earned).toBe(0)
+  })
+  it('candidat alternance + stage × offre Stage → score plein', () => {
+    expect(contrat(['alternance', 'stage'], 'Stage')?.earned).toBeGreaterThan(0)
+  })
+})
+
 // ─── Offre présentiel × profil occasionnel ────────────────────────────────────
 
 describe('offre présentiel × profil occasionnel', () => {
