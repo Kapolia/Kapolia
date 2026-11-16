@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 import { FONT_SANS } from '@/lib/typography'
 import { C } from '@/lib/colors'
@@ -42,6 +43,11 @@ export default function InvitationModal({
   const [messageErreur, setMessageErreur]     = useState<string | null>(null)
   const [invCreee, setInvCreee]               = useState<{ jeton: string; expire_at: string } | null>(null)
   const [copie, setCopie]                     = useState(false)
+  const [mounted, setMounted]                 = useState(false)
+
+  const dialogRef    = useRef<HTMLDivElement>(null)
+  const triggerRef   = useRef<HTMLElement | null>(null)
+  const handleCloseRef = useRef<() => void>(() => {})
 
   const limiteAtteinte = activeCount >= 4
   const peutSoumettre  = labelProche.trim().length > 0 && lien !== ''
@@ -59,6 +65,34 @@ export default function InvitationModal({
     reinitialiser()
     onClose()
   }
+
+  handleCloseRef.current = handleClose
+
+  useEffect(() => { setMounted(true) }, [])
+
+  // Focus management
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement as HTMLElement | null
+      setTimeout(() => {
+        const first = dialogRef.current?.querySelector<HTMLElement>('input, select, button')
+        first?.focus()
+      }, 0)
+    } else {
+      triggerRef.current?.focus()
+      triggerRef.current = null
+    }
+  }, [open])
+
+  // Escape key
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') handleCloseRef.current()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   async function creerInvitation() {
     if (!peutSoumettre || etat === 'envoi') return
@@ -103,7 +137,7 @@ export default function InvitationModal({
     }
   }
 
-  if (!open) return null
+  if (!open || !mounted) return null
 
   const inputStyle: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
@@ -113,8 +147,8 @@ export default function InvitationModal({
   }
 
   const labelStyle: React.CSSProperties = {
-    display: 'block', fontSize: 12, fontWeight: 600, color: C.grey,
-    marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.07em',
+    display: 'block', fontSize: 15, fontWeight: 600, color: C.dark,
+    marginBottom: 6,
   }
 
   const btnSecondaire: React.CSSProperties = {
@@ -124,18 +158,21 @@ export default function InvitationModal({
     cursor: 'pointer', fontFamily: 'inherit',
   }
 
-  return (
+  return createPortal(
     <div
       onClick={handleClose}
       style={{
         position: 'fixed', inset: 0,
         backgroundColor: 'rgba(0,0,0,0.4)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: '20px',
+        zIndex: 1000, padding: '16px',
       }}
     >
       <div
+        ref={dialogRef}
         onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
         style={{
           backgroundColor: C.white, borderRadius: 16, padding: '28px',
           width: '100%', maxWidth: '480px',
@@ -184,7 +221,7 @@ export default function InvitationModal({
               Ce lien est valable sept jours et ne peut servir qu'une seule fois.
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
               <button onClick={handleClose} style={btnSecondaire}>Fermer</button>
             </div>
           </>
@@ -202,7 +239,7 @@ export default function InvitationModal({
               <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.65, margin: '0 0 20px' }}>
                 Votre proche recevra un lien unique qu'il pourra ouvrir sans créer de compte.
                 Il vous décrira en quelques mots les qualités qu'il observe chez vous.
-                Sa réponse vous sera présentée ici, dans votre profil, et vous choisirez ce que vous souhaitez en afficher.
+                Sa réponse vous sera présentée dans votre profil, et vous choisirez ce que vous souhaitez en afficher.
               </p>
             )}
 
@@ -239,7 +276,7 @@ export default function InvitationModal({
               </p>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
               <button onClick={handleClose} style={btnSecondaire}>Annuler</button>
               <button
                 onClick={creerInvitation}
@@ -259,6 +296,7 @@ export default function InvitationModal({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
