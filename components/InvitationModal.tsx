@@ -20,6 +20,7 @@ export type ActiveInvitation = {
   label_proche: string
   lien:         string
   expire_at:    string
+  jeton?:       string
 }
 
 export default function InvitationModal({
@@ -84,6 +85,7 @@ export default function InvitationModal({
       label_proche: data.label_proche as string,
       lien:         data.lien         as string,
       expire_at:    data.expire_at    as string,
+      jeton:        data.jeton        as string,
     })
   }
 

@@ -18,6 +18,7 @@ type Props = {
   libreSeulementSiAucunMatch?: boolean
   fullMessage?: string
   dropdownInFlow?: boolean
+  griseesExternes?: { valeurs: string[]; label: string }
 }
 
 function highlight(s: string, input: string): React.ReactNode {
@@ -32,7 +33,7 @@ function highlight(s: string, input: string): React.ReactNode {
   )
 }
 
-export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow }: Props) {
+export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow, griseesExternes }: Props) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(-1)
@@ -182,22 +183,25 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
             }}>
               {matched.map((s, i) => {
                 const already = valeurs.includes(s)
-                const active = index === i
+                const externe = !already && (griseesExternes?.valeurs.includes(s) ?? false)
+                const disabled = already || externe
+                const active = !disabled && index === i
                 return (
                   <div key={s}
-                    onMouseDown={already ? undefined : () => select(s)}
-                    onMouseEnter={() => !already && setIndex(i)}
+                    onMouseDown={disabled ? undefined : () => select(s)}
+                    onMouseEnter={() => !disabled && setIndex(i)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '8px 12px', fontSize: 13.5,
-                      cursor: already ? 'default' : 'pointer',
+                      cursor: disabled ? 'default' : 'pointer',
                       backgroundColor: active ? C.bg : C.white,
-                      color: already ? C.grey : C.dark,
+                      color: disabled ? C.grey : C.dark,
                       transition: 'background-color 180ms',
                     }}
                   >
                     <span>{highlight(s, input)}</span>
                     {already && <span style={{ fontSize: 12, color: C.grey, marginLeft: 8, flexShrink: 0 }}>déjà choisie</span>}
+                    {externe && <span style={{ fontSize: 12, color: C.grey, marginLeft: 8, flexShrink: 0 }}>{griseesExternes!.label}</span>}
                   </div>
                 )
               })}

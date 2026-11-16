@@ -31,7 +31,8 @@ import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 import { COMP_REF, PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
-import { C } from '@/lib/colors'
+import { C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+import { SUGGESTIONS_QUALITES } from '@/lib/qualites'
 
 // ─── Post-signup redirect ─────────────────────────────────────────────────────
 
@@ -254,18 +255,23 @@ function QualitesCarousel({
   onRefaireDone?: () => void
   onProgress?:    (answered: number) => void
 }) {
-  const [idx,         setIdx]        = useState(0)
-  const [selections,  setSelections] = useState<Record<number, (1|2|3|4)[]>>({})
-  const [savingIdx,   setSavingIdx]  = useState<number | null>(null)
-  const [phase,       setPhase]      = useState<'quiz' | 'done'>('quiz')
-  const [flashId,     setFlashId]    = useState<number | null>(null)
-  const [loading,     setLoading]    = useState(true)
-  const [updateError, setUpdateError] = useState('')
+  const [idx,              setIdx]              = useState(0)
+  const [selections,       setSelections]       = useState<Record<number, (1|2|3|4)[]>>({})
+  const [savingIdx,        setSavingIdx]        = useState<number | null>(null)
+  const [phase,            setPhase]            = useState<'intro' | 'quiz' | 'done'>('intro')
+  const [flashId,          setFlashId]          = useState<number | null>(null)
+  const [loading,          setLoading]          = useState(true)
+  const [updateError,      setUpdateError]      = useState('')
+  const [qualitesDecl,     setQualitesDecl]     = useState<string[]>([])
+  const [invitModalOpen,   setInvitModalOpen]   = useState(false)
+  const [invitActiveCount, setInvitActiveCount] = useState(0)
+  const [invitLien,        setInvitLien]        = useState<string | null>(null)
+  const [invitCopie,       setInvitCopie]       = useState(false)
 
   // Charge les réponses existantes
   useEffect(() => {
     if (!userId) return
-    if (forceEmpty) { setLoading(false); return }
+    if (forceEmpty) { setPhase('quiz'); setLoading(false); return }
     supabase
       .from('test_qualites')
       .select('situation_id, reponse_1, reponse_2, version_test')
@@ -282,10 +288,10 @@ function QualitesCarousel({
             setPhase('done')
             onComplete(true)
           } else {
-            // Commence à la première situation sans réponse
             const situations = SITUATIONS[CURRENT_VERSION]
             const firstUnanswered = situations.findIndex(s => !loaded[s.id])
             setIdx(firstUnanswered >= 0 ? firstUnanswered : 0)
+            setPhase('quiz')
           }
         }
         setLoading(false)
@@ -293,11 +299,21 @@ function QualitesCarousel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
+  // Charge qualitesDecl et activeInvitations quand le résultat est affiché
+  useEffect(() => {
+    if (phase !== 'done' || !userId) return
+    supabase.from('profils').select('qualites').eq('user_id', userId).single()
+      .then(({ data }) => { if (data?.qualites) setQualitesDecl(data.qualites as string[]) })
+    const now = new Date().toISOString()
+    supabase.from('invitations_proches').select('id', { count: 'exact', head: true })
+      .eq('candidat_id', userId).gt('expire_at', now).is('used_at', null)
+      .then(({ count }) => setInvitActiveCount(count ?? 0))
+  }, [phase, userId])
+
   function handleSelect(reponseId: 1|2|3|4) {
     const sitId = SITUATIONS[CURRENT_VERSION][idx].id
     const current = selections[sitId] ?? []
     if (current.includes(reponseId)) {
-      // Désélection
       setSelections(prev => ({ ...prev, [sitId]: current.filter(r => r !== reponseId) }))
       return
     }
@@ -305,11 +321,11 @@ function QualitesCarousel({
       setSelections(prev => ({ ...prev, [sitId]: [...current, reponseId] }))
       return
     }
-    // FIFO : remplace le plus ancien
-    const replaced = current[0]
+    // LIFO : un 3e clic remplace la 2e sélection
+    const replaced = current[1]
     setFlashId(replaced)
     setTimeout(() => setFlashId(null), 300)
-    setSelections(prev => ({ ...prev, [sitId]: [current[1], reponseId] }))
+    setSelections(prev => ({ ...prev, [sitId]: [current[0], reponseId] }))
   }
 
   async function handleAdvance() {
@@ -322,10 +338,10 @@ function QualitesCarousel({
       .from('test_qualites')
       .upsert(
         {
-          user_id:     userId,
+          user_id:      userId,
           situation_id: situation.id,
-          reponse_1:   sel[0],
-          reponse_2:   sel[1],
+          reponse_1:    sel[0],
+          reponse_2:    sel[1],
           version_test: CURRENT_VERSION,
         },
         { onConflict: 'user_id,situation_id' },
@@ -360,18 +376,87 @@ function QualitesCarousel({
     }
   }
 
+  async function handleRefaire() {
+    await supabase.from('test_qualites').delete().eq('user_id', userId)
+    await supabase.from('profils').update({ qualites_test: null }).eq('user_id', userId)
+    setSelections({})
+    setIdx(0)
+    setPhase('intro')
+    onComplete(false)
+  }
+
+  async function handleQualitesDeclChange(vals: string[]) {
+    setQualitesDecl(vals)
+    await supabase.from('profils').update({ qualites: vals }).eq('user_id', userId)
+  }
+
+  function handleCopierLien() {
+    if (!invitLien) return
+    navigator.clipboard.writeText(invitLien).then(() => {
+      setInvitCopie(true)
+      setTimeout(() => setInvitCopie(false), 2500)
+    }).catch(() => {})
+  }
+
   if (loading) return null
 
   const situations    = SITUATIONS[CURRENT_VERSION]
-  const situation     = situations[idx]
-  const sel           = phase === 'quiz' ? (selections[situation?.id] ?? []) : []
-  const selCount      = sel.length
-  const canAdvance    = selCount === 2 && savingIdx === null
-  const isSaving      = savingIdx === idx
   const answeredCount = Object.keys(selections).filter(k => (selections[Number(k)] ?? []).length === 2).length
 
   useEffect(() => { onProgress?.(answeredCount) }, [selections]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Intro ──────────────────────────────────────────────────────────────────
+  if (phase === 'intro') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <style suppressHydrationWarning>{`
+          .kv-iq-n {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+            background: ${C.orange}; color: #fff; font-size: 12px; font-weight: 700;
+          }
+        `}</style>
+        <p style={{ fontSize: 14.5, color: C.dark, lineHeight: 1.7, margin: 0 }}>
+          Un recruteur veut savoir ce que vous savez faire, mais aussi comment vous travaillez. Plutôt que de vous demander de vous décrire, Kapolia vous propose neuf situations de travail. Vos réactions font ressortir vos qualités.
+        </p>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span className="kv-iq-n">1</span>
+            <span style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
+              <b>Pour chaque situation, choisissez deux réactions</b>, celles qui vous ressemblent le plus.
+            </span>
+          </li>
+          <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span className="kv-iq-n">2</span>
+            <span style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
+              <b>Il n'y a pas de bonne réponse.</b> Répondez ce que vous feriez vraiment, pas ce qui semble attendu.
+            </span>
+          </li>
+          <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <span className="kv-iq-n">3</span>
+            <span style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
+              <b>Vos qualités s'affichent sur votre profil.</b> Elles montrent aux recruteurs comment vous travaillez et vous distinguent des profils au parcours proche.
+            </span>
+          </li>
+        </ul>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4 }}>
+          <button
+            onClick={() => setPhase('quiz')}
+            style={{
+              padding: '12px 28px', borderRadius: 100, border: 'none',
+              backgroundColor: C.orange, color: C.white,
+              fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Commencer le questionnaire
+          </button>
+          <span style={{ fontSize: 13, color: C.grey }}>Environ 4 minutes</span>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Résultat ───────────────────────────────────────────────────────────────
   if (phase === 'done') {
     const answers = situations
       .map(s => {
@@ -380,62 +465,175 @@ function QualitesCarousel({
         return { situation_id: s.id, reponse_1: r[0], reponse_2: r[1], version_test: CURRENT_VERSION } as TestAnswer
       })
       .filter((a): a is TestAnswer => a !== null)
-    const resultats = calculerQualites(answers)
+    const resultats         = calculerQualites(answers)
+    const testQualiteLabels = resultats.map(r => QUALITE_LABELS[r.qualite] ?? r.qualite)
 
     return (
-      <div>
-        <p style={{
-          fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 22, color: C.dark,
-          margin: '0 0 10px', fontWeight: 700, lineHeight: 1.3,
-        }}>
-          Votre profil de qualités est prêt.
-        </p>
-        <p style={{ fontSize: 14, color: C.grey, margin: '0 0 24px', lineHeight: 1.6 }}>
-          Voici les qualités qui sont ressorties le plus souvent.
-        </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <style suppressHydrationWarning>{`
+          .kv-proche-lien { display: flex; align-items: center; gap: 10; flex-wrap: wrap; }
+          @media (max-width: 640px) { .kv-proche-lien { flex-direction: column; align-items: flex-start; } }
+        `}</style>
 
-        {resultats.length === 0 ? (
-          <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.6 }}>
-            Aucune qualité n'est apparue deux fois ou plus. Vous pouvez en ajouter manuellement depuis votre profil.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-            {resultats.map(r => (
-              <div key={r.qualite} className="kv-bloc kv-sel" style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '8px 14px', borderRadius: 24,
-              }}>
-                <span style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
+        {/* Ce qui ressort de vos réponses */}
+        <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px', boxShadow: CARD_SHADOW }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: C.dark, margin: '0 0 14px', lineHeight: 1.3 }}>
+            Ce qui ressort de vos réponses
+          </h3>
+          {resultats.length === 0 ? (
+            <p style={{ fontSize: 14, color: C.grey, margin: '0 0 12px', lineHeight: 1.6 }}>
+              Aucune qualité n'est apparue deux fois ou plus.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+              {resultats.map(r => (
+                <span key={r.qualite} style={{
+                  padding: '5px 14px', borderRadius: 100,
+                  backgroundColor: `${C.vert}18`, color: C.vert,
+                  fontSize: 13.5, fontWeight: 600, border: `1px solid ${C.vert}30`,
+                }}>
                   {QUALITE_LABELS[r.qualite] ?? r.qualite}
                 </span>
-                <span style={{ fontSize: 12, color: C.terracotta }}>
-                  {r.count === 1 ? '1 situation' : `${r.count} situations`}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+          <p style={{ fontSize: 13, color: C.grey, margin: '0 0 14px', lineHeight: 1.55 }}>
+            Ces qualités s'afficheront sur votre profil.
+          </p>
+          <button
+            onClick={handleRefaire}
+            style={{
+              background: 'none', border: 'none', padding: 0, fontFamily: 'inherit',
+              fontSize: 13, color: C.grey, textDecoration: 'underline', cursor: 'pointer',
+            }}
+          >
+            Recommencer le questionnaire
+          </button>
+        </div>
 
-        <p style={{ fontSize: 12, color: C.grey, fontStyle: 'italic', lineHeight: 1.55 }}>
-          Les qualités apparues dans une seule situation ne sont pas retenues.
-        </p>
+        {/* Selon vous */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Selon vous</span>
+            <small style={{ fontSize: 12, color: C.grey, fontWeight: 400 }}>facultatif, jusqu'à 5</small>
+          </div>
+          <p style={{ fontSize: 13, color: C.grey, margin: '0 0 12px', lineHeight: 1.55 }}>
+            Une qualité que vous vous reconnaissez et qui n'est pas ressortie ? Ajoutez-la.
+          </p>
+          <ChampSuggestions
+            valeurs={qualitesDecl}
+            onChange={handleQualitesDeclChange}
+            suggestions={SUGGESTIONS_QUALITES}
+            max={5}
+            placeholder="Écrivez une qualité, par exemple Fiabilité"
+            libre
+            sortStartsWith
+            griseesExternes={{ valeurs: testQualiteLabels, label: 'déjà dans vos résultats' }}
+          />
+        </div>
+
+        {/* Et selon vos proches ? */}
+        <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px', boxShadow: CARD_SHADOW }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+            <div style={{ color: C.vert, flexShrink: 0, marginTop: 2 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="9" cy="8" r="3.5"/>
+                <path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>
+                <path d="M19 8v6M16 11h6"/>
+              </svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <b style={{ fontSize: 15, color: C.dark, display: 'block', marginBottom: 8, lineHeight: 1.3 }}>
+                Et selon vos proches ?
+              </b>
+              <p style={{ fontSize: 13, color: C.grey, margin: '0 0 6px', lineHeight: 1.55 }}>
+                Un regard extérieur rend vos qualités plus crédibles aux yeux d'un recruteur.
+              </p>
+              <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px', lineHeight: 1.55 }}>
+                Envoyez un lien à un collègue, un ami ou un proche. Il choisit en une minute les qualités qu'il vous reconnaît.
+              </p>
+              {invitLien ? (
+                <div>
+                  <div className="kv-proche-lien" style={{ marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, color: C.dark, wordBreak: 'break-all', flex: 1 }}>
+                      {invitLien}
+                    </span>
+                    <button
+                      onClick={handleCopierLien}
+                      style={{
+                        flexShrink: 0, padding: '7px 16px', borderRadius: 100,
+                        border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
+                        color: C.dark, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      {invitCopie ? 'Copié !' : 'Copier le lien'}
+                    </button>
+                  </div>
+                  <span style={{ fontSize: 12, color: C.grey, lineHeight: 1.5, display: 'block' }}>
+                    Vous pourrez retrouver ce lien et en envoyer d'autres depuis votre profil.
+                  </span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setInvitModalOpen(true)}
+                  style={{
+                    padding: '9px 20px', borderRadius: 100,
+                    border: `1.5px solid ${C.sable}`, backgroundColor: C.white,
+                    color: C.dark, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Créer un lien d'invitation
+                </button>
+              )}
+            </div>
+          </div>
+          <InvitationModal
+            open={invitModalOpen}
+            onClose={() => setInvitModalOpen(false)}
+            candidatId={userId}
+            activeCount={invitActiveCount}
+            onCreated={inv => {
+              setInvitActiveCount(prev => prev + 1)
+              if (inv.jeton) setInvitLien(`${window.location.origin}/repondre/${inv.jeton}`)
+            }}
+          />
+        </div>
       </div>
     )
   }
 
+  // ── Quiz ──────────────────────────────────────────────────────────────────
+  const situation = situations[idx]
+  const sel       = selections[situation?.id] ?? []
+  const selCount  = sel.length
+  const canAdvance = selCount === 2 && savingIdx === null
+  const isSaving   = savingIdx === idx
+
   return (
     <div>
+      <style suppressHydrationWarning>{`
+        .kv-sit-nav {
+          display: flex; justify-content: space-between; align-items: center;
+          gap: 12px; margin-top: 20px;
+        }
+        @media (max-width: 640px) {
+          .kv-sit-nav {
+            position: sticky; bottom: 0; z-index: 10;
+            background: ${C.bg}; padding: 12px 0 8px; margin-top: 16px;
+          }
+          .kv-sit-reponse { width: 100%; }
+        }
+      `}</style>
+
       {/* Pastilles de progression */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 5, marginBottom: 16, alignItems: 'center' }}>
         {situations.map((s, i) => {
           const done    = (selections[s.id] ?? []).length === 2
           const current = i === idx
           return (
             <div key={s.id} style={{
-              width: current ? 10 : 8,
-              height: current ? 10 : 8,
-              borderRadius: '50%',
-              flexShrink: 0,
+              width: current ? 10 : 8, height: current ? 10 : 8,
+              borderRadius: '50%', flexShrink: 0,
               backgroundColor: done || current ? C.terracotta : C.sable,
               transition: 'all 0.2s',
             }} />
@@ -444,87 +642,87 @@ function QualitesCarousel({
       </div>
 
       {/* Compteur */}
-      <p style={{ fontSize: 12, color: C.grey, fontWeight: 600, margin: '0 0 16px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+      <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px' }}>
         Situation {idx + 1} sur {TOTAL_SITUATIONS}
       </p>
-
-      {/* Introduction — visible uniquement sur la situation 1 */}
-      {idx === 0 && (
-        <p style={{ fontSize: 14, color: C.grey, lineHeight: 1.7, margin: '0 0 24px' }}>
-          Neuf situations de travail. Pour chacune, choisissez les deux réactions
-          les plus proches de la vôtre. Il n'y a pas de bonne réponse, et répondre
-          au plus près de ce que vous feriez réellement vous servira davantage
-          qu'essayer de bien faire. Les qualités qui ressortent de vos choix seront
-          affichées sur votre profil : elles auront plus de poids que si vous les
-          aviez simplement déclarées. Vous pourrez ensuite inviter un proche à
-          compléter ce regard par le sien.
-        </p>
-      )}
 
       {/* Texte de la situation */}
       <p style={{
         fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 18, color: C.dark,
-        margin: '0 0 20px', lineHeight: 1.5, fontWeight: 700,
+        margin: '0 0 10px', lineHeight: 1.5, fontWeight: 700,
       }}>
         {situation.texte}
       </p>
 
+      {/* Consigne dynamique */}
+      <p style={{ fontSize: 13, color: selCount === 2 ? C.terracotta : C.grey, margin: '0 0 16px', fontWeight: selCount === 2 ? 600 : 400, transition: 'color 0.2s' }}>
+        {selCount === 0
+          ? 'Choisissez la réaction la plus proche de la vôtre.'
+          : selCount === 1
+          ? 'Puis une deuxième.'
+          : "Vous pouvez encore changer d'avis avant de continuer."}
+      </p>
+
       {/* Cartes de réponse */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 8 }}>
         {situation.reponses.map(r => {
-          const selected = sel.includes(r.id)
+          const rankIdx  = sel.indexOf(r.id)
+          const rank     = rankIdx >= 0 ? rankIdx + 1 : null
+          const selected = rank !== null
           const flashing = flashId === r.id
           return (
             <button
               key={r.id}
+              className={`kv-sit-reponse kv-bloc${selected ? ' kv-sel' : ''}${flashing ? ' kv-flash' : ''}`}
               onClick={() => handleSelect(r.id)}
               aria-pressed={selected}
-              className={`kv-bloc${selected ? ' kv-sel' : ''}${flashing ? ' kv-flash' : ''}`}
               style={{
                 textAlign: 'left', padding: '13px 16px', borderRadius: 12,
                 color: C.dark, fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
                 fontFamily: 'inherit', outline: 'none',
+                display: 'flex', alignItems: 'flex-start', gap: 10,
               }}
             >
-              {r.texte}
+              <span style={{
+                flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 700,
+                backgroundColor: rank ? C.terracotta : C.sable,
+                color: rank ? C.white : C.grey,
+                marginTop: 1, transition: 'background-color 0.15s',
+              }}>
+                {rank ?? ''}
+              </span>
+              <span>{r.texte}</span>
             </button>
           )
         })}
       </div>
 
-      {/* Compteur de sélection */}
-      <p style={{
-        fontSize: 13, color: selCount === 2 ? C.terracotta : C.grey,
-        margin: '0 0 20px', fontWeight: selCount === 2 ? 600 : 400,
-        transition: 'color 0.2s',
-      }}>
-        {selCount === 0 ? 'Choisissez 2 réponses'
-         : selCount === 1 ? '1 réponse choisie sur 2'
-         : '2 réponses choisies'}
-      </p>
+      {updateError && (
+        <p style={{ fontSize: 13, color: C.erreur, margin: '8px 0 0', textAlign: 'center' }}>{updateError}</p>
+      )}
 
       {/* Navigation */}
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button
-          onClick={() => setIdx(i => i - 1)}
-          disabled={idx === 0}
-          className="kv-bloc"
-          style={{
-            flex: 1, padding: '12px 16px', borderRadius: 12,
-            color: idx === 0 ? C.grey : C.dark,
-            fontSize: 14, cursor: idx === 0 ? 'default' : 'pointer',
-            fontFamily: 'inherit', fontWeight: 500,
-          }}
-        >
-          Situation précédente
-        </button>
+      <div className="kv-sit-nav">
+        {idx > 0 ? (
+          <button
+            onClick={() => setIdx(i => i - 1)}
+            style={{
+              background: 'none', border: 'none', padding: '4px 0',
+              fontSize: 13, color: C.grey, textDecoration: 'underline',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Situation précédente
+          </button>
+        ) : <span />}
         <button
           onClick={handleAdvance}
           disabled={!canAdvance}
           style={{
-            flex: 1, padding: '12px 16px', borderRadius: 12,
-            border: 'none',
-            backgroundColor: canAdvance ? C.terracotta : C.sable,
+            padding: '12px 24px', borderRadius: 100, border: 'none',
+            backgroundColor: canAdvance ? C.orange : C.sable,
             color: canAdvance ? C.white : C.grey,
             fontSize: 14, fontWeight: 600,
             cursor: canAdvance ? 'pointer' : 'default',
@@ -532,21 +730,10 @@ function QualitesCarousel({
           }}
         >
           {isSaving ? 'Enregistrement...'
-           : idx < TOTAL_SITUATIONS - 1 ? 'Situation suivante'
-           : 'Voir mes résultats'}
+            : idx < TOTAL_SITUATIONS - 1 ? 'Situation suivante'
+            : 'Voir mes qualités'}
         </button>
       </div>
-
-      {updateError && (
-        <p style={{ fontSize: 13, color: C.erreur, margin: '10px 0 0', textAlign: 'center' }}>{updateError}</p>
-      )}
-
-      {/* Indicateur de progression globale (nombre de situations répondues) */}
-      {answeredCount > 0 && answeredCount < TOTAL_SITUATIONS && (
-        <p style={{ fontSize: 12, color: C.grey, margin: '12px 0 0', textAlign: 'center' }}>
-          {answeredCount} situation{answeredCount > 1 ? 's' : ''} sur {TOTAL_SITUATIONS} répondue{answeredCount > 1 ? 's' : ''}
-        </p>
-      )}
     </div>
   )
 }
@@ -558,21 +745,6 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
   const [saving, setSaving]             = useState(false)
   const [saveError, setFinalSaveError]  = useState(false)
   const pendingChoiceRef                = useRef<boolean | null>(null)
-  const [invitModalOpen, setInvitModalOpen] = useState(false)
-  const [activeCount, setActiveCount]   = useState(0)
-  const [invitHover, setInvitHover]     = useState(false)
-
-  useEffect(() => {
-    const now = new Date().toISOString()
-    supabase
-      .from('invitations_proches')
-      .select('id', { count: 'exact', head: true })
-      .eq('candidat_id', userId)
-      .gt('expire_at', now)
-      .is('used_at', null)
-      .then(({ count, error }) => { if (!error) setActiveCount(count ?? 0) })
-  }, [userId])
-
   async function handleChoice(value: boolean) {
     pendingChoiceRef.current = value
     setSaving(true)
@@ -757,36 +929,8 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
           >
             Accéder à mon profil
           </button>
-          {activeCount < 4 && (
-            <button
-              onClick={() => setInvitModalOpen(true)}
-              onMouseEnter={() => setInvitHover(true)}
-              onMouseLeave={() => setInvitHover(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                fontFamily: FONT_SANS,
-                fontSize: 13,
-                color: invitHover ? C.dark : C.grey,
-                textDecoration: 'underline',
-                cursor: 'pointer',
-                transition: 'color 0.15s',
-              }}
-            >
-              Inviter un proche à compléter vos qualités
-            </button>
-          )}
         </div>
       )}
-
-      <InvitationModal
-        open={invitModalOpen}
-        onClose={() => setInvitModalOpen(false)}
-        candidatId={userId}
-        activeCount={activeCount}
-        onCreated={() => setActiveCount(prev => prev + 1)}
-      />
     </main>
   )
 }
