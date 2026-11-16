@@ -526,7 +526,7 @@ function QualitesCarousel({
         </div>
 
         {/* Selon vous */}
-        <div>
+        <div className="kv-selon-vous">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Selon vous</span>
             <small style={{ fontSize: 12, color: C.grey, fontWeight: 400 }}>facultatif, jusqu'à 5</small>
@@ -535,6 +535,7 @@ function QualitesCarousel({
             Une qualité que vous vous reconnaissez et qui n'est pas ressortie ? Ajoutez-la.
           </p>
           <ChampSuggestions
+            avecMotion
             valeurs={qualitesDecl}
             onChange={handleQualitesDeclChange}
             suggestions={SUGGESTIONS_QUALITES}
@@ -572,7 +573,7 @@ function QualitesCarousel({
         </div>
 
         {/* Et selon vos proches ? */}
-        <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px', boxShadow: CARD_SHADOW }}>
+        <div className="kv-proche-card" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px', boxShadow: CARD_SHADOW }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <div style={{ color: C.vert, flexShrink: 0, marginTop: 2 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1113,18 +1114,11 @@ function ChoiceCard({ label, desc, selected, onClick, disabled = false, tapped =
         opacity: disabled ? 0.45 : 1,
       }}
     >
-      <span style={{
+      <span className="kv-rond" style={{
         width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
         border: `2px solid ${selected ? C.terracotta : '#C3CAC5'}`,
         position: 'relative', transition: 'border-color 0.15s',
-      }}>
-        {selected && (
-          <span style={{
-            position: 'absolute', inset: 3, borderRadius: '50%',
-            backgroundColor: C.terracotta,
-          }} />
-        )}
-      </span>
+      }} />
       <span style={{ flex: 1 }}>
         <span style={{ fontSize: 15.5, fontWeight: 600, color: C.dark, display: 'block' }}>
           {label}
@@ -1778,6 +1772,7 @@ function OnboardingPageInner() {
   const suivantBtnRef    = useRef<HTMLButtonElement>(null)
   const [needleKey,  setNeedleKey]  = useState(0)
   const [tappedId,   setTappedId]   = useState<string | null>(null)
+  const [swellingBlock, setSwellingBlock] = useState<string | null>(null)
 
   useEffect(() => {
     async function resumeIfNeeded() {
@@ -1853,6 +1848,11 @@ function OnboardingPageInner() {
     const bi = BLOCKS.findIndex(b => b.steps.includes(step))
     if (prevBlockRef.current !== -1 && bi !== prevBlockRef.current) {
       setNeedleKey(k => k + 1)
+      const justDone = BLOCKS[prevBlockRef.current]
+      if (justDone) {
+        setSwellingBlock(justDone.label)
+        setTimeout(() => setSwellingBlock(null), 1500)
+      }
     }
     prevBlockRef.current = bi
   }, [step])
@@ -2019,7 +2019,7 @@ function OnboardingPageInner() {
                     fontSize: 14, fontWeight: data.domaine === d ? 600 : 400,
                     cursor: 'pointer',
                   }}>
-                  {d}
+                  <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{d}
                 </button>
               ))}
             </div>
@@ -2082,6 +2082,7 @@ function OnboardingPageInner() {
               Vos passions <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>jusqu'à 5</small>
             </p>
             <ChampSuggestions
+              avecMotion
               valeurs={data.passions}
               onChange={v => set('passions', v)}
               suggestions={PASSIONS_SUGGESTIONS}
@@ -2132,7 +2133,7 @@ function OnboardingPageInner() {
                       fontSize: 14, fontWeight: selected ? 600 : 400,
                       cursor: 'pointer',
                     }}>
-                    {t.label}
+                    <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{t.label}
                   </button>
                 )
               })}
@@ -2155,7 +2156,7 @@ function OnboardingPageInner() {
                       fontSize: 14, fontWeight: selected ? 600 : 400,
                       cursor: 'pointer',
                     }}>
-                    {l.label}
+                    <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{l.label}
                   </button>
                 )
               })}
@@ -2196,7 +2197,7 @@ function OnboardingPageInner() {
                       color: sel ? C.orangeTexte : C.dark,
                       fontSize: 14, fontWeight: sel ? 600 : 400, cursor: 'pointer',
                     }}>
-                    {p.label}
+                    <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{p.label}
                   </button>
                 )
               })}
@@ -2208,7 +2209,7 @@ function OnboardingPageInner() {
                   color: data.permis.includes('aucun') ? C.orangeTexte : C.dark,
                   fontSize: 14, fontWeight: data.permis.includes('aucun') ? 600 : 400, cursor: 'pointer',
                 }}>
-                Aucun permis
+                <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>Aucun permis
               </button>
             </div>
             <button
@@ -2274,7 +2275,7 @@ function OnboardingPageInner() {
                       cursor: disabled ? 'default' : 'pointer',
                       opacity: disabled ? 0.4 : 1,
                     }}>
-                    {p}
+                    <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{p}
                   </button>
                 )
               })}
@@ -2473,7 +2474,7 @@ function OnboardingPageInner() {
                     aria-pressed={selected}
                     className={`kv-bloc${selected ? ' kv-sel' : ''}${tappedId === 'lang-' + nom ? ' kv-tap' : ''}`}
                     style={{ padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit', color: selected ? C.orangeTexte : C.dark, fontSize: 14, fontWeight: selected ? 600 : 400, cursor: 'pointer' }}>
-                    {nom}
+                    <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{nom}
                   </button>
                 )
               })}
@@ -2651,6 +2652,19 @@ function OnboardingPageInner() {
         .kv-qual-badge { animation:kv-tag-nait .25s cubic-bezier(.2,.9,.3,1) both; }
         .kv-qual-badge:nth-child(2) { animation-delay:.1s; }
         .kv-qual-badge:nth-child(3) { animation-delay:.2s; }
+        @keyframes kv-gonfle { 0%,100%{transform:scaleY(1)} 40%{transform:scaleY(2.2)} }
+        .kv-prog-track-swell { animation:kv-gonfle .5s ease-out .55s both; }
+        .kv-coche-done { stroke-dasharray:1; stroke-dashoffset:0; }
+        .kv-coche-delayed { stroke-dasharray:1; stroke-dashoffset:1; animation:kv-coche-trace .4s .7s ease-out forwards; }
+        .kv-bloc .kv-coche { display:none; color:inherit; vertical-align:-2px; margin-right:4px; }
+        .kv-bloc[aria-pressed="true"] .kv-coche { display:inline; }
+        .kv-bloc.kv-tap[aria-pressed="true"] .kv-coche path { stroke-dasharray:1; stroke-dashoffset:1; animation:kv-coche-trace .3s .05s ease-out both; }
+        .kv-rond::after { content:''; display:block; position:absolute; inset:3px; border-radius:50%; background:#C2611F; transform:scale(0); transition:transform .2s ease; }
+        .kv-sel .kv-rond::after { transform:scale(1); }
+        .kv-tap.kv-sel .kv-rond::after { animation:kv-dot-pop .22s .05s ease-out forwards; }
+        @keyframes kv-dot-pop { from{transform:scale(0)} to{transform:scale(1)} }
+        .kv-selon-vous { animation:kv-cascade-nait .3s ease-out .35s both; }
+        .kv-proche-card { animation:kv-cascade-nait .3s ease-out .5s both; }
         @media (hover:none) { .kv-bloc:hover,.kv-ajouter:hover,.kv-fiche:hover,.kv-btn-p:hover { transform:none !important; box-shadow:inherit !important; } }
         @media (prefers-reduced-motion:reduce) {
           .kv-slide-fwd,.kv-slide-back,.kv-tap,.kv-num-monte,.kv-tag-nait,.kv-logo-osc { animation:none !important; opacity:1 !important; transform:none !important; }
@@ -2658,6 +2672,10 @@ function OnboardingPageInner() {
           .kv-coche-path { animation:none !important; stroke-dashoffset:0 !important; }
           .kv-autre-sugg,.kv-invit-lien,.kv-qual-badge { animation:none !important; opacity:1 !important; transform:none !important; }
           .kv-fiche:hover,.kv-btn-p:hover { transform:none !important; }
+          .kv-prog-track-swell,.kv-coche-delayed,.kv-selon-vous,.kv-proche-card { animation:none !important; transform:none !important; opacity:1 !important; }
+          .kv-coche-delayed { stroke-dashoffset:0 !important; }
+          .kv-rond::after { transition:none !important; animation:none !important; }
+          .kv-bloc .kv-coche path { stroke-dashoffset:0 !important; animation:none !important; }
         }
       `}</style>
 
@@ -2705,7 +2723,7 @@ function OnboardingPageInner() {
           }
           return (
             <div key={b.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
-              <div style={{ height: 4, borderRadius: 2, backgroundColor: C.sable, position: 'relative' }}>
+              <div style={{ height: 4, borderRadius: 2, backgroundColor: C.sable, position: 'relative' }} className={swellingBlock === b.label ? 'kv-prog-track-swell' : undefined}>
                 <div
                   className={`kv-prog-fill${isCurrent ? ' cur' : ''}`}
                   style={{ height: '100%', borderRadius: 2, backgroundColor: C.orange, width: `${fillPct}%`, transition: 'width 0.7s cubic-bezier(.3,.9,.3,1)' }}
@@ -2719,11 +2737,12 @@ function OnboardingPageInner() {
                 fontWeight: isCurrent ? 600 : 400,
                 display: 'flex', alignItems: 'center', gap: 5,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                transition: 'color 0.3s',
+                fontVariationSettings: isCurrent ? "'wght' 600" : "'wght' 400",
+                transition: 'color 0.3s, font-variation-settings 0.3s',
               }}>
                 {isDone && (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-                    <path d="M2 6l3 3 5-5" stroke={C.succes} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" pathLength="1" className="kv-coche-path"/>
+                    <path d="M2 6l3 3 5-5" stroke={C.succes} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" pathLength="1" className={swellingBlock === b.label ? 'kv-coche-delayed' : 'kv-coche-done'}/>
                   </svg>
                 )}
                 {b.label}

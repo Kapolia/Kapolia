@@ -19,6 +19,7 @@ type Props = {
   fullMessage?: string
   dropdownInFlow?: boolean
   griseesExternes?: { valeurs: string[]; label: string }
+  avecMotion?: boolean
 }
 
 function highlight(s: string, input: string): React.ReactNode {
@@ -33,11 +34,12 @@ function highlight(s: string, input: string): React.ReactNode {
   )
 }
 
-export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow, griseesExternes }: Props) {
+export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow, griseesExternes, avecMotion }: Props) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(-1)
   const [removing, setRemoving] = useState<Set<string>>(new Set())
+  const [justAdded, setJustAdded] = useState<string | null>(null)
   const inputRef   = useRef<HTMLInputElement>(null)
   const chipRefs   = useRef<Record<string, HTMLElement | null>>({})
   const lastAdded  = useRef<string | null>(null)
@@ -77,7 +79,8 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
 
   function select(val: string) {
     if (valeurs.includes(val) || full) return
-    lastAdded.current = val
+    lastAdded.current = avecMotion ? null : val  // skip bounce when avecMotion
+    if (avecMotion) { setJustAdded(val); setTimeout(() => setJustAdded(null), 300) }
     onChange([...valeurs, val])
     setInput(''); setOpen(false); setIndex(-1)
     inputRef.current?.focus()
@@ -121,9 +124,14 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
       <style suppressHydrationWarning>{`
         @keyframes champ-shrink { to { transform: scale(0.9); opacity: 0; } }
         @keyframes champ-drop-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+        @keyframes champ-nait { from{opacity:0;transform:scale(.7)} to{opacity:1;transform:scale(1)} }
+        .champ-chip-nait { animation: champ-nait 220ms cubic-bezier(.2,.9,.3,1) both; }
         @media (prefers-reduced-motion: no-preference) {
           .champ-chip-removing { animation: champ-shrink 220ms ease forwards; pointer-events: none; }
           .champ-dropdown { animation: champ-drop-in 180ms ease both; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .champ-chip-nait { animation: none !important; opacity: 1 !important; transform: none !important; }
         }
       `}</style>
 
@@ -133,7 +141,7 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
           {valeurs.map(v => (
             <span key={v}
               ref={el => { chipRefs.current[v] = el }}
-              className={removing.has(v) ? 'champ-chip-removing' : undefined}
+              className={[avecMotion && v === justAdded ? 'champ-chip-nait' : '', removing.has(v) ? 'champ-chip-removing' : ''].filter(Boolean).join(' ') || undefined}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', backgroundColor: C.chip, borderRadius: 8, fontSize: 13.5, fontWeight: 500, color: C.dark }}>
               {icone?.(v)}
               {v}
