@@ -501,7 +501,7 @@ function QualitesCarousel({
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {resultats.map(r => (
-                <span key={r.qualite} style={{
+                <span key={r.qualite} className="kv-qual-badge" style={{
                   padding: '5px 14px', borderRadius: 100,
                   backgroundColor: `${C.vert}18`, color: C.vert,
                   fontSize: 13.5, fontWeight: 600, border: `1px solid ${C.vert}30`,
@@ -592,7 +592,7 @@ function QualitesCarousel({
                 Envoyez un lien à un collègue, un ami ou un proche. Il choisit en une minute les qualités qu'il vous reconnaît.
               </p>
               {invitLien ? (
-                <div>
+                <div className="kv-invit-lien">
                   <div className="kv-proche-lien" style={{ marginBottom: 8 }}>
                     <span style={{ fontSize: 13, color: C.dark, wordBreak: 'break-all', flex: 1 }}>
                       {invitLien}
@@ -759,6 +759,7 @@ function QualitesCarousel({
         <button
           onClick={handleAdvance}
           disabled={!canAdvance}
+          className="kv-btn-p"
           style={{
             padding: '12px 24px', borderRadius: 100, border: 'none',
             backgroundColor: canAdvance ? C.orange : C.sable,
@@ -785,6 +786,8 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
   const [saving,  setSaving]      = useState(false)
   const [saveError, setFinalSaveError] = useState(false)
   const pendingChoiceRef          = useRef<boolean | null>(null)
+  const chosenOnceRef             = useRef(false)
+  const profBtnRef                = useRef<HTMLButtonElement>(null)
 
   async function handleChoice(value: boolean) {
     if (saving) return
@@ -799,6 +802,15 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
     setSaving(false)
     if (error) { console.error(error); setFinalSaveError(true); return }
     setChosen(value)
+    if (!chosenOnceRef.current && profBtnRef.current && typeof window !== 'undefined') {
+      chosenOnceRef.current = true
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        profBtnRef.current.animate(
+          [{ boxShadow: '0 0 0 0 rgba(194,97,31,.5)' }, { boxShadow: '0 0 0 16px rgba(194,97,31,0)' }],
+          { duration: 500, easing: 'ease-out' },
+        )
+      }
+    }
   }
 
   const PTS: [number, number][] = [
@@ -967,8 +979,10 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
 
         <div>
           <button
+            ref={profBtnRef}
             onClick={onGoToProfile}
             disabled={chosen === null}
+            className="kv-btn-p"
             style={{ backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'14px 32px', fontSize:15, fontWeight:600, cursor:chosen !== null ? 'pointer' : 'default', fontFamily:'inherit', opacity:chosen !== null ? 1 : 0.4, transition:'opacity .2s' }}
           >
             Voir mon profil
@@ -1082,15 +1096,15 @@ function QuestionLabel({ text, sub, optional }: { text: string; sub?: string; op
   )
 }
 
-function ChoiceCard({ label, desc, selected, onClick, disabled = false }: {
-  label: string; desc?: string; selected: boolean; onClick: () => void; disabled?: boolean
+function ChoiceCard({ label, desc, selected, onClick, disabled = false, tapped = false }: {
+  label: string; desc?: string; selected: boolean; onClick: () => void; disabled?: boolean; tapped?: boolean
 }) {
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
       aria-pressed={selected}
-      className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+      className={`kv-bloc${selected ? ' kv-sel' : ''}${tapped ? ' kv-tap' : ''}`}
       style={{
         width: '100%', textAlign: 'left', padding: '14px 18px',
         borderRadius: 14,
@@ -1566,7 +1580,7 @@ function CompRefTagInput({
       {tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           {tags.map(tag => (
-            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1.5px solid ${C.vert}30`, fontSize: 13, fontWeight: 500 }}>
+            <span key={tag} className="kv-tag-nait" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1.5px solid ${C.vert}30`, fontSize: 13, fontWeight: 500 }}>
               {tag}
               <button onClick={() => onRemove(tag)} style={{ background: 'none', border: 'none', color: C.grey, cursor: 'pointer', padding: 0, fontSize: 15, lineHeight: 1 }}>&#215;</button>
             </span>
@@ -1654,12 +1668,13 @@ function CompRefTagInput({
           </select>
           {otherDomain && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {(COMP_REF[otherDomain] ?? []).map(s => {
+              {(COMP_REF[otherDomain] ?? []).map((s, si) => {
                 const added = tags.includes(s)
                 return (
                   <button key={s} type="button"
                     onClick={() => { if (added) onRemove(s); else if (!full) onAdd(s) }}
-                    style={{ padding: '6px 13px', borderRadius: 20, fontSize: 13, border: `1.5px solid ${added ? C.vert : C.sable}`, backgroundColor: added ? `${C.vert}12` : C.white, color: added ? C.vert : (full && !added) ? '#C0C0C0' : C.dark, cursor: (full && !added) ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                    className="kv-autre-sugg"
+                    style={{ padding: '6px 13px', borderRadius: 20, fontSize: 13, border: `1.5px solid ${added ? C.vert : C.sable}`, backgroundColor: added ? `${C.vert}12` : C.white, color: added ? C.vert : (full && !added) ? '#C0C0C0' : C.dark, cursor: (full && !added) ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', animationDelay: `${(si * 0.04).toFixed(2)}s` }}>
                     {added ? `✓ ${s}` : s}
                   </button>
                 )
@@ -1757,6 +1772,12 @@ function OnboardingPageInner() {
   // Stocke la valeur DB (101–109), pas le numéro d'écran (1–9).
   const maxStepRef       = useRef(screenToStep(1))
   const savedOkTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const slideDirRef      = useRef<'fwd' | 'back'>('fwd')
+  const prevBlockRef     = useRef(-1)
+  const wasValidRef      = useRef(false)
+  const suivantBtnRef    = useRef<HTMLButtonElement>(null)
+  const [needleKey,  setNeedleKey]  = useState(0)
+  const [tappedId,   setTappedId]   = useState<string | null>(null)
 
   useEffect(() => {
     async function resumeIfNeeded() {
@@ -1828,10 +1849,36 @@ function OnboardingPageInner() {
     document.getElementById('titre-etape')?.focus()
   }, [step])
 
+  useEffect(() => {
+    const bi = BLOCKS.findIndex(b => b.steps.includes(step))
+    if (prevBlockRef.current !== -1 && bi !== prevBlockRef.current) {
+      setNeedleKey(k => k + 1)
+    }
+    prevBlockRef.current = bi
+  }, [step])
+
+  useEffect(() => {
+    const v = isValid()
+    if (v && !wasValidRef.current && suivantBtnRef.current && typeof window !== 'undefined') {
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        suivantBtnRef.current.animate(
+          [{ boxShadow: '0 0 0 0 rgba(194,97,31,.5)' }, { boxShadow: '0 0 0 16px rgba(194,97,31,0)' }],
+          { duration: 500, easing: 'ease-out' },
+        )
+      }
+    }
+    wasValidRef.current = v
+  })
+
   const blockIndex = BLOCKS.findIndex(b => b.steps.includes(step))
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setData(prev => ({ ...prev, [key]: value }))
+  }
+
+  function tap(id: string) {
+    setTappedId(id)
+    setTimeout(() => setTappedId(null), 320)
   }
 
   function isValid(): boolean {
@@ -1876,6 +1923,7 @@ function OnboardingPageInner() {
     if (step < TOTAL) {
       const nextScreen = step + 1
       maxStepRef.current = Math.max(maxStepRef.current, screenToStep(nextScreen))
+      slideDirRef.current = 'fwd'
       setSaving(true)
       setSaveError(false)
       const ok = await saveStep(step)
@@ -1927,6 +1975,7 @@ function OnboardingPageInner() {
   }
 
   function handleBack() {
+    slideDirRef.current = 'back'
     if (step > 1) setStep(s => s - 1)
     // Pas de save : le retour arrière ne modifie pas la progression en base
   }
@@ -1961,9 +2010,9 @@ function OnboardingPageInner() {
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Domaine</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {DOMAINES.map(d => (
-                <button key={d} onClick={() => set('domaine', d)}
+                <button key={d} onClick={() => { tap('dom-' + d); set('domaine', d) }}
                   aria-pressed={data.domaine === d}
-                  className={`kv-bloc${data.domaine === d ? ' kv-sel' : ''}`}
+                  className={`kv-bloc${data.domaine === d ? ' kv-sel' : ''}${tappedId === 'dom-' + d ? ' kv-tap' : ''}`}
                   style={{
                     padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                     color: data.domaine === d ? C.orangeTexte : C.dark,
@@ -1977,7 +2026,7 @@ function OnboardingPageInner() {
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Expérience dans ce domaine</p>
             {EXPERIENCES.map(e => (
               <ChoiceCard key={e.key} label={e.key} desc={e.desc}
-                selected={data.experience === e.key} onClick={() => set('experience', e.key)} />
+                selected={data.experience === e.key} tapped={tappedId === 'exp-' + e.key} onClick={() => { tap('exp-' + e.key); set('experience', e.key) }} />
             ))}
           </>
         )
@@ -2074,9 +2123,9 @@ function OnboardingPageInner() {
               {TYPES_POSTE.map(t => {
                 const selected = data.typePoste.includes(t.key)
                 return (
-                  <button key={t.key} onClick={() => toggleContrat(t.key)}
+                  <button key={t.key} onClick={() => { tap('cont-' + t.key); toggleContrat(t.key) }}
                     aria-pressed={selected}
-                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}${tappedId === 'cont-' + t.key ? ' kv-tap' : ''}`}
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
@@ -2097,9 +2146,9 @@ function OnboardingPageInner() {
               {LIEUX.map(l => {
                 const selected = data.lieu === l.key
                 return (
-                  <button key={l.key} onClick={() => set('lieu', l.key)}
+                  <button key={l.key} onClick={() => { tap('lieu-' + l.key); set('lieu', l.key) }}
                     aria-pressed={selected}
-                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}${tappedId === 'lieu-' + l.key ? ' kv-tap' : ''}`}
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
@@ -2139,9 +2188,9 @@ function OnboardingPageInner() {
               {permisVis.map(p => {
                 const sel = data.permis.includes(p.value)
                 return (
-                  <button key={p.value} onClick={() => togglePermis(p.value)}
+                  <button key={p.value} onClick={() => { tap('perm-' + p.value); togglePermis(p.value) }}
                     aria-pressed={sel}
-                    className={`kv-bloc${sel ? ' kv-sel' : ''}`}
+                    className={`kv-bloc${sel ? ' kv-sel' : ''}${tappedId === 'perm-' + p.value ? ' kv-tap' : ''}`}
                     style={{
                       padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
                       color: sel ? C.orangeTexte : C.dark,
@@ -2151,9 +2200,9 @@ function OnboardingPageInner() {
                   </button>
                 )
               })}
-              <button onClick={() => togglePermis('aucun')}
+              <button onClick={() => { tap('perm-aucun'); togglePermis('aucun') }}
                 aria-pressed={data.permis.includes('aucun')}
-                className={`kv-bloc${data.permis.includes('aucun') ? ' kv-sel' : ''}`}
+                className={`kv-bloc${data.permis.includes('aucun') ? ' kv-sel' : ''}${tappedId === 'perm-aucun' ? ' kv-tap' : ''}`}
                 style={{
                   padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
                   color: data.permis.includes('aucun') ? C.orangeTexte : C.dark,
@@ -2180,7 +2229,7 @@ function OnboardingPageInner() {
             </p>
             {DISPOS.map(d => (
               <ChoiceCard key={d.key} label={d.label} desc={d.desc}
-                selected={data.disponibilite === d.key} onClick={() => set('disponibilite', d.key)} />
+                selected={data.disponibilite === d.key} tapped={tappedId === 'dispo-' + d.key} onClick={() => { tap('dispo-' + d.key); set('disponibilite', d.key) }} />
             ))}
             {showDate && (
               <div style={{ marginTop: 8 }}>
@@ -2213,11 +2262,11 @@ function OnboardingPageInner() {
                 const disabled = !selected && maxReached
                 return (
                   <button key={p} onClick={() => {
-                    if (selected) set('priorite', data.priorite.filter(x => x !== p))
-                    else if (!maxReached) set('priorite', [...data.priorite, p])
+                    if (selected) { tap('prio-' + p); set('priorite', data.priorite.filter(x => x !== p)) }
+                    else if (!maxReached) { tap('prio-' + p); set('priorite', [...data.priorite, p]) }
                   }}
                     aria-pressed={selected}
-                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}${tappedId === 'prio-' + p ? ' kv-tap' : ''}`}
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
@@ -2420,9 +2469,9 @@ function OnboardingPageInner() {
               {[...LANGUES_COURANTES, ...extraLangues].map(nom => {
                 const selected = chosenNames.includes(nom)
                 return (
-                  <button key={nom} onClick={() => toggleLangue(nom)}
+                  <button key={nom} onClick={() => { tap('lang-' + nom); toggleLangue(nom) }}
                     aria-pressed={selected}
-                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}${tappedId === 'lang-' + nom ? ' kv-tap' : ''}`}
                     style={{ padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit', color: selected ? C.orangeTexte : C.dark, fontSize: 14, fontWeight: selected ? 600 : 400, cursor: 'pointer' }}>
                     {nom}
                   </button>
@@ -2440,11 +2489,12 @@ function OnboardingPageInner() {
                   const nom  = sep >= 0 ? entry.slice(0, sep) : entry
                   const niv  = getNiveau(entry)
                   return (
-                    <div key={nom} className="kv-bloc kv-langue-row" style={{ backgroundColor: C.white, borderRadius: 12, padding: '10px 14px' }}>
+                    <div key={nom} className="kv-bloc kv-langue-row kv-tag-nait" style={{ backgroundColor: C.white, borderRadius: 12, padding: '10px 14px' }}>
                       <span style={{ fontSize: 14, fontWeight: 500, color: C.dark, flex: 1 }}>{nom}</span>
                       <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                         {NIVEAUX_LANGUE.map(n => (
-                          <button key={n} type="button" onClick={() => setNiveau(nom, n)}
+                          <button key={n} type="button" onClick={() => { tap('niv-' + nom + n); setNiveau(nom, n) }}
+                            className={tappedId === 'niv-' + nom + n ? 'kv-tap' : ''}
                             style={{
                               padding: '4px 9px', borderRadius: 7, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer',
                               border: `1.5px solid ${n === niv ? C.terracotta : C.sable}`,
@@ -2570,6 +2620,45 @@ function OnboardingPageInner() {
           outline: none !important;
         }
         #titre-etape:focus { outline: none; }
+        /* ── Motion ── */
+        @keyframes kv-slide-fwd  { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:none} }
+        @keyframes kv-slide-back { from{opacity:0;transform:translateX(-28px)} to{opacity:1;transform:none} }
+        .kv-slide-fwd  { animation:kv-slide-fwd  150ms cubic-bezier(.2,.9,.3,1) }
+        .kv-slide-back { animation:kv-slide-back 150ms cubic-bezier(.2,.9,.3,1) }
+        @keyframes kv-num-monte { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+        .kv-num-monte { animation:kv-num-monte 0.2s ease-out }
+        @keyframes kv-tag-nait { from{opacity:0;transform:scale(.7)} to{opacity:1;transform:scale(1)} }
+        .kv-tag-nait { animation:kv-tag-nait 0.22s cubic-bezier(.2,.9,.3,1) both }
+        @keyframes kv-tap { 0%{transform:scale(1)} 35%{transform:scale(.94)} 65%{transform:scale(1.04)} 100%{transform:scale(1)} }
+        .kv-tap { animation:kv-tap 0.28s ease-out !important; }
+        @keyframes kv-osc-logo { 0%{transform:rotate(-55deg)} 45%{transform:rotate(16deg)} 70%{transform:rotate(-6deg)} 88%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
+        .kv-logo-osc { animation:kv-osc-logo 1150ms cubic-bezier(.35,0,.25,1) both; }
+        @keyframes kv-reflet { from{background-position:-100% center} to{background-position:300% center} }
+        @keyframes kv-pointe-puls { 0%,100%{opacity:.5;transform:scale(.7)} 50%{opacity:1;transform:scale(1.15)} }
+        .kv-prog-fill { position:relative; }
+        .kv-prog-fill.cur { overflow:hidden; }
+        .kv-prog-fill.cur::before { content:""; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.45) 50%,transparent); background-size:200% 100%; animation:kv-reflet 2.4s ease-in-out .3s infinite; }
+        .kv-prog-dot { width:6px; height:6px; border-radius:50%; background:${C.orange}; animation:kv-pointe-puls 1.4s ease-in-out infinite; position:absolute; top:-1px; }
+        .kv-coche-path { stroke-dasharray:1; animation:kv-coche-trace .3s ease-out both; }
+        @keyframes kv-coche-trace { from{stroke-dashoffset:1} to{stroke-dashoffset:0} }
+        .kv-fiche { transition:box-shadow .2s,transform .15s; }
+        .kv-fiche:hover { box-shadow:0 2px 4px rgba(27,48,38,.07),0 10px 24px rgba(27,48,38,.12) !important; transform:translateY(-1px) !important; }
+        .kv-btn-p { transition:box-shadow .2s,transform .15s; }
+        .kv-btn-p:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 12px rgba(194,97,31,.2); }
+        @keyframes kv-cascade-nait { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+        .kv-autre-sugg { animation:kv-cascade-nait .22s ease-out both; }
+        .kv-invit-lien { animation:kv-cascade-nait .3s ease-out both; }
+        .kv-qual-badge { animation:kv-tag-nait .25s cubic-bezier(.2,.9,.3,1) both; }
+        .kv-qual-badge:nth-child(2) { animation-delay:.1s; }
+        .kv-qual-badge:nth-child(3) { animation-delay:.2s; }
+        @media (hover:none) { .kv-bloc:hover,.kv-ajouter:hover,.kv-fiche:hover,.kv-btn-p:hover { transform:none !important; box-shadow:inherit !important; } }
+        @media (prefers-reduced-motion:reduce) {
+          .kv-slide-fwd,.kv-slide-back,.kv-tap,.kv-num-monte,.kv-tag-nait,.kv-logo-osc { animation:none !important; opacity:1 !important; transform:none !important; }
+          .kv-prog-fill.cur::before,.kv-prog-dot { animation:none !important; display:none !important; }
+          .kv-coche-path { animation:none !important; stroke-dashoffset:0 !important; }
+          .kv-autre-sugg,.kv-invit-lien,.kv-qual-badge { animation:none !important; opacity:1 !important; transform:none !important; }
+          .kv-fiche:hover,.kv-btn-p:hover { transform:none !important; }
+        }
       `}</style>
 
       {/* En-tête */}
@@ -2580,7 +2669,7 @@ function OnboardingPageInner() {
         backgroundColor: C.bg,
       }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
+          <LogoKapolia key={needleKey} variante="sombre" taille={24} avecTexte={false} needleClassName="kv-logo-osc" />
           <span style={{ fontFamily: FONT_LOGO, fontWeight: 600, fontSize: 20, color: C.vert, lineHeight: 1 }}>
             Kapolia
           </span>
@@ -2596,7 +2685,7 @@ function OnboardingPageInner() {
             Enregistré
           </span>
           <span style={{ fontSize: 13.5, color: C.grey, fontVariantNumeric: 'tabular-nums' }}>
-            Étape <strong style={{ color: C.dark }}>{step}</strong> sur {TOTAL}
+            Étape <strong key={step} className="kv-num-monte" style={{ color: C.dark }}>{step}</strong> sur {TOTAL}
           </span>
         </div>
       </header>
@@ -2616,11 +2705,14 @@ function OnboardingPageInner() {
           }
           return (
             <div key={b.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
-              <div style={{ height: 4, borderRadius: 2, backgroundColor: C.sable }}>
-                <div style={{
-                  height: '100%', borderRadius: 2, backgroundColor: C.orange,
-                  width: `${fillPct}%`, transition: 'width 0.7s cubic-bezier(.3,.9,.3,1)',
-                }} />
+              <div style={{ height: 4, borderRadius: 2, backgroundColor: C.sable, position: 'relative' }}>
+                <div
+                  className={`kv-prog-fill${isCurrent ? ' cur' : ''}`}
+                  style={{ height: '100%', borderRadius: 2, backgroundColor: C.orange, width: `${fillPct}%`, transition: 'width 0.7s cubic-bezier(.3,.9,.3,1)' }}
+                />
+                {isCurrent && fillPct > 0 && (
+                  <div className="kv-prog-dot" style={{ left: `calc(${fillPct}% - 3px)`, transition: 'left 0.7s cubic-bezier(.3,.9,.3,1)' }} />
+                )}
               </div>
               <span style={{
                 fontSize: 12.5, color: isCurrent ? C.dark : C.grey,
@@ -2631,7 +2723,7 @@ function OnboardingPageInner() {
               }}>
                 {isDone && (
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-                    <path d="M2 6l3 3 5-5" stroke={C.succes} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 6l3 3 5-5" stroke={C.succes} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" pathLength="1" className="kv-coche-path"/>
                   </svg>
                 )}
                 {b.label}
@@ -2646,7 +2738,7 @@ function OnboardingPageInner() {
         flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         padding: '24px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
       }}>
-        <div style={{ width: '100%', maxWidth: 600 }}>
+        <div key={step} className={`kv-slide-${slideDirRef.current}`} style={{ width: '100%', maxWidth: 600 }}>
           {saveError && (
             <div role="alert" style={{
               backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
@@ -2706,7 +2798,7 @@ function OnboardingPageInner() {
                 Passer
               </button>
             )}
-            <button onClick={handleNext} disabled={!isValid() || saving} style={{
+            <button ref={suivantBtnRef} onClick={handleNext} disabled={!isValid() || saving} className="kv-btn-p" style={{
               backgroundColor: isValid() && !saving ? C.terracotta : C.sable,
               color: isValid() && !saving ? 'white' : C.grey,
               border: 'none', borderRadius: '12px',
