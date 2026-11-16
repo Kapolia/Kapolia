@@ -25,11 +25,14 @@ import {
   CURRENT_VERSION,
   QUALITE_LABELS,
   calculerQualites,
+  qualitesPrincipales,
+  troisPremieres,
 } from '@/lib/test-qualites'
 import type { TestAnswer } from '@/lib/test-qualites'
 import { LANGUES } from '@/lib/langues'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import ChampSuggestions from '@/components/profil/ChampSuggestions'
+import { GeoVilleInput } from '@/components/GeoVilleInput'
 import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
@@ -70,12 +73,6 @@ const BLOCKS = [
 
 const OPTIONAL_STEPS = new Set([4, 6, 7, 8])
 
-const TRANSITIONS: Record<number, string> = {
-  3: 'Voyons à présent ce qui vous définit, au-delà de votre parcours.',
-  4: 'Parlons de ce qui vous anime et de ce que vous avez construit.',
-  7: "Presque terminé. Il ne reste qu'à détailler votre parcours professionnel.",
-  9: 'Votre profil prend forme. Ajoutons ce que vous savez faire.',
-}
 
 const MICRO_TEXTS: Record<number, string> = {
   1: "C'est ainsi que les recruteurs verront votre nom sur votre profil.",
@@ -321,6 +318,8 @@ function QualitesCarousel({
   function handleSelect(reponseId: 1|2|3|4) {
     const sitId = SITUATIONS[CURRENT_VERSION][idx].id
     const current = selections[sitId] ?? []
+    setFlashId(reponseId)
+    setTimeout(() => setFlashId(null), 300)
     if (current.includes(reponseId)) {
       setSelections(prev => ({ ...prev, [sitId]: current.filter(r => r !== reponseId) }))
       return
@@ -330,9 +329,6 @@ function QualitesCarousel({
       return
     }
     // LIFO : un 3e clic remplace la 2e sélection
-    const replaced = current[1]
-    setFlashId(replaced)
-    setTimeout(() => setFlashId(null), 300)
     setSelections(prev => ({ ...prev, [sitId]: [current[0], reponseId] }))
   }
 
@@ -368,10 +364,13 @@ function QualitesCarousel({
           return { situation_id: s.id, reponse_1: saved[0], reponse_2: saved[1], version_test: CURRENT_VERSION } as TestAnswer
         })
         .filter((a): a is TestAnswer => a !== null)
-      const resultats    = calculerQualites(allAnswers)
-      const qualitesTest = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
+      const resultats        = calculerQualites(allAnswers)
+      const qualitesTest     = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
+      const top3             = qualitesPrincipales(allAnswers)
+      const finales          = troisPremieres(qualitesDecl, top3)
       const { error: profilErr } = await supabase.from('profils').update({
-        qualites_test: qualitesTest,
+        qualites_test:       qualitesTest,
+        qualites_principales: finales.length ? finales : null,
         ...(writeDate ? { test_qualites_fait_le: new Date().toISOString() } : {}),
       }).eq('user_id', userId)
       if (profilErr) {
@@ -397,7 +396,19 @@ function QualitesCarousel({
     setQualitesDecl(vals)
     setDeclSaveError(false)
     setDeclSaved(false)
-    const { error } = await supabase.from('profils').update({ qualites: vals }).eq('user_id', userId)
+    const currentAnswers = SITUATIONS[CURRENT_VERSION]
+      .map(s => {
+        const r = selections[s.id]
+        if (!r || r.length < 2) return null
+        return { situation_id: s.id, reponse_1: r[0], reponse_2: r[1], version_test: CURRENT_VERSION } as TestAnswer
+      })
+      .filter((a): a is TestAnswer => a !== null)
+    const top3    = qualitesPrincipales(currentAnswers)
+    const finales = troisPremieres(vals, top3)
+    const { error } = await supabase.from('profils').update({
+      qualites: vals,
+      qualites_principales: finales.length ? finales : null,
+    }).eq('user_id', userId)
     if (error) {
       console.error('[profils.qualites] update error:', error)
       setDeclSaveError(true)
@@ -483,7 +494,7 @@ function QualitesCarousel({
       })
       .filter((a): a is TestAnswer => a !== null)
     const resultats         = calculerQualites(answers)
-    const testQualiteLabels = resultats.map(r => QUALITE_LABELS[r.qualite] ?? r.qualite)
+    const testQualiteLabels = resultats.slice(0, 3).map(r => QUALITE_LABELS[r.qualite] ?? r.qualite)
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -503,11 +514,11 @@ function QualitesCarousel({
             </p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-              {resultats.map(r => (
+              {resultats.slice(0, 3).map(r => (
                 <span key={r.qualite} className="kv-qual-badge" style={{
                   padding: '5px 14px', borderRadius: 100,
-                  backgroundColor: `${C.vert}18`, color: C.vert,
-                  fontSize: 13.5, fontWeight: 600, border: `1px solid ${C.vert}30`,
+                  backgroundColor: C.salaire, color: C.vert,
+                  fontSize: 13.5, fontWeight: 600,
                 }}>
                   {QUALITE_LABELS[r.qualite] ?? r.qualite}
                 </span>
@@ -539,6 +550,7 @@ function QualitesCarousel({
           </p>
           <ChampSuggestions
             avecMotion
+            modeOnboarding
             valeurs={qualitesDecl}
             onChange={handleQualitesDeclChange}
             suggestions={SUGGESTIONS_QUALITES}
@@ -578,7 +590,11 @@ function QualitesCarousel({
         {/* Et selon vos proches ? */}
         <div className="kv-proche-card" style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: '20px', boxShadow: CARD_SHADOW }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ color: C.vert, flexShrink: 0, marginTop: 2 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+              backgroundColor: C.orangeDoux, color: C.orangeTexte,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="9" cy="8" r="3.5"/>
                 <path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>
@@ -669,20 +685,21 @@ function QualitesCarousel({
       `}</style>
 
       {/* Pastilles de progression */}
-      <div style={{ display: 'flex', gap: 5, marginBottom: 16, alignItems: 'center' }}>
+      <svg width={situations.length * 14} height={14} style={{ marginBottom: 16, display: 'block' }} aria-hidden="true">
         {situations.map((s, i) => {
           const done    = (selections[s.id] ?? []).length === 2
           const current = i === idx
           return (
-            <div key={s.id} style={{
-              width: current ? 10 : 8, height: current ? 10 : 8,
-              borderRadius: '50%', flexShrink: 0,
-              backgroundColor: done || current ? C.terracotta : C.sable,
-              transition: 'all 0.2s',
-            }} />
+            <circle
+              key={s.id}
+              cx={i * 14 + 7}
+              cy={7}
+              r={current ? 5 : 4}
+              fill={done || current ? C.terracotta : C.sable}
+            />
           )
         })}
-      </div>
+      </svg>
 
       {/* Compteur */}
       <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px' }}>
@@ -1510,10 +1527,10 @@ function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, coun
 // ─── Saisie des compétences avec suggestions par domaine ──────────────────────
 
 function CompRefTagInput({
-  domain, tags, onAdd, onRemove, maxTags = 15,
+  domain, tags, onAdd, onRemove, maxTags = 15, modeOnboarding = false,
 }: {
   domain: string; tags: string[]
-  onAdd: (t: string) => void; onRemove: (t: string) => void; maxTags?: number
+  onAdd: (t: string) => void; onRemove: (t: string) => void; maxTags?: number; modeOnboarding?: boolean
 }) {
   const [input,       setInput]       = useState('')
   const [open,        setOpen]        = useState(false)
@@ -1579,10 +1596,21 @@ function CompRefTagInput({
       {tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           {tags.map(tag => (
-            <span key={tag} className="kv-tag-nait" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1.5px solid ${C.vert}30`, fontSize: 13, fontWeight: 500 }}>
-              {tag}
-              <button onClick={() => onRemove(tag)} style={{ background: 'none', border: 'none', color: C.grey, cursor: 'pointer', padding: 0, fontSize: 15, lineHeight: 1 }}>&#215;</button>
-            </span>
+            modeOnboarding ? (
+              <button key={tag} type="button" className="kv-tag-nait"
+                onClick={() => onRemove(tag)} aria-label={`Retirer ${tag}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 100, backgroundColor: '#FBEDE3', color: C.orangeTexte, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500 }}>
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none" aria-hidden="true">
+                  <path d="M1 4.5l3 3 6-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {tag}
+              </button>
+            ) : (
+              <span key={tag} className="kv-tag-nait" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1.5px solid ${C.vert}30`, fontSize: 13, fontWeight: 500 }}>
+                {tag}
+                <button onClick={() => onRemove(tag)} style={{ background: 'none', border: 'none', color: C.grey, cursor: 'pointer', padding: 0, fontSize: 15, lineHeight: 1 }}>&#215;</button>
+              </span>
+            )
           ))}
         </div>
       )}
@@ -2090,6 +2118,7 @@ function OnboardingPageInner() {
             </p>
             <ChampSuggestions
               avecMotion
+              modeOnboarding
               valeurs={data.passions}
               onChange={v => set('passions', v)}
               suggestions={PASSIONS_SUGGESTIONS}
@@ -2174,17 +2203,11 @@ function OnboardingPageInner() {
               <label style={{ ...ETIQ_S, display: 'block', marginBottom: 8 }}>
                 Ville ou zone de recherche
               </label>
-              <input
-                type="text"
+              <GeoVilleInput
                 value={data.ville}
-                onChange={e => set('ville', e.target.value)}
-                placeholder="Par exemple : Alençon, ou Normandie"
-                className="kv-field"
-                style={{
-                  width: '100%', boxSizing: 'border-box', padding: '13px 16px', fontSize: 15,
-                  borderRadius: 12, border: '1.5px solid transparent',
-                  backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit',
-                }}
+                onChange={v => set('ville', v)}
+                onCoordsChange={() => {}}
+                style={{ width: '100%', boxSizing: 'border-box' as const }}
               />
             </div>
 
@@ -2461,6 +2484,7 @@ function OnboardingPageInner() {
               Écrivez-les avec vos mots. Les suggestions sont là pour aller plus vite, pas pour vous limiter.
             </p>
             <CompRefTagInput
+              modeOnboarding
               domain={data.domaine}
               tags={data.competences_acquises}
               onAdd={tag => set('competences_acquises', [...data.competences_acquises, tag])}
@@ -2561,7 +2585,6 @@ function OnboardingPageInner() {
   if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push(readPostSignupNext() ?? '/profil')} userId={userId} emailConfirme={emailConfirme} prenom={data.prenom} />
 
   const isOpt      = OPTIONAL_STEPS.has(step)
-  const transition = TRANSITIONS[step]
 
   return (
     <main className="kv-onb-main" style={{ backgroundColor: C.bg, display: 'flex', flexDirection: 'column' }}>
@@ -2592,7 +2615,8 @@ function OnboardingPageInner() {
           background: #FBEDE3 !important;
           box-shadow: 0 1px 2px rgba(194,97,31,.10), 0 6px 16px rgba(194,97,31,.12) !important;
         }
-        .kv-bloc.kv-flash { background: rgba(194,97,31,.12) !important; }
+        @keyframes kv-reponse-pop { 0%{transform:scale(1)} 25%{transform:scale(.95)} 70%{transform:scale(1.03)} 100%{transform:scale(1)} }
+        .kv-bloc.kv-flash { animation: kv-reponse-pop 250ms ease-out both !important; }
         /* Bouton Ajouter */
         .kv-ajouter {
           border: 0 !important;
@@ -2678,7 +2702,7 @@ function OnboardingPageInner() {
         .kv-proche-card { animation:kv-cascade-nait .3s ease-out .5s both; }
         @media (hover:none) { .kv-bloc:hover,.kv-ajouter:hover,.kv-fiche:hover,.kv-btn-p:hover { transform:none !important; box-shadow:inherit !important; } }
         @media (prefers-reduced-motion:reduce) {
-          .kv-slide-fwd,.kv-slide-back,.kv-tap,.kv-num-monte,.kv-tag-nait,.kv-logo-osc { animation:none !important; opacity:1 !important; transform:none !important; }
+          .kv-slide-fwd,.kv-slide-back,.kv-tap,.kv-flash,.kv-num-monte,.kv-tag-nait,.kv-logo-osc { animation:none !important; opacity:1 !important; transform:none !important; }
           .kv-prog-fill.cur::before,.kv-prog-dot { animation:none !important; display:none !important; }
           .kv-coche-path { animation:none !important; stroke-dashoffset:0 !important; }
           .kv-autre-sugg,.kv-invit-lien,.kv-qual-badge { animation:none !important; opacity:1 !important; transform:none !important; }
@@ -2787,15 +2811,6 @@ function OnboardingPageInner() {
                 Réessayer
               </button>
             </div>
-          )}
-          {transition && (
-            <p style={{
-              fontSize: '14px', color: C.grey, fontStyle: 'italic',
-              marginBottom: '28px', lineHeight: '1.6',
-              paddingLeft: '14px', borderLeft: `2px solid ${C.sable}`,
-            }}>
-              {transition}
-            </p>
           )}
           {renderStep()}
         </div>

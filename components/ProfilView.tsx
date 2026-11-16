@@ -98,6 +98,7 @@ type Profil = {
   video_presentation_url?: string | null
   video_miroir?: boolean | null
   qualites_test?: Record<string, number> | null
+  qualites_principales?: string[] | null
   liens?: Lien[] | null
   metier?: string | null
   permis?: string[] | null
@@ -117,7 +118,7 @@ const COLONNES_PROPRIETAIRE = [
   'projet_titre', 'projet_impact', 'projet_resultat', 'projet_lien', 'projet_images', 'projet_video_url',
   'avatar_url', 'avatar_type', 'telephone', 'linkedin_url', 'portfolio_url',
   'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
-  'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
+  'video_presentation_url', 'video_miroir', 'qualites_test', 'qualites_principales', 'liens',
   'metier', 'permis',
   'email_notifications', 'messages_recruteurs', 'visible_candidatheque',
 ].join(', ')
@@ -131,7 +132,7 @@ const COLONNES_VISITEUR = [
   'projet_titre', 'projet_impact', 'projet_resultat', 'projet_lien', 'projet_images', 'projet_video_url',
   'avatar_url', 'avatar_type', 'linkedin_url', 'portfolio_url',
   'plus_grande_reussite', 'ce_que_je_veux_apprendre', 'derniere_maj_profil',
-  'video_presentation_url', 'video_miroir', 'qualites_test', 'liens',
+  'video_presentation_url', 'video_miroir', 'qualites_test', 'qualites_principales', 'liens',
   'metier', 'permis',
 ].join(', ')
 
@@ -1949,7 +1950,9 @@ export default function ProfilView({
 
           {/* ── QUALITÉS ── */}
           {(effectiveOwner || qualites.length > 0 || qualitesProchesSel.length > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (() => {
-            const testLabels = Object.entries(p.qualites_test ?? {}).sort((a, b) => b[1] - a[1]).map(([k]) => QUALITE_LABELS[k] ?? k)
+            const testLabels = (p.qualites_principales as string[] | null | undefined)?.length
+              ? (p.qualites_principales as string[])
+              : Object.entries(p.qualites_test ?? {}).sort((a, b) => b[1] - a[1]).map(([k]) => QUALITE_LABELS[k] ?? k).slice(0, 3)
             const procheLabels = qualitesProchesSel.map(s => s.qualite)
             const candidatLabels = qualites
             const nt = new Set(testLabels.map(normalizeText))

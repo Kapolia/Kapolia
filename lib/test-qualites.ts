@@ -174,3 +174,19 @@ export function calculerQualites(answers: TestAnswer[]): QualiteTest[] {
     .sort((a, b) => b[1] - a[1])
     .map(([qualite, count]) => ({ qualite, count }))
 }
+
+// Top 3 qualités issues du test uniquement.
+export function qualitesPrincipales(answers: TestAnswer[]): QualiteTest[] {
+  return calculerQualites(answers).slice(0, 3)
+}
+
+// 3 qualités finales pour le profil : les déclarées en priorité, complétées par le test.
+export function troisPremieres(declarees: string[], testResultats: QualiteTest[]): string[] {
+  const result = [...declarees]
+  for (const t of testResultats) {
+    if (result.length >= 3) break
+    const label = QUALITE_LABELS[t.qualite] ?? t.qualite
+    if (!result.includes(label)) result.push(label)
+  }
+  return result.slice(0, 3)
+}

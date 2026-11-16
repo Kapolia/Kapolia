@@ -20,6 +20,12 @@ type Props = {
   dropdownInFlow?: boolean
   griseesExternes?: { valeurs: string[]; label: string }
   avecMotion?: boolean
+  modeOnboarding?: boolean
+}
+
+function capitalizeFirst(s: string): string {
+  if (!s) return s
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 function highlight(s: string, input: string): React.ReactNode {
@@ -34,7 +40,7 @@ function highlight(s: string, input: string): React.ReactNode {
   )
 }
 
-export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow, griseesExternes, avecMotion }: Props) {
+export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow, griseesExternes, avecMotion, modeOnboarding }: Props) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(-1)
@@ -77,11 +83,12 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
     )
   }, [valeurs])
 
-  function select(val: string) {
-    if (valeurs.includes(val) || full) return
-    lastAdded.current = avecMotion ? null : val  // skip bounce when avecMotion
-    if (avecMotion) { setJustAdded(val); setTimeout(() => setJustAdded(null), 300) }
-    onChange([...valeurs, val])
+  function select(val: string, fromLibre = false) {
+    const finalVal = fromLibre ? capitalizeFirst(val) : val
+    if (valeurs.includes(finalVal) || full) return
+    lastAdded.current = avecMotion ? null : finalVal  // skip bounce when avecMotion
+    if (avecMotion) { setJustAdded(finalVal); setTimeout(() => setJustAdded(null), 300) }
+    onChange([...valeurs, finalVal])
     setInput(''); setOpen(false); setIndex(-1)
     inputRef.current?.focus()
   }
@@ -112,9 +119,9 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
         const opt = matched[index]
         if (!valeurs.includes(opt)) select(opt)
       } else if (hasLibre && index === matched.length) {
-        select(input.trim())
+        select(input.trim(), true)
       } else if (index === -1 && libre && input.trim()) {
-        select(input.trim())
+        select(input.trim(), true)
       }
     }
   }
@@ -139,17 +146,36 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
       {valeurs.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
           {valeurs.map(v => (
-            <span key={v}
-              ref={el => { chipRefs.current[v] = el }}
-              className={[avecMotion && v === justAdded ? 'champ-chip-nait' : '', removing.has(v) ? 'champ-chip-removing' : ''].filter(Boolean).join(' ') || undefined}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', backgroundColor: C.chip, borderRadius: 8, fontSize: 13.5, fontWeight: 500, color: C.dark }}>
-              {icone?.(v)}
-              {v}
-              <button type="button" onClick={() => remove(v)} aria-label={`Retirer ${v}`}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, fontSize: 16, lineHeight: 1 }}>
-                ×
+            modeOnboarding ? (
+              <button key={v} type="button"
+                ref={el => { chipRefs.current[v] = el as HTMLElement | null }}
+                onClick={() => remove(v)}
+                aria-label={`Retirer ${v}`}
+                className={[avecMotion && v === justAdded ? 'champ-chip-nait' : '', removing.has(v) ? 'champ-chip-removing' : ''].filter(Boolean).join(' ') || undefined}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', backgroundColor: '#FBEDE3', borderRadius: 100,
+                  fontSize: 13.5, fontWeight: 500, color: C.orangeTexte,
+                  border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                }}>
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none" aria-hidden="true">
+                  <path d="M1 4.5l3 3 6-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {v}
               </button>
-            </span>
+            ) : (
+              <span key={v}
+                ref={el => { chipRefs.current[v] = el }}
+                className={[avecMotion && v === justAdded ? 'champ-chip-nait' : '', removing.has(v) ? 'champ-chip-removing' : ''].filter(Boolean).join(' ') || undefined}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', backgroundColor: C.chip, borderRadius: 8, fontSize: 13.5, fontWeight: 500, color: C.dark }}>
+                {icone?.(v)}
+                {v}
+                <button type="button" onClick={() => remove(v)} aria-label={`Retirer ${v}`}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.grey, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, fontSize: 16, lineHeight: 1 }}>
+                  ×
+                </button>
+              </span>
+            )
           ))}
         </div>
       )}
@@ -217,7 +243,7 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
                 <>
                   {matched.length > 0 && <div style={{ borderTop: `1px solid ${C.sable}` }} />}
                   <div
-                    onMouseDown={() => select(input.trim())}
+                    onMouseDown={() => select(input.trim(), true)}
                     onMouseEnter={() => setIndex(matched.length)}
                     style={{
                       padding: '8px 12px', fontSize: 13.5, cursor: 'pointer',
