@@ -124,228 +124,113 @@ function capitalizeFirst(v: string): string {
 // ─── Écran d'accueil ──────────────────────────────────────────────────────────
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
-  const [anim, setAnim] = useState<'idle' | 'hover' | 'spinning'>('idle')
-
-  function handleClick() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      onStart()
-      return
-    }
-    setAnim('spinning')
-    setTimeout(onStart, 420)
-  }
-
-  const needleCls = anim === 'spinning' ? 'kv-needle kv-needle--spin'
-                  : anim === 'hover'    ? 'kv-needle kv-needle--hover'
-                  :                       'kv-needle'
-
   return (
-    <div style={{
-      backgroundColor: C.bg,
-      height: '100vh',
-      padding: 14,
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 12,
-      boxSizing: 'border-box',
-    }}>
+    <div style={{ backgroundColor: C.bg, minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
       <style suppressHydrationWarning>{`
-        .kv-btn { transition: background-color 0.2s, transform 0.15s; }
-        .kv-btn:hover { background-color: #b05832 !important; transform: translateY(-1px); }
+        @keyframes kv-onde  { 0%{transform:scale(.2);opacity:0} 10%{opacity:1} 100%{transform:scale(1);opacity:0} }
+        @keyframes kv-osc   { 0%{transform:rotate(-55deg)} 45%{transform:rotate(16deg)} 70%{transform:rotate(-6deg)} 88%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
+        @keyframes kv-luit  { 0%,100%{opacity:.35} 50%{opacity:.8} }
+        @keyframes kv-halo  { 0%{transform:scale(1);opacity:.9} 100%{transform:scale(3.4);opacity:0} }
+        @keyframes kv-monte { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 
-        .kv-needle { transform-box: view-box; transform-origin: center; transition: transform 200ms ease; }
-        .kv-needle--hover { transform: rotate(8deg); }
-        .kv-needle--spin  { animation: kv-spin-needle 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-        @keyframes kv-spin-needle { from { transform: rotate(0deg); } to { transform: rotate(90deg); } }
+        .kv-onde  { fill:none; stroke:rgba(36,69,58,.35); stroke-width:1.2; transform-box:fill-box; transform-origin:center; animation:kv-onde 6s cubic-bezier(.2,.6,.3,1) infinite both }
+        .kv-pt-cl { fill:rgba(36,69,58,.45); animation:kv-luit 4.5s ease-in-out infinite }
+        .kv-halo  { fill:none; stroke:${C.orange}; stroke-width:1.5; transform-box:fill-box; transform-origin:center; animation:kv-halo 2.4s ease-out infinite }
+        .kv-osc   { transform-box:fill-box; transform-origin:50% 70%; animation:kv-osc 1150ms cubic-bezier(.35,0,.25,1) 100ms both }
+
+        .kv-etage > *              { animation:kv-monte .5s cubic-bezier(.2,.9,.3,1) both }
+        .kv-etage > *:nth-child(2) { animation-delay:.06s }
+        .kv-etage > *:nth-child(3) { animation-delay:.12s }
+        .kv-etage > *:nth-child(4) { animation-delay:.18s }
+        .kv-etage > *:nth-child(5) { animation-delay:.24s }
+
+        .kv-atouts li              { animation:kv-monte .45s cubic-bezier(.2,.9,.3,1) both }
+        .kv-atouts li:nth-child(2) { animation-delay:.08s }
+        .kv-atouts li:nth-child(3) { animation-delay:.16s }
+
+        .kv-visuel-bg { background:radial-gradient(closest-side at 60% 50%, #EAF0EC, rgba(234,240,236,0)) }
+
+        .kv-btn-acc { transition:background-color .2s,transform .15s }
+        .kv-btn-acc:hover { background-color:${C.orangeTexte} !important; transform:translateY(-1px) }
+
         @media (prefers-reduced-motion: reduce) {
-          .kv-needle { transition: none; }
-          .kv-needle--spin { animation: none; }
+          .kv-onde,.kv-pt-cl,.kv-halo,.kv-osc,.kv-etage > *,.kv-atouts li { animation:none !important }
         }
-
-        @media (max-width: 768px) {
-          .kv-grid  { grid-template-columns: 1fr !important; }
-          .kv-bloc-a { grid-row: 1 !important; grid-column: 1 !important; }
-          .kv-bloc-c { grid-row: 2 !important; grid-column: 1 !important; }
-          .kv-bloc-b { grid-row: 3 !important; grid-column: 1 !important; height: 140px !important; min-height: 140px !important; }
-          .kv-title  { font-size: 32px !important; }
+        @media (max-width: 640px) {
+          .kv-visuel-onde { display:none !important }
+          .kv-etage { padding:88px 24px 40px !important }
         }
       `}</style>
 
-      {/* ── Signature ────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 11, flexShrink: 0 }}>
+      {/* Logo top-left */}
+      <div style={{ position:'absolute', top:22, left:28, zIndex:2, display:'inline-flex', alignItems:'center', gap:10 }}>
         <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
-        <span style={{
-          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-          fontWeight: 600,
-          fontSize: 14,
-          color: C.vert,
-          lineHeight: 1,
-        }}>
-          Kapolia
-        </span>
+        <span style={{ fontFamily:FONT_LOGO, fontWeight:600, fontSize:20, color:C.vert, lineHeight:1 }}>Kapolia</span>
       </div>
 
-      {/* ── Grille 3 blocs ───────────────────────────────────────────────────── */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        minHeight: 0,
-      }}>
-      <div className="kv-grid" style={{
-        display: 'grid',
-        gridTemplateColumns: '1.6fr 1fr',
-        gridTemplateRows: '1fr auto',
-        gap: 12,
-        width: '100%',
-        height: '100%',
-        maxHeight: 620,
-      }}>
-
-        {/* ── Bloc A — colonne gauche, 2 rangées ─────────────────────────────── */}
-        <div className="kv-bloc-a" style={{
-          gridRow: '1 / 3',
-          gridColumn: 1,
-          backgroundColor: C.bg,
-          borderRadius: 16,
-          padding: 32,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-        }}>
-          <p style={{
-            fontFamily: FONT_SANS,
-            fontSize: 12,
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            color: C.orange,
-            margin: '0 0 16px',
-          }}>
-            Trouvez votre cap{' '}!
-          </p>
-          <h1 className="kv-title" style={{
-            fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-            fontWeight: 700,
-            fontSize: 48,
-            lineHeight: 1.06,
-            color: '#22312B',
-            margin: '0 0 24px',
-          }}>
-            Bienvenue<br />sur Kapolia
-          </h1>
-          <p style={{
-            fontSize: 15.5,
-            lineHeight: 1.62,
-            color: '#4A5A52',
-            maxWidth: 420,
-            margin: '0 0 32px',
-          }}>
-            Ici, pas de CV. Les recruteurs vous découvrent à travers un profil vivant :
-            vos compétences, bien sûr, mais aussi votre personnalité, vos valeurs et ce
-            que vous recherchez. C'est ce qui donne envie de vous rencontrer.
-          </p>
-          <div>
-            <button
-              onClick={handleClick}
-              disabled={anim === 'spinning'}
-              onMouseEnter={() => { if (anim !== 'spinning') setAnim('hover') }}
-              onMouseLeave={() => { if (anim !== 'spinning') setAnim('idle') }}
-              className="kv-btn"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                backgroundColor: C.orange,
-                color: C.bg,
-                border: 'none',
-                borderRadius: 100,
-                padding: '14px 28px',
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: anim === 'spinning' ? 'default' : 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Commencer
-              <svg
-                viewBox="0 0 14 16"
-                width={14}
-                height={16}
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 2 L11 8 L3 14"
-                  stroke={C.bg}
-                  strokeWidth={2.4}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* ── Bloc B — fond vert, logo contour débordant ──────────────────────── */}
-        <div className="kv-bloc-b" style={{
-          gridRow: 1,
-          gridColumn: 2,
-          backgroundColor: C.vert,
-          borderRadius: 16,
-          minHeight: 150,
-          overflow: 'hidden',
-          position: 'relative',
-        }}>
-          <div style={{
-            position: 'absolute',
-            left: '26%',
-            top: '22%',
-            width: '92%',
-            height: '92%',
-          }}>
-            <LogoKapolia
-              variante="contour"
-              taille="100%"
-              avecTexte={false}
-              needleClassName={needleCls}
-              style={{ width: '100%', height: '100%', display: 'block' }}
-            />
-          </div>
-        </div>
-
-        {/* ── Bloc C — durée et flexibilité ───────────────────────────────────── */}
-        <div className="kv-bloc-c" style={{
-          gridRow: 2,
-          gridColumn: 2,
-          backgroundColor: C.sable,
-          borderRadius: 16,
-          padding: '22px 24px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, marginBottom: 10 }}>
-            <span style={{
-              fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-              fontWeight: 700,
-              fontSize: 34,
-              color: C.vert,
-              lineHeight: 1,
-            }}>
-              10
-            </span>
-            <span style={{ fontSize: 12.5, color: '#5A6B62' }}>minutes environ</span>
-          </div>
-          <p style={{ fontSize: 12.5, lineHeight: 1.55, color: '#5A6B62', margin: 0 }}>
-            Rien n'est figé : vous pourrez enrichir votre profil quand vous le souhaitez.
-          </p>
-        </div>
-
+      {/* Visuel ondes — côté droit */}
+      <div
+        className="kv-visuel-onde kv-visuel-bg"
+        aria-hidden="true"
+        style={{ position:'absolute', top:0, right:0, bottom:0, width:'48%', pointerEvents:'none', overflow:'hidden' }}
+      >
+        <svg viewBox="0 0 600 600" style={{ position:'absolute', right:'-22%', top:'50%', transform:'translateY(-50%)', width:'125%', height:'auto' }}>
+          <circle className="kv-onde" cx={300} cy={300} r={290} />
+          <circle className="kv-onde" cx={300} cy={300} r={290} style={{ animationDelay:'1.5s' }} />
+          <circle className="kv-onde" cx={300} cy={300} r={290} style={{ animationDelay:'3s' }} />
+          <circle className="kv-onde" cx={300} cy={300} r={290} style={{ animationDelay:'4.5s' }} />
+          {([[230,190,4,0],[420,440,4,1.2],[176,372,3.5,2.1],[372,58,3.5,.6],[470,210,3,2.8],[120,250,3,1.7],[250,500,3.5,3.4]] as [number,number,number,number][]).map(([cx,cy,r,d],i) => (
+            <circle key={i} className="kv-pt-cl" cx={cx} cy={cy} r={r} style={{ animationDelay:`${d}s` }} />
+          ))}
+          <circle className="kv-halo" cx={300} cy={140} r={7} />
+          <circle fill={C.orange} cx={300} cy={140} r={6} />
+          <g transform="translate(300 300) scale(3.6) translate(-21 -21)">
+            <g className="kv-osc">
+              <path d="M14 29 L21 12 L28 29" fill="none" stroke={C.vert} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M14 29 L21 25 L28 29" fill="none" stroke={C.orange} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </g>
+        </svg>
       </div>
+
+      {/* Colonne texte */}
+      <div className="kv-etage" style={{ position:'relative', zIndex:1, padding:'72px 64px 40px', display:'flex', flexDirection:'column', gap:22, maxWidth:640 }}>
+        <h1 style={{ fontFamily:FONT_SANS, fontWeight:700, fontSize:54, lineHeight:1.02, color:C.dark, margin:0, letterSpacing:'-0.015em' }}>
+          Bienvenue<br />sur Kapolia&#160;!
+        </h1>
+        <p style={{ margin:0, color:C.grey, fontSize:18, lineHeight:1.55, maxWidth:480 }}>
+          Ici, aucun document à préparer ni à joindre. Vous créez votre profil une fois, puis vous postulez avec.
+        </p>
+        <ul className="kv-atouts" style={{ listStyle:'none', margin:'4px 0 6px', padding:0, display:'flex', flexDirection:'column', gap:14, maxWidth:500 }}>
+          {([
+            ['Postulez en un clic',          ' aux offres qui vous intéressent.'],
+            ['Voyez ce qui vous correspond', ' : chaque offre affiche son degré de correspondance avec votre profil.'],
+            ['Montrez qui vous êtes',        ', au-delà de vos diplômes : vos qualités, vos projets, ce que vous cherchez.'],
+          ] as [string,string][]).map(([bold, rest], i) => (
+            <li key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', fontSize:16.5, lineHeight:1.45, color:C.dark }}>
+              <span style={{ width:24, height:24, borderRadius:'50%', backgroundColor:C.orangeDoux, color:C.orangeTexte, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span><b style={{ fontWeight:600 }}>{bold}</b>{rest}</span>
+            </li>
+          ))}
+        </ul>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <button
+            onClick={onStart}
+            className="kv-btn-acc"
+            style={{ display:'inline-flex', alignSelf:'flex-start', backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'14px 28px', fontSize:16, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+          >
+            Commencer
+          </button>
+          <span style={{ fontSize:14, color:C.grey }}>Environ 10 minutes. Vos réponses sont enregistrées à chaque étape.</span>
+        </div>
       </div>
     </div>
   )
 }
-
 // ─── Carrousel qualités (étape 5) ─────────────────────────────────────────────
 
 const TOTAL_SITUATIONS = SITUATIONS[CURRENT_VERSION].length  // 9
