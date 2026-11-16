@@ -2007,7 +2007,7 @@ function OnboardingPageInner() {
         return (
           <>
             <QuestionLabel text={`Votre métier, ${data.prenom || ''}`} sub={MICRO_TEXTS[2]} />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Domaine</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '10px' }}>Domaine</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {DOMAINES.map(d => (
                 <button key={d} onClick={() => { tap('dom-' + d); set('domaine', d) }}
@@ -2023,7 +2023,7 @@ function OnboardingPageInner() {
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Expérience dans ce domaine</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '10px' }}>Expérience dans ce domaine</p>
             {EXPERIENCES.map(e => (
               <ChoiceCard key={e.key} label={e.key} desc={e.desc}
                 selected={data.experience === e.key} tapped={tappedId === 'exp-' + e.key} onClick={() => { tap('exp-' + e.key); set('experience', e.key) }} />
@@ -2047,7 +2047,7 @@ function OnboardingPageInner() {
         return (
           <>
             <QuestionLabel text="Ce qui vous anime" sub={MICRO_TEXTS[4]} optional />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Le projet dont vous êtes fier</p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: 10 }}>Le projet dont vous êtes fier</p>
             <input
               type="text"
               value={data.projet_titre}
@@ -2078,7 +2078,7 @@ function OnboardingPageInner() {
               <span style={{ fontSize: 12.5, color: C.grey, display: 'block', marginTop: 4 }}>{data.projet.length} sur {MAX_PROJET_DESC}</span>
             </div>
             <div style={{ height: 24 }} />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: 10 }}>
               Vos passions <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>jusqu'à 5</small>
             </p>
             <ChampSuggestions
@@ -2117,7 +2117,7 @@ function OnboardingPageInner() {
             <QuestionLabel text="Ce que vous cherchez" sub={MICRO_TEXTS[5]} />
 
             {/* Contrat */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
               Contrat <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>plusieurs choix possibles</small>
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
@@ -2140,7 +2140,7 @@ function OnboardingPageInner() {
             </div>
 
             {/* Télétravail */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
               Télétravail
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
@@ -2164,7 +2164,7 @@ function OnboardingPageInner() {
 
             {/* Ville */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
                 Ville ou zone de recherche
               </label>
               <input
@@ -2182,7 +2182,7 @@ function OnboardingPageInner() {
             </div>
 
             {/* Permis */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
               Permis et habilitations <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>plusieurs choix possibles</small>
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
@@ -2225,7 +2225,7 @@ function OnboardingPageInner() {
             </button>
 
             {/* Disponibilité */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
               Disponibilité
             </p>
             {DISPOS.map(d => (
@@ -2447,7 +2447,7 @@ function OnboardingPageInner() {
           <>
             <QuestionLabel text="Compétences et langues" sub={MICRO_TEXTS[9]} />
 
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
               Compétences
             </p>
             <p style={{ fontSize: 13.5, color: C.grey, lineHeight: 1.6, marginBottom: 14 }}>
@@ -2463,7 +2463,7 @@ function OnboardingPageInner() {
 
             <div style={{ height: 28 }} />
 
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '12px' }}>
               Langues
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
@@ -2573,7 +2573,7 @@ function OnboardingPageInner() {
         /* Blocs sans contour — ombre légère, survol soulevé, sélectionné pêche */
         .kv-bloc {
           border: 0 !important;
-          background: #FFFFFF;
+          background: ${C.white};
           box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07);
           transition: box-shadow .2s, background-color .15s, transform .15s;
         }
@@ -2589,7 +2589,7 @@ function OnboardingPageInner() {
         /* Bouton Ajouter */
         .kv-ajouter {
           border: 0 !important;
-          background: #FFFFFF;
+          background: ${C.white};
           box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07);
           transition: box-shadow .2s, transform .15s;
         }
@@ -2600,7 +2600,7 @@ function OnboardingPageInner() {
           box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07) !important;
         }
         .kv-field:focus {
-          border-color: #C2611F !important;
+          border-color: ${C.terracotta} !important;
           box-shadow: 0 0 0 3px rgba(194,97,31,.14) !important;
           outline: none !important;
         }
@@ -2615,8 +2615,8 @@ function OnboardingPageInner() {
         .kv-fiche .kv-field:focus,
         .kv-fiche input[type=text]:focus, .kv-fiche input[type=date]:focus,
         .kv-fiche select:focus, .kv-fiche textarea:focus {
-          background: #FFFFFF !important;
-          border-color: #C2611F !important;
+          background: ${C.white} !important;
+          border-color: ${C.terracotta} !important;
           box-shadow: 0 0 0 3px rgba(194,97,31,.14) !important;
           outline: none !important;
         }
@@ -2659,7 +2659,7 @@ function OnboardingPageInner() {
         .kv-bloc .kv-coche { display:none; color:inherit; vertical-align:-2px; margin-right:4px; }
         .kv-bloc[aria-pressed="true"] .kv-coche { display:inline; }
         .kv-bloc.kv-tap[aria-pressed="true"] .kv-coche path { stroke-dasharray:1; stroke-dashoffset:1; animation:kv-coche-trace .3s .05s ease-out both; }
-        .kv-rond::after { content:''; display:block; position:absolute; inset:3px; border-radius:50%; background:#C2611F; transform:scale(0); transition:transform .2s ease; }
+        .kv-rond::after { content:''; display:block; position:absolute; inset:3px; border-radius:50%; background:${C.terracotta}; transform:scale(0); transition:transform .2s ease; }
         .kv-sel .kv-rond::after { transform:scale(1); }
         .kv-tap.kv-sel .kv-rond::after { animation:kv-dot-pop .22s .05s ease-out forwards; }
         @keyframes kv-dot-pop { from{transform:scale(0)} to{transform:scale(1)} }
