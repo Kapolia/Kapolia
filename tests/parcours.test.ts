@@ -5,6 +5,8 @@ import {
   dureeTexte,
   calculerFrise,
   preparerExperiencePourEnregistrement,
+  experienceVide,
+  formationVide,
   type PosteParcours,
   type FormationParcours,
 } from '@/lib/parcours'
@@ -248,5 +250,65 @@ describe('preparerExperiencePourEnregistrement', () => {
   it('clé inconnue conservée dans le résultat', () => {
     const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: false, debut_annee: 2021, debut_mois: 1, fin_annee: null, fin_mois: null, foo: 'bar' } as never)
     expect((r as Record<string, unknown>).foo).toBe('bar')
+  })
+})
+
+// ─── experienceVide ───────────────────────────────────────────────────────────
+
+const EXP_VIDE = { poste: '', entreprise: '', missions: '', debut_annee: null, fin_annee: null }
+
+describe('experienceVide', () => {
+  it('vrai si tout est vide', () => {
+    expect(experienceVide(EXP_VIDE)).toBe(true)
+  })
+
+  it('vrai avec des espaces dans les champs texte', () => {
+    expect(experienceVide({ ...EXP_VIDE, poste: '  ', entreprise: '  ', missions: ' ' })).toBe(true)
+  })
+
+  it('faux si poste renseigné', () => {
+    expect(experienceVide({ ...EXP_VIDE, poste: 'Développeur' })).toBe(false)
+  })
+
+  it('faux si entreprise renseignée', () => {
+    expect(experienceVide({ ...EXP_VIDE, entreprise: 'Acme' })).toBe(false)
+  })
+
+  it('faux si missions renseignées', () => {
+    expect(experienceVide({ ...EXP_VIDE, missions: 'Gestion des stocks' })).toBe(false)
+  })
+
+  it('faux si debut_annee renseignée', () => {
+    expect(experienceVide({ ...EXP_VIDE, debut_annee: 2020 })).toBe(false)
+  })
+
+  it('faux si fin_annee renseignée', () => {
+    expect(experienceVide({ ...EXP_VIDE, fin_annee: 2023 })).toBe(false)
+  })
+})
+
+// ─── formationVide ────────────────────────────────────────────────────────────
+
+const FORM_VIDE = { intitule: '', ecole: '', annee: '' }
+
+describe('formationVide', () => {
+  it('vrai si tout est vide', () => {
+    expect(formationVide(FORM_VIDE)).toBe(true)
+  })
+
+  it('vrai avec des espaces', () => {
+    expect(formationVide({ intitule: '  ', ecole: '  ', annee: '' })).toBe(true)
+  })
+
+  it('faux si intitulé renseigné', () => {
+    expect(formationVide({ ...FORM_VIDE, intitule: 'BTS Commerce' })).toBe(false)
+  })
+
+  it('faux si école renseignée', () => {
+    expect(formationVide({ ...FORM_VIDE, ecole: 'Lycée Victor Hugo' })).toBe(false)
+  })
+
+  it('faux si année renseignée', () => {
+    expect(formationVide({ ...FORM_VIDE, annee: '2021' })).toBe(false)
   })
 })

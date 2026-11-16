@@ -19,7 +19,7 @@ import {
   buildStepPayload,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
-import { lireMoisAnnee, preparerExperiencePourEnregistrement } from '@/lib/parcours'
+import { lireMoisAnnee, preparerExperiencePourEnregistrement, experienceVide, formationVide } from '@/lib/parcours'
 import {
   SITUATIONS,
   CURRENT_VERSION,
@@ -1403,7 +1403,7 @@ function VoiceMissionsArea({ value, onChange }: { value: string; onChange: (v: s
       <div style={{ position: 'relative' }}>
         <textarea
           value={value}
-          onChange={e => onChange(e.target.value)}
+          onChange={e => onChange(capitalizeFirst(e.target.value))}
           onKeyDown={e => { if (e.key === 'Enter' && nonEmpty >= MAX_MISSIONS) e.preventDefault() }}
           placeholder={`Missions principales, une par ligne, ${MAX_MISSIONS} au maximum`}
           rows={MAX_MISSIONS}
@@ -1998,8 +1998,8 @@ function OnboardingPageInner() {
         priorites: data.priorite,
         disponibilite: data.disponibilite,
         dispo_date: data.disponibilite === 'a_partir_de' ? data.dispo_date || null : null,
-        experiences: data.experiences.map(preparerExperiencePourEnregistrement),
-        diplomes: data.diplomes,
+        experiences: data.experiences.filter(e => !experienceVide(e)).map(preparerExperiencePourEnregistrement),
+        diplomes: data.diplomes.filter(f => !formationVide(f)),
         competences_acquises: data.competences_acquises,
         langues: data.langues,
         onboarding_completed: true,
@@ -2092,7 +2092,7 @@ function OnboardingPageInner() {
               type="text"
               value={data.projet_titre}
               onChange={e => {
-                const v = e.target.value
+                const v = capitalizeFirst(e.target.value)
                 if (v.length <= MAX_PROJET_TITRE || v.length < data.projet_titre.length) set('projet_titre', v)
               }}
               placeholder="Titre du projet"

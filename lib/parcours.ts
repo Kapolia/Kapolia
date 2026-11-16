@@ -352,3 +352,24 @@ export function calculerFrise(
 
   return { visible, resserre, seuil, nbAnciens, segments, formations: formationSegs, graduations: grads }
 }
+
+// ── 5. Entrées vides ──────────────────────────────────────────────────────────
+
+export function experienceVide(exp: {
+  poste: string; entreprise: string; missions: string;
+  debut_annee?: number | null; fin_annee?: number | null
+}): boolean {
+  return (
+    exp.poste.trim() === '' &&
+    exp.entreprise.trim() === '' &&
+    exp.missions.trim() === '' &&
+    !exp.debut_annee &&
+    !exp.fin_annee
+  )
+}
+
+export function formationVide(f: {
+  intitule: string; ecole: string; annee: string
+}): boolean {
+  return f.intitule.trim() === '' && f.ecole.trim() === '' && !f.annee
+}

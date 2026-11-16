@@ -1003,8 +1003,8 @@ export default function ProfilView({
   const modeTravailLabel    = LIEU_MAP[p.mode_travail ?? ''] ?? p.mode_travail ?? ''
   const qualites            = p.qualites ?? []
   const passions            = p.passions ?? []
-  const experiences         = p.experiences ?? []
-  const diplomes            = p.diplomes ?? []
+  const experiences         = (p.experiences ?? []).filter(e => e.poste.trim() || e.entreprise.trim() || e.missions.trim() || e.date_debut)
+  const diplomes            = (p.diplomes ?? []).filter(d => d.intitule.trim() || d.ecole.trim() || d.annee)
   const competencesAcquises = p.competences_acquises ?? []
   const langues             = p.langues ?? []
   const projetImages        = p.projet_images ?? []
