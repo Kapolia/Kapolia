@@ -22,8 +22,8 @@ const FULL: OnboardingFormData = {
   disponibilite: 'maintenant', dispo_date: '',
   typePoste: ['cdi'], lieu: 'hybride', ville: 'Paris',
   permis: ['B'], priorite: ['Impact réel'],
-  experiences: [{ poste: 'Dev', entreprise: 'Acme', date_debut: '2020', date_fin: '', en_poste: true, missions: 'Coder' }],
-  diplomes: [{ intitule: 'Master', ecole: 'EPFL', annee: '2020', mention: 'TB' }],
+  experiences: [{ poste: 'Dev', entreprise: 'Acme', en_poste: true, missions: 'Coder', debut_annee: 2020, debut_mois: null, fin_annee: null, fin_mois: null }],
+  diplomes: [{ intitule: 'Master', ecole: 'EPFL', annee: '2020' }],
   competences_acquises: ['TypeScript'], langues: ['Français — Courant'],
 }
 
@@ -238,7 +238,7 @@ describe('buildStepPayload', () => {
     expect(buildStepPayload(7, EMPTY_FORM, MAX)).toBeNull()
   })
   it('écran 7 inclut experiences', () => {
-    const exp = [{ poste: 'Dev', entreprise: 'Acme', date_debut: '2020', date_fin: '', en_poste: true, missions: 'Coder' }]
+    const exp = [{ poste: 'Dev', entreprise: 'Acme', en_poste: true, missions: 'Coder', debut_annee: 2020, debut_mois: null, fin_annee: null, fin_mois: null }]
     const r = buildStepPayload(7, { ...EMPTY_FORM, experiences: exp }, MAX)
     expect(r).toMatchObject({ experiences: exp, onboarding_step: MAX })
   })
@@ -248,7 +248,7 @@ describe('buildStepPayload', () => {
     expect(buildStepPayload(8, EMPTY_FORM, MAX)).toBeNull()
   })
   it('écran 8 inclut diplomes', () => {
-    const dip = [{ intitule: 'Master', ecole: 'EPFL', annee: '2020', mention: 'TB' }]
+    const dip = [{ intitule: 'Master', ecole: 'EPFL', annee: '2020' }]
     const r = buildStepPayload(8, { ...EMPTY_FORM, diplomes: dip }, MAX)
     expect(r).toMatchObject({ diplomes: dip, onboarding_step: MAX })
   })

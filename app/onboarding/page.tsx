@@ -12,6 +12,7 @@ import {
   DOMAINES,
   EXPERIENCES,
   TYPES_POSTE,
+  MAX_MISSIONS,
   screenToStep,
   convertSavedStep,
   firstIncompleteStep,
@@ -81,8 +82,8 @@ const MICRO_TEXTS: Record<number, string> = {
   4: 'Une réalisation concrète et ce que vous aimez en dehors du travail. Les recruteurs y trouvent souvent des points communs.',
   5: "Nous ne vous présentons que les offres qui correspondent à votre situation.",
   6: "Choisissez jusqu'à trois priorités. Elles disent aux recruteurs ce que vous cherchez vraiment.",
-  7: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
-  8: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
+  7: 'Les plus significatives suffisent. Vous pourrez en ajouter depuis votre profil.',
+  8: 'Diplômes, certifications, formations courtes : tout ce qui a construit vos compétences.',
   9: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
 }
 
@@ -122,7 +123,17 @@ function capitalizeFirst(v: string): string {
   return v.charAt(0).toUpperCase() + v.slice(1)
 }
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
+// ─── Dates pour expériences ───────────────────────────────────────────────────
+
+const ANNEE_MIN_EXP = 1960
+const ANNEE_MAX_EXP = new Date().getFullYear()
+const ANNEES_EXP = Array.from({ length: ANNEE_MAX_EXP - ANNEE_MIN_EXP + 1 }, (_, i) => ANNEE_MAX_EXP - i)
+const MOIS_EXP = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const SEL_S: React.CSSProperties = {
+  fontSize: 13, padding: '6px 8px', border: `1px solid ${C.sable}`,
+  borderRadius: 8, fontFamily: 'inherit', color: C.dark, backgroundColor: C.white, cursor: 'pointer',
+}
+const LABEL_S: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: C.grey, marginBottom: 4, display: 'block' }
 
 // ─── Écran d'accueil ──────────────────────────────────────────────────────────
 
@@ -1234,6 +1245,136 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 4 }: {
 }
 
 
+function VoiceMissionsArea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [supported,  setSupported]  = useState(false)
+  const [listening,  setListening]  = useState(false)
+  const [permError,  setPermError]  = useState(false)
+  const [interim,    setInterim]    = useState('')
+  const recogRef = useRef<any>(null)
+  const valueRef = useRef(value)
+  useEffect(() => { valueRef.current = value }, [value])
+
+  useEffect(() => {
+    setSupported('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+    return () => { recogRef.current?.stop() }
+  }, [])
+
+  function start() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
+    const recog = new SR()
+    recog.lang = 'fr-FR'
+    recog.continuous = true
+    recog.interimResults = true
+    recog.onresult = (e: any) => {
+      let final = '', interimText = ''
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript
+        if (e.results[i].isFinal) final += t
+        else interimText += t
+      }
+      if (final.trim()) {
+        const cur = valueRef.current
+        const sep = cur.length > 0 && !cur.endsWith('\n') ? ' ' : ''
+        onChange(cur + sep + final.trim())
+        setInterim('')
+      } else {
+        setInterim(interimText)
+      }
+    }
+    recog.onerror = (e: any) => {
+      if (e.error === 'not-allowed') setPermError(true)
+      setListening(false); setInterim(''); recogRef.current = null
+    }
+    recog.onend = () => { setListening(false); setInterim(''); recogRef.current = null }
+    recogRef.current = recog
+    try { recog.start(); setListening(true); setPermError(false) }
+    catch { setListening(false) }
+  }
+
+  function stop() {
+    recogRef.current?.stop(); recogRef.current = null
+    setListening(false); setInterim('')
+  }
+
+  const nonEmpty = value.split('\n').filter(l => l.trim()).length
+
+  return (
+    <>
+      <div style={{ position: 'relative' }}>
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && nonEmpty >= MAX_MISSIONS) e.preventDefault() }}
+          placeholder={`Missions principales, une par ligne, ${MAX_MISSIONS} au maximum`}
+          rows={MAX_MISSIONS}
+          className="kv-field"
+          style={{
+            width: '100%', paddingTop: '13px', paddingLeft: '16px', paddingRight: '16px',
+            paddingBottom: supported ? '46px' : '13px',
+            fontSize: 14, borderRadius: 12, border: '1.5px solid transparent',
+            backgroundColor: C.white, color: C.dark, outline: 'none',
+            boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65, fontFamily: 'inherit',
+          }}
+        />
+        {interim && (
+          <p style={{
+            fontSize: 13, color: C.terracotta, fontStyle: 'italic',
+            position: 'absolute', bottom: 48, left: 16, right: 48,
+            margin: 0, lineHeight: 1.4, pointerEvents: 'none',
+            backgroundColor: 'rgba(247,242,235,0.9)', borderRadius: 4, padding: '2px 4px',
+          }}>
+            {interim}…
+          </p>
+        )}
+        {supported && (
+          <button
+            type="button"
+            aria-pressed={listening}
+            onClick={listening ? stop : start}
+            style={{
+              position: 'absolute', bottom: 10, right: 10,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              height: 32, padding: '0 12px 0 10px',
+              border: 0, borderRadius: 999,
+              backgroundColor: listening ? C.orange : C.chip,
+              color: listening ? C.white : C.dark,
+              fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              animation: listening ? 'kv-micro-p 1.6s ease-out infinite' : 'none',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0014 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+              <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+              <line x1="8"  y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+            </svg>
+            {listening ? 'Arrêter' : 'Dicter'}
+          </button>
+        )}
+      </div>
+      {listening && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, color: C.orangeTexte, marginTop: 6 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 16 }}>
+            {[0, .15, .3, .45, .6].map((delay, i) => (
+              <span key={i} style={{ width: 3, height: '100%', background: C.orange, borderRadius: 2, display: 'inline-block', animation: `kv-voix .9s ease-in-out ${delay}s infinite` }} />
+            ))}
+          </span>
+          Je vous écoute, parlez naturellement.
+        </div>
+      )}
+      {permError && (
+        <p style={{ fontSize: 12, color: C.erreur, marginTop: 6 }}>
+          Accès au microphone refusé. Vérifiez les permissions dans votre navigateur.
+        </p>
+      )}
+      <span style={{ fontSize: 11, color: nonEmpty > MAX_MISSIONS ? C.orange : C.grey, marginTop: 4, display: 'block' }}>
+        {nonEmpty} / {MAX_MISSIONS}
+      </span>
+    </>
+  )
+}
+
 function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, countLabel = 'éléments' }: {
   tags: string[]; onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void
   maxTags?: number; placeholder?: string; countLabel?: string
@@ -1946,7 +2087,7 @@ function OnboardingPageInner() {
       case 7: {
         const addExp = () => set('experiences', [
           ...data.experiences,
-          { poste: '', entreprise: '', date_debut: '', date_fin: '', en_poste: false, missions: '' },
+          { poste: '', entreprise: '', en_poste: false, missions: '', debut_annee: null, debut_mois: null, fin_annee: null, fin_mois: null },
         ])
         const removeExp = (i: number) =>
           set('experiences', data.experiences.filter((_, idx) => idx !== i))
@@ -1954,55 +2095,67 @@ function OnboardingPageInner() {
           set('experiences', data.experiences.map((e, idx) => idx === i ? { ...e, ...patch } : e))
         return (
           <>
-            <QuestionLabel text="Vos expériences professionnelles" sub={MICRO_TEXTS[7]} optional />
+            <QuestionLabel text="Vos expériences" sub={MICRO_TEXTS[7]} optional />
             {data.experiences.map((exp, i) => (
               <div key={i} className="kv-fiche" style={{
                 backgroundColor: C.white, borderRadius: 14,
                 boxShadow: '0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07)',
                 padding: 16, marginBottom: 12,
               }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                  <StyledInput value={exp.poste}      onChange={v => updateExp(i, { poste: v })}      placeholder="Intitulé du poste" />
-                  <StyledInput value={exp.entreprise} onChange={v => updateExp(i, { entreprise: v })} placeholder="Entreprise" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.grey }}>Expérience {i + 1}</span>
+                  <button onClick={() => removeExp(i)} style={{
+                    background: 'none', border: 'none', color: C.erreur,
+                    fontSize: 13, cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+                  }}>Retirer</button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
-                  <StyledInput value={exp.date_debut} onChange={v => updateExp(i, { date_debut: v })} placeholder="Début (ex : Jan 2021)" />
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    {!exp.en_poste && (
-                      <div style={{ flex: 1 }}>
-                        <StyledInput value={exp.date_fin} onChange={v => updateExp(i, { date_fin: v })} placeholder="Fin (ex : Déc 2023)" />
-                      </div>
-                    )}
-                    <label style={{
-                      display: 'flex', alignItems: 'center', gap: '6px',
-                      fontSize: '13px', color: C.grey, cursor: 'pointer',
-                      flexShrink: 0, fontFamily: 'inherit', whiteSpace: 'nowrap',
-                    }}>
-                      <input type="checkbox" checked={exp.en_poste}
-                        onChange={e => updateExp(i, { en_poste: e.target.checked })} />
-                      En poste
-                    </label>
+                <div className="kv-nom-row" style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={LABEL_S}>Poste</label>
+                    <StyledInput value={exp.poste} onChange={v => updateExp(i, { poste: v })} placeholder="Ex : Chargé de clientèle" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={LABEL_S}>Entreprise</label>
+                    <StyledInput value={exp.entreprise} onChange={v => updateExp(i, { entreprise: v })} placeholder="Ex : Carrefour" />
                   </div>
                 </div>
-                <MissionsTextArea
-                  value={exp.missions}
-                  onChange={v => updateExp(i, { missions: capitalizeFirst(v) })}
-                  rows={3}
-                  textareaStyle={{
-                    width: '100%', padding: '13px 16px', fontSize: 15,
-                    borderRadius: 12, border: '1.5px solid transparent',
-                    color: C.dark, outline: 'none',
-                    boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65,
-                    fontFamily: 'inherit',
-                  }}
-                />
-                <button onClick={() => removeExp(i)} style={{
-                  marginTop: '10px', background: 'none', border: 'none',
-                  color: C.erreur, fontSize: '13px', cursor: 'pointer',
-                  padding: 0, fontFamily: 'inherit',
-                }}>
-                  Supprimer cette expérience
-                </button>
+                <div className="kv-exp-row" style={{ marginBottom: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={LABEL_S}>Début</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <select value={exp.debut_mois ?? ''} onChange={e => updateExp(i, { debut_mois: e.target.value ? Number(e.target.value) : null })} style={SEL_S}>
+                        <option value="">Mois</option>
+                        {MOIS_EXP.map((m, mi) => <option key={mi} value={mi + 1}>{m}</option>)}
+                      </select>
+                      <select value={exp.debut_annee ?? ''} onChange={e => updateExp(i, { debut_annee: e.target.value ? Number(e.target.value) : null })} style={SEL_S}>
+                        <option value="">Année</option>
+                        {ANNEES_EXP.map(a => <option key={a} value={a}>{a}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {!exp.en_poste && (
+                    <div style={{ flex: 1 }}>
+                      <label style={LABEL_S}>Fin</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <select value={exp.fin_mois ?? ''} onChange={e => updateExp(i, { fin_mois: e.target.value ? Number(e.target.value) : null })} style={SEL_S}>
+                          <option value="">Mois</option>
+                          {MOIS_EXP.map((m, mi) => <option key={mi} value={mi + 1}>{m}</option>)}
+                        </select>
+                        <select value={exp.fin_annee ?? ''} onChange={e => updateExp(i, { fin_annee: e.target.value ? Number(e.target.value) : null })} style={SEL_S}>
+                          <option value="">Année</option>
+                          {ANNEES_EXP.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: C.dark, cursor: 'pointer', marginBottom: 12, fontFamily: 'inherit' }}>
+                  <input type="checkbox" checked={exp.en_poste}
+                    onChange={e => updateExp(i, { en_poste: e.target.checked, ...(e.target.checked ? { fin_mois: null, fin_annee: null } : {}) })} />
+                  {"J’occupe ce poste actuellement"}
+                </label>
+                <label style={LABEL_S}>Missions principales</label>
+                <VoiceMissionsArea value={exp.missions} onChange={v => updateExp(i, { missions: v })} />
               </div>
             ))}
             <button onClick={addExp} className="kv-ajouter" style={{
@@ -2019,7 +2172,7 @@ function OnboardingPageInner() {
       case 8: {
         const addDiplome = () => set('diplomes', [
           ...data.diplomes,
-          { intitule: '', ecole: '', annee: '', mention: '' },
+          { intitule: '', ecole: '', annee: '', en_cours: false },
         ])
         const removeDiplome = (i: number) =>
           set('diplomes', data.diplomes.filter((_, idx) => idx !== i))
@@ -2027,30 +2180,43 @@ function OnboardingPageInner() {
           set('diplomes', data.diplomes.map((d, idx) => idx === i ? { ...d, ...patch } : d))
         return (
           <>
-            <QuestionLabel text="Vos diplômes et formations" sub={MICRO_TEXTS[8]} optional />
+            <QuestionLabel text="Vos formations" sub={MICRO_TEXTS[8]} optional />
             {data.diplomes.map((d, i) => (
               <div key={i} className="kv-fiche" style={{
                 backgroundColor: C.white, borderRadius: 14,
                 boxShadow: '0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07)',
                 padding: 16, marginBottom: 12,
               }}>
-                <div style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: C.grey }}>Formation {i + 1}</span>
+                  <button onClick={() => removeDiplome(i)} style={{
+                    background: 'none', border: 'none', color: C.erreur,
+                    fontSize: 13, cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+                  }}>Retirer</button>
+                </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={LABEL_S}>Intitulé</label>
                   <StyledInput value={d.intitule} onChange={v => updateDiplome(i, { intitule: v })}
-                    placeholder="Intitulé du diplôme (ex : Master Marketing)" />
+                    placeholder="Ex : BTS Commerce, Master Marketing…" />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                  <StyledInput value={d.ecole} onChange={v => updateDiplome(i, { ecole: v })} placeholder="École ou établissement" />
-                  <StyledInput value={d.annee} onChange={v => updateDiplome(i, { annee: v })} placeholder="Année (ex : 2020)" />
+                <div style={{ marginBottom: 10 }}>
+                  <label style={LABEL_S}>École ou organisme</label>
+                  <StyledInput value={d.ecole} onChange={v => updateDiplome(i, { ecole: v })}
+                    placeholder="Ex : Université Lyon 2" />
                 </div>
-                <StyledInput value={d.mention} onChange={v => updateDiplome(i, { mention: v })}
-                  placeholder="Mention (optionnel : Bien, Très Bien…)" />
-                <button onClick={() => removeDiplome(i)} style={{
-                  marginTop: '10px', background: 'none', border: 'none',
-                  color: C.erreur, fontSize: '13px', cursor: 'pointer',
-                  padding: 0, fontFamily: 'inherit',
-                }}>
-                  Supprimer ce diplôme
-                </button>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={LABEL_S}>{"Année d’obtention"}</label>
+                  <select value={d.annee} onChange={e => updateDiplome(i, { annee: e.target.value })}
+                    style={{ ...SEL_S, width: '100%' }} disabled={!!d.en_cours}>
+                    <option value="">Choisir…</option>
+                    {ANNEES_EXP.map(a => <option key={a} value={String(a)}>{a}</option>)}
+                  </select>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  <input type="checkbox" checked={!!d.en_cours}
+                    onChange={e => updateDiplome(i, { en_cours: e.target.checked, annee: e.target.checked ? '' : d.annee })} />
+                  Formation en cours
+                </label>
               </div>
             ))}
             <button onClick={addDiplome} className="kv-ajouter" style={{
@@ -2058,7 +2224,7 @@ function OnboardingPageInner() {
               color: C.orangeTexte, fontSize: 14, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
             }}>
-              + Ajouter un diplôme
+              + Ajouter une formation
             </button>
           </>
         )
@@ -2192,7 +2358,8 @@ function OnboardingPageInner() {
         @keyframes kv-micro-p { 0%{box-shadow:0 0 0 0 rgba(194,97,31,.45)} 100%{box-shadow:0 0 0 10px rgba(194,97,31,0)} }
         @keyframes kv-voix { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
         .kv-nom-row { display:flex; gap:12px }
-        @media (max-width:640px) { .kv-nom-row { flex-direction:column } }
+        .kv-exp-row { display:flex; gap:10px }
+        @media (max-width:640px) { .kv-nom-row { flex-direction:column } .kv-exp-row { flex-direction:column } }
         /* Blocs sans contour — ombre légère, survol soulevé, sélectionné pêche */
         .kv-bloc {
           border: 0 !important;
