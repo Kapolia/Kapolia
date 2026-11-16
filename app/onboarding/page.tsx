@@ -79,8 +79,8 @@ const MICRO_TEXTS: Record<number, string> = {
   2: 'Ces deux réponses orientent les offres que nous vous proposons.',
   3: "Neuf situations de travail, quatre réponses chacune. Choisissez les deux qui vous ressemblent le plus.",
   4: 'Une réalisation concrète et ce que vous aimez en dehors du travail. Les recruteurs y trouvent souvent des points communs.',
-  5: "Précisez vos préférences de contrat, de lieu et de disponibilité pour affiner vos opportunités.",
-  6: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
+  5: "Nous ne vous présentons que les offres qui correspondent à votre situation.",
+  6: "Choisissez jusqu'à trois priorités. Elles disent aux recruteurs ce que vous cherchez vraiment.",
   7: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
   8: 'Vos diplômes et formations complètent votre profil. Formations académiques, certifications, autoformations : tout ce qui a construit vos compétences a sa place ici.',
   9: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
@@ -267,6 +267,8 @@ function QualitesCarousel({
   const [invitActiveCount, setInvitActiveCount] = useState(0)
   const [invitLien,        setInvitLien]        = useState<string | null>(null)
   const [invitCopie,       setInvitCopie]       = useState(false)
+  const [declSaveError,    setDeclSaveError]    = useState(false)
+  const [declSaved,        setDeclSaved]        = useState(false)
 
   // Charge les réponses existantes
   useEffect(() => {
@@ -387,7 +389,16 @@ function QualitesCarousel({
 
   async function handleQualitesDeclChange(vals: string[]) {
     setQualitesDecl(vals)
-    await supabase.from('profils').update({ qualites: vals }).eq('user_id', userId)
+    setDeclSaveError(false)
+    setDeclSaved(false)
+    const { error } = await supabase.from('profils').update({ qualites: vals }).eq('user_id', userId)
+    if (error) {
+      console.error('[profils.qualites] update error:', error)
+      setDeclSaveError(true)
+    } else {
+      setDeclSaved(true)
+      setTimeout(() => setDeclSaved(false), 2000)
+    }
   }
 
   function handleCopierLien() {
@@ -530,6 +541,31 @@ function QualitesCarousel({
             sortStartsWith
             griseesExternes={{ valeurs: testQualiteLabels, label: 'déjà dans vos résultats' }}
           />
+          {declSaveError && (
+            <div role="alert" style={{
+              marginTop: 10, backgroundColor: 'rgba(220,38,38,0.06)',
+              border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8,
+              padding: '9px 14px', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', gap: 10,
+            }}>
+              <span style={{ fontSize: 13, color: C.dark, lineHeight: 1.5 }}>
+                L'enregistrement n'a pas abouti. Vérifiez votre connexion, puis réessayez.
+              </span>
+              <button
+                onClick={() => handleQualitesDeclChange(qualitesDecl)}
+                style={{
+                  background: 'none', border: 'none', fontSize: 13, fontWeight: 600,
+                  color: C.terracotta, cursor: 'pointer', padding: '4px 0', flexShrink: 0,
+                  fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px',
+                }}
+              >
+                Réessayer
+              </button>
+            </div>
+          )}
+          {declSaved && !declSaveError && (
+            <p style={{ fontSize: 12.5, color: C.succes, margin: '8px 0 0' }}>Enregistré</p>
+          )}
         </div>
 
         {/* Et selon vos proches ? */}
@@ -1427,6 +1463,7 @@ function OnboardingPageInner() {
   const [userId,           setUserId]           = useState('')
   const [emailConfirme,    setEmailConfirme]    = useState(true)
   const [qualitesProgress, setQualitesProgress] = useState(0)
+  const [autresPermis,     setAutresPermis]     = useState(false)
   // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière.
   // Stocke la valeur DB (101–109), pas le numéro d'écran (1–9).
   const maxStepRef       = useRef(screenToStep(1))
@@ -1717,36 +1754,37 @@ function OnboardingPageInner() {
           </>
         )
       case 5: {
-        const showDate   = data.disponibilite === 'a_partir_de'
-        const allPermis  = [...PERMIS, ...PERMIS_AUTRES]
+        const showDate = data.disponibilite === 'a_partir_de'
+        const toggleContrat = (key: string) => {
+          if (key === 'ouvert') { set('typePoste', ['ouvert']); return }
+          const without = data.typePoste.filter(k => k !== 'ouvert' && k !== key)
+          if (data.typePoste.includes(key)) set('typePoste', without)
+          else set('typePoste', [...without, key])
+        }
         const togglePermis = (val: string) => {
           if (val === 'aucun') { set('permis', ['aucun']); return }
           const without = data.permis.filter(v => v !== 'aucun' && v !== val)
           if (data.permis.includes(val)) set('permis', without)
           else set('permis', [...without, val])
         }
+        const permisVis = autresPermis ? [...PERMIS, ...PERMIS_AUTRES] : PERMIS
         return (
           <>
-            <QuestionLabel text="Vos préférences de recherche" sub={MICRO_TEXTS[5]} />
+            <QuestionLabel text="Ce que vous cherchez" sub={MICRO_TEXTS[5]} />
 
+            {/* Contrat */}
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-              Type de contrat
-            </p>
-            <p style={{ fontSize: '13px', color: C.grey, marginBottom: '12px', marginTop: 0 }}>
-              Vous pouvez en sélectionner plusieurs.
+              Contrat <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>plusieurs choix possibles</small>
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {TYPES_POSTE.map(t => {
                 const selected = data.typePoste.includes(t.key)
                 return (
-                  <button key={t.key} onClick={() => {
-                    if (selected) set('typePoste', data.typePoste.filter(k => k !== t.key))
-                    else set('typePoste', [...data.typePoste, t.key])
-                  }}
+                  <button key={t.key} onClick={() => toggleContrat(t.key)}
                     aria-pressed={selected}
                     className={`kv-bloc${selected ? ' kv-sel' : ''}`}
                     style={{
-                      padding: '11px 22px', borderRadius: 24, fontFamily: 'inherit',
+                      padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
                       fontSize: 14, fontWeight: selected ? 600 : 400,
                       cursor: 'pointer',
@@ -1757,22 +1795,92 @@ function OnboardingPageInner() {
               })}
             </div>
 
+            {/* Télétravail */}
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-              Lieu de travail
+              Télétravail
             </p>
-            {LIEUX.map(l => (
-              <ChoiceCard key={l.key} label={l.label} desc={l.description}
-                selected={data.lieu === l.key} onClick={() => set('lieu', l.key)} />
-            ))}
-            <div style={{ marginTop: 4, marginBottom: 24 }}>
-              <StyledInput
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
+              {LIEUX.map(l => {
+                const selected = data.lieu === l.key
+                return (
+                  <button key={l.key} onClick={() => set('lieu', l.key)}
+                    aria-pressed={selected}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    style={{
+                      padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
+                      color: selected ? C.orangeTexte : C.dark,
+                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      cursor: 'pointer',
+                    }}>
+                    {l.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Ville */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
+                Ville ou zone de recherche
+              </label>
+              <input
+                type="text"
                 value={data.ville}
-                onChange={v => set('ville', v)}
-                placeholder="Votre ville, région ou zone géographique"
-                label="Ville ou région"
+                onChange={e => set('ville', e.target.value)}
+                placeholder="Par exemple : Alençon, ou Normandie"
+                className="kv-field"
+                style={{
+                  width: '100%', boxSizing: 'border-box', padding: '13px 16px', fontSize: 15,
+                  borderRadius: 12, border: '1.5px solid transparent',
+                  backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit',
+                }}
               />
             </div>
 
+            {/* Permis */}
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+              Permis et habilitations <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>plusieurs choix possibles</small>
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+              {permisVis.map(p => {
+                const sel = data.permis.includes(p.value)
+                return (
+                  <button key={p.value} onClick={() => togglePermis(p.value)}
+                    aria-pressed={sel}
+                    className={`kv-bloc${sel ? ' kv-sel' : ''}`}
+                    style={{
+                      padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
+                      color: sel ? C.orangeTexte : C.dark,
+                      fontSize: 14, fontWeight: sel ? 600 : 400, cursor: 'pointer',
+                    }}>
+                    {p.label}
+                  </button>
+                )
+              })}
+              <button onClick={() => togglePermis('aucun')}
+                aria-pressed={data.permis.includes('aucun')}
+                className={`kv-bloc${data.permis.includes('aucun') ? ' kv-sel' : ''}`}
+                style={{
+                  padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
+                  color: data.permis.includes('aucun') ? C.orangeTexte : C.dark,
+                  fontSize: 14, fontWeight: data.permis.includes('aucun') ? 600 : 400, cursor: 'pointer',
+                }}>
+                Aucun permis
+              </button>
+            </div>
+            <button
+              onClick={() => setAutresPermis(v => !v)}
+              style={{
+                background: 'none', border: 'none', padding: '4px 0',
+                fontSize: 14, color: C.orangeTexte, cursor: 'pointer',
+                fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px',
+                display: 'inline-block', marginBottom: 24, whiteSpace: 'nowrap',
+              }}
+            >
+              {autresPermis ? 'Moins de choix' : 'Autres permis et habilitations'}
+            </button>
+
+            {/* Disponibilité */}
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
               Disponibilité
             </p>
@@ -1789,49 +1897,13 @@ function OnboardingPageInner() {
                   min={new Date().toISOString().slice(0, 10)}
                   className="kv-field"
                   style={{
-                    width: '100%', padding: '13px 16px', fontSize: 16,
+                    width: '100%', boxSizing: 'border-box', padding: '13px 16px', fontSize: 16,
                     borderRadius: 12, border: '1.5px solid transparent',
-                    backgroundColor: C.white, color: C.dark, outline: 'none',
-                    boxSizing: 'border-box', fontFamily: 'inherit',
+                    backgroundColor: C.white, color: C.dark, outline: 'none', fontFamily: 'inherit',
                   }}
                 />
               </div>
             )}
-
-            <div style={{ marginTop: '24px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-                Permis & habilitations (facultatif)
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                {allPermis.map(p => {
-                  const sel = data.permis.includes(p.value)
-                  return (
-                    <button key={p.value} onClick={() => togglePermis(p.value)}
-                      aria-pressed={sel}
-                      className={`kv-bloc${sel ? ' kv-sel' : ''}`}
-                      style={{
-                        padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
-                        color: sel ? C.orangeTexte : C.dark,
-                        fontSize: 14, fontWeight: sel ? 600 : 400,
-                        cursor: 'pointer',
-                      }}>
-                      {p.label}
-                    </button>
-                  )
-                })}
-                <button onClick={() => togglePermis('aucun')}
-                  aria-pressed={data.permis.includes('aucun')}
-                  className={`kv-bloc${data.permis.includes('aucun') ? ' kv-sel' : ''}`}
-                  style={{
-                    padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
-                    color: data.permis.includes('aucun') ? C.orangeTexte : C.dark,
-                    fontSize: 14, fontWeight: data.permis.includes('aucun') ? 600 : 400,
-                    cursor: 'pointer',
-                  }}>
-                  Aucun
-                </button>
-              </div>
-            </div>
           </>
         )
       }
@@ -1840,11 +1912,7 @@ function OnboardingPageInner() {
         const maxReached = data.priorite.length >= 3
         return (
           <>
-            <QuestionLabel text="Qu'est-ce qui compte le plus dans votre prochain poste ?" sub={MICRO_TEXTS[6]} optional />
-            <p style={{ fontSize: '13px', color: C.grey, marginBottom: '16px', marginTop: '-14px' }}>
-              Choisissez jusqu'à 3 priorités.{' '}
-              {maxReached && <span style={{ color: C.terracotta, fontWeight: '500' }}>Maximum atteint.</span>}
-            </p>
+            <QuestionLabel text="Ce qui compte le plus pour vous" sub={MICRO_TEXTS[6]} optional />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               {PRIORITES.map(p => {
                 const selected = data.priorite.includes(p)
@@ -1855,7 +1923,6 @@ function OnboardingPageInner() {
                     else if (!maxReached) set('priorite', [...data.priorite, p])
                   }}
                     aria-pressed={selected}
-                    disabled={disabled}
                     className={`kv-bloc${selected ? ' kv-sel' : ''}`}
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
@@ -1869,6 +1936,9 @@ function OnboardingPageInner() {
                 )
               })}
             </div>
+            <p style={{ fontSize: '14px', color: C.grey, marginTop: '14px', marginBottom: 0 }} aria-live="polite">
+              {data.priorite.length} sur 3
+            </p>
           </>
         )
       }
