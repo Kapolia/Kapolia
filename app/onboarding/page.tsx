@@ -663,6 +663,8 @@ function QualitesCarousel({
 function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: () => void; userId: string; emailConfirme: boolean }) {
   const [chosen, setChosen]             = useState<boolean | null>(null)
   const [saving, setSaving]             = useState(false)
+  const [saveError, setFinalSaveError]  = useState(false)
+  const pendingChoiceRef                = useRef<boolean | null>(null)
   const [invitModalOpen, setInvitModalOpen] = useState(false)
   const [activeCount, setActiveCount]   = useState(0)
   const [invitHover, setInvitHover]     = useState(false)
@@ -679,16 +681,16 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
   }, [userId])
 
   async function handleChoice(value: boolean) {
+    pendingChoiceRef.current = value
     setSaving(true)
-    try {
-      await supabase.from('profils').update({
-        visible_candidatheque: value,
-        visible_candidatheque_maj_le: new Date().toISOString(),
-      }).eq('user_id', userId)
-    } finally {
-      setSaving(false)
-      setChosen(value)
-    }
+    setFinalSaveError(false)
+    const { error } = await supabase.from('profils').update({
+      visible_candidatheque: value,
+      visible_candidatheque_maj_le: new Date().toISOString(),
+    }).eq('user_id', userId)
+    setSaving(false)
+    if (error) { console.error(error); setFinalSaveError(true); return }
+    setChosen(value)
   }
 
   return (
@@ -775,6 +777,26 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
             Les recruteurs inscrits pourront consulter votre profil et vous écrire, même sans
             candidature de votre part. Vous pourrez changer d'avis à tout moment.
           </p>
+          {saveError && (
+            <div role="alert" style={{
+              backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
+              borderRadius: 8, padding: '10px 14px', marginBottom: 16,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+            }}>
+              <span style={{ fontSize: 13, color: '#22312B', lineHeight: 1.5 }}>
+                L'enregistrement n'a pas abouti. Vérifiez votre connexion, puis réessayez.
+              </span>
+              <button
+                onClick={() => pendingChoiceRef.current !== null && handleChoice(pendingChoiceRef.current)}
+                style={{
+                  background: 'none', border: 'none', fontSize: 13, fontWeight: 600,
+                  color: C.terracotta, cursor: 'pointer', padding: '4px 0', flexShrink: 0,
+                  fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px',
+                }}>
+                Réessayer
+              </button>
+            </div>
+          )}
           {!emailConfirme && (
             <p style={{ fontSize: 12, color: '#8BA99E', lineHeight: 1.55, margin: '0 0 14px' }}>
               Confirmez d'abord votre adresse e-mail pour activer la visibilité.
@@ -1327,7 +1349,8 @@ function OnboardingPageInner() {
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
   const [saving,        setSaving]        = useState(false)
-  const [saveError,     setSaveError]     = useState<string | null>(null)
+  const [saveError,     setSaveError]     = useState(false)
+  const [savedOk,       setSavedOk]       = useState(false)
   const [loadingResume, setLoadingResume] = useState(true)
   const [userId,        setUserId]        = useState('')
   const [emailConfirme, setEmailConfirme] = useState(true)
@@ -1427,31 +1450,40 @@ function OnboardingPageInner() {
 
   // Sauvegarde progressive : fire-and-forget pour les étapes 1–16.
   // Les erreurs sont silencieuses — la sauvegarde finale (étape 17) reste le filet complet.
-  async function saveStep(currentStep: number) {
+  async function saveStep(currentStep: number): Promise<boolean> {
     const payload = buildStepPayload(currentStep, data, maxStepRef.current)
-    if (!payload) return
+    if (!payload) return true
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('profils').upsert(
+    if (!user) return false
+    const { error } = await supabase.from('profils').upsert(
       { user_id: user.id, ...payload },
       { onConflict: 'user_id' }
     )
+    if (error) { console.error(error); return false }
+    return true
   }
 
   async function handleNext() {
+    if (saving) return
     if (step < TOTAL) {
       const nextScreen = step + 1
       maxStepRef.current = Math.max(maxStepRef.current, screenToStep(nextScreen))
-      saveStep(step)   // fire-and-forget
+      setSaving(true)
+      setSaveError(false)
+      const ok = await saveStep(step)
+      setSaving(false)
+      if (!ok) { setSaveError(true); return }
+      setSavedOk(true)
+      setTimeout(() => setSavedOk(false), 2000)
       setStep(nextScreen)
       return
     }
     // Écran final (9) : upsert complet + onboarding_completed = true
     setSaving(true)
-    setSaveError(null)
+    setSaveError(false)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Utilisateur non connecté')
+      if (!user) throw new Error()
       const { error } = await supabase.from('profils').upsert({
         user_id: user.id,
         type_compte: 'candidat',
@@ -1479,7 +1511,8 @@ function OnboardingPageInner() {
       if (error) throw error
       setShowFinal(true)
     } catch (err: unknown) {
-      setSaveError(err instanceof Error ? err.message : 'Une erreur est survenue')
+      console.error(err)
+      setSaveError(true)
       setSaving(false)
     }
   }
@@ -2007,9 +2040,19 @@ function OnboardingPageInner() {
         borderBottom: `1px solid ${C.sable}`,
       }}>
         <span style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
-        <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
-          {step} / {TOTAL}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {savedOk && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', color: C.grey }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <path d="M2 7l3.5 3.5 5.5-6" stroke="#22C55E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Enregistré
+            </span>
+          )}
+          <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
+            {step} / {TOTAL}
+          </span>
+        </div>
       </header>
 
       {/* Progression — blocs + barre */}
@@ -2046,6 +2089,24 @@ function OnboardingPageInner() {
         padding: '16px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
       }}>
         <div style={{ width: '100%', maxWidth: '560px' }}>
+          {saveError && (
+            <div role="alert" style={{
+              backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
+              borderRadius: 10, padding: '12px 16px', marginBottom: 20,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <span style={{ fontSize: '14px', color: C.dark, lineHeight: '1.5' }}>
+                L'enregistrement n'a pas abouti. Vérifiez votre connexion, puis réessayez.
+              </span>
+              <button onClick={handleNext} style={{
+                background: 'none', border: 'none', fontSize: '13px', fontWeight: '600',
+                color: C.terracotta, cursor: 'pointer', padding: '4px 0', flexShrink: 0,
+                fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px',
+              }}>
+                Réessayer
+              </button>
+            </div>
+          )}
           {transition && (
             <p style={{
               fontSize: '14px', color: C.grey, fontStyle: 'italic',
@@ -2065,11 +2126,6 @@ function OnboardingPageInner() {
         borderTop: `1px solid ${C.sable}`,
         backgroundColor: C.bg,
       }}>
-        {saveError && (
-          <p style={{ color: C.erreur, fontSize: '14px', marginBottom: '12px', textAlign: 'center', fontWeight: '500' }}>
-            {saveError}
-          </p>
-        )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={handleBack} disabled={step === 1 || saving} style={{
             background: 'none', border: 'none', padding: '10px 0', fontSize: '14px',
@@ -2095,20 +2151,18 @@ function OnboardingPageInner() {
               border: 'none', borderRadius: '12px',
               padding: '12px 28px', fontSize: '15px', fontWeight: '500',
               cursor: isValid() && !saving ? 'pointer' : 'default',
-              transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              fontFamily: 'inherit',
+              transition: 'background-color 0.2s, color 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              minWidth: '120px', fontFamily: 'inherit',
             }}>
-              {saving ? (
-                <>
-                  <span style={{
-                    width: '16px', height: '16px', borderRadius: '50%',
-                    border: '2px solid rgba(255,255,255,0.4)', borderTopColor: 'white',
-                    display: 'inline-block', animation: 'spin 0.7s linear infinite',
-                  }} />
-                  Enregistrement…
-                </>
-              ) : step === LAST_STEP ? 'Terminer' : 'Suivant'}
+              {saving && (
+                <span style={{
+                  width: '14px', height: '14px', borderRadius: '50%', flexShrink: 0,
+                  border: '2px solid rgba(255,255,255,0.35)', borderTopColor: 'white',
+                  display: 'inline-block', animation: 'spin 0.7s linear infinite',
+                }} />
+              )}
+              {step === TOTAL ? 'Terminer' : 'Suivant'}
             </button>
           </div>
         </div>
