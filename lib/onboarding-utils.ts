@@ -23,11 +23,11 @@ export { _DOMAINES as DOMAINES, _TYPES_POSTE as TYPES_POSTE }
 
 // Descriptions affichées dans l'UI onboarding — données de présentation uniquement.
 const EXPERIENCE_DESCS: Record<string, string> = {
-  'Sans expérience': 'Premiers pas dans le monde professionnel',
-  '1-2 ans':         'Débuts prometteurs',
-  '3-5 ans':         'Vous avez vos marques',
-  '5-10 ans':        'Confirmé(e), vous avancez avec confiance',
-  '+10 ans':         'Expert(e) reconnu(e)',
+  'Sans expérience': 'Vous faites vos premiers pas',
+  '1-2 ans':         'Vous avez débuté récemment',
+  '3-5 ans':         'Vous avez pris vos marques',
+  '5-10 ans':        'Vous avancez avec assurance',
+  '+10 ans':         'Vous avez une longue expérience du métier',
 }
 
 export const EXPERIENCES: { key: string; desc: string }[] = _EXP_KEYS.map(key => ({

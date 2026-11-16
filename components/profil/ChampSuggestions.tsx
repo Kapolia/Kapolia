@@ -13,6 +13,11 @@ type Props = {
   libre: boolean
   icone?: (v: string) => React.ReactNode
   listeAuClic?: boolean
+  sortStartsWith?: boolean
+  libreTexte?: (s: string) => string
+  libreSeulementSiAucunMatch?: boolean
+  fullMessage?: string
+  dropdownInFlow?: boolean
 }
 
 function highlight(s: string, input: string): React.ReactNode {
@@ -27,7 +32,7 @@ function highlight(s: string, input: string): React.ReactNode {
   )
 }
 
-export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic }: Props) {
+export default function ChampSuggestions({ valeurs, onChange, suggestions, max, placeholder, libre, icone, listeAuClic, sortStartsWith, libreTexte, libreSeulementSiAucunMatch, fullMessage, dropdownInFlow }: Props) {
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(-1)
@@ -41,11 +46,17 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
   const full = valeurs.length >= max
   const norm = normalizeText(input)
   const matched = input.length > 0
-    ? suggestions.filter(s => normalizeText(s).includes(norm)).slice(0, 8)
+    ? (() => {
+        const filtered = suggestions.filter(s => normalizeText(s).includes(norm))
+        if (!sortStartsWith) return filtered.slice(0, 8)
+        const starts = filtered.filter(s => normalizeText(s).startsWith(norm))
+        const rest   = filtered.filter(s => !normalizeText(s).startsWith(norm))
+        return [...starts, ...rest].slice(0, 8)
+      })()
     : listeAuClic
       ? suggestions
       : []
-  const hasLibre = libre && input.trim().length > 0
+  const hasLibre = libre && input.trim().length > 0 && (!libreSeulementSiAucunMatch || matched.length === 0)
   const totalOpts = matched.length + (hasLibre ? 1 : 0)
 
   useEffect(() => { if (full) { setInput(''); setOpen(false) } }, [full])
@@ -134,83 +145,92 @@ export default function ChampSuggestions({ valeurs, onChange, suggestions, max, 
         </div>
       )}
 
-      {/* Champ + liste */}
-      <div style={{ position: 'relative' }}>
-        <input
-          ref={inputRef}
-          value={input}
-          disabled={full}
-          placeholder={placeholder}
-          onChange={e => { setInput(e.target.value); setOpen(true); setIndex(-1) }}
-          onFocus={() => { if (input || listeAuClic) setOpen(true) }}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          onKeyDown={handleKey}
-          style={{
-            fontSize: 14, padding: '8px 11px', width: '100%',
-            border: `1px solid ${C.sable}`, borderRadius: 9, outline: 'none',
-            fontFamily: 'inherit', color: C.dark,
-            backgroundColor: full ? C.bg : C.white,
-            boxSizing: 'border-box',
-            transition: 'background-color 180ms',
-          }}
-        />
+      {/* Champ + liste ou message quand plein */}
+      {full && fullMessage ? (
+        <p style={{ fontSize: 13.5, color: C.grey, margin: 0 }}>{fullMessage}</p>
+      ) : (
+        <div style={{ position: dropdownInFlow ? undefined : 'relative' }}>
+          <input
+            ref={inputRef}
+            value={input}
+            disabled={full}
+            placeholder={placeholder}
+            onChange={e => { setInput(e.target.value); setOpen(true); setIndex(-1) }}
+            onFocus={() => {
+              if (input || listeAuClic) setOpen(true)
+              if (dropdownInFlow) setTimeout(() => inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
+            }}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={handleKey}
+            style={{
+              fontSize: 14, padding: '8px 11px', width: '100%',
+              border: `1px solid ${C.sable}`, borderRadius: 9, outline: 'none',
+              fontFamily: 'inherit', color: C.dark,
+              backgroundColor: full ? C.bg : C.white,
+              boxSizing: 'border-box',
+              transition: 'background-color 180ms',
+            }}
+          />
 
-        {open && totalOpts > 0 && (
-          <div className="champ-dropdown" style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-            backgroundColor: C.white, border: `1px solid ${C.sable}`,
-            borderRadius: 9, boxShadow: '0 4px 16px rgba(0,0,0,.08)',
-            marginTop: 4, overflow: 'hidden',
-            ...(listeAuClic && input.length === 0 ? { maxHeight: 240, overflowY: 'auto' as const } : {}),
-          }}>
-            {matched.map((s, i) => {
-              const already = valeurs.includes(s)
-              const active = index === i
-              return (
-                <div key={s}
-                  onMouseDown={already ? undefined : () => select(s)}
-                  onMouseEnter={() => !already && setIndex(i)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 12px', fontSize: 13.5,
-                    cursor: already ? 'default' : 'pointer',
-                    backgroundColor: active ? C.bg : C.white,
-                    color: already ? C.grey : C.dark,
-                    transition: 'background-color 180ms',
-                  }}
-                >
-                  <span>{highlight(s, input)}</span>
-                  {already && <span style={{ fontSize: 12, color: C.grey, marginLeft: 8, flexShrink: 0 }}>déjà choisie</span>}
-                </div>
-              )
-            })}
-            {hasLibre && (
-              <>
-                {matched.length > 0 && <div style={{ borderTop: `1px solid ${C.sable}` }} />}
-                <div
-                  onMouseDown={() => select(input.trim())}
-                  onMouseEnter={() => setIndex(matched.length)}
-                  style={{
-                    padding: '8px 12px', fontSize: 13.5, cursor: 'pointer',
-                    color: C.grey,
-                    backgroundColor: index === matched.length ? C.bg : C.white,
-                    transition: 'background-color 180ms',
-                  }}
-                >
-                  Garder &laquo;&nbsp;{input.trim()}&nbsp;&raquo; tel quel
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+          {open && totalOpts > 0 && (
+            <div className="champ-dropdown" style={{
+              ...(dropdownInFlow ? {} : { position: 'absolute' as const, top: '100%', left: 0, right: 0, zIndex: 50 }),
+              backgroundColor: C.white, border: `1px solid ${C.sable}`,
+              borderRadius: 9, boxShadow: '0 4px 16px rgba(0,0,0,.08)',
+              marginTop: 4, overflow: 'hidden',
+              ...(listeAuClic && input.length === 0 ? { maxHeight: 240, overflowY: 'auto' as const } : {}),
+            }}>
+              {matched.map((s, i) => {
+                const already = valeurs.includes(s)
+                const active = index === i
+                return (
+                  <div key={s}
+                    onMouseDown={already ? undefined : () => select(s)}
+                    onMouseEnter={() => !already && setIndex(i)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 12px', fontSize: 13.5,
+                      cursor: already ? 'default' : 'pointer',
+                      backgroundColor: active ? C.bg : C.white,
+                      color: already ? C.grey : C.dark,
+                      transition: 'background-color 180ms',
+                    }}
+                  >
+                    <span>{highlight(s, input)}</span>
+                    {already && <span style={{ fontSize: 12, color: C.grey, marginLeft: 8, flexShrink: 0 }}>déjà choisie</span>}
+                  </div>
+                )
+              })}
+              {hasLibre && (
+                <>
+                  {matched.length > 0 && <div style={{ borderTop: `1px solid ${C.sable}` }} />}
+                  <div
+                    onMouseDown={() => select(input.trim())}
+                    onMouseEnter={() => setIndex(matched.length)}
+                    style={{
+                      padding: '8px 12px', fontSize: 13.5, cursor: 'pointer',
+                      color: C.grey,
+                      backgroundColor: index === matched.length ? C.bg : C.white,
+                      transition: 'background-color 180ms',
+                    }}
+                  >
+                    {libreTexte ? libreTexte(input.trim()) : <>Garder &laquo;&nbsp;{input.trim()}&nbsp;&raquo; tel quel</>}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Compteur */}
-      <span style={{ fontSize: 12.5, color: C.grey, marginTop: 5, display: 'block' }}>
-        {full
-          ? 'Retirez un choix pour en ajouter un autre.'
-          : `${valeurs.length} choix sur ${max}.`}
-      </span>
+      {/* Compteur (masqué quand fullMessage) */}
+      {!(full && fullMessage) && (
+        <span style={{ fontSize: 12.5, color: C.grey, marginTop: 5, display: 'block' }}>
+          {full
+            ? 'Retirez un choix pour en ajouter un autre.'
+            : `${valeurs.length} choix sur ${max}.`}
+        </span>
+      )}
     </div>
   )
 }

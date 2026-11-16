@@ -26,6 +26,8 @@ import {
 } from '@/lib/test-qualites'
 import type { TestAnswer } from '@/lib/test-qualites'
 import MissionsTextArea from '@/components/MissionsTextArea'
+import ChampSuggestions from '@/components/profil/ChampSuggestions'
+import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 import SignatureCounter from '@/components/SignatureCounter'
 import { MAX_SIGNATURE, MAX_PROJET_TITRE, MAX_PROJET_DESC } from '@/lib/constants'
 import { COMP_REF, PREFERENCES_TELETRAVAIL, PERMIS, PERMIS_AUTRES } from '@/lib/referentiels'
@@ -72,10 +74,10 @@ const TRANSITIONS: Record<number, string> = {
 }
 
 const MICRO_TEXTS: Record<number, string> = {
-  1: 'Votre prénom et votre nom apparaissent sur votre profil tel que les recruteurs le verront.',
-  2: "Votre domaine oriente les offres que nous vous proposons. Votre niveau d'expérience affine les opportunités qui vous correspondent.",
+  1: "C'est ainsi que les recruteurs verront votre nom sur votre profil.",
+  2: 'Ces deux réponses orientent les offres que nous vous proposons.',
   3: "Neuf situations de travail, quatre réponses chacune. Choisissez les deux qui vous ressemblent le plus.",
-  4: "Vos projets et centres d'intérêt créent parfois de vrais points communs avec les recruteurs.",
+  4: 'Une réalisation concrète et ce que vous aimez en dehors du travail. Les recruteurs y trouvent souvent des points communs.',
   5: "Précisez vos préférences de contrat, de lieu et de disponibilité pour affiner vos opportunités.",
   6: "On s'épanouit dans les entreprises dont les valeurs rejoignent les nôtres. Vos priorités disent aux recruteurs ce que vous cherchez vraiment.",
   7: 'Ajoutez les expériences qui comptent vraiment. Ce ne sont pas les plus nombreuses qui parlent le mieux de vous, mais les plus significatives.',
@@ -868,18 +870,21 @@ function ChoiceCard({ label, desc, selected, onClick, disabled = false }: {
   )
 }
 
-function StyledInput({ value, onChange, placeholder, autoFocus, label }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean; label?: string
+function StyledInput({ value, onChange, placeholder, autoFocus, label, autoComplete, onEnterKey }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean
+  label?: string; autoComplete?: string; onEnterKey?: () => void
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
       {label && <label style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</label>}
       <input
         type="text"
         value={value}
         onChange={e => onChange(capitalizeFirst(e.target.value))}
+        onKeyDown={e => { if (e.key === 'Enter') onEnterKey?.() }}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
         className="kv-field"
         style={{
           width: '100%', padding: '13px 16px', fontSize: 16,
@@ -916,7 +921,7 @@ function StyledTextArea({ value, onChange, placeholder, rows = 5, label }: {
   )
 }
 
-function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
+function VoiceTextArea({ value, onChange, placeholder, rows = 4 }: {
   value: string; onChange: (v: string) => void; placeholder?: string; rows?: number
 }) {
   const [supported,  setSupported]  = useState(false)
@@ -976,70 +981,78 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
     setListening(false); setInterim('')
   }
 
-  const active = value.length > 0 || listening
-
   return (
-    <div style={{ position: 'relative' }}>
-      <textarea
-        value={value}
-        onChange={e => onChange(capitalizeFirst(e.target.value))}
-        placeholder={placeholder}
-        rows={rows}
-        className="kv-field"
-        style={{
-          width: '100%', padding: '13px 16px',
-          paddingBottom: supported ? '46px' : '13px',
-          fontSize: 15,
-          borderRadius: 12, border: '1.5px solid transparent',
-          backgroundColor: C.white, color: C.dark, outline: 'none',
-          boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65,
-          fontFamily: 'inherit',
-        }}
-      />
-      {interim && (
-        <p style={{
-          fontSize: '13px', color: C.terracotta, fontStyle: 'italic',
-          position: 'absolute', bottom: '48px', left: '16px', right: '48px',
-          margin: 0, lineHeight: '1.4', pointerEvents: 'none',
-          backgroundColor: 'rgba(247,242,235,0.9)',
-          borderRadius: '4px', padding: '2px 4px',
-        }}>
-          {interim}…
-        </p>
-      )}
-      {supported && (
-        <button
-          type="button"
-          onClick={listening ? stop : start}
-          title={listening ? 'Arrêter la dictée' : 'Dicter avec le micro (fr)'}
+    <>
+      <div style={{ position: 'relative' }}>
+        <textarea
+          value={value}
+          onChange={e => onChange(capitalizeFirst(e.target.value))}
+          placeholder={placeholder}
+          rows={rows}
+          className="kv-field"
           style={{
-            position: 'absolute', bottom: '10px', right: '10px',
-            width: '32px', height: '32px', borderRadius: '50%',
-            border: `1.5px solid ${listening ? C.terracotta : C.sable}`,
-            backgroundColor: listening ? C.terracotta : C.white,
-            color: listening ? C.white : C.grey,
-            cursor: 'pointer', padding: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'all 0.2s',
-            animation: listening ? 'kapolia-pulse 1.4s ease-in-out infinite' : 'none',
+            width: '100%', paddingTop: '13px', paddingLeft: '16px', paddingRight: '16px',
+            paddingBottom: supported ? '46px' : '13px',
+            fontSize: 15, borderRadius: 12, border: '1.5px solid transparent',
+            backgroundColor: C.white, color: C.dark, outline: 'none',
+            boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65, fontFamily: 'inherit',
           }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-            <rect x="9" y="2" width="6" height="12" rx="3"/>
-            <path d="M5 10a7 7 0 0014 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
-            <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
-            <line x1="8"  y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
-          </svg>
-        </button>
+        />
+        {interim && (
+          <p style={{
+            fontSize: '13px', color: C.terracotta, fontStyle: 'italic',
+            position: 'absolute', bottom: '48px', left: '16px', right: '48px',
+            margin: 0, lineHeight: '1.4', pointerEvents: 'none',
+            backgroundColor: 'rgba(247,242,235,0.9)', borderRadius: '4px', padding: '2px 4px',
+          }}>
+            {interim}…
+          </p>
+        )}
+        {supported && (
+          <button
+            type="button"
+            aria-pressed={listening}
+            onClick={listening ? stop : start}
+            style={{
+              position: 'absolute', bottom: 10, right: 10,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              height: 32, padding: '0 12px 0 10px',
+              border: 0, borderRadius: 999,
+              backgroundColor: listening ? C.orange : C.chip,
+              color: listening ? C.white : C.dark,
+              fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              animation: listening ? 'kv-micro-p 1.6s ease-out infinite' : 'none',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0014 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+              <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+              <line x1="8"  y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+            </svg>
+            {listening ? 'Arrêter' : 'Dicter'}
+          </button>
+        )}
+      </div>
+      {listening && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, color: C.orangeTexte, marginTop: 6 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, height: 16 }}>
+            {[0, .15, .3, .45, .6].map((delay, i) => (
+              <span key={i} style={{ width: 3, height: '100%', background: C.orange, borderRadius: 2, display: 'inline-block', animation: `kv-voix .9s ease-in-out ${delay}s infinite` }} />
+            ))}
+          </span>
+          Je vous écoute, parlez naturellement.
+        </div>
       )}
       {permError && (
         <p style={{ fontSize: '12px', color: C.erreur, marginTop: '6px' }}>
           Accès au microphone refusé. Vérifiez les permissions dans votre navigateur.
         </p>
       )}
-    </div>
+    </>
   )
 }
+
 
 function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, countLabel = 'éléments' }: {
   tags: string[]; onAddTag: (tag: string) => void; onRemoveTag: (tag: string) => void
@@ -1459,9 +1472,9 @@ function OnboardingPageInner() {
         return (
           <>
             <QuestionLabel text="Comment vous appelez-vous ?" sub={MICRO_TEXTS[1]} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <StyledInput value={data.prenom} onChange={v => set('prenom', v)} placeholder="Prénom" autoFocus />
-              <StyledInput value={data.nom}    onChange={v => set('nom', v)}    placeholder="Nom" />
+            <div className="kv-nom-row">
+              <StyledInput value={data.prenom} onChange={v => set('prenom', v)} placeholder="Prénom" autoFocus autoComplete="given-name" onEnterKey={isValid() ? handleNext : undefined} />
+              <StyledInput value={data.nom}    onChange={v => set('nom', v)}    placeholder="Nom"    autoComplete="family-name" onEnterKey={isValid() ? handleNext : undefined} />
             </div>
           </>
         )
@@ -1469,7 +1482,8 @@ function OnboardingPageInner() {
       case 2:
         return (
           <>
-            <QuestionLabel text="Votre domaine et votre expérience" sub={MICRO_TEXTS[2]} />
+            <QuestionLabel text={`Votre métier, ${data.prenom || ''}`} sub={MICRO_TEXTS[2]} />
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Domaine</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {DOMAINES.map(d => (
                 <button key={d} onClick={() => set('domaine', d)}
@@ -1485,9 +1499,7 @@ function OnboardingPageInner() {
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              Niveau d'expérience
-            </p>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>Expérience dans ce domaine</p>
             {EXPERIENCES.map(e => (
               <ChoiceCard key={e.key} label={e.key} desc={e.desc}
                 selected={data.experience === e.key} onClick={() => set('experience', e.key)} />
@@ -1510,7 +1522,8 @@ function OnboardingPageInner() {
       case 4:
         return (
           <>
-            <QuestionLabel text="Votre projet phare et vos passions" sub={MICRO_TEXTS[4]} optional />
+            <QuestionLabel text="Ce qui vous anime" sub={MICRO_TEXTS[4]} optional />
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Le projet dont vous êtes fier</p>
             <input
               type="text"
               value={data.projet_titre}
@@ -1518,42 +1531,47 @@ function OnboardingPageInner() {
                 const v = e.target.value
                 if (v.length <= MAX_PROJET_TITRE || v.length < data.projet_titre.length) set('projet_titre', v)
               }}
-              placeholder="Titre du projet (facultatif)"
+              placeholder="Titre du projet"
+              className="kv-field"
               style={{
                 width: '100%', boxSizing: 'border-box' as const,
-                padding: '12px 16px', borderRadius: 10,
-                border: `1.5px solid ${C.sable}`, fontSize: 15,
+                padding: '12px 16px', borderRadius: 12,
+                border: '1.5px solid transparent', fontSize: 15,
                 fontFamily: 'inherit', outline: 'none',
                 backgroundColor: C.white, color: C.dark,
-                marginBottom: 2,
               }}
             />
             <SignatureCounter count={data.projet_titre.length} max={MAX_PROJET_TITRE} theme="light" />
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: 16 }}>
+              <label style={{ fontSize: 14, fontWeight: 600, color: C.dark, display: 'block', marginBottom: 6 }}>Ce que vous avez fait</label>
               <VoiceTextArea
                 value={data.projet}
                 onChange={v => {
                   if (v.length <= MAX_PROJET_DESC || v.length < data.projet.length) set('projet', v)
                 }}
-                placeholder="Un projet perso, pro, associatif… Ce qui l'a rendu marquant."
+                placeholder="Professionnel, personnel ou associatif. Vous pouvez aussi le dire à voix haute."
               />
-              <SignatureCounter count={data.projet.length} max={MAX_PROJET_DESC} theme="light" />
+              <span style={{ fontSize: 12.5, color: C.grey, display: 'block', marginTop: 4 }}>{data.projet.length} sur {MAX_PROJET_DESC}</span>
             </div>
             <div style={{ height: 24 }} />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              Centres d'intérêt
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+              Vos passions <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>jusqu'à 5</small>
             </p>
-            <TagInput
-              tags={data.passions}
-              onAddTag={tag => set('passions', [...data.passions, tag])}
-              onRemoveTag={tag => set('passions', data.passions.filter(t => t !== tag))}
-              maxTags={10}
-              placeholder="Sport, musique, voyages… Tapez et appuyez sur Entrée"
-              countLabel="passions"
+            <ChampSuggestions
+              valeurs={data.passions}
+              onChange={v => set('passions', v)}
+              suggestions={PASSIONS_SUGGESTIONS}
+              max={5}
+              placeholder="Écrivez une passion"
+              libre={true}
+              sortStartsWith={true}
+              libreSeulementSiAucunMatch={true}
+              libreTexte={s => `Pas dans la liste ? Ajouter « ${s} »`}
+              fullMessage="Vous avez choisi 5 passions. Retirez-en une pour en changer."
+              dropdownInFlow={true}
             />
           </>
         )
-
       case 5: {
         const showDate   = data.disponibilite === 'a_partir_de'
         const allPermis  = [...PERMIS, ...PERMIS_AUTRES]
@@ -1957,6 +1975,10 @@ function OnboardingPageInner() {
           0%, 100% { box-shadow: 0 0 0 0 rgba(194, 97, 31,.45); }
           50%       { box-shadow: 0 0 0 7px rgba(194, 97, 31,0); }
         }
+        @keyframes kv-micro-p { 0%{box-shadow:0 0 0 0 rgba(194,97,31,.45)} 100%{box-shadow:0 0 0 10px rgba(194,97,31,0)} }
+        @keyframes kv-voix { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
+        .kv-nom-row { display:flex; gap:12px }
+        @media (max-width:640px) { .kv-nom-row { flex-direction:column } }
         /* Blocs sans contour — ombre légère, survol soulevé, sélectionné pêche */
         .kv-bloc {
           border: 0 !important;
