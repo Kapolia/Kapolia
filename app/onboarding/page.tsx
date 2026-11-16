@@ -126,6 +126,7 @@ const SEL_S: React.CSSProperties = {
   borderRadius: 8, fontFamily: 'inherit', color: C.dark, backgroundColor: C.white, cursor: 'pointer',
 }
 const LABEL_S: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: C.grey, marginBottom: 4, display: 'block' }
+const ETIQ_S:  React.CSSProperties = { fontSize: 15, fontWeight: 600, color: C.dark }
 
 // ─── Écran d'accueil ──────────────────────────────────────────────────────────
 
@@ -2007,7 +2008,7 @@ function OnboardingPageInner() {
         return (
           <>
             <QuestionLabel text={`Votre métier, ${data.prenom || ''}`} sub={MICRO_TEXTS[2]} />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '10px' }}>Domaine</p>
+            <p style={{ ...ETIQ_S, marginBottom: 10 }}>Domaine</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {DOMAINES.map(d => (
                 <button key={d} onClick={() => { tap('dom-' + d); set('domaine', d) }}
@@ -2023,7 +2024,7 @@ function OnboardingPageInner() {
                 </button>
               ))}
             </div>
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '10px' }}>Expérience dans ce domaine</p>
+            <p style={{ ...ETIQ_S, marginBottom: 10 }}>Expérience dans ce domaine</p>
             {EXPERIENCES.map(e => (
               <ChoiceCard key={e.key} label={e.key} desc={e.desc}
                 selected={data.experience === e.key} tapped={tappedId === 'exp-' + e.key} onClick={() => { tap('exp-' + e.key); set('experience', e.key) }} />
@@ -2047,7 +2048,7 @@ function OnboardingPageInner() {
         return (
           <>
             <QuestionLabel text="Ce qui vous anime" sub={MICRO_TEXTS[4]} optional />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: 10 }}>Le projet dont vous êtes fier</p>
+            <p style={{ ...ETIQ_S, marginBottom: 10 }}>Le projet dont vous êtes fier</p>
             <input
               type="text"
               value={data.projet_titre}
@@ -2078,8 +2079,8 @@ function OnboardingPageInner() {
               <span style={{ fontSize: 12.5, color: C.grey, display: 'block', marginTop: 4 }}>{data.projet.length} sur {MAX_PROJET_DESC}</span>
             </div>
             <div style={{ height: 24 }} />
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: 10 }}>
-              Vos passions <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>jusqu'à 5</small>
+            <p style={{ ...ETIQ_S, marginBottom: 10 }}>
+              Vos passions <small style={{ fontWeight: 400, color: C.grey, fontSize: 14, marginLeft: 6 }}>jusqu'à 5</small>
             </p>
             <ChampSuggestions
               avecMotion
@@ -2117,8 +2118,8 @@ function OnboardingPageInner() {
             <QuestionLabel text="Ce que vous cherchez" sub={MICRO_TEXTS[5]} />
 
             {/* Contrat */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
-              Contrat <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>plusieurs choix possibles</small>
+            <p style={{ ...ETIQ_S, marginBottom: 8 }}>
+              Contrat <small style={{ fontWeight: 400, color: C.grey, fontSize: 14, marginLeft: 6 }}>plusieurs choix possibles</small>
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {TYPES_POSTE.map(t => {
@@ -2140,7 +2141,7 @@ function OnboardingPageInner() {
             </div>
 
             {/* Télétravail */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
+            <p style={{ ...ETIQ_S, marginBottom: 8 }}>
               Télétravail
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
@@ -2164,7 +2165,7 @@ function OnboardingPageInner() {
 
             {/* Ville */}
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+              <label style={{ ...ETIQ_S, display: 'block', marginBottom: 8 }}>
                 Ville ou zone de recherche
               </label>
               <input
@@ -2182,8 +2183,8 @@ function OnboardingPageInner() {
             </div>
 
             {/* Permis */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
-              Permis et habilitations <small style={{ textTransform: 'none', fontWeight: 400, fontSize: 12, letterSpacing: 0 }}>plusieurs choix possibles</small>
+            <p style={{ ...ETIQ_S, marginBottom: 8 }}>
+              Permis et habilitations <small style={{ fontWeight: 400, color: C.grey, fontSize: 14, marginLeft: 6 }}>plusieurs choix possibles</small>
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
               {permisVis.map(p => {
@@ -2225,7 +2226,7 @@ function OnboardingPageInner() {
             </button>
 
             {/* Disponibilité */}
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
+            <p style={{ ...ETIQ_S, marginBottom: 8 }}>
               Disponibilité
             </p>
             {DISPOS.map(d => (
@@ -2447,7 +2448,7 @@ function OnboardingPageInner() {
           <>
             <QuestionLabel text="Compétences et langues" sub={MICRO_TEXTS[9]} />
 
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '8px' }}>
+            <p style={{ ...ETIQ_S, marginBottom: 8 }}>
               Compétences
             </p>
             <p style={{ fontSize: 13.5, color: C.grey, lineHeight: 1.6, marginBottom: 14 }}>
@@ -2463,7 +2464,7 @@ function OnboardingPageInner() {
 
             <div style={{ height: 28 }} />
 
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', marginBottom: '12px' }}>
+            <p style={{ ...ETIQ_S, marginBottom: 12 }}>
               Langues
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
