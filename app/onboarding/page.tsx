@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { FONT_SANS } from '@/lib/typography'
+import { FONT_SANS, FONT_LOGO } from '@/lib/typography'
 import LogoKapolia from '@/components/LogoKapolia'
 import InvitationModal from '@/components/InvitationModal'
 import {
@@ -55,15 +55,14 @@ function readPostSignupNext(): string | null {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLOCKS = [
-  { label: 'Identité & Parcours',   steps: [1, 2] },
-  { label: 'Personnalité',           steps: [3] },
-  { label: 'Projets & Préférences', steps: [4, 5, 6] },
-  { label: 'Parcours professionnel', steps: [7, 8] },
-  { label: 'Compétences & Langues', steps: [9] },
+  { label: 'Vous',              steps: [1, 2] },
+  { label: 'Vos qualités',      steps: [3] },
+  { label: 'Ce qui vous anime', steps: [4] },
+  { label: 'Votre recherche',   steps: [5, 6] },
+  { label: 'Votre parcours',    steps: [7, 8, 9] },
 ]
 
 const OPTIONAL_STEPS = new Set([4, 6, 7, 8])
-const LONG_OPTIONAL  = new Set([7, 8])
 
 const TRANSITIONS: Record<number, string> = {
   3: 'Voyons à présent ce qui vous définit, au-delà de votre parcours.',
@@ -96,22 +95,29 @@ const PRIORITES = [
 const DISPOS = [
   { key: 'maintenant',  label: 'En recherche active',   desc: 'Disponible immédiatement' },
   { key: 'a_partir_de', label: 'Disponible à une date', desc: 'Précisez la date ci-dessous' },
-  { key: 'en_poste',    label: "En poste, à l'écoute",  desc: 'Ouvert(e) aux bonnes opportunités' },
+  { key: 'en_poste',    label: "En poste, à l'écoute",  desc: 'Vous étudiez les propositions qui vous intéressent' },
 ]
 
 const LANGUES_LIST = [
-  { key: 'Français',  flag: '🇫🇷' },
-  { key: 'Anglais',   flag: '🇬🇧' },
-  { key: 'Espagnol',  flag: '🇪🇸' },
-  { key: 'Allemand',  flag: '🇩🇪' },
-  { key: 'Italien',   flag: '🇮🇹' },
-  { key: 'Portugais', flag: '🇵🇹' },
-  { key: 'Arabe',     flag: '🇸🇦' },
-  { key: 'Chinois',   flag: '🇨🇳' },
-  { key: 'Autre',     flag: '🌐' },
+  { key: 'Français'  },
+  { key: 'Anglais'   },
+  { key: 'Espagnol'  },
+  { key: 'Allemand'  },
+  { key: 'Italien'   },
+  { key: 'Portugais' },
+  { key: 'Arabe'     },
+  { key: 'Chinois'   },
+  { key: 'Autre'     },
 ]
 
 const NIVEAUX_LANGUE = ['Natif', 'Courant', 'Intermédiaire', 'Débutant']
+
+// ─── Utilitaires ─────────────────────────────────────────────────────────────
+
+function capitalizeFirst(v: string): string {
+  if (!v) return v
+  return v.charAt(0).toUpperCase() + v.slice(1)
+}
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
@@ -135,7 +141,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
 
   return (
     <div style={{
-      backgroundColor: '#EFE8DC',
+      backgroundColor: C.bg,
       height: '100vh',
       padding: 14,
       overflow: 'hidden',
@@ -350,12 +356,14 @@ function QualitesCarousel({
   forceEmpty = false,
   writeDate  = false,
   onRefaireDone,
+  onProgress,
 }: {
   userId:         string
   onComplete:     (done: boolean) => void
   forceEmpty?:    boolean
   writeDate?:     boolean
   onRefaireDone?: () => void
+  onProgress?:    (answered: number) => void
 }) {
   const [idx,         setIdx]        = useState(0)
   const [selections,  setSelections] = useState<Record<number, (1|2|3|4)[]>>({})
@@ -473,6 +481,8 @@ function QualitesCarousel({
   const isSaving      = savingIdx === idx
   const answeredCount = Object.keys(selections).filter(k => (selections[Number(k)] ?? []).length === 2).length
 
+  useEffect(() => { onProgress?.(answeredCount) }, [selections]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (phase === 'done') {
     const answers = situations
       .map(s => {
@@ -502,11 +512,9 @@ function QualitesCarousel({
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             {resultats.map(r => (
-              <div key={r.qualite} style={{
+              <div key={r.qualite} className="kv-bloc kv-sel" style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '8px 14px', borderRadius: 24,
-                border: `1.5px solid ${C.terracotta}`,
-                backgroundColor: 'rgba(194, 97, 31,0.06)',
               }}>
                 <span style={{ fontSize: 14, color: C.dark, fontWeight: 500 }}>
                   {QUALITE_LABELS[r.qualite] ?? r.qualite}
@@ -581,15 +589,12 @@ function QualitesCarousel({
             <button
               key={r.id}
               onClick={() => handleSelect(r.id)}
+              aria-pressed={selected}
+              className={`kv-bloc${selected ? ' kv-sel' : ''}${flashing ? ' kv-flash' : ''}`}
               style={{
                 textAlign: 'left', padding: '13px 16px', borderRadius: 12,
-                border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                backgroundColor: flashing ? `${C.terracotta}18`
-                                : selected ? `${C.terracotta}0D` : C.white,
-                color: selected ? C.dark : C.dark,
-                fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
-                fontFamily: 'inherit', transition: 'border-color 0.15s, background-color 0.15s',
-                outline: 'none',
+                color: C.dark, fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
+                fontFamily: 'inherit', outline: 'none',
               }}
             >
               {r.texte}
@@ -614,11 +619,10 @@ function QualitesCarousel({
         <button
           onClick={() => setIdx(i => i - 1)}
           disabled={idx === 0}
+          className="kv-bloc"
           style={{
             flex: 1, padding: '12px 16px', borderRadius: 12,
-            border: `1.5px solid ${idx === 0 ? C.sable : C.sable}`,
-            backgroundColor: C.white,
-            color: idx === 0 ? C.sable : C.dark,
+            color: idx === 0 ? C.grey : C.dark,
             fontSize: 14, cursor: idx === 0 ? 'default' : 'pointer',
             fontFamily: 'inherit', fontWeight: 500,
           }}
@@ -695,7 +699,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
   return (
     <main style={{
-      backgroundColor: C.vert,
+      backgroundColor: C.bg,
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -718,7 +722,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
       {/* Logo */}
       <div style={{ marginBottom: 32 }}>
-        <LogoKapolia variante="clair" taille={52} avecTexte={false} />
+        <LogoKapolia variante="sombre" taille={52} avecTexte={false} />
       </div>
 
       {/* Titre */}
@@ -726,7 +730,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
         fontFamily: FONT_SANS, letterSpacing: '-0.005em',
         fontWeight: 700,
         lineHeight: 1.1,
-        color: C.bg,
+        color: C.dark,
         textAlign: 'center',
         marginBottom: 20,
         marginTop: 0,
@@ -739,7 +743,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
         fontFamily: FONT_SANS,
         fontSize: 14,
         lineHeight: 1.6,
-        color: '#A9BDB2',
+        color: C.grey,
         textAlign: 'center',
         maxWidth: 400,
         marginBottom: 36,
@@ -875,7 +879,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
                 padding: 0,
                 fontFamily: FONT_SANS,
                 fontSize: 13,
-                color: invitHover ? C.bg : '#A9BDB2',
+                color: invitHover ? C.dark : C.grey,
                 textDecoration: 'underline',
                 cursor: 'pointer',
                 transition: 'color 0.15s',
@@ -900,26 +904,33 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
 
 // ─── Sous-composants ──────────────────────────────────────────────────────────
 
-function QuestionLabel({ num, text, sub }: { num: number; text: string; sub?: string }) {
+function QuestionLabel({ text, sub, optional }: { text: string; sub?: string; optional?: boolean }) {
   return (
     <>
-      <p style={{
-        fontSize: '11px', color: C.terracotta, fontWeight: '700',
-        marginBottom: '10px', letterSpacing: '0.1em', textTransform: 'uppercase',
-      }}>
-        Étape {num} sur {TOTAL}
-      </p>
-      <h2 style={{
-        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-        fontSize: 'clamp(22px, 3.5vw, 32px)',
-        color: C.dark, lineHeight: '1.35',
-        marginBottom: sub ? '10px' : '28px',
-        fontWeight: 700,
-      }}>
+      {optional && (
+        <span style={{
+          display: 'inline-block', fontSize: 13, fontWeight: 600,
+          color: C.grey, backgroundColor: C.chip, borderRadius: 6,
+          padding: '2px 8px', marginBottom: 10,
+        }}>
+          Facultatif
+        </span>
+      )}
+      <h1
+        id="titre-etape"
+        tabIndex={-1}
+        style={{
+          fontFamily: FONT_SANS, letterSpacing: '-0.005em',
+          fontSize: 'clamp(24px, 3.5vw, 30px)',
+          color: C.dark, lineHeight: 1.15,
+          margin: sub ? '0 0 8px' : '0 0 28px',
+          fontWeight: 700, outline: 'none',
+        }}
+      >
         {text}
-      </h2>
+      </h1>
       {sub && (
-        <p style={{ fontSize: '14px', color: C.grey, lineHeight: '1.65', marginBottom: '28px' }}>
+        <p style={{ fontSize: 15.5, color: C.grey, lineHeight: 1.55, margin: '0 0 26px', maxWidth: 540 }}>
           {sub}
         </p>
       )}
@@ -934,28 +945,34 @@ function ChoiceCard({ label, desc, selected, onClick, disabled = false }: {
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
+      aria-pressed={selected}
+      className={`kv-bloc${selected ? ' kv-sel' : ''}`}
       style={{
         width: '100%', textAlign: 'left', padding: '14px 18px',
-        borderRadius: '14px',
-        border: `2px solid ${selected ? C.terracotta : C.sable}`,
-        backgroundColor: selected ? 'rgba(194, 97, 31,0.07)' : C.white,
-        cursor: disabled ? 'default' : 'pointer', transition: 'all 0.15s',
-        marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '14px',
+        borderRadius: 14,
+        cursor: disabled ? 'default' : 'pointer',
+        marginBottom: 10, display: 'flex', alignItems: 'center', gap: 14,
         opacity: disabled ? 0.45 : 1,
       }}
     >
       <span style={{
-        width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
-        border: `2px solid ${selected ? C.terracotta : '#CCC'}`,
-        backgroundColor: selected ? C.terracotta : 'transparent',
-        transition: 'all 0.15s',
-      }} />
+        width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+        border: `2px solid ${selected ? C.terracotta : '#C3CAC5'}`,
+        position: 'relative', transition: 'border-color 0.15s',
+      }}>
+        {selected && (
+          <span style={{
+            position: 'absolute', inset: 3, borderRadius: '50%',
+            backgroundColor: C.terracotta,
+          }} />
+        )}
+      </span>
       <span style={{ flex: 1 }}>
-        <span style={{ fontSize: '15px', fontWeight: '500', color: C.dark, display: 'block' }}>
+        <span style={{ fontSize: 15.5, fontWeight: 600, color: C.dark, display: 'block' }}>
           {label}
         </span>
         {desc && (
-          <span style={{ fontSize: '13px', color: C.grey, marginTop: '2px', display: 'block' }}>
+          <span style={{ fontSize: 14, color: C.grey, marginTop: 1, display: 'block' }}>
             {desc}
           </span>
         )}
@@ -964,43 +981,51 @@ function ChoiceCard({ label, desc, selected, onClick, disabled = false }: {
   )
 }
 
-function StyledInput({ value, onChange, placeholder, autoFocus }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean
+function StyledInput({ value, onChange, placeholder, autoFocus, label }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; autoFocus?: boolean; label?: string
 }) {
   return (
-    <input
-      type="text"
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-      style={{
-        width: '100%', padding: '13px 16px', fontSize: '16px',
-        borderRadius: '12px', border: `2px solid ${value ? C.terracotta : C.sable}`,
-        backgroundColor: C.white, color: C.dark, outline: 'none',
-        boxSizing: 'border-box', transition: 'border-color 0.2s', fontFamily: 'inherit',
-      }}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && <label style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</label>}
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(capitalizeFirst(e.target.value))}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        className="kv-field"
+        style={{
+          width: '100%', padding: '13px 16px', fontSize: 16,
+          borderRadius: 12, border: '1.5px solid transparent',
+          backgroundColor: C.white, color: C.dark, outline: 'none',
+          boxSizing: 'border-box', fontFamily: 'inherit',
+        }}
+      />
+    </div>
   )
 }
 
-function StyledTextArea({ value, onChange, placeholder, rows = 5 }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; rows?: number
+function StyledTextArea({ value, onChange, placeholder, rows = 5, label }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; rows?: number; label?: string
 }) {
   return (
-    <textarea
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      style={{
-        width: '100%', padding: '13px 16px', fontSize: '15px',
-        borderRadius: '12px', border: `2px solid ${value ? C.terracotta : C.sable}`,
-        backgroundColor: C.white, color: C.dark, outline: 'none',
-        boxSizing: 'border-box', resize: 'vertical', lineHeight: '1.65',
-        fontFamily: 'inherit', transition: 'border-color 0.2s',
-      }}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && <label style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</label>}
+      <textarea
+        value={value}
+        onChange={e => onChange(capitalizeFirst(e.target.value))}
+        placeholder={placeholder}
+        rows={rows}
+        className="kv-field"
+        style={{
+          width: '100%', padding: '13px 16px', fontSize: 15,
+          borderRadius: 12, border: '1.5px solid transparent',
+          backgroundColor: C.white, color: C.dark, outline: 'none',
+          boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65,
+          fontFamily: 'inherit',
+        }}
+      />
+    </div>
   )
 }
 
@@ -1070,17 +1095,18 @@ function VoiceTextArea({ value, onChange, placeholder, rows = 5 }: {
     <div style={{ position: 'relative' }}>
       <textarea
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => onChange(capitalizeFirst(e.target.value))}
         placeholder={placeholder}
         rows={rows}
+        className="kv-field"
         style={{
           width: '100%', padding: '13px 16px',
           paddingBottom: supported ? '46px' : '13px',
-          fontSize: '15px',
-          borderRadius: '12px', border: `2px solid ${active ? C.terracotta : C.sable}`,
+          fontSize: 15,
+          borderRadius: 12, border: '1.5px solid transparent',
           backgroundColor: C.white, color: C.dark, outline: 'none',
-          boxSizing: 'border-box', resize: 'vertical', lineHeight: '1.65',
-          fontFamily: 'inherit', transition: 'border-color 0.2s',
+          boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65,
+          fontFamily: 'inherit',
         }}
       />
       {interim && (
@@ -1149,11 +1175,12 @@ function TagInput({ tags, onAddTag, onRemoveTag, maxTags = 15, placeholder, coun
           onChange={e => setVal(e.target.value)}
           onKeyDown={handleKey}
           placeholder={placeholder ?? 'Tapez et appuyez sur Entrée'}
+          className="kv-field"
           style={{
-            width: '100%', padding: '13px 16px', fontSize: '15px',
-            borderRadius: '12px', border: `2px solid ${val ? C.terracotta : C.sable}`,
+            width: '100%', padding: '13px 16px', fontSize: 15,
+            borderRadius: 12, border: '1.5px solid transparent',
             backgroundColor: C.white, color: C.dark, outline: 'none',
-            boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.2s',
+            boxSizing: 'border-box', fontFamily: 'inherit',
           }}
         />
       )}
@@ -1316,11 +1343,12 @@ function CompRefTagInput({
           onChange={e => setFreeVal(e.target.value)}
           onKeyDown={handleKey}
           placeholder="Autre compétence (saisie libre) — Entrée pour valider"
+          className="kv-field"
           style={{
-            width: '100%', padding: '13px 16px', fontSize: '14px',
-            borderRadius: '12px', border: `2px solid ${freeVal ? C.terracotta : C.sable}`,
+            width: '100%', padding: '13px 16px', fontSize: 14,
+            borderRadius: 12, border: '1.5px solid transparent',
             backgroundColor: C.white, color: C.dark, outline: 'none',
-            boxSizing: 'border-box', fontFamily: 'inherit', transition: 'border-color 0.2s',
+            boxSizing: 'border-box', fontFamily: 'inherit',
           }}
         />
       )}
@@ -1348,15 +1376,17 @@ function OnboardingPageInner() {
     typePoste: [], lieu: '', ville: '', permis: [], priorite: [],
     experiences: [], diplomes: [], competences_acquises: [], langues: [],
   })
-  const [saving,        setSaving]        = useState(false)
-  const [saveError,     setSaveError]     = useState(false)
-  const [savedOk,       setSavedOk]       = useState(false)
-  const [loadingResume, setLoadingResume] = useState(true)
-  const [userId,        setUserId]        = useState('')
-  const [emailConfirme, setEmailConfirme] = useState(true)
+  const [saving,           setSaving]           = useState(false)
+  const [saveError,        setSaveError]        = useState(false)
+  const [savedOk,          setSavedOk]          = useState(false)
+  const [loadingResume,    setLoadingResume]    = useState(true)
+  const [userId,           setUserId]           = useState('')
+  const [emailConfirme,    setEmailConfirme]    = useState(true)
+  const [qualitesProgress, setQualitesProgress] = useState(0)
   // Ref pour le step max atteint — ne régresse jamais, même si l'utilisateur revient en arrière.
   // Stocke la valeur DB (101–109), pas le numéro d'écran (1–9).
-  const maxStepRef = useRef(screenToStep(1))
+  const maxStepRef       = useRef(screenToStep(1))
+  const savedOkTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     async function resumeIfNeeded() {
@@ -1419,6 +1449,10 @@ function OnboardingPageInner() {
     resumeIfNeeded()
   }, [])
 
+  useEffect(() => {
+    document.getElementById('titre-etape')?.focus()
+  }, [step])
+
   const blockIndex = BLOCKS.findIndex(b => b.steps.includes(step))
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
@@ -1448,8 +1482,7 @@ function OnboardingPageInner() {
     }
   }
 
-  // Sauvegarde progressive : fire-and-forget pour les étapes 1–16.
-  // Les erreurs sont silencieuses — la sauvegarde finale (étape 17) reste le filet complet.
+  // Sauvegarde progressive : persiste l'étape courante dans profils et met à jour le max atteint.
   async function saveStep(currentStep: number): Promise<boolean> {
     const payload = buildStepPayload(currentStep, data, maxStepRef.current)
     if (!payload) return true
@@ -1473,8 +1506,9 @@ function OnboardingPageInner() {
       const ok = await saveStep(step)
       setSaving(false)
       if (!ok) { setSaveError(true); return }
+      if (savedOkTimerRef.current) clearTimeout(savedOkTimerRef.current)
       setSavedOk(true)
-      setTimeout(() => setSavedOk(false), 2000)
+      savedOkTimerRef.current = setTimeout(() => setSavedOk(false), 2000)
       setStep(nextScreen)
       return
     }
@@ -1537,7 +1571,7 @@ function OnboardingPageInner() {
       case 1:
         return (
           <>
-            <QuestionLabel num={step} text="Comment vous appelez-vous ?" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Comment vous appelez-vous ?" sub={MICRO_TEXTS[1]} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <StyledInput value={data.prenom} onChange={v => set('prenom', v)} placeholder="Prénom" autoFocus />
               <StyledInput value={data.nom}    onChange={v => set('nom', v)}    placeholder="Nom" />
@@ -1548,17 +1582,18 @@ function OnboardingPageInner() {
       case 2:
         return (
           <>
-            <QuestionLabel num={step} text="Votre domaine et votre expérience" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Votre domaine et votre expérience" sub={MICRO_TEXTS[2]} />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px' }}>
               {DOMAINES.map(d => (
-                <button key={d} onClick={() => set('domaine', d)} style={{
-                  padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
-                  border: `2px solid ${data.domaine === d ? C.terracotta : C.sable}`,
-                  backgroundColor: data.domaine === d ? 'rgba(194, 97, 31,0.08)' : C.white,
-                  color: data.domaine === d ? C.terracotta : C.dark,
-                  fontSize: '14px', fontWeight: data.domaine === d ? '600' : '400',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}>
+                <button key={d} onClick={() => set('domaine', d)}
+                  aria-pressed={data.domaine === d}
+                  className={`kv-bloc${data.domaine === d ? ' kv-sel' : ''}`}
+                  style={{
+                    padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
+                    color: data.domaine === d ? C.orangeTexte : C.dark,
+                    fontSize: 14, fontWeight: data.domaine === d ? 600 : 400,
+                    cursor: 'pointer',
+                  }}>
                   {d}
                 </button>
               ))}
@@ -1575,16 +1610,20 @@ function OnboardingPageInner() {
 
       case 3:
         return (
-          <QualitesCarousel
-            userId={userId}
-            onComplete={done => setStep3Complete(done)}
-          />
+          <>
+            <QuestionLabel text="Vos qualités" sub={MICRO_TEXTS[3]} />
+            <QualitesCarousel
+              userId={userId}
+              onComplete={done => setStep3Complete(done)}
+              onProgress={n => setQualitesProgress(n)}
+            />
+          </>
         )
 
       case 4:
         return (
           <>
-            <QuestionLabel num={step} text="Votre projet phare et vos passions" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Votre projet phare et vos passions" sub={MICRO_TEXTS[4]} optional />
             <input
               type="text"
               value={data.projet_titre}
@@ -1639,7 +1678,7 @@ function OnboardingPageInner() {
         }
         return (
           <>
-            <QuestionLabel num={step} text="Vos préférences de recherche" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Vos préférences de recherche" sub={MICRO_TEXTS[5]} />
 
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
               Type de contrat
@@ -1654,20 +1693,15 @@ function OnboardingPageInner() {
                   <button key={t.key} onClick={() => {
                     if (selected) set('typePoste', data.typePoste.filter(k => k !== t.key))
                     else set('typePoste', [...data.typePoste, t.key])
-                  }} style={{
-                    padding: '11px 22px', borderRadius: '24px', fontFamily: 'inherit',
-                    border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                    backgroundColor: selected ? 'rgba(194, 97, 31,0.08)' : C.white,
-                    color: selected ? C.terracotta : C.dark,
-                    fontSize: '14px', fontWeight: selected ? '600' : '400',
-                    cursor: 'pointer', transition: 'all 0.15s',
-                    display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  }}>
-                    {selected && (
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
+                  }}
+                    aria-pressed={selected}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    style={{
+                      padding: '11px 22px', borderRadius: 24, fontFamily: 'inherit',
+                      color: selected ? C.orangeTexte : C.dark,
+                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      cursor: 'pointer',
+                    }}>
                     {t.label}
                   </button>
                 )
@@ -1681,11 +1715,12 @@ function OnboardingPageInner() {
               <ChoiceCard key={l.key} label={l.label} desc={l.description}
                 selected={data.lieu === l.key} onClick={() => set('lieu', l.key)} />
             ))}
-            <div style={{ marginTop: '4px', marginBottom: '24px' }}>
+            <div style={{ marginTop: 4, marginBottom: 24 }}>
               <StyledInput
                 value={data.ville}
                 onChange={v => set('ville', v)}
                 placeholder="Votre ville, région ou zone géographique"
+                label="Ville ou région"
               />
             </div>
 
@@ -1703,9 +1738,10 @@ function OnboardingPageInner() {
                   value={data.dispo_date}
                   onChange={e => set('dispo_date', e.target.value)}
                   min={new Date().toISOString().slice(0, 10)}
+                  className="kv-field"
                   style={{
-                    width: '100%', padding: '13px 16px', fontSize: '16px',
-                    borderRadius: '12px', border: `2px solid ${data.dispo_date ? C.terracotta : C.sable}`,
+                    width: '100%', padding: '13px 16px', fontSize: 16,
+                    borderRadius: 12, border: '1.5px solid transparent',
                     backgroundColor: C.white, color: C.dark, outline: 'none',
                     boxSizing: 'border-box', fontFamily: 'inherit',
                   }}
@@ -1721,26 +1757,28 @@ function OnboardingPageInner() {
                 {allPermis.map(p => {
                   const sel = data.permis.includes(p.value)
                   return (
-                    <button key={p.value} onClick={() => togglePermis(p.value)} style={{
-                      padding: '8px 16px', borderRadius: '24px', fontFamily: 'inherit',
-                      border: `2px solid ${sel ? C.terracotta : C.sable}`,
-                      backgroundColor: sel ? 'rgba(194, 97, 31,0.08)' : C.white,
-                      color: sel ? C.terracotta : C.dark,
-                      fontSize: '14px', fontWeight: sel ? '600' : '400',
-                      cursor: 'pointer', transition: 'all 0.15s',
-                    }}>
+                    <button key={p.value} onClick={() => togglePermis(p.value)}
+                      aria-pressed={sel}
+                      className={`kv-bloc${sel ? ' kv-sel' : ''}`}
+                      style={{
+                        padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
+                        color: sel ? C.orangeTexte : C.dark,
+                        fontSize: 14, fontWeight: sel ? 600 : 400,
+                        cursor: 'pointer',
+                      }}>
                       {p.label}
                     </button>
                   )
                 })}
-                <button onClick={() => togglePermis('aucun')} style={{
-                  padding: '8px 16px', borderRadius: '24px', fontFamily: 'inherit',
-                  border: `2px solid ${data.permis.includes('aucun') ? C.terracotta : C.sable}`,
-                  backgroundColor: data.permis.includes('aucun') ? 'rgba(194, 97, 31,0.08)' : C.white,
-                  color: data.permis.includes('aucun') ? C.terracotta : C.dark,
-                  fontSize: '14px', fontWeight: data.permis.includes('aucun') ? '600' : '400',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}>
+                <button onClick={() => togglePermis('aucun')}
+                  aria-pressed={data.permis.includes('aucun')}
+                  className={`kv-bloc${data.permis.includes('aucun') ? ' kv-sel' : ''}`}
+                  style={{
+                    padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
+                    color: data.permis.includes('aucun') ? C.orangeTexte : C.dark,
+                    fontSize: 14, fontWeight: data.permis.includes('aucun') ? 600 : 400,
+                    cursor: 'pointer',
+                  }}>
                   Aucun
                 </button>
               </div>
@@ -1753,7 +1791,7 @@ function OnboardingPageInner() {
         const maxReached = data.priorite.length >= 3
         return (
           <>
-            <QuestionLabel num={step} text="Qu'est-ce qui compte le plus dans votre prochain poste ?" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Qu'est-ce qui compte le plus dans votre prochain poste ?" sub={MICRO_TEXTS[6]} optional />
             <p style={{ fontSize: '13px', color: C.grey, marginBottom: '16px', marginTop: '-14px' }}>
               Choisissez jusqu'à 3 priorités.{' '}
               {maxReached && <span style={{ color: C.terracotta, fontWeight: '500' }}>Maximum atteint.</span>}
@@ -1766,16 +1804,18 @@ function OnboardingPageInner() {
                   <button key={p} onClick={() => {
                     if (selected) set('priorite', data.priorite.filter(x => x !== p))
                     else if (!maxReached) set('priorite', [...data.priorite, p])
-                  }} style={{
-                    padding: '10px 18px', borderRadius: '24px', fontFamily: 'inherit',
-                    border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                    backgroundColor: selected ? 'rgba(194, 97, 31,0.09)' : C.white,
-                    color: selected ? C.terracotta : C.dark,
-                    fontSize: '14px', fontWeight: selected ? '600' : '400',
-                    cursor: disabled ? 'default' : 'pointer',
-                    opacity: disabled ? 0.4 : 1, transition: 'all 0.15s',
-                  }}>
-                    {selected ? '✓ ' : ''}{p}
+                  }}
+                    aria-pressed={selected}
+                    disabled={disabled}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    style={{
+                      padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
+                      color: selected ? C.orangeTexte : C.dark,
+                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      cursor: disabled ? 'default' : 'pointer',
+                      opacity: disabled ? 0.4 : 1,
+                    }}>
+                    {p}
                   </button>
                 )
               })}
@@ -1795,11 +1835,12 @@ function OnboardingPageInner() {
           set('experiences', data.experiences.map((e, idx) => idx === i ? { ...e, ...patch } : e))
         return (
           <>
-            <QuestionLabel num={step} text="Vos expériences professionnelles" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Vos expériences professionnelles" sub={MICRO_TEXTS[7]} optional />
             {data.experiences.map((exp, i) => (
-              <div key={i} style={{
+              <div key={i} className="kv-fiche" style={{
                 backgroundColor: C.white, borderRadius: 14,
-                border: `1px solid ${C.sable}`, padding: '16px', marginBottom: '12px',
+                boxShadow: '0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07)',
+                padding: 16, marginBottom: 12,
               }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <StyledInput value={exp.poste}      onChange={v => updateExp(i, { poste: v })}      placeholder="Intitulé du poste" />
@@ -1826,14 +1867,14 @@ function OnboardingPageInner() {
                 </div>
                 <MissionsTextArea
                   value={exp.missions}
-                  onChange={v => updateExp(i, { missions: v })}
+                  onChange={v => updateExp(i, { missions: capitalizeFirst(v) })}
                   rows={3}
                   textareaStyle={{
-                    width: '100%', padding: '13px 16px', fontSize: '15px',
-                    borderRadius: '12px', border: `2px solid ${exp.missions ? C.terracotta : C.sable}`,
-                    backgroundColor: C.white, color: C.dark, outline: 'none',
-                    boxSizing: 'border-box', resize: 'vertical', lineHeight: '1.65',
-                    fontFamily: 'inherit', transition: 'border-color 0.2s',
+                    width: '100%', padding: '13px 16px', fontSize: 15,
+                    borderRadius: 12, border: '1.5px solid transparent',
+                    color: C.dark, outline: 'none',
+                    boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65,
+                    fontFamily: 'inherit',
                   }}
                 />
                 <button onClick={() => removeExp(i)} style={{
@@ -1845,11 +1886,10 @@ function OnboardingPageInner() {
                 </button>
               </div>
             ))}
-            <button onClick={addExp} style={{
+            <button onClick={addExp} className="kv-ajouter" style={{
               width: '100%', padding: '13px', borderRadius: 12,
-              border: `2px dashed ${C.sable}`, backgroundColor: 'transparent',
-              color: C.grey, fontSize: '14px', cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'border-color 0.2s',
+              color: C.orangeTexte, fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
             }}>
               + Ajouter une expérience
             </button>
@@ -1868,11 +1908,12 @@ function OnboardingPageInner() {
           set('diplomes', data.diplomes.map((d, idx) => idx === i ? { ...d, ...patch } : d))
         return (
           <>
-            <QuestionLabel num={step} text="Vos diplômes et formations" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Vos diplômes et formations" sub={MICRO_TEXTS[8]} optional />
             {data.diplomes.map((d, i) => (
-              <div key={i} style={{
+              <div key={i} className="kv-fiche" style={{
                 backgroundColor: C.white, borderRadius: 14,
-                border: `1px solid ${C.sable}`, padding: '16px', marginBottom: '12px',
+                boxShadow: '0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07)',
+                padding: 16, marginBottom: 12,
               }}>
                 <div style={{ marginBottom: '10px' }}>
                   <StyledInput value={d.intitule} onChange={v => updateDiplome(i, { intitule: v })}
@@ -1893,11 +1934,10 @@ function OnboardingPageInner() {
                 </button>
               </div>
             ))}
-            <button onClick={addDiplome} style={{
+            <button onClick={addDiplome} className="kv-ajouter" style={{
               width: '100%', padding: '13px', borderRadius: 12,
-              border: `2px dashed ${C.sable}`, backgroundColor: 'transparent',
-              color: C.grey, fontSize: '14px', cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'border-color 0.2s',
+              color: C.orangeTexte, fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit',
             }}>
               + Ajouter un diplôme
             </button>
@@ -1908,7 +1948,7 @@ function OnboardingPageInner() {
       case 9:
         return (
           <>
-            <QuestionLabel num={step} text="Compétences et langues" sub={MICRO_TEXTS[step]} />
+            <QuestionLabel text="Compétences et langues" sub={MICRO_TEXTS[9]} />
 
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
               Compétences techniques et outils
@@ -1927,21 +1967,22 @@ function OnboardingPageInner() {
               Langues parlées
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-              {LANGUES_LIST.map(({ key, flag }) => {
+              {LANGUES_LIST.map(({ key }) => {
                 const selected = data.langues.some(l => l.startsWith(key + ' — '))
                 return (
                   <button key={key} onClick={() => {
                     if (selected) set('langues', data.langues.filter(l => !l.startsWith(key + ' — ')))
                     else set('langues', [...data.langues, `${key} — Natif`])
-                  }} style={{
-                    padding: '8px 16px', borderRadius: '24px', fontFamily: 'inherit',
-                    border: `2px solid ${selected ? C.terracotta : C.sable}`,
-                    backgroundColor: selected ? 'rgba(194, 97, 31,0.08)' : C.white,
-                    color: selected ? C.terracotta : C.dark,
-                    fontSize: '14px', fontWeight: selected ? '600' : '400',
-                    cursor: 'pointer', transition: 'all 0.15s',
-                  }}>
-                    {flag} {key}
+                  }}
+                    aria-pressed={selected}
+                    className={`kv-bloc${selected ? ' kv-sel' : ''}`}
+                    style={{
+                      padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
+                      color: selected ? C.orangeTexte : C.dark,
+                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      cursor: 'pointer',
+                    }}>
+                    {key}
                   </button>
                 )
               })}
@@ -1952,24 +1993,23 @@ function OnboardingPageInner() {
                   const sepIdx   = entry.indexOf(' — ')
                   const langName = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
                   const niveau   = sepIdx >= 0 ? entry.slice(sepIdx + 3) : 'Natif'
-                  const flag     = LANGUES_LIST.find(l => l.key === langName)?.flag ?? '🌐'
                   return (
-                    <div key={langName} style={{
-                      display: 'flex', alignItems: 'center', gap: '12px',
+                    <div key={langName} className="kv-bloc" style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
                       backgroundColor: C.white, borderRadius: 12,
-                      border: `1px solid ${C.sable}`, padding: '10px 14px',
+                      padding: '10px 14px',
                     }}>
-                      <span style={{ fontSize: '18px', flexShrink: 0 }}>{flag}</span>
-                      <span style={{ fontSize: '14px', fontWeight: '500', color: C.dark, flex: 1 }}>{langName}</span>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: C.dark, flex: 1 }}>{langName}</span>
                       <select
                         value={niveau}
                         onChange={e => set('langues', data.langues.map(l =>
                           l.startsWith(langName + ' — ') ? `${langName} — ${e.target.value}` : l
                         ))}
+                        className="kv-field"
                         style={{
-                          padding: '6px 10px', borderRadius: '8px', fontFamily: 'inherit',
-                          border: `1px solid ${C.sable}`, backgroundColor: C.bg,
-                          color: C.dark, fontSize: '13px', cursor: 'pointer', outline: 'none',
+                          padding: '6px 10px', borderRadius: 8, fontFamily: 'inherit',
+                          border: '1.5px solid transparent', backgroundColor: C.white,
+                          color: C.dark, fontSize: 13, cursor: 'pointer', outline: 'none',
                         }}
                       >
                         {NIVEAUX_LANGUE.map(n => <option key={n} value={n}>{n}</option>)}
@@ -2020,7 +2060,6 @@ function OnboardingPageInner() {
   if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push(readPostSignupNext() ?? '/profil')} userId={userId} emailConfirme={emailConfirme} />
 
   const isOpt      = OPTIONAL_STEPS.has(step)
-  const skipLabel  = LONG_OPTIONAL.has(step) ? 'Passer, je compléterai plus tard' : 'Passer'
   const transition = TRANSITIONS[step]
 
   return (
@@ -2028,67 +2067,137 @@ function OnboardingPageInner() {
       <style suppressHydrationWarning>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes kapolia-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(194, 97, 31,0.45); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(194, 97, 31,.45); }
           50%       { box-shadow: 0 0 0 7px rgba(194, 97, 31,0); }
         }
+        /* Blocs sans contour — ombre légère, survol soulevé, sélectionné pêche */
+        .kv-bloc {
+          border: 0 !important;
+          background: #FFFFFF;
+          box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07);
+          transition: box-shadow .2s, background-color .15s, transform .15s;
+        }
+        .kv-bloc:hover:not(:disabled) {
+          box-shadow: 0 1px 2px rgba(27,48,38,.07), 0 10px 22px rgba(27,48,38,.10);
+          transform: translateY(-1px);
+        }
+        .kv-bloc.kv-sel, .kv-bloc[aria-pressed="true"] {
+          background: #FBEDE3 !important;
+          box-shadow: 0 1px 2px rgba(194,97,31,.10), 0 6px 16px rgba(194,97,31,.12) !important;
+        }
+        .kv-bloc.kv-flash { background: rgba(194,97,31,.12) !important; }
+        /* Bouton Ajouter */
+        .kv-ajouter {
+          border: 0 !important;
+          background: #FFFFFF;
+          box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07);
+          transition: box-shadow .2s, transform .15s;
+        }
+        .kv-ajouter:hover { box-shadow: 0 1px 2px rgba(27,48,38,.07), 0 10px 22px rgba(27,48,38,.10); transform: translateX(2px); }
+        /* Champs sans contour — ombre sur fond gris */
+        .kv-field {
+          border: 1.5px solid transparent !important;
+          box-shadow: 0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07) !important;
+        }
+        .kv-field:focus {
+          border-color: #C2611F !important;
+          box-shadow: 0 0 0 3px rgba(194,97,31,.14) !important;
+          outline: none !important;
+        }
+        /* Champs dans les cartes blanches */
+        .kv-fiche .kv-field,
+        .kv-fiche input[type=text], .kv-fiche input[type=date],
+        .kv-fiche select, .kv-fiche textarea {
+          background: #F2F4F2 !important;
+          box-shadow: none !important;
+          border: 1.5px solid transparent !important;
+        }
+        .kv-fiche .kv-field:focus,
+        .kv-fiche input[type=text]:focus, .kv-fiche input[type=date]:focus,
+        .kv-fiche select:focus, .kv-fiche textarea:focus {
+          background: #FFFFFF !important;
+          border-color: #C2611F !important;
+          box-shadow: 0 0 0 3px rgba(194,97,31,.14) !important;
+          outline: none !important;
+        }
+        #titre-etape:focus { outline: none; }
       `}</style>
 
-      {/* Header */}
+      {/* En-tête */}
       <header style={{
-        padding: '20px clamp(20px, 5%, 48px)',
+        padding: '14px clamp(20px, 5%, 48px)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${C.sable}`,
+        backgroundColor: C.bg,
       }}>
-        <span style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: '20px', color: C.dark }}>Kapolia</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {savedOk && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '12px', color: C.grey }}>
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-                <path d="M2 7l3.5 3.5 5.5-6" stroke="#22C55E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Enregistré
-            </span>
-          )}
-          <span style={{ fontSize: '12px', color: C.grey, fontWeight: '500', letterSpacing: '0.04em' }}>
-            {step} / {TOTAL}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
+          <span style={{ fontFamily: FONT_LOGO, fontWeight: 600, fontSize: 20, color: C.vert, lineHeight: 1 }}>
+            Kapolia
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{
+            display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: C.succes,
+            opacity: savedOk ? 1 : 0, transition: 'opacity 0.3s',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <path d="M2 7l3.5 3.5 5.5-6" stroke={C.succes} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Enregistré
+          </span>
+          <span style={{ fontSize: 13.5, color: C.grey, fontVariantNumeric: 'tabular-nums' }}>
+            Étape <strong style={{ color: C.dark }}>{step}</strong> sur {TOTAL}
           </span>
         </div>
       </header>
 
-      {/* Progression — blocs + barre */}
-      <div style={{ padding: '16px clamp(20px, 5%, 48px) 20px' }}>
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-          {BLOCKS.map((b, i) => {
-            const isCurrent = i === blockIndex
-            const isPast    = i < blockIndex
-            return (
-              <span key={b.label} style={{
-                fontSize: '11px', padding: '3px 10px', borderRadius: '20px',
-                backgroundColor: isCurrent ? C.terracotta : isPast ? 'rgba(194, 97, 31,0.1)' : 'transparent',
-                border: `1px solid ${isCurrent || isPast ? C.terracotta : C.sable}`,
-                color: isCurrent ? 'white' : isPast ? C.terracotta : C.grey,
-                fontWeight: isCurrent ? '600' : '400',
-                transition: 'all 0.3s',
+      {/* Barre de progression — 5 blocs côte à côte */}
+      <div style={{ padding: '14px clamp(20px, 5%, 48px) 0', display: 'flex', gap: 6 }}>
+        {BLOCKS.map(b => {
+          const isDone    = b.steps[b.steps.length - 1] < step
+          const isCurrent = b.steps.includes(step)
+          let fillPct = 0
+          if (isDone) {
+            fillPct = 100
+          } else if (isCurrent) {
+            fillPct = b.label === 'Vos qualités'
+              ? (qualitesProgress / TOTAL_SITUATIONS) * 100
+              : (b.steps.indexOf(step) / b.steps.length) * 100
+          }
+          return (
+            <div key={b.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+              <div style={{ height: 4, borderRadius: 2, backgroundColor: C.sable }}>
+                <div style={{
+                  height: '100%', borderRadius: 2, backgroundColor: C.orange,
+                  width: `${fillPct}%`, transition: 'width 0.7s cubic-bezier(.3,.9,.3,1)',
+                }} />
+              </div>
+              <span style={{
+                fontSize: 12.5, color: isCurrent ? C.dark : C.grey,
+                fontWeight: isCurrent ? 600 : 400,
+                display: 'flex', alignItems: 'center', gap: 5,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                transition: 'color 0.3s',
               }}>
+                {isDone && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                    <path d="M2 6l3 3 5-5" stroke={C.succes} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
                 {b.label}
               </span>
-            )
-          })}
-        </div>
-        <div style={{ height: '3px', backgroundColor: C.sable, borderRadius: '2px', overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', width: `${(step / TOTAL) * 100}%`,
-            backgroundColor: C.terracotta, borderRadius: '2px', transition: 'width 0.4s ease',
-          }} />
-        </div>
+            </div>
+          )
+        })}
       </div>
 
-      {/* Contenu de la question */}
+      {/* Contenu de l'étape */}
       <div style={{
         flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '16px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
+        padding: '24px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
       }}>
-        <div style={{ width: '100%', maxWidth: '560px' }}>
+        <div style={{ width: '100%', maxWidth: 600 }}>
           {saveError && (
             <div role="alert" style={{
               backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
@@ -2120,29 +2229,32 @@ function OnboardingPageInner() {
         </div>
       </div>
 
-      {/* Footer navigation */}
+      {/* Pied fixe */}
       <footer style={{
-        padding: '16px clamp(20px, 5%, 48px)',
+        padding: '14px clamp(20px, 5%, 48px)',
         borderTop: `1px solid ${C.sable}`,
         backgroundColor: C.bg,
+        flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={handleBack} disabled={step === 1 || saving} style={{
-            background: 'none', border: 'none', padding: '10px 0', fontSize: '14px',
-            color: step === 1 || saving ? 'transparent' : C.grey,
-            cursor: step === 1 || saving ? 'default' : 'pointer', transition: 'color 0.2s',
+          <button onClick={handleBack} disabled={saving} style={{
+            background: 'none', border: 'none', padding: '10px 0', fontSize: 15,
+            color: C.grey, cursor: saving ? 'default' : 'pointer',
+            fontFamily: 'inherit',
+            visibility: step === 1 ? 'hidden' : 'visible',
           }}>
-            ← Retour
+            Retour
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             {isOpt && !saving && (
               <button onClick={handleSkip} style={{
                 background: 'none', border: 'none', padding: '10px 0',
-                fontSize: '13px', color: C.grey, cursor: 'pointer',
-                fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '3px',
+                fontSize: 14.5, color: C.grey, cursor: 'pointer',
+                fontFamily: 'inherit', fontWeight: 400,
+                textDecoration: 'underline', textUnderlineOffset: 3,
               }}>
-                {skipLabel}
+                Passer
               </button>
             )}
             <button onClick={handleNext} disabled={!isValid() || saving} style={{
