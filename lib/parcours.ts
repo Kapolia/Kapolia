@@ -61,6 +61,33 @@ export function ecrireMoisAnnee(d: DateMois): string {
   return `${MOIS_NOMS[d.mois - 1]} ${d.annee}`
 }
 
+// Champs minimaux requis par preparerExperiencePourEnregistrement.
+type ExpBase = {
+  en_poste: boolean
+  debut_annee?: number | null
+  debut_mois?:  number | null
+  fin_annee?:   number | null
+  fin_mois?:    number | null
+  date_debut?:  string
+  date_fin?:    string
+  date_a_verifier?: boolean | null
+}
+
+// Calcule date_debut / date_fin / date_a_verifier depuis les sélecteurs numériques,
+// en conservant l'ancien texte si aucune année n'est saisie.
+export function preparerExperiencePourEnregistrement<T extends ExpBase>(
+  exp: T,
+): T & { date_debut: string; date_fin: string; date_a_verifier: false } {
+  const debut = exp.debut_annee ? { annee: exp.debut_annee, mois: exp.debut_mois ?? null } : null
+  const fin   = !exp.en_poste && exp.fin_annee ? { annee: exp.fin_annee, mois: exp.fin_mois ?? null } : null
+  return {
+    ...exp,
+    date_debut:      debut ? ecrireMoisAnnee(debut) : (exp.date_debut ?? ''),
+    date_fin:        exp.en_poste ? '' : fin ? ecrireMoisAnnee(fin) : (exp.date_fin ?? ''),
+    date_a_verifier: false,
+  }
+}
+
 // ── 1. Conversion décimale ────────────────────────────────────────────────────
 
 export function versDecimal(d: DateMois, borne: 'debut' | 'fin'): number {

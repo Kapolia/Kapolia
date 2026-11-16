@@ -4,6 +4,7 @@ import {
   ecrireMoisAnnee,
   dureeTexte,
   calculerFrise,
+  preparerExperiencePourEnregistrement,
   type PosteParcours,
   type FormationParcours,
 } from '@/lib/parcours'
@@ -212,4 +213,40 @@ describe('calculerFrise cas 7 — formations année scolaire, même ligne', () =
 describe('calculerFrise cas 10 — un seul poste', () => {
   const r = calculerFrise([p('a', 2020, null, null, null, true)], [], NOW)
   it('visible = false', () => expect(r.visible).toBe(false))
+})
+
+// ─── preparerExperiencePourEnregistrement ─────────────────────────────────────
+
+describe('preparerExperiencePourEnregistrement', () => {
+  const BASE = { poste: 'Dev', entreprise: 'Acme', missions: '' }
+
+  it('en poste : date_fin vide, date_debut calculée', () => {
+    const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: true, debut_annee: 2021, debut_mois: 3, fin_annee: 2023, fin_mois: 6 })
+    expect(r.date_debut).toBe('Mars 2021')
+    expect(r.date_fin).toBe('')
+    expect(r.date_a_verifier).toBe(false)
+  })
+
+  it('fin saisie : les deux dates calculées', () => {
+    const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: false, debut_annee: 2019, debut_mois: null, fin_annee: 2022, fin_mois: 11 })
+    expect(r.date_debut).toBe('2019')
+    expect(r.date_fin).toBe('Novembre 2022')
+  })
+
+  it('année seule sans mois : format "2020"', () => {
+    const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: false, debut_annee: 2020, debut_mois: null, fin_annee: null, fin_mois: null })
+    expect(r.date_debut).toBe('2020')
+    expect(r.date_fin).toBe('')
+  })
+
+  it('ancienne valeur texte conservée si aucune année saisie', () => {
+    const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: false, debut_annee: null, debut_mois: null, fin_annee: null, fin_mois: null, date_debut: 'Jan 2018', date_fin: 'Déc 2019' })
+    expect(r.date_debut).toBe('Jan 2018')
+    expect(r.date_fin).toBe('Déc 2019')
+  })
+
+  it('clé inconnue conservée dans le résultat', () => {
+    const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: false, debut_annee: 2021, debut_mois: 1, fin_annee: null, fin_mois: null, foo: 'bar' } as never)
+    expect((r as Record<string, unknown>).foo).toBe('bar')
+  })
 })

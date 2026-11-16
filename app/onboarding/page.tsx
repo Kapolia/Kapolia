@@ -19,6 +19,7 @@ import {
   buildStepPayload,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
+import { lireMoisAnnee, preparerExperiencePourEnregistrement } from '@/lib/parcours'
 import {
   SITUATIONS,
   CURRENT_VERSION,
@@ -1651,7 +1652,12 @@ function OnboardingPageInner() {
           priorite:             Array.isArray(p.priorites) ? p.priorites as string[] : [],
           disponibilite:        (p.disponibilite as string) || '',
           dispo_date:           (p.dispo_date as string)   || '',
-          experiences:          Array.isArray(p.experiences) ? p.experiences as Experience[] : [],
+          experiences:          Array.isArray(p.experiences) ? (p.experiences as Experience[]).map(e => {
+            if (e.debut_annee != null) return e
+            const debut = lireMoisAnnee(e.date_debut ?? '')
+            const fin   = lireMoisAnnee(e.date_fin ?? '')
+            return { ...e, debut_annee: debut?.annee ?? null, debut_mois: debut?.mois ?? null, fin_annee: fin?.annee ?? null, fin_mois: fin?.mois ?? null }
+          }) : [],
           diplomes:             Array.isArray(p.diplomes) ? p.diplomes as Diplome[] : [],
           competences_acquises: Array.isArray(p.competences_acquises) ? p.competences_acquises as string[] : [],
           langues:              Array.isArray(p.langues) ? p.langues as string[] : [],
@@ -1757,7 +1763,7 @@ function OnboardingPageInner() {
         priorites: data.priorite,
         disponibilite: data.disponibilite,
         dispo_date: data.disponibilite === 'a_partir_de' ? data.dispo_date || null : null,
-        experiences: data.experiences,
+        experiences: data.experiences.map(preparerExperiencePourEnregistrement),
         diplomes: data.diplomes,
         competences_acquises: data.competences_acquises,
         langues: data.langues,

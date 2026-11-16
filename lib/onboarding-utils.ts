@@ -1,6 +1,7 @@
 // Utilitaires purs de l'onboarding — extraits ici pour être testables indépendamment.
 
 import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_POSTE } from '@/lib/referentiels'
+import { preparerExperiencePourEnregistrement } from '@/lib/parcours'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -38,17 +39,22 @@ export const EXPERIENCES: { key: string; desc: string }[] = _EXP_KEYS.map(key =>
 export type Experience = {
   poste: string
   entreprise: string
-  date_debut: string
-  date_fin: string
   en_poste: boolean
   missions: string
+  debut_annee: number | null
+  debut_mois:  number | null
+  fin_annee:   number | null
+  fin_mois:    number | null
+  date_debut?: string
+  date_fin?:   string
+  date_a_verifier?: boolean | null
 }
 
 export type Diplome = {
-  intitule: string
-  ecole: string
-  annee: string
-  mention: string
+  intitule:  string
+  ecole:     string
+  annee:     string
+  en_cours?: boolean
 }
 
 export type OnboardingFormData = {
@@ -157,7 +163,7 @@ export function buildStepPayload(
     case 6:
       return d.priorite.length ? { ...base, priorites: d.priorite } : null
     case 7:
-      return d.experiences.length ? { ...base, experiences: d.experiences } : null
+      return d.experiences.length ? { ...base, experiences: d.experiences.map(preparerExperiencePourEnregistrement) } : null
     case 8:
       return d.diplomes.length ? { ...base, diplomes: d.diplomes } : null
     case 9: {

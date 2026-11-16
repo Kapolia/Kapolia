@@ -18,7 +18,7 @@ import CarteProjet from '@/components/profil/CarteProjet'
 import CartePriorites from '@/components/profil/CartePriorites'
 import CartePassions from '@/components/profil/CartePassions'
 import CarteLiens from '@/components/profil/CarteLiens'
-import { anneesExperience, lireMoisAnnee, ecrireMoisAnnee, type PosteParcours } from '@/lib/parcours'
+import { anneesExperience, lireMoisAnnee, preparerExperiencePourEnregistrement, type PosteParcours } from '@/lib/parcours'
 import { chargerEntreprisesKapolia, type EntrepriseKapolia } from '@/lib/entreprises-kapolia'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS } from '@/lib/test-qualites'
@@ -1176,16 +1176,7 @@ export default function ProfilView({
         return exp.fin_annee === exp.debut_annee && !!exp.debut_mois && !!exp.fin_mois && exp.fin_mois < exp.debut_mois
       })
       if (finErr) { setCarteErreur('Corrigez les dates avant d\'enregistrer.'); setSavingCarte(false); return }
-      const expsToSave = [...editExperiences].map(exp => {
-        const debut = exp.debut_annee ? { annee: exp.debut_annee, mois: exp.debut_mois ?? null } : null
-        const fin = !exp.en_poste && exp.fin_annee ? { annee: exp.fin_annee, mois: exp.fin_mois ?? null } : null
-        return {
-          ...exp,
-          date_debut: debut ? ecrireMoisAnnee(debut) : exp.date_debut,
-          date_fin: fin ? ecrireMoisAnnee(fin) : exp.en_poste ? '' : exp.date_fin,
-          date_a_verifier: false,
-        }
-      }).sort((a, b) => {
+      const expsToSave = [...editExperiences].map(preparerExperiencePourEnregistrement).sort((a, b) => {
         const diff = (b.debut_annee ?? 0) - (a.debut_annee ?? 0)
         return diff !== 0 ? diff : (b.debut_mois ?? 0) - (a.debut_mois ?? 0)
       })
