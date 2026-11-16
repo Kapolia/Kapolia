@@ -125,7 +125,7 @@ function capitalizeFirst(v: string): string {
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div style={{ backgroundColor: C.bg, minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+    <div className="kv-acc3-wrap" style={{ backgroundColor: C.bg, minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
       <style suppressHydrationWarning>{`
         @keyframes kv-onde  { 0%{transform:scale(.2);opacity:0} 10%{opacity:1} 100%{transform:scale(1);opacity:0} }
         @keyframes kv-osc   { 0%{transform:rotate(-55deg)} 45%{transform:rotate(16deg)} 70%{transform:rotate(-6deg)} 88%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
@@ -157,8 +157,10 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           .kv-onde,.kv-pt-cl,.kv-halo,.kv-osc,.kv-etage > *,.kv-atouts li { animation:none !important }
         }
         @media (max-width: 640px) {
-          .kv-visuel-onde { display:none !important }
-          .kv-etage { padding:88px 24px 40px !important }
+          .kv-acc3-wrap { flex-direction:column !important; align-items:stretch !important; justify-content:flex-start !important; overflow-x:hidden }
+          .kv-visuel-onde { position:relative !important; top:auto !important; right:auto !important; bottom:auto !important; left:auto !important; width:100% !important; height:320px; flex:none; order:2; margin-top:-90px; overflow:hidden; -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 34%); mask-image:linear-gradient(to bottom,transparent 0,#000 34%) }
+          .kv-visuel-onde svg { right:auto !important; left:50% !important; top:58% !important; transform:translate(-50%,-50%) !important; width:380px !important; height:auto !important }
+          .kv-etage { padding:72px 20px 0 !important; gap:18px !important; z-index:1 }
         }
       `}</style>
 
