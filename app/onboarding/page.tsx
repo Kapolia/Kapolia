@@ -27,6 +27,7 @@ import {
   calculerQualites,
 } from '@/lib/test-qualites'
 import type { TestAnswer } from '@/lib/test-qualites'
+import { LANGUES } from '@/lib/langues'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import ChampSuggestions from '@/components/profil/ChampSuggestions'
 import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
@@ -85,7 +86,7 @@ const MICRO_TEXTS: Record<number, string> = {
   6: "Choisissez jusqu'à trois priorités. Elles disent aux recruteurs ce que vous cherchez vraiment.",
   7: 'Les plus significatives suffisent. Vous pourrez en ajouter depuis votre profil.',
   8: 'Diplômes, certifications, formations courtes : tout ce qui a construit vos compétences.',
-  9: "Vos compétences sont ce que vous apportez concrètement. Ajoutez-les, avec les langues que vous maîtrisez, pour que rien de ce que vous savez faire ne passe inaperçu.",
+  9: "Vos compétences comptent dans la correspondance avec les offres.",
 }
 
 
@@ -103,17 +104,7 @@ const DISPOS = [
   { key: 'en_poste',    label: "En poste, à l'écoute",  desc: 'Vous étudiez les propositions qui vous intéressent' },
 ]
 
-const LANGUES_LIST = [
-  { key: 'Français'  },
-  { key: 'Anglais'   },
-  { key: 'Espagnol'  },
-  { key: 'Allemand'  },
-  { key: 'Italien'   },
-  { key: 'Portugais' },
-  { key: 'Arabe'     },
-  { key: 'Chinois'   },
-  { key: 'Autre'     },
-]
+const LANGUES_COURANTES = ['Français', 'Anglais', 'Espagnol', 'Allemand', 'Italien', 'Portugais', 'Arabe', 'Chinois']
 
 const NIVEAUX_LANGUE = ['Natif', 'Courant', 'Intermédiaire', 'Débutant']
 
@@ -1439,118 +1430,115 @@ function CompRefTagInput({
   domain: string; tags: string[]
   onAdd: (t: string) => void; onRemove: (t: string) => void; maxTags?: number
 }) {
-  const [freeVal,      setFreeVal]      = useState('')
-  const [showOther,    setShowOther]    = useState(false)
-  const [otherDomain,  setOtherDomain]  = useState<string | null>(null)
+  const [input,       setInput]       = useState('')
+  const [open,        setOpen]        = useState(false)
+  const [hIdx,        setHIdx]        = useState(-1)
+  const [showOther,   setShowOther]   = useState(false)
+  const [otherDomain, setOtherDomain] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const domainSuggestions = COMP_REF[domain] ?? []
-  const otherDomains      = DOMAINES.filter(d => d !== domain && !!COMP_REF[d])
-  const browseSuggestions = otherDomain ? (COMP_REF[otherDomain] ?? []) : []
+  const nrm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
-  function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
-    const trimmed = freeVal.trim()
-    if (trimmed && !tags.includes(trimmed) && tags.length < maxTags) {
-      onAdd(trimmed); setFreeVal('')
+  const myItems    = (COMP_REF[domain] ?? []).map(s => ({ label: s, hint: null as string | null }))
+  const otherItems = DOMAINES
+    .filter(d => d !== domain && !!COMP_REF[d])
+    .flatMap(d => (COMP_REF[d] ?? []).map(s => ({ label: s, hint: d })))
+  const allItems = [...myItems, ...otherItems]
+
+  const trim       = input.trim()
+  const normTrim   = nrm(trim)
+  const exactMatch = trim ? (allItems.find(it => nrm(it.label) === normTrim) ?? null) : null
+  const filtered   = trim
+    ? allItems.filter(it => nrm(it.label).includes(normTrim) && !tags.includes(it.label)).slice(0, 8)
+    : []
+  const showAjouter = !!trim && !exactMatch
+  const totalOpts   = (showAjouter ? 1 : 0) + filtered.length
+  const full        = tags.length >= maxTags
+
+  function doAdd(val: string) {
+    if (full) return
+    const match = allItems.find(it => nrm(it.label) === nrm(val.trim()))
+    const toAdd = match ? match.label : capitalizeFirst(val.trim())
+    if (!toAdd || tags.includes(toAdd)) return
+    onAdd(toAdd); setInput(''); setOpen(false); setHIdx(-1)
+    inputRef.current?.focus()
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); setOpen(true); setHIdx(i => Math.min(i + 1, totalOpts - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); setHIdx(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Escape') {
+      setOpen(false); setHIdx(-1)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (!trim) return
+      if (hIdx === -1) {
+        if (exactMatch) doAdd(exactMatch.label); else doAdd(trim)
+      } else if (showAjouter && hIdx === 0) {
+        doAdd(trim)
+      } else {
+        const fi = showAjouter ? hIdx - 1 : hIdx
+        if (filtered[fi]) doAdd(filtered[fi].label)
+      }
     }
   }
 
-  function toggle(comp: string) {
-    if (tags.includes(comp)) onRemove(comp)
-    else if (tags.length < maxTags) onAdd(comp)
-  }
-
-  const pillStyle = (added: boolean, full: boolean): React.CSSProperties => ({
-    padding: '6px 13px', borderRadius: 20, fontSize: 13,
-    border: `1.5px solid ${added ? C.vert : C.sable}`,
-    backgroundColor: added ? `${C.vert}12` : C.white,
-    color: added ? C.vert : full ? '#C0C0C0' : C.dark,
-    cursor: full && !added ? 'default' : 'pointer',
-    fontFamily: 'inherit', transition: 'all 0.15s',
-  })
+  const domSugs   = (COMP_REF[domain] ?? []).filter(s => !tags.includes(s)).slice(0, 10)
+  const otherDoms = DOMAINES.filter(d => d !== domain && !!COMP_REF[d])
 
   return (
     <div>
-      {/* Compétences sélectionnées */}
+      {/* Pastilles sélectionnées */}
       {tags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
           {tags.map(tag => (
-            <span key={tag} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '6px 12px', borderRadius: 20,
-              backgroundColor: `${C.vert}12`, color: C.vert,
-              border: `1px solid ${C.vert}25`, fontSize: 13, fontWeight: 500,
-            }}>
+            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, backgroundColor: `${C.vert}12`, color: C.vert, border: `1.5px solid ${C.vert}30`, fontSize: 13, fontWeight: 500 }}>
               {tag}
-              <button onClick={() => onRemove(tag)} style={{
-                background: 'none', border: 'none', color: C.grey,
-                cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1, display: 'flex',
-              }}>×</button>
+              <button onClick={() => onRemove(tag)} style={{ background: 'none', border: 'none', color: C.grey, cursor: 'pointer', padding: 0, fontSize: 15, lineHeight: 1 }}>&#215;</button>
             </span>
           ))}
         </div>
       )}
 
-      {/* Suggestions du domaine courant */}
-      {domainSuggestions.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
-            Suggestions pour « {domain} »
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-            {domainSuggestions.map(s => {
-              const added = tags.includes(s)
-              const full  = !added && tags.length >= maxTags
-              return (
-                <button key={s} type="button" onClick={() => !full && toggle(s)}
-                  style={pillStyle(added, full)}>
-                  {added ? `✓ ${s}` : `+ ${s}`}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Autres domaines */}
-      <button type="button"
-        onClick={() => { setShowOther(v => !v); if (showOther) setOtherDomain(null) }}
-        style={{
-          padding: '7px 14px', borderRadius: 20, fontSize: 12,
-          border: `1.5px dashed ${C.sable}`, backgroundColor: 'transparent',
-          color: C.grey, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 12,
-        }}>
-        {showOther ? '— Réduire' : '+ Compétences d\'autres domaines'}
-      </button>
-
-      {showOther && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 12 }}>
-            {otherDomains.map(d => (
-              <button key={d} type="button"
-                onClick={() => setOtherDomain(d === otherDomain ? null : d)}
-                style={{
-                  padding: '6px 13px', borderRadius: 20, fontSize: 12,
-                  border: `1.5px solid ${d === otherDomain ? C.terracotta : C.sable}`,
-                  backgroundColor: d === otherDomain ? `${C.terracotta}10` : C.white,
-                  color: d === otherDomain ? C.terracotta : C.grey,
-                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                }}>
-                {d}
-              </button>
-            ))}
-          </div>
-          {otherDomain && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {browseSuggestions.map(s => {
-                const added = tags.includes(s)
-                const full  = !added && tags.length >= maxTags
+      {/* Champ de recherche */}
+      {!full && (
+        <div style={{ position: 'relative', marginBottom: 4 }}>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={e => { setInput(e.target.value); setOpen(true); setHIdx(-1) }}
+            onFocus={() => { if (input) setOpen(true) }}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={handleKey}
+            placeholder="Écrivez une compétence, par exemple Gestion des conflits"
+            className="kv-field"
+            style={{ width: '100%', padding: '12px 16px', fontSize: 14, borderRadius: 12, border: '1.5px solid transparent', backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+          />
+          {open && trim && totalOpts > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.08)', marginTop: 4, overflow: 'hidden' }}>
+              {showAjouter && (
+                <div
+                  onMouseDown={() => doAdd(trim)}
+                  onMouseEnter={() => setHIdx(0)}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', cursor: 'pointer', backgroundColor: hIdx === 0 ? C.bg : `${C.vert}08`, color: C.vert, fontSize: 13.5, fontWeight: 600, borderBottom: filtered.length > 0 ? `1px solid ${C.sable}` : undefined }}
+                >
+                  <span>Ajouter &laquo;&nbsp;{trim}&nbsp;&raquo;</span>
+                  <span style={{ fontSize: 11.5, color: C.grey, border: `1px solid ${C.sable}`, borderRadius: 5, padding: '1px 6px', flexShrink: 0 }}>Entrée</span>
+                </div>
+              )}
+              {filtered.map((it, fi) => {
+                const idx = showAjouter ? fi + 1 : fi
                 return (
-                  <button key={s} type="button" onClick={() => !full && toggle(s)}
-                    style={pillStyle(added, full)}>
-                    {added ? `✓ ${s}` : `+ ${s}`}
-                  </button>
+                  <div key={it.label}
+                    onMouseDown={() => doAdd(it.label)}
+                    onMouseEnter={() => setHIdx(idx)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', fontSize: 13.5, cursor: 'pointer', backgroundColor: hIdx === idx ? C.bg : C.white, color: C.dark, transition: 'background-color 150ms' }}
+                  >
+                    <span>{it.label}</span>
+                    {it.hint && <span style={{ fontSize: 11.5, color: C.grey, marginLeft: 8, flexShrink: 0 }}>{it.hint}</span>}
+                  </div>
                 )
               })}
             </div>
@@ -1558,25 +1546,112 @@ function CompRefTagInput({
         </div>
       )}
 
-      {/* Saisie libre */}
-      {tags.length < maxTags && (
-        <input
-          type="text" value={freeVal}
-          onChange={e => setFreeVal(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Autre compétence (saisie libre) — Entrée pour valider"
-          className="kv-field"
-          style={{
-            width: '100%', padding: '13px 16px', fontSize: 14,
-            borderRadius: 12, border: '1.5px solid transparent',
-            backgroundColor: C.white, color: C.dark, outline: 'none',
-            boxSizing: 'border-box', fontFamily: 'inherit',
-          }}
-        />
+      <p style={{ fontSize: 11.5, color: full ? C.orange : C.grey, marginBottom: 16 }}>{tags.length} sur {maxTags}</p>
+
+      {/* Courantes dans le domaine */}
+      {domSugs.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <p style={{ fontSize: 12.5, fontWeight: 600, color: C.grey, marginBottom: 8 }}>Courantes en {domain}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {domSugs.map(s => (
+              <button key={s} type="button" onClick={() => !full && onAdd(s)}
+                style={{ padding: '6px 13px', borderRadius: 20, fontSize: 13, border: `1.5px solid ${C.sable}`, backgroundColor: C.white, color: full ? '#C0C0C0' : C.dark, cursor: full ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                + {s}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
-      <p style={{ fontSize: '12px', color: C.grey, marginTop: '8px' }}>
-        {tags.length} / {maxTags} compétences
-      </p>
+
+      {/* Autres domaines */}
+      <button type="button"
+        onClick={() => { setShowOther(v => !v); if (showOther) setOtherDomain(null) }}
+        style={{ fontSize: 13, color: C.orangeTexte, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontWeight: 500, marginBottom: showOther ? 10 : 0 }}>
+        {showOther ? 'Masquer les autres domaines' : "Voir les compétences d'autres domaines"}
+      </button>
+
+      {showOther && (
+        <div>
+          <select
+            value={otherDomain ?? ''}
+            onChange={e => setOtherDomain(e.target.value || null)}
+            style={{ ...SEL_S, width: '100%', marginBottom: 10 }}
+          >
+            <option value="">Choisir un domaine&#8230;</option>
+            {otherDoms.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          {otherDomain && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {(COMP_REF[otherDomain] ?? []).map(s => {
+                const added = tags.includes(s)
+                return (
+                  <button key={s} type="button"
+                    onClick={() => { if (added) onRemove(s); else if (!full) onAdd(s) }}
+                    style={{ padding: '6px 13px', borderRadius: 20, fontSize: 13, border: `1.5px solid ${added ? C.vert : C.sable}`, backgroundColor: added ? `${C.vert}12` : C.white, color: added ? C.vert : (full && !added) ? '#C0C0C0' : C.dark, cursor: (full && !added) ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                    {added ? `✓ ${s}` : s}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LangueSearchInput({ onAdd, chosen }: { onAdd: (nom: string) => void; chosen: string[] }) {
+  const [input, setInput] = useState('')
+  const [open,  setOpen]  = useState(false)
+  const [hIdx,  setHIdx]  = useState(-1)
+
+  const nrm      = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  const trim     = input.trim()
+  const filtered = trim ? LANGUES.filter(l => nrm(l.nom).includes(nrm(trim)) && !chosen.includes(l.nom)).slice(0, 8) : []
+  const noMatch  = !!trim && filtered.length === 0
+
+  function doAdd(nom: string) { onAdd(nom); setInput(''); setOpen(false); setHIdx(-1) }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); setOpen(true); setHIdx(i => Math.min(i + 1, filtered.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); setHIdx(i => Math.max(i - 1, -1))
+    } else if (e.key === 'Escape') {
+      setOpen(false); setHIdx(-1)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (hIdx >= 0 && filtered[hIdx]) doAdd(filtered[hIdx].nom)
+      else if (filtered.length === 1) doAdd(filtered[0].nom)
+    }
+  }
+
+  return (
+    <div style={{ position: 'relative', marginBottom: 12 }}>
+      <input
+        value={input}
+        onChange={e => { setInput(e.target.value); setOpen(true); setHIdx(-1) }}
+        onFocus={() => { if (input) setOpen(true) }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={handleKey}
+        placeholder="Une autre langue ? Tapez son nom"
+        className="kv-field"
+        style={{ width: '100%', padding: '12px 16px', fontSize: 14, borderRadius: 12, border: '1.5px solid transparent', backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+      />
+      {open && trim && (noMatch || filtered.length > 0) && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.08)', marginTop: 4, overflow: 'hidden' }}>
+          {noMatch ? (
+            <div style={{ padding: '10px 12px', fontSize: 13.5, color: C.grey }}>Aucune langue trouvée. Vérifiez l'orthographe.</div>
+          ) : filtered.map((l, i) => (
+            <div key={l.code}
+              onMouseDown={() => doAdd(l.nom)}
+              onMouseEnter={() => setHIdx(i)}
+              style={{ padding: '9px 12px', fontSize: 13.5, cursor: 'pointer', backgroundColor: hIdx === i ? C.bg : C.white, color: C.dark, transition: 'background-color 150ms' }}>
+              {l.nom}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -2236,13 +2311,25 @@ function OnboardingPageInner() {
         )
       }
 
-      case 9:
+      case 9: {
+        const chosenNames  = data.langues.map(e => { const i = e.indexOf(' — '); return i >= 0 ? e.slice(0, i) : e })
+        const extraLangues = chosenNames.filter(n => !LANGUES_COURANTES.includes(n))
+        const getNiveau    = (entry: string) => { const i = entry.indexOf(' — '); return i >= 0 ? entry.slice(i + 3) : 'Courant' }
+        const toggleLangue = (nom: string) => {
+          if (chosenNames.includes(nom)) set('langues', data.langues.filter(l => !l.startsWith(nom + ' — ') && l !== nom))
+          else set('langues', [...data.langues, `${nom} — Courant`])
+        }
+        const setNiveau = (nom: string, niveau: string) =>
+          set('langues', data.langues.map(l => (l.startsWith(nom + ' — ') || l === nom) ? `${nom} — ${niveau}` : l))
         return (
           <>
             <QuestionLabel text="Compétences et langues" sub={MICRO_TEXTS[9]} />
 
-            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-              Compétences techniques et outils
+            <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+              Compétences
+            </p>
+            <p style={{ fontSize: 13.5, color: C.grey, lineHeight: 1.6, marginBottom: 14 }}>
+              Écrivez-les avec vos mots. Les suggestions sont là pour aller plus vite, pas pour vous limiter.
             </p>
             <CompRefTagInput
               domain={data.domaine}
@@ -2255,56 +2342,48 @@ function OnboardingPageInner() {
             <div style={{ height: 28 }} />
 
             <p style={{ fontSize: '12px', fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-              Langues parlées
+              Langues
             </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
-              {LANGUES_LIST.map(({ key }) => {
-                const selected = data.langues.some(l => l.startsWith(key + ' — '))
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {[...LANGUES_COURANTES, ...extraLangues].map(nom => {
+                const selected = chosenNames.includes(nom)
                 return (
-                  <button key={key} onClick={() => {
-                    if (selected) set('langues', data.langues.filter(l => !l.startsWith(key + ' — ')))
-                    else set('langues', [...data.langues, `${key} — Natif`])
-                  }}
+                  <button key={nom} onClick={() => toggleLangue(nom)}
                     aria-pressed={selected}
                     className={`kv-bloc${selected ? ' kv-sel' : ''}`}
-                    style={{
-                      padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
-                      color: selected ? C.orangeTexte : C.dark,
-                      fontSize: 14, fontWeight: selected ? 600 : 400,
-                      cursor: 'pointer',
-                    }}>
-                    {key}
+                    style={{ padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit', color: selected ? C.orangeTexte : C.dark, fontSize: 14, fontWeight: selected ? 600 : 400, cursor: 'pointer' }}>
+                    {nom}
                   </button>
                 )
               })}
             </div>
+            <LangueSearchInput
+              onAdd={nom => set('langues', [...data.langues, `${nom} — Courant`])}
+              chosen={chosenNames}
+            />
             {data.langues.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
                 {data.langues.map(entry => {
-                  const sepIdx   = entry.indexOf(' — ')
-                  const langName = sepIdx >= 0 ? entry.slice(0, sepIdx) : entry
-                  const niveau   = sepIdx >= 0 ? entry.slice(sepIdx + 3) : 'Natif'
+                  const sep  = entry.indexOf(' — ')
+                  const nom  = sep >= 0 ? entry.slice(0, sep) : entry
+                  const niv  = getNiveau(entry)
                   return (
-                    <div key={langName} className="kv-bloc" style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      backgroundColor: C.white, borderRadius: 12,
-                      padding: '10px 14px',
-                    }}>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: C.dark, flex: 1 }}>{langName}</span>
-                      <select
-                        value={niveau}
-                        onChange={e => set('langues', data.langues.map(l =>
-                          l.startsWith(langName + ' — ') ? `${langName} — ${e.target.value}` : l
+                    <div key={nom} className="kv-bloc kv-langue-row" style={{ backgroundColor: C.white, borderRadius: 12, padding: '10px 14px' }}>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: C.dark, flex: 1 }}>{nom}</span>
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        {NIVEAUX_LANGUE.map(n => (
+                          <button key={n} type="button" onClick={() => setNiveau(nom, n)}
+                            style={{
+                              padding: '4px 9px', borderRadius: 7, fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer',
+                              border: `1.5px solid ${n === niv ? C.terracotta : C.sable}`,
+                              backgroundColor: n === niv ? `${C.terracotta}12` : C.white,
+                              color: n === niv ? C.terracotta : C.grey,
+                              fontWeight: n === niv ? 600 : 400, transition: 'all 0.12s',
+                            }}>
+                            {n}
+                          </button>
                         ))}
-                        className="kv-field"
-                        style={{
-                          padding: '6px 10px', borderRadius: 8, fontFamily: 'inherit',
-                          border: '1.5px solid transparent', backgroundColor: C.white,
-                          color: C.dark, fontSize: 13, cursor: 'pointer', outline: 'none',
-                        }}
-                      >
-                        {NIVEAUX_LANGUE.map(n => <option key={n} value={n}>{n}</option>)}
-                      </select>
+                      </div>
                     </div>
                   )
                 })}
@@ -2312,6 +2391,7 @@ function OnboardingPageInner() {
             )}
           </>
         )
+      }
 
       default:
         return null
@@ -2365,6 +2445,7 @@ function OnboardingPageInner() {
         @keyframes kv-voix { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
         .kv-nom-row { display:flex; gap:12px }
         .kv-exp-row { display:flex; gap:10px }
+        .kv-langue-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
         @media (max-width:640px) { .kv-nom-row { flex-direction:column } .kv-exp-row { flex-direction:column } }
         /* Blocs sans contour — ombre légère, survol soulevé, sélectionné pêche */
         .kv-bloc {
