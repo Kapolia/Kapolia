@@ -122,7 +122,7 @@ const ANNEE_MAX_EXP = new Date().getFullYear()
 const ANNEES_EXP = Array.from({ length: ANNEE_MAX_EXP - ANNEE_MIN_EXP + 1 }, (_, i) => ANNEE_MAX_EXP - i)
 const MOIS_EXP = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const SEL_S: React.CSSProperties = {
-  fontSize: 13, padding: '6px 8px', border: `1px solid ${C.sable}`,
+  fontSize: 15, padding: '6px 8px', border: `1px solid ${C.sable}`,
   borderRadius: 8, fontFamily: 'inherit', color: C.dark, backgroundColor: C.white, cursor: 'pointer',
 }
 const LABEL_S: React.CSSProperties = { fontSize: 12.5, fontWeight: 500, color: C.grey, marginBottom: 4, display: 'block' }
@@ -163,6 +163,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         @media (prefers-reduced-motion: reduce) {
           .kv-onde,.kv-pt-cl,.kv-halo,.kv-osc,.kv-etage > *,.kv-atouts li { animation:none !important }
         }
+        @media (min-width: 1600px) { .kv-acc3-wrap { zoom:1.12; } }
+        @media (min-width: 1920px) { .kv-acc3-wrap { zoom:1.20; } }
         @media (max-width: 640px) {
           .kv-acc3-wrap { flex-direction:column !important; align-items:stretch !important; justify-content:flex-start !important; overflow-x:hidden }
           .kv-visuel-onde { position:relative !important; top:auto !important; right:auto !important; bottom:auto !important; left:auto !important; width:100% !important; height:320px; flex:none; order:2; margin-top:-90px; overflow:hidden; -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 34%); mask-image:linear-gradient(to bottom,transparent 0,#000 34%) }
@@ -203,11 +205,11 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
       </div>
 
       {/* Colonne texte */}
-      <div className="kv-etage" style={{ position:'relative', zIndex:1, padding:'72px 64px 40px', display:'flex', flexDirection:'column', gap:22, maxWidth:640 }}>
+      <div className="kv-etage" style={{ position:'relative', zIndex:1, padding:'72px 64px 40px', display:'flex', flexDirection:'column', gap:22, maxWidth:600 }}>
         <h1 style={{ fontFamily:FONT_SANS, fontWeight:700, fontSize:54, lineHeight:1.02, color:C.dark, margin:0, letterSpacing:'-0.015em' }}>
           Bienvenue<br />sur Kapolia&#160;!
         </h1>
-        <p style={{ margin:0, color:C.grey, fontSize:18, lineHeight:1.55, maxWidth:480 }}>
+        <p style={{ margin:0, color:C.grey, fontSize:20, lineHeight:1.55, maxWidth:540 }}>
           Ici, aucun document à préparer ni à joindre. Vous créez votre profil une fois, puis vous postulez avec.
         </p>
         <ul className="kv-atouts" style={{ listStyle:'none', margin:'4px 0 6px', padding:0, display:'flex', flexDirection:'column', gap:14, maxWidth:500 }}>
@@ -216,8 +218,8 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
             ['Voyez ce qui vous correspond', ' : chaque offre affiche son degré de correspondance avec votre profil.'],
             ['Montrez qui vous êtes',        ', au-delà de vos diplômes : vos qualités, vos projets, ce que vous cherchez.'],
           ] as [string,string][]).map(([bold, rest], i) => (
-            <li key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', fontSize:16.5, lineHeight:1.45, color:C.dark }}>
-              <span style={{ width:24, height:24, borderRadius:'50%', backgroundColor:C.orangeDoux, color:C.orangeTexte, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+            <li key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', fontSize:18, lineHeight:1.45, color:C.dark }}>
+              <span style={{ width:28, height:28, borderRadius:'50%', backgroundColor:C.orangeDoux, color:C.orangeTexte, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                   <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -230,11 +232,11 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           <button
             onClick={onStart}
             className="kv-btn-acc"
-            style={{ display:'inline-flex', alignSelf:'flex-start', backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'14px 28px', fontSize:16, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
+            style={{ display:'inline-flex', alignSelf:'flex-start', backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'15px 32px', fontSize:17, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}
           >
             Commencer
           </button>
-          <span style={{ fontSize:14, color:C.grey }}>Environ 10 minutes. Vos réponses sont enregistrées à chaque étape.</span>
+          <span style={{ fontSize:15, color:C.grey }}>Environ 10 minutes. Vos réponses sont enregistrées à chaque étape.</span>
         </div>
       </div>
     </div>
@@ -413,12 +415,12 @@ function QualitesCarousel({
     }).catch(() => {})
   }
 
+  const answeredCount = Object.keys(selections).filter(k => (selections[Number(k)] ?? []).length === 2).length
+  useEffect(() => { onProgress?.(answeredCount) }, [selections]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading) return null
 
   const situations    = SITUATIONS[CURRENT_VERSION]
-  const answeredCount = Object.keys(selections).filter(k => (selections[Number(k)] ?? []).length === 2).length
-
-  useEffect(() => { onProgress?.(answeredCount) }, [selections]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Intro ──────────────────────────────────────────────────────────────────
   if (phase === 'intro') {
@@ -437,19 +439,19 @@ function QualitesCarousel({
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span className="kv-iq-n">1</span>
-            <span style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
+            <span style={{ fontSize: 15, color: C.dark, lineHeight: 1.6 }}>
               <b>Pour chaque situation, choisissez deux réactions</b>, celles qui vous ressemblent le plus.
             </span>
           </li>
           <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span className="kv-iq-n">2</span>
-            <span style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
+            <span style={{ fontSize: 15, color: C.dark, lineHeight: 1.6 }}>
               <b>Il n'y a pas de bonne réponse.</b> Répondez ce que vous feriez vraiment, pas ce qui semble attendu.
             </span>
           </li>
           <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <span className="kv-iq-n">3</span>
-            <span style={{ fontSize: 14, color: C.dark, lineHeight: 1.6 }}>
+            <span style={{ fontSize: 15, color: C.dark, lineHeight: 1.6 }}>
               <b>Vos qualités s'affichent sur votre profil.</b> Elles montrent aux recruteurs comment vous travaillez et vous distinguent des profils au parcours proche.
             </span>
           </li>
@@ -496,7 +498,7 @@ function QualitesCarousel({
             Ce qui ressort de vos réponses
           </h3>
           {resultats.length === 0 ? (
-            <p style={{ fontSize: 14, color: C.grey, margin: '0 0 12px', lineHeight: 1.6 }}>
+            <p style={{ fontSize: 15, color: C.grey, margin: '0 0 12px', lineHeight: 1.6 }}>
               Aucune qualité n'est apparue deux fois ou plus.
             </p>
           ) : (
@@ -529,7 +531,7 @@ function QualitesCarousel({
         {/* Selon vous */}
         <div className="kv-selon-vous">
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.dark }}>Selon vous</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: C.dark }}>Selon vous</span>
             <small style={{ fontSize: 12, color: C.grey, fontWeight: 400 }}>facultatif, jusqu'à 5</small>
           </div>
           <p style={{ fontSize: 13, color: C.grey, margin: '0 0 12px', lineHeight: 1.55 }}>
@@ -719,7 +721,7 @@ function QualitesCarousel({
               aria-pressed={selected}
               style={{
                 textAlign: 'left', padding: '13px 16px', borderRadius: 12,
-                color: C.dark, fontSize: 14, lineHeight: 1.5, cursor: 'pointer',
+                color: C.dark, fontSize: 15, lineHeight: 1.5, cursor: 'pointer',
                 fontFamily: 'inherit', outline: 'none',
                 display: 'flex', alignItems: 'flex-start', gap: 10,
               }}
@@ -766,7 +768,7 @@ function QualitesCarousel({
             padding: '12px 24px', borderRadius: 100, border: 'none',
             backgroundColor: canAdvance ? C.orange : C.sable,
             color: canAdvance ? C.white : C.grey,
-            fontSize: 14, fontWeight: 600,
+            fontSize: 15, fontWeight: 600,
             cursor: canAdvance ? 'pointer' : 'default',
             fontFamily: 'inherit', transition: 'background-color 0.15s',
           }}
@@ -891,6 +893,8 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
           .kv-fn4-sq { scale:.74; margin-top:40px; }
           .kv-fn4-txt h1 { font-size:28px !important; }
         }
+        @media (min-width:1600px) { .kv-fn4 { zoom:1.12; } }
+        @media (min-width:1920px) { .kv-fn4 { zoom:1.20; } }
         /* ── Reduced motion ── */
         @media (prefers-reduced-motion:reduce) {
           .kv-fn4-pulse { animation:none !important; opacity:1 !important; }
@@ -908,7 +912,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         <h1 style={{ fontFamily:FONT_SANS, letterSpacing:'-0.012em', fontSize:'clamp(28px,3.4vw,38px)', fontWeight:700, lineHeight:1.1, color:C.dark, margin:0 }}>
           Votre profil est prêt,&#160;{prenom}&#160;!
         </h1>
-        <p style={{ fontSize:15.5, color:C.grey, lineHeight:1.55, margin:0, maxWidth:420 }}>
+        <p style={{ fontSize:20, color:C.grey, lineHeight:1.55, margin:0, maxWidth:540 }}>
           Vous avez trouvé votre cap. Dernière question avant de découvrir votre profil.
         </p>
 
@@ -925,14 +929,14 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
             className={`kv-fn4-opt${visCss === 'oui' ? ' on' : ''}`}
           >
             <span className="kv-fn4-ic" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
             </span>
             <span style={{ display:'flex', flexDirection:'column', gap:2, flex:1 }}>
-              <b style={{ fontSize:15.5 }}>Oui, rendre mon profil visible</b>
-              <span style={{ fontSize:14, color:C.grey, lineHeight:1.45 }}>Les recruteurs inscrits peuvent le découvrir et vous proposer un échange.</span>
+              <b style={{ fontSize:18 }}>Oui, rendre mon profil visible</b>
+              <span style={{ fontSize:15, color:C.grey, lineHeight:1.45 }}>Les recruteurs inscrits peuvent le découvrir et vous proposer un échange.</span>
             </span>
             <span className="kv-fn4-radio" aria-hidden="true"/>
           </button>
@@ -944,20 +948,20 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
             className={`kv-fn4-opt${visCss === 'non' ? ' on' : ''}`}
           >
             <span className="kv-fn4-ic" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4" y="11" width="16" height="10" rx="2"/>
                 <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
               </svg>
             </span>
             <span style={{ display:'flex', flexDirection:'column', gap:2, flex:1 }}>
-              <b style={{ fontSize:15.5 }}>Pas pour le moment</b>
-              <span style={{ fontSize:14, color:C.grey, lineHeight:1.45 }}>Seuls les recruteurs des offres où vous postulez voient votre profil.</span>
+              <b style={{ fontSize:18 }}>Pas pour le moment</b>
+              <span style={{ fontSize:15, color:C.grey, lineHeight:1.45 }}>Seuls les recruteurs des offres où vous postulez voient votre profil.</span>
             </span>
             <span className="kv-fn4-radio" aria-hidden="true"/>
           </button>
         </div>
 
-        <p style={{ fontSize:13.5, color:C.grey, margin:0 }}>
+        <p style={{ fontSize:15, color:C.grey, margin:0 }}>
           Vous pourrez changer d&apos;avis à tout moment dans vos paramètres.
         </p>
 
@@ -985,7 +989,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
             onClick={onGoToProfile}
             disabled={chosen === null}
             className="kv-btn-p"
-            style={{ backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'14px 32px', fontSize:15, fontWeight:600, cursor:chosen !== null ? 'pointer' : 'default', fontFamily:'inherit', opacity:chosen !== null ? 1 : 0.4, transition:'opacity .2s' }}
+            style={{ backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'15px 36px', fontSize:17, fontWeight:600, cursor:chosen !== null ? 'pointer' : 'default', fontFamily:'inherit', opacity:chosen !== null ? 1 : 0.4, transition:'opacity .2s' }}
           >
             Voir mon profil
           </button>
@@ -1090,7 +1094,7 @@ function QuestionLabel({ text, sub, optional }: { text: string; sub?: string; op
         {text}
       </h1>
       {sub && (
-        <p style={{ fontSize: 15.5, color: C.grey, lineHeight: 1.55, margin: '0 0 26px', maxWidth: 540 }}>
+        <p style={{ fontSize: 16, color: C.grey, lineHeight: 1.55, margin: '0 0 26px', maxWidth: 540 }}>
           {sub}
         </p>
       )}
@@ -1125,7 +1129,7 @@ function ChoiceCard({ label, desc, selected, onClick, disabled = false, tapped =
           {label}
         </span>
         {desc && (
-          <span style={{ fontSize: 14, color: C.grey, marginTop: 1, display: 'block' }}>
+          <span style={{ fontSize: 15, color: C.grey, marginTop: 1, display: 'block' }}>
             {desc}
           </span>
         )}
@@ -1140,7 +1144,7 @@ function StyledInput({ value, onChange, placeholder, autoFocus, label, autoCompl
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
-      {label && <label style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</label>}
+      {label && <label style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>{label}</label>}
       <input
         type="text"
         value={value}
@@ -1166,7 +1170,7 @@ function StyledTextArea({ value, onChange, placeholder, rows = 5, label }: {
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {label && <label style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</label>}
+      {label && <label style={{ fontSize: 15, fontWeight: 600, color: C.dark }}>{label}</label>}
       <textarea
         value={value}
         onChange={e => onChange(capitalizeFirst(e.target.value))}
@@ -1385,7 +1389,7 @@ function VoiceMissionsArea({ value, onChange }: { value: string; onChange: (v: s
           style={{
             width: '100%', paddingTop: '13px', paddingLeft: '16px', paddingRight: '16px',
             paddingBottom: supported ? '46px' : '13px',
-            fontSize: 14, borderRadius: 12, border: '1.5px solid transparent',
+            fontSize: 15, borderRadius: 12, border: '1.5px solid transparent',
             backgroundColor: C.white, color: C.dark, outline: 'none',
             boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.65, fontFamily: 'inherit',
           }}
@@ -1595,7 +1599,7 @@ function CompRefTagInput({
             onKeyDown={handleKey}
             placeholder="Écrivez une compétence, par exemple Gestion des conflits"
             className="kv-field"
-            style={{ width: '100%', padding: '12px 16px', fontSize: 14, borderRadius: 12, border: '1.5px solid transparent', backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            style={{ width: '100%', padding: '12px 16px', fontSize: 15, borderRadius: 12, border: '1.5px solid transparent', backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
           />
           {open && trim && totalOpts > 0 && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.08)', marginTop: 4, overflow: 'hidden' }}>
@@ -1718,7 +1722,7 @@ function LangueSearchInput({ onAdd, chosen }: { onAdd: (nom: string) => void; ch
         onKeyDown={handleKey}
         placeholder="Une autre langue ? Tapez son nom"
         className="kv-field"
-        style={{ width: '100%', padding: '12px 16px', fontSize: 14, borderRadius: 12, border: '1.5px solid transparent', backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+        style={{ width: '100%', padding: '12px 16px', fontSize: 15, borderRadius: 12, border: '1.5px solid transparent', backgroundColor: C.white, color: C.dark, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
       />
       {open && trim && (noMatch || filtered.length > 0) && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, backgroundColor: C.white, border: `1px solid ${C.sable}`, borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.08)', marginTop: 4, overflow: 'hidden' }}>
@@ -1771,6 +1775,7 @@ function OnboardingPageInner() {
   const prevBlockRef     = useRef(-1)
   const wasValidRef      = useRef(false)
   const suivantBtnRef    = useRef<HTMLButtonElement>(null)
+  const contentRef       = useRef<HTMLDivElement>(null)
   const [needleKey,  setNeedleKey]  = useState(0)
   const [tappedId,   setTappedId]   = useState<string | null>(null)
   const [swellingBlock, setSwellingBlock] = useState<string | null>(null)
@@ -1843,6 +1848,7 @@ function OnboardingPageInner() {
 
   useEffect(() => {
     document.getElementById('titre-etape')?.focus()
+    contentRef.current?.scrollTo({ top: 0 })
   }, [step])
 
   useEffect(() => {
@@ -2017,7 +2023,7 @@ function OnboardingPageInner() {
                   style={{
                     padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                     color: data.domaine === d ? C.orangeTexte : C.dark,
-                    fontSize: 14, fontWeight: data.domaine === d ? 600 : 400,
+                    fontSize: 15, fontWeight: data.domaine === d ? 600 : 400,
                     cursor: 'pointer',
                   }}>
                   <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{d}
@@ -2068,7 +2074,7 @@ function OnboardingPageInner() {
             />
             <SignatureCounter count={data.projet_titre.length} max={MAX_PROJET_TITRE} theme="light" />
             <div style={{ marginTop: 16 }}>
-              <label style={{ fontSize: 14, fontWeight: 600, color: C.dark, display: 'block', marginBottom: 6 }}>Ce que vous avez fait</label>
+              <label style={{ fontSize: 15, fontWeight: 600, color: C.dark, display: 'block', marginBottom: 6 }}>Ce que vous avez fait</label>
               <VoiceTextArea
                 value={data.projet}
                 onChange={v => {
@@ -2131,7 +2137,7 @@ function OnboardingPageInner() {
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
-                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      fontSize: 15, fontWeight: selected ? 600 : 400,
                       cursor: 'pointer',
                     }}>
                     <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{t.label}
@@ -2154,7 +2160,7 @@ function OnboardingPageInner() {
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
-                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      fontSize: 15, fontWeight: selected ? 600 : 400,
                       cursor: 'pointer',
                     }}>
                     <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{l.label}
@@ -2196,7 +2202,7 @@ function OnboardingPageInner() {
                     style={{
                       padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
                       color: sel ? C.orangeTexte : C.dark,
-                      fontSize: 14, fontWeight: sel ? 600 : 400, cursor: 'pointer',
+                      fontSize: 15, fontWeight: sel ? 600 : 400, cursor: 'pointer',
                     }}>
                     <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{p.label}
                   </button>
@@ -2208,7 +2214,7 @@ function OnboardingPageInner() {
                 style={{
                   padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit',
                   color: data.permis.includes('aucun') ? C.orangeTexte : C.dark,
-                  fontSize: 14, fontWeight: data.permis.includes('aucun') ? 600 : 400, cursor: 'pointer',
+                  fontSize: 15, fontWeight: data.permis.includes('aucun') ? 600 : 400, cursor: 'pointer',
                 }}>
                 <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>Aucun permis
               </button>
@@ -2272,7 +2278,7 @@ function OnboardingPageInner() {
                     style={{
                       padding: '10px 18px', borderRadius: 24, fontFamily: 'inherit',
                       color: selected ? C.orangeTexte : C.dark,
-                      fontSize: 14, fontWeight: selected ? 600 : 400,
+                      fontSize: 15, fontWeight: selected ? 600 : 400,
                       cursor: disabled ? 'default' : 'pointer',
                       opacity: disabled ? 0.4 : 1,
                     }}>
@@ -2364,7 +2370,7 @@ function OnboardingPageInner() {
             ))}
             <button onClick={addExp} className="kv-ajouter" style={{
               width: '100%', padding: '13px', borderRadius: 12,
-              color: C.orangeTexte, fontSize: 14, fontWeight: 600,
+              color: C.orangeTexte, fontSize: 15, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
             }}>
               + Ajouter une expérience
@@ -2425,7 +2431,7 @@ function OnboardingPageInner() {
             ))}
             <button onClick={addDiplome} className="kv-ajouter" style={{
               width: '100%', padding: '13px', borderRadius: 12,
-              color: C.orangeTexte, fontSize: 14, fontWeight: 600,
+              color: C.orangeTexte, fontSize: 15, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
             }}>
               + Ajouter une formation
@@ -2451,7 +2457,7 @@ function OnboardingPageInner() {
             <p style={{ ...ETIQ_S, marginBottom: 8 }}>
               Compétences
             </p>
-            <p style={{ fontSize: 13.5, color: C.grey, lineHeight: 1.6, marginBottom: 14 }}>
+            <p style={{ fontSize: 15, color: C.grey, lineHeight: 1.6, marginBottom: 14 }}>
               Écrivez-les avec vos mots. Les suggestions sont là pour aller plus vite, pas pour vous limiter.
             </p>
             <CompRefTagInput
@@ -2474,7 +2480,7 @@ function OnboardingPageInner() {
                   <button key={nom} onClick={() => { tap('lang-' + nom); toggleLangue(nom) }}
                     aria-pressed={selected}
                     className={`kv-bloc${selected ? ' kv-sel' : ''}${tappedId === 'lang-' + nom ? ' kv-tap' : ''}`}
-                    style={{ padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit', color: selected ? C.orangeTexte : C.dark, fontSize: 14, fontWeight: selected ? 600 : 400, cursor: 'pointer' }}>
+                    style={{ padding: '8px 16px', borderRadius: 24, fontFamily: 'inherit', color: selected ? C.orangeTexte : C.dark, fontSize: 15, fontWeight: selected ? 600 : 400, cursor: 'pointer' }}>
                     <svg className="kv-coche" viewBox="0 0 12 12" fill="none" aria-hidden="true" width="12" height="12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>{nom}
                   </button>
                 )
@@ -2492,7 +2498,7 @@ function OnboardingPageInner() {
                   const niv  = getNiveau(entry)
                   return (
                     <div key={nom} className="kv-bloc kv-langue-row kv-tag-nait" style={{ backgroundColor: C.white, borderRadius: 12, padding: '10px 14px' }}>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: C.dark, flex: 1 }}>{nom}</span>
+                      <span style={{ fontSize: 15, fontWeight: 500, color: C.dark, flex: 1 }}>{nom}</span>
                       <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                         {NIVEAUX_LANGUE.map(n => (
                           <button key={n} type="button" onClick={() => { tap('niv-' + nom + n); setNiveau(nom, n) }}
@@ -2558,7 +2564,7 @@ function OnboardingPageInner() {
   const transition = TRANSITIONS[step]
 
   return (
-    <main style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <main className="kv-onb-main" style={{ backgroundColor: C.bg, display: 'flex', flexDirection: 'column' }}>
       <style suppressHydrationWarning>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes kapolia-pulse {
@@ -2622,6 +2628,10 @@ function OnboardingPageInner() {
           outline: none !important;
         }
         #titre-etape:focus { outline: none; }
+        /* ── Layout fixe ── */
+        .kv-onb-main { height:100vh; height:100dvh; overflow:hidden; }
+        @media (min-width:1600px) { .kv-onb-main { zoom:1.12; height:calc(100vh/1.12); height:calc(100dvh/1.12); } }
+        @media (min-width:1920px) { .kv-onb-main { zoom:1.20; height:calc(100vh/1.20); height:calc(100dvh/1.20); } }
         /* ── Motion ── */
         @keyframes kv-slide-fwd  { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:none} }
         @keyframes kv-slide-back { from{opacity:0;transform:translateX(-28px)} to{opacity:1;transform:none} }
@@ -2686,6 +2696,7 @@ function OnboardingPageInner() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: `1px solid ${C.sable}`,
         backgroundColor: C.bg,
+        flexShrink: 0,
       }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
           <LogoKapolia key={needleKey} variante="sombre" taille={24} avecTexte={false} needleClassName="kv-logo-osc" />
@@ -2710,7 +2721,7 @@ function OnboardingPageInner() {
       </header>
 
       {/* Barre de progression — 5 blocs côte à côte */}
-      <div style={{ padding: '14px clamp(20px, 5%, 48px) 0', display: 'flex', gap: 6 }}>
+      <div style={{ padding: '14px clamp(20px, 5%, 48px) 0', display: 'flex', gap: 6, flexShrink: 0 }}>
         {BLOCKS.map(b => {
           const isDone    = b.steps[b.steps.length - 1] < step
           const isCurrent = b.steps.includes(step)
@@ -2754,8 +2765,8 @@ function OnboardingPageInner() {
       </div>
 
       {/* Contenu de l'étape */}
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      <div ref={contentRef} style={{
+        flex: 1, minHeight: 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         padding: '24px clamp(20px, 5%, 48px) 32px', overflowY: 'auto',
       }}>
         <div key={step} className={`kv-slide-${slideDirRef.current}`} style={{ width: '100%', maxWidth: 600 }}>
@@ -2811,7 +2822,7 @@ function OnboardingPageInner() {
             {isOpt && !saving && (
               <button onClick={handleSkip} style={{
                 background: 'none', border: 'none', padding: '10px 0',
-                fontSize: 14.5, color: C.grey, cursor: 'pointer',
+                fontSize: 15, color: C.grey, cursor: 'pointer',
                 fontFamily: 'inherit', fontWeight: 400,
                 textDecoration: 'underline', textUnderlineOffset: 3,
               }}>
