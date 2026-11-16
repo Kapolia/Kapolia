@@ -28,7 +28,6 @@ type Profil = {
   ville:                string | null
   signature:            string | null
   qualites:             string[] | null
-  qualites_principales: string[] | null
   competences_acquises: string[] | null
   type_poste:           string[] | null
   qualites_test:        Record<string, number> | null
@@ -272,7 +271,7 @@ function RightPanel({
 
   const headerMeta = [dp.label, profil.ville, poste].filter(Boolean).join('  ·  ')
 
-  const qualites = profil.qualites_principales ?? profil.qualites ?? []
+  const qualites = profil.qualites ?? []
   const comps    = profil.competences_acquises ?? []
 
   const mobilite = profil.mode_travail ? (LIEU_MAP[profil.mode_travail] ?? profil.mode_travail) : ''
@@ -506,7 +505,7 @@ export default function RecruteurPage() {
       const [profilsRes, favorisRes] = await Promise.all([
         supabase
           .from('profils_email_confirmes')
-          .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, qualites_principales, competences_acquises, type_poste, qualites_test, disponibilite, avatar_url, avatar_type, mode_travail, experiences, diplomes, projet_phare, projet_titre')
+          .select('user_id, prenom, nom, domaine, experience, ville, signature, qualites, competences_acquises, type_poste, qualites_test, disponibilite, avatar_url, avatar_type, mode_travail, experiences, diplomes, projet_phare, projet_titre')
           .eq('visible_candidatheque', true)
           .eq('type_compte', 'candidat'),
         user

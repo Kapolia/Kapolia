@@ -175,18 +175,58 @@ export function calculerQualites(answers: TestAnswer[]): QualiteTest[] {
     .map(([qualite, count]) => ({ qualite, count }))
 }
 
-// Top 3 qualités issues du test uniquement.
-export function qualitesPrincipales(answers: TestAnswer[]): QualiteTest[] {
-  return calculerQualites(answers).slice(0, 3)
+// Clés des 3 qualités les mieux classées du test.
+// Critères de tri : count décroissant → fois choisie en reponse_1 décroissant → ordre de QUALITE_LABELS.
+// Seulement les qualités choisies ≥ 2 fois → peut renvoyer moins de 3 éléments.
+export function qualitesPrincipales(answers: TestAnswer[]): string[] {
+  const counts    = new Map<string, number>()
+  const firstPick = new Map<string, number>()
+  const keyOrder  = Object.keys(QUALITE_LABELS)
+
+  for (const answer of answers) {
+    const situations = SITUATIONS[answer.version_test]
+    if (!situations) continue
+    const situation = situations.find(s => s.id === answer.situation_id)
+    if (!situation) continue
+
+    const q1 = situation.reponses.find(r => r.id === answer.reponse_1)?.qualite
+    const q2 = situation.reponses.find(r => r.id === answer.reponse_2)?.qualite
+
+    if (q1) {
+      counts.set(q1, (counts.get(q1) ?? 0) + 1)
+      firstPick.set(q1, (firstPick.get(q1) ?? 0) + 1)
+    }
+    if (q2) counts.set(q2, (counts.get(q2) ?? 0) + 1)
+  }
+
+  return Array.from(counts.keys())
+    .filter(k => (counts.get(k) ?? 0) >= 2)
+    .sort((a, b) => {
+      const diff = (counts.get(b) ?? 0) - (counts.get(a) ?? 0)
+      if (diff !== 0) return diff
+      const fp = (firstPick.get(b) ?? 0) - (firstPick.get(a) ?? 0)
+      if (fp !== 0) return fp
+      return keyOrder.indexOf(a) - keyOrder.indexOf(b)
+    })
+    .slice(0, 3)
 }
 
-// 3 qualités finales pour le profil : les déclarées en priorité, complétées par le test.
-export function troisPremieres(declarees: string[], testResultats: QualiteTest[]): string[] {
-  const result = [...declarees]
-  for (const t of testResultats) {
-    if (result.length >= 3) break
-    const label = QUALITE_LABELS[t.qualite] ?? t.qualite
-    if (!result.includes(label)) result.push(label)
-  }
-  return result.slice(0, 3)
+// Clés à afficher sur le profil : qualitesPrincipales s'il est rempli,
+// sinon les 3 premières clés de qualitesTest (count décroissant, puis ordre QUALITE_LABELS).
+// Aucune qualité déclarée (profils.qualites) n'entre ici.
+export function troisPremieres(
+  qualitesPrincipales: string[] | null,
+  qualitesTest: Record<string, number> | null,
+): string[] {
+  if (qualitesPrincipales && qualitesPrincipales.length > 0) return qualitesPrincipales
+  if (!qualitesTest) return []
+  const keyOrder = Object.keys(QUALITE_LABELS)
+  return Object.entries(qualitesTest)
+    .sort(([a, ca], [b, cb]) => {
+      const diff = cb - ca
+      if (diff !== 0) return diff
+      return keyOrder.indexOf(a) - keyOrder.indexOf(b)
+    })
+    .slice(0, 3)
+    .map(([k]) => k)
 }

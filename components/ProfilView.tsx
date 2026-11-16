@@ -21,7 +21,7 @@ import CarteLiens from '@/components/profil/CarteLiens'
 import { anneesExperience, lireMoisAnnee, preparerExperiencePourEnregistrement, type PosteParcours } from '@/lib/parcours'
 import { chargerEntreprisesKapolia, type EntrepriseKapolia } from '@/lib/entreprises-kapolia'
 import CarteParcoursView from '@/components/profil/Parcours'
-import { QUALITE_LABELS } from '@/lib/test-qualites'
+import { QUALITE_LABELS, troisPremieres } from '@/lib/test-qualites'
 import { PASSIONS_SUGGESTIONS } from '@/components/profil/IconesPassions'
 import MissionsTextArea from '@/components/MissionsTextArea'
 import SignatureCounter from '@/components/SignatureCounter'
@@ -1950,9 +1950,10 @@ export default function ProfilView({
 
           {/* ── QUALITÉS ── */}
           {(effectiveOwner || qualites.length > 0 || qualitesProchesSel.length > 0 || (p.qualites_test && Object.keys(p.qualites_test).length > 0)) && (() => {
-            const testLabels = (p.qualites_principales as string[] | null | undefined)?.length
-              ? (p.qualites_principales as string[])
-              : Object.entries(p.qualites_test ?? {}).sort((a, b) => b[1] - a[1]).map(([k]) => QUALITE_LABELS[k] ?? k).slice(0, 3)
+            const testLabels = troisPremieres(
+              p.qualites_principales as string[] | null ?? null,
+              p.qualites_test as Record<string, number> | null ?? null,
+            ).map(k => QUALITE_LABELS[k] ?? k)
             const procheLabels = qualitesProchesSel.map(s => s.qualite)
             const candidatLabels = qualites
             const nt = new Set(testLabels.map(normalizeText))

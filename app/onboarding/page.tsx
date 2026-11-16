@@ -26,7 +26,6 @@ import {
   QUALITE_LABELS,
   calculerQualites,
   qualitesPrincipales,
-  troisPremieres,
 } from '@/lib/test-qualites'
 import type { TestAnswer } from '@/lib/test-qualites'
 import { LANGUES } from '@/lib/langues'
@@ -364,13 +363,12 @@ function QualitesCarousel({
           return { situation_id: s.id, reponse_1: saved[0], reponse_2: saved[1], version_test: CURRENT_VERSION } as TestAnswer
         })
         .filter((a): a is TestAnswer => a !== null)
-      const resultats        = calculerQualites(allAnswers)
-      const qualitesTest     = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
-      const top3             = qualitesPrincipales(allAnswers)
-      const finales          = troisPremieres(qualitesDecl, top3)
+      const resultats    = calculerQualites(allAnswers)
+      const qualitesTest = Object.fromEntries(resultats.map(r => [r.qualite, r.count]))
+      const top3Keys     = qualitesPrincipales(allAnswers)
       const { error: profilErr } = await supabase.from('profils').update({
-        qualites_test:       qualitesTest,
-        qualites_principales: finales.length ? finales : null,
+        qualites_test:        qualitesTest,
+        qualites_principales: top3Keys.length ? top3Keys : null,
         ...(writeDate ? { test_qualites_fait_le: new Date().toISOString() } : {}),
       }).eq('user_id', userId)
       if (profilErr) {
@@ -385,7 +383,7 @@ function QualitesCarousel({
 
   async function handleRefaire() {
     await supabase.from('test_qualites').delete().eq('user_id', userId)
-    await supabase.from('profils').update({ qualites_test: null }).eq('user_id', userId)
+    await supabase.from('profils').update({ qualites_test: null, qualites_principales: null }).eq('user_id', userId)
     setSelections({})
     setIdx(0)
     setPhase('intro')
@@ -396,19 +394,7 @@ function QualitesCarousel({
     setQualitesDecl(vals)
     setDeclSaveError(false)
     setDeclSaved(false)
-    const currentAnswers = SITUATIONS[CURRENT_VERSION]
-      .map(s => {
-        const r = selections[s.id]
-        if (!r || r.length < 2) return null
-        return { situation_id: s.id, reponse_1: r[0], reponse_2: r[1], version_test: CURRENT_VERSION } as TestAnswer
-      })
-      .filter((a): a is TestAnswer => a !== null)
-    const top3    = qualitesPrincipales(currentAnswers)
-    const finales = troisPremieres(vals, top3)
-    const { error } = await supabase.from('profils').update({
-      qualites: vals,
-      qualites_principales: finales.length ? finales : null,
-    }).eq('user_id', userId)
+    const { error } = await supabase.from('profils').update({ qualites: vals }).eq('user_id', userId)
     if (error) {
       console.error('[profils.qualites] update error:', error)
       setDeclSaveError(true)
@@ -494,7 +480,8 @@ function QualitesCarousel({
       })
       .filter((a): a is TestAnswer => a !== null)
     const resultats         = calculerQualites(answers)
-    const testQualiteLabels = resultats.slice(0, 3).map(r => QUALITE_LABELS[r.qualite] ?? r.qualite)
+    const top3Keys          = qualitesPrincipales(answers)
+    const testQualiteLabels = top3Keys.map(k => QUALITE_LABELS[k] ?? k)
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -514,13 +501,13 @@ function QualitesCarousel({
             </p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-              {resultats.slice(0, 3).map(r => (
-                <span key={r.qualite} className="kv-qual-badge" style={{
+              {top3Keys.map(k => (
+                <span key={k} className="kv-qual-badge" style={{
                   padding: '5px 14px', borderRadius: 100,
                   backgroundColor: C.salaire, color: C.vert,
                   fontSize: 13.5, fontWeight: 600,
                 }}>
-                  {QUALITE_LABELS[r.qualite] ?? r.qualite}
+                  {QUALITE_LABELS[k] ?? k}
                 </span>
               ))}
             </div>

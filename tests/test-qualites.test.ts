@@ -14,116 +14,150 @@ function a(situation_id: number, reponse_1: 1|2|3|4, reponse_2: 1|2|3|4): TestAn
   return { situation_id, reponse_1, reponse_2, version_test: 1 }
 }
 
-// Construit un jeu de réponses qui favorise certaines qualités.
-// Situations V1 : on choisit les réponses qui donnent les qualités voulues.
-// Situation 1 : r1=pedagogie, r2=curiosite, r3=solidarite, r4=organisation
-// Situation 2 : r1=adaptabilite, r2=curiosite, r3=rigueur, r4=franchise
-// Situation 3 : r1=franchise, r2=initiative, r3=rigueur, r4=ecoute
-// Situation 4 : r1=organisation, r2=serenite, r3=solidarite, r4=perseverance
-// Situation 5 : r1=creativite, r2=initiative, r3=adaptabilite, r4=curiosite
-// Situation 6 : r1=ecoute, r2=franchise, r3=serenite, r4=solidarite
-// Situation 7 : r1=perseverance, r2=rigueur, r3=creativite, r4=organisation
-// Situation 8 : r1=pedagogie, r2=ecoute, r3=adaptabilite, r4=perseverance
-// Situation 9 : r1=initiative, r2=serenite, r3=creativite, r4=pedagogie
-
-// Réponses qui donnent curiosite (×3), rigueur (×3), ecoute (×2)
-const ANSWERS_CURIOSITE_RIGUEUR: TestAnswer[] = [
-  a(1, 2, 2), // curiosite + curiosite → curiosite×2 (mais double compte, on verra)
-  a(2, 2, 3), // curiosite + rigueur
-  a(3, 3, 4), // rigueur + ecoute
-  a(5, 4, 1), // curiosite + creativite
-  a(6, 1, 1), // ecoute + ecoute → ecoute×2
-  a(7, 2, 2), // rigueur + rigueur → rigueur×2
-]
-
-// Réponses complètes : rigueur ×3, les autres ×1 ou ×2
-const ANSWERS_FULL: TestAnswer[] = [
-  a(1, 2, 1), // curiosite + pedagogie
-  a(2, 3, 1), // rigueur + adaptabilite
-  a(3, 3, 4), // rigueur + ecoute
-  a(4, 2, 1), // serenite + organisation
-  a(5, 3, 1), // adaptabilite + creativite
-  a(6, 1, 3), // ecoute + serenite
-  a(7, 2, 3), // rigueur + creativite
-  a(8, 2, 3), // ecoute + adaptabilite
-  a(9, 2, 4), // serenite + pedagogie
-]
+// Situation 1 : r1=pedagogie, r2=curiosite, r3=solidarite,  r4=organisation
+// Situation 2 : r1=adaptabilite, r2=curiosite, r3=rigueur,  r4=franchise
+// Situation 3 : r1=franchise, r2=initiative,  r3=rigueur,   r4=ecoute
+// Situation 4 : r1=organisation, r2=serenite,  r3=solidarite, r4=perseverance
+// Situation 5 : r1=creativite,  r2=initiative, r3=adaptabilite, r4=curiosite
+// Situation 6 : r1=ecoute,      r2=franchise,  r3=serenite,  r4=solidarite
+// Situation 7 : r1=perseverance,r2=rigueur,    r3=creativite,r4=organisation
+// Situation 8 : r1=pedagogie,   r2=ecoute,     r3=adaptabilite, r4=perseverance
+// Situation 9 : r1=initiative,  r2=serenite,   r3=creativite,r4=pedagogie
 
 // ─── calculerQualites ─────────────────────────────────────────────────────────
 
 describe('calculerQualites', () => {
-  it('retourne un tableau vide si aucune réponse', () => {
+  it('tableau vide si aucune réponse', () => {
     expect(calculerQualites([])).toEqual([])
   })
 
-  it('ignore une version de test inconnue', () => {
-    const r = calculerQualites([{ situation_id: 1, reponse_1: 1, reponse_2: 2, version_test: 99 }])
-    expect(r).toEqual([])
+  it('ignore une version inconnue', () => {
+    expect(calculerQualites([{ situation_id: 1, reponse_1: 1, reponse_2: 2, version_test: 99 }])).toEqual([])
   })
 
   it('filtre les qualités avec count < 2', () => {
-    // seul pédagogie apparaît une fois (sit 1 r1)
     const r = calculerQualites([a(1, 1, 3)]) // pedagogie + solidarite — aucun ×2
     expect(r).toEqual([])
   })
 
   it('trie par count décroissant', () => {
-    const r = calculerQualites(ANSWERS_FULL)
-    expect(r[0].count).toBeGreaterThanOrEqual(r[1]?.count ?? 0)
-  })
-
-  it('rigueur ressort en premier sur ANSWERS_FULL', () => {
-    const r = calculerQualites(ANSWERS_FULL)
+    // rigueur ×3 (sit2r3+sit3r3+sit7r2), ecoute ×2 (sit3r4+sit6r1)
+    const r = calculerQualites([a(2, 3, 1), a(3, 3, 4), a(6, 1, 2), a(7, 2, 1)])
     expect(r[0].qualite).toBe('rigueur')
+    expect(r[0].count).toBe(3)
   })
 })
 
-// ─── qualitesPrincipales ──────────────────────────────────────────────────────
+// ─── qualitesPrincipales — tri et égalités ────────────────────────────────────
 
 describe('qualitesPrincipales', () => {
-  it('retourne au plus 3 résultats', () => {
-    const r = qualitesPrincipales(ANSWERS_FULL)
-    expect(r.length).toBeLessThanOrEqual(3)
+  it('tableau vide si aucune réponse', () => {
+    expect(qualitesPrincipales([])).toEqual([])
   })
 
-  it('retourne les 3 premières du calcul complet', () => {
-    const full = calculerQualites(ANSWERS_FULL)
-    const top3 = qualitesPrincipales(ANSWERS_FULL)
-    expect(top3).toEqual(full.slice(0, 3))
+  it('au plus 3 éléments', () => {
+    const answers = [
+      a(2, 3, 1), a(3, 3, 4), a(6, 1, 2), a(7, 2, 1), // rigueur ×3, ecoute ×2, ...
+      a(4, 2, 3), a(5, 3, 1), a(8, 3, 2),               // serenite + adaptabilite + ...
+    ]
+    expect(qualitesPrincipales(answers).length).toBeLessThanOrEqual(3)
+  })
+
+  it('renvoie des clés (pas des libellés)', () => {
+    const r = qualitesPrincipales([a(2, 3, 1), a(3, 3, 1)])
+    for (const k of r) expect(QUALITE_LABELS).toHaveProperty(k)
+  })
+
+  it('exclut les qualités choisies moins de 2 fois', () => {
+    // seul rigueur ×2, les autres ×1 — seule rigueur ressort
+    const r = qualitesPrincipales([a(2, 3, 1), a(3, 3, 4)])
+    expect(r).toEqual(['rigueur'])
+  })
+
+  it('peut renvoyer moins de 3 si peu de qualités atteignent ×2', () => {
+    // rigueur ×2, ecoute ×2, rien d'autre ×2 avec seulement 3 situations
+    const r = qualitesPrincipales([a(2, 3, 2), a(3, 3, 4), a(6, 1, 2)])
+    expect(r.length).toBeLessThan(3)
+  })
+
+  it('départage les égalités de count par nombre de reponse_1', () => {
+    // rigueur ×2 : r1 les 2 fois (sit2r3=rigueur r1, sit3r3=rigueur r2)
+    // → sit2 : reponse_1=3 (rigueur), sit3 : reponse_1=1 (franchise) → rigueur firstPick=1
+    // ecoute ×2 : sit3r4 et sit6r1 → sit6 reponse_1=1 (ecoute) → ecoute firstPick=1
+    // Les deux ont firstPick=1, départagés par QUALITE_LABELS : ecoute index 0 < rigueur index 2
+    // → ecoute avant rigueur
+    const r = qualitesPrincipales([a(2, 1, 3), a(3, 4, 3), a(6, 1, 3)])
+    // ecoute: sit3r4 + sit6r1 = ×2, firstPick via sit6r1=1
+    // rigueur: sit2r3 + sit3r3 = ×2, firstPick=0 (jamais r1)
+    // ecoute firstPick(1) > rigueur firstPick(0) → ecoute en premier
+    expect(r[0]).toBe('ecoute')
+    expect(r[1]).toBe('rigueur')
+  })
+
+  it('départage les égalités complètes par ordre de QUALITE_LABELS', () => {
+    // ecoute et rigueur : même count ×2, même firstPick=0
+    // ordre QUALITE_LABELS : ecoute index 0, rigueur index 2 → ecoute avant rigueur
+    const r = qualitesPrincipales([
+      a(2, 1, 3), // adaptabilite + rigueur
+      a(3, 4, 3), // ecoute + rigueur — rigueur ×2
+      a(6, 2, 1), // franchise + ecoute — ecoute ×2
+    ])
+    // ecoute: sit3r4 + sit6r1 = ×2, firstPick=0
+    // rigueur: sit2r3 + sit3r3 = ×2, firstPick=0
+    // même count(2) et firstPick(0) → ordre QUALITE_LABELS
+    const idxEcoute  = Object.keys(QUALITE_LABELS).indexOf('ecoute')
+    const idxRigueur = Object.keys(QUALITE_LABELS).indexOf('rigueur')
+    expect(idxEcoute).toBeLessThan(idxRigueur)
+    if (r.includes('ecoute') && r.includes('rigueur')) {
+      expect(r.indexOf('ecoute')).toBeLessThan(r.indexOf('rigueur'))
+    }
   })
 })
 
 // ─── troisPremieres ───────────────────────────────────────────────────────────
 
 describe('troisPremieres', () => {
-  const testResultats = calculerQualites(ANSWERS_FULL)
+  const qTest: Record<string, number> = { rigueur: 3, ecoute: 2, serenite: 2, creativite: 2 }
 
-  it('retourne exactement 3 items si suffisamment de sources', () => {
-    expect(troisPremieres([], testResultats).length).toBe(Math.min(3, testResultats.length))
+  it('renvoie qualitesPrincipales tel quel quand non vide', () => {
+    const r = troisPremieres(['rigueur', 'ecoute'], qTest)
+    expect(r).toEqual(['rigueur', 'ecoute'])
   })
 
-  it('les déclarées passent en premier', () => {
-    const declarees = ['Franchise']
-    const r = troisPremieres(declarees, testResultats)
-    expect(r[0]).toBe('Franchise')
+  it('repli sur qualitesTest quand qualitesPrincipales est null', () => {
+    const r = troisPremieres(null, qTest)
+    expect(r).toHaveLength(3)
+    expect(r[0]).toBe('rigueur') // count le plus élevé
   })
 
-  it('déduplique : déclarée déjà dans test → non répétée', () => {
-    const top3Labels = testResultats.slice(0, 3).map(t => QUALITE_LABELS[t.qualite] ?? t.qualite)
-    const declarees = [top3Labels[0]]
-    const r = troisPremieres(declarees, testResultats)
-    const count = r.filter(x => x === top3Labels[0]).length
-    expect(count).toBe(1)
+  it('repli sur qualitesTest quand qualitesPrincipales est []', () => {
+    const r = troisPremieres([], qTest)
+    expect(r[0]).toBe('rigueur')
+  })
+
+  it('tableau vide si les deux sont null/vides', () => {
+    expect(troisPremieres(null, null)).toEqual([])
+    expect(troisPremieres([], null)).toEqual([])
+    expect(troisPremieres(null, {})).toEqual([])
+  })
+
+  it('repli : au plus 3 clés depuis qualitesTest', () => {
+    const r = troisPremieres(null, qTest)
     expect(r.length).toBeLessThanOrEqual(3)
   })
 
-  it('tableau vide si aucune source', () => {
-    expect(troisPremieres([], [])).toEqual([])
+  it('repli : départage les égalités par ordre de QUALITE_LABELS', () => {
+    // ecoute, serenite, creativite ont tous count=2
+    const r = troisPremieres(null, { ecoute: 2, serenite: 2, creativite: 2 })
+    const keyOrder = Object.keys(QUALITE_LABELS)
+    expect(keyOrder.indexOf(r[0])).toBeLessThan(keyOrder.indexOf(r[1]))
+    expect(keyOrder.indexOf(r[1])).toBeLessThan(keyOrder.indexOf(r[2]))
   })
 
-  it('retourne uniquement les déclarées si > 3 et aucun test', () => {
-    const r = troisPremieres(['A', 'B', 'C', 'D'], [])
-    expect(r).toEqual(['A', 'B', 'C'])
+  it("aucune qualité déclarée ne peut entrer via qualitesPrincipales (clés seulement)", () => {
+    // qualitesPrincipales contient uniquement des clés de QUALITE_LABELS
+    const r = troisPremieres(['rigueur'], qTest)
+    for (const k of r) expect(Object.keys(QUALITE_LABELS)).toContain(k)
   })
 })
 
@@ -137,9 +171,7 @@ describe('SITUATIONS[1]', () => {
   })
   it('toutes les qualités sont dans QUALITE_LABELS', () => {
     for (const s of sits) {
-      for (const r of s.reponses) {
-        expect(QUALITE_LABELS).toHaveProperty(r.qualite)
-      }
+      for (const r of s.reponses) expect(QUALITE_LABELS).toHaveProperty(r.qualite)
     }
   })
 })
