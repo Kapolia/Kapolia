@@ -779,12 +779,16 @@ function QualitesCarousel({
 
 // ─── Écran final ──────────────────────────────────────────────────────────────
 
-function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: () => void; userId: string; emailConfirme: boolean }) {
-  const [chosen, setChosen]             = useState<boolean | null>(null)
-  const [saving, setSaving]             = useState(false)
-  const [saveError, setFinalSaveError]  = useState(false)
-  const pendingChoiceRef                = useRef<boolean | null>(null)
+function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToProfile: () => void; userId: string; emailConfirme: boolean; prenom: string }) {
+  const [visCss,  setVisCss]      = useState<'oui' | 'non' | null>(null)
+  const [chosen,  setChosen]      = useState<boolean | null>(null)
+  const [saving,  setSaving]      = useState(false)
+  const [saveError, setFinalSaveError] = useState(false)
+  const pendingChoiceRef          = useRef<boolean | null>(null)
+
   async function handleChoice(value: boolean) {
+    if (saving) return
+    setVisCss(value ? 'oui' : 'non')
     pendingChoiceRef.current = value
     setSaving(true)
     setFinalSaveError(false)
@@ -797,179 +801,247 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme }: { onGoToProfile: 
     setChosen(value)
   }
 
+  const PTS: [number, number][] = [
+    [150,170],[460,140],[505,330],[420,500],
+    [180,470],[95,320],[300,70],[330,540],[230,250],[400,250],
+  ]
+
   return (
-    <main style={{
-      backgroundColor: C.bg,
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: '40px 34px 34px',
-      boxSizing: 'border-box' as const,
-    }}>
+    <main
+      className={`kv-fn4${visCss ? ` vis-${visCss}` : ''}`}
+      style={{ display:'flex', flexDirection:'row', minHeight:'100vh', backgroundColor:C.bg, position:'relative', overflow:'hidden' }}
+    >
       <style suppressHydrationWarning>{`
-        .final-title { font-size: 36px; }
-        .final-card  { max-width: 460px; width: 100%; }
-        .final-btns  { flex-direction: row; }
-        .final-btn   { flex: 1; }
-        @media (max-width: 768px) {
-          .final-title { font-size: 28px; }
-          .final-card  { max-width: 100%; }
-          .final-btns  { flex-direction: column; }
-          .final-btn   { width: 100%; }
+        /* ── Halos ── */
+        @keyframes kv-fn4-onde { 0%{transform:scale(.15);opacity:0} 10%{opacity:1} 100%{transform:scale(1);opacity:0} }
+        .kv-fn4-pulse { fill:url(#kv-fn4-g-pulse); transform-box:fill-box; transform-origin:center; opacity:0; animation:kv-fn4-onde 6s cubic-bezier(.2,.6,.3,1) infinite both; }
+        .kv-fn4-pulse.b { animation-delay:2s; }
+        .kv-fn4-pulse.c { animation-delay:4s; }
+        .vis-oui .kv-fn4-pulse { fill:url(#kv-fn4-g-pulse-o); animation-duration:3.6s; }
+        .vis-oui .kv-fn4-pulse.b { animation-delay:1.2s; }
+        .vis-oui .kv-fn4-pulse.c { animation-delay:2.4s; }
+        .vis-non .kv-fn4-pulse { animation:none; opacity:0; }
+        /* ── Dots ── */
+        @keyframes kv-fn4-luit { 0%,100%{opacity:.35} 50%{opacity:.8} }
+        .kv-fn4-pt { fill:${C.vert}70; transform-box:fill-box; transform-origin:center; animation:kv-fn4-luit 4.5s ease-in-out infinite; transition:transform 1.4s cubic-bezier(.3,.7,.2,1),fill .6s; }
+        .vis-oui .kv-fn4-pt { fill:${C.orange}; transform:translate(var(--dx),var(--dy)) scale(1.25); }
+        .vis-non .kv-fn4-pt { fill:${C.vert}38; transform:translate(calc(var(--dx) * -0.6),calc(var(--dy) * -0.6)); }
+        /* ── Needle ── */
+        @keyframes kv-fn4-osc { 0%{transform:rotate(-55deg)} 45%{transform:rotate(16deg)} 70%{transform:rotate(-6deg)} 88%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
+        @keyframes kv-fn4-aig-part { to{opacity:0} }
+        @keyframes kv-fn4-cible2 { 0%{transform:translateY(0)} 100%{transform:translateY(116px);opacity:0} }
+        .kv-fn4-osc { transform-box:fill-box; transform-origin:50% 70%; animation:kv-fn4-osc 1150ms cubic-bezier(.35,0,.25,1) 100ms both; }
+        .kv-fn4-aig { animation:kv-fn4-aig-part .5s 1.9s ease-in forwards; }
+        .kv-fn4-cible { fill:${C.orange}; transform-box:fill-box; transform-origin:center; animation:kv-fn4-cible2 .9s 1.2s cubic-bezier(.6,0,.3,1) forwards; }
+        /* ── Card arrival ── */
+        @keyframes kv-fn4-carte-nait { from{opacity:0;transform:scale(.8) translateY(10px)} to{opacity:1;transform:none} }
+        .kv-fn4-sq { position:relative; z-index:1; width:280px; background:${C.white}; border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:0 2px 4px rgba(27,48,38,.05),0 16px 40px rgba(27,48,38,.12); animation:kv-fn4-carte-nait .7s 2.05s cubic-bezier(.2,.8,.2,1.15) both; transition:box-shadow .6s; overflow:visible; }
+        .kv-fn4-sq .sq-id { display:flex; align-items:center; gap:14px; }
+        .kv-fn4-sq .sq-av { width:48px; height:58px; border-radius:10px; background:${C.orange}; flex:none; transition:background-color .6s; }
+        .kv-fn4-sq .sq-l { display:flex; flex-direction:column; gap:9px; flex:1; }
+        .kv-fn4-sq .sq-l i { display:block; height:9px; border-radius:5px; background:#E9ECEA; }
+        .kv-fn4-sq .sq-id .sq-l i:first-child { height:11px; background:#DCE2DE; }
+        .kv-fn4-sq .sq-pills { display:flex; gap:8px; }
+        .kv-fn4-sq .sq-pills i { display:block; height:24px; width:64px; border-radius:999px; background:#FBEDE3; transition:background-color .6s; }
+        .kv-fn4-sq .sq-pills i:nth-child(2) { width:52px; }
+        .kv-fn4-sq .sq-pills i:nth-child(3) { width:58px; }
+        .kv-fn4-sq .sq-pile { position:absolute; inset:0; border-radius:16px; }
+        .kv-fn4-sq>*:not(.sq-pile) { position:relative; }
+        .kv-fn4-sq .sq-pile::before,.kv-fn4-sq .sq-pile::after { content:""; position:absolute; inset:0; z-index:-1; border-radius:16px; background:#FBFCFB; box-shadow:0 2px 8px rgba(27,48,38,.08); transform:rotate(-7deg) translate(-26px,10px); transition:transform .8s cubic-bezier(.3,.7,.2,1),opacity .6s; }
+        .kv-fn4-sq .sq-pile::after { transform:rotate(6deg) translate(28px,14px); background:#F7F9F8; }
+        .vis-oui .kv-fn4-sq { box-shadow:0 0 0 1.5px rgba(194,97,31,.35),0 16px 40px rgba(194,97,31,.20); }
+        .vis-oui .kv-fn4-sq .sq-pile::before { transform:rotate(-12deg) translate(-70px,26px); opacity:.6; }
+        .vis-oui .kv-fn4-sq .sq-pile::after { transform:rotate(11deg) translate(74px,30px); opacity:.6; }
+        .vis-non .kv-fn4-sq { box-shadow:0 1px 3px rgba(27,48,38,.08); }
+        .vis-non .kv-fn4-sq .sq-av { background:#BFC8C2; }
+        .vis-non .kv-fn4-sq .sq-pills i { background:#EEF0EE; }
+        .vis-non .kv-fn4-sq .sq-pile::before,.vis-non .kv-fn4-sq .sq-pile::after { transform:none; }
+        /* ── Choice options ── */
+        .kv-fn4-opt { display:flex; align-items:center; gap:14px; width:100%; text-align:left; border:0; background:${C.white}; border-radius:12px; padding:14px 16px; cursor:pointer; font:inherit; color:${C.dark}; box-shadow:0 1px 2px rgba(27,48,38,.06),0 6px 16px rgba(27,48,38,.07); transition:box-shadow .2s,transform .15s; }
+        .kv-fn4-opt:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 2px 4px rgba(27,48,38,.06),0 10px 22px rgba(27,48,38,.10); }
+        .kv-fn4-opt.on { background:#FBEDE3; box-shadow:0 0 0 1.5px ${C.orange},0 6px 16px rgba(194,97,31,.12); }
+        .kv-fn4-ic { width:40px; height:40px; border-radius:10px; background:#F2F4F2; color:${C.vert}; display:grid; place-items:center; flex:none; transition:background-color .15s,color .15s; }
+        .kv-fn4-opt.on .kv-fn4-ic { background:${C.white}; color:${C.orange}; }
+        .kv-fn4-radio { width:20px; height:20px; border-radius:50%; box-shadow:inset 0 0 0 2px #C9CFCB; flex:none; transition:box-shadow .2s; margin-left:auto; }
+        .kv-fn4-opt.on .kv-fn4-radio { box-shadow:inset 0 0 0 6px ${C.orange}; }
+        /* ── Layout ── */
+        .kv-fn4-txt { flex:0 0 auto; display:flex; flex-direction:column; gap:18px; padding:60px 48px 48px 56px; max-width:600px; min-width:460px; position:relative; z-index:1; }
+        .kv-fn4-scene { flex:1; position:relative; display:grid; place-items:center; min-height:100vh; overflow:hidden; }
+        .kv-fn4-scene>svg { position:absolute; width:118%; max-width:none; left:50%; top:50%; transform:translate(-50%,-50%); }
+        /* ── Mobile ── */
+        @media (max-width:640px) {
+          .kv-fn4 { flex-direction:column !important; }
+          .kv-fn4-txt { padding:52px 20px 24px !important; gap:12px !important; min-width:0 !important; max-width:100% !important; }
+          .kv-fn4-scene { position:relative !important; order:2; min-height:0 !important; height:330px; overflow:hidden; margin-top:-70px; z-index:0; pointer-events:none; mask-image:linear-gradient(to bottom,transparent 0,#000 30%); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%); }
+          .kv-fn4-scene>svg { width:440px !important; }
+          .kv-fn4-sq { scale:.74; margin-top:40px; }
+          .kv-fn4-txt h1 { font-size:28px !important; }
+        }
+        /* ── Reduced motion ── */
+        @media (prefers-reduced-motion:reduce) {
+          .kv-fn4-pulse { animation:none !important; opacity:1 !important; }
+          .kv-fn4-osc,.kv-fn4-cible,.kv-fn4-aig { animation:none !important; transform:none !important; opacity:1 !important; }
+          .kv-fn4-sq { animation:none !important; opacity:1 !important; transform:none !important; }
         }
       `}</style>
 
-      {/* Logo */}
-      <div style={{ marginBottom: 32 }}>
-        <LogoKapolia variante="sombre" taille={52} avecTexte={false} />
-      </div>
-
-      {/* Titre */}
-      <h1 className="final-title" style={{
-        fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-        fontWeight: 700,
-        lineHeight: 1.1,
-        color: C.dark,
-        textAlign: 'center',
-        marginBottom: 20,
-        marginTop: 0,
-      }}>
-        Vous avez trouvé votre cap
-      </h1>
-
-      {/* Accroche */}
-      <p style={{
-        fontFamily: FONT_SANS,
-        fontSize: 14,
-        lineHeight: 1.6,
-        color: C.grey,
-        textAlign: 'center',
-        maxWidth: 400,
-        marginBottom: 36,
-        marginTop: 0,
-      }}>
-        Votre profil est prêt. Les recruteurs vous découvriront tel que vous êtes, et vous pourrez
-        l'enrichir quand vous le souhaitez.
-      </p>
-
-      {chosen === null ? (
-        /* Carte de visibilité */
-        <div className="final-card" style={{
-          backgroundColor: C.bg,
-          borderRadius: 14,
-          padding: '24px 26px',
-          textAlign: 'left',
-        }}>
-          <p style={{
-            fontFamily: FONT_SANS, letterSpacing: '-0.005em',
-            fontWeight: 600,
-            fontSize: 17,
-            color: '#22312B',
-            margin: '0 0 12px',
-            lineHeight: 1.35,
-          }}>
-            Souhaitez-vous être visible par les recruteurs ?
-          </p>
-          <p style={{
-            fontFamily: FONT_SANS,
-            fontSize: 13,
-            color: '#5A6B62',
-            lineHeight: 1.6,
-            margin: '0 0 24px',
-          }}>
-            Les recruteurs inscrits pourront consulter votre profil et vous écrire, même sans
-            candidature de votre part. Vous pourrez changer d'avis à tout moment.
-          </p>
-          {saveError && (
-            <div role="alert" style={{
-              backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)',
-              borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-            }}>
-              <span style={{ fontSize: 13, color: '#22312B', lineHeight: 1.5 }}>
-                L'enregistrement n'a pas abouti. Vérifiez votre connexion, puis réessayez.
-              </span>
-              <button
-                onClick={() => pendingChoiceRef.current !== null && handleChoice(pendingChoiceRef.current)}
-                style={{
-                  background: 'none', border: 'none', fontSize: 13, fontWeight: 600,
-                  color: C.terracotta, cursor: 'pointer', padding: '4px 0', flexShrink: 0,
-                  fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px',
-                }}>
-                Réessayer
-              </button>
-            </div>
-          )}
-          {!emailConfirme && (
-            <p style={{ fontSize: 12, color: '#8BA99E', lineHeight: 1.55, margin: '0 0 14px' }}>
-              Confirmez d'abord votre adresse e-mail pour activer la visibilité.
-              Vous pourrez le faire depuis vos paramètres.
-            </p>
-          )}
-          <div className="final-btns" style={{ display: 'flex', gap: 12 }}>
-            <button
-              className="final-btn"
-              onClick={() => handleChoice(true)}
-              disabled={saving || !emailConfirme}
-              style={{
-                backgroundColor: C.orange,
-                color: C.bg,
-                border: 'none',
-                borderRadius: 100,
-                padding: '12px 20px',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: saving || !emailConfirme ? 'default' : 'pointer',
-                opacity: saving || !emailConfirme ? 0.4 : 1,
-                fontFamily: 'inherit',
-              }}
-            >
-              Oui, je veux être visible
-            </button>
-            <button
-              className="final-btn"
-              onClick={() => handleChoice(false)}
-              disabled={saving}
-              style={{
-                backgroundColor: 'transparent',
-                color: '#5A6B62',
-                border: '1.5px solid #DDD2BF',
-                borderRadius: 100,
-                padding: '12px 20px',
-                fontSize: 14,
-                fontWeight: 500,
-                cursor: saving ? 'default' : 'pointer',
-                opacity: saving ? 0.7 : 1,
-                fontFamily: 'inherit',
-              }}
-            >
-              Pas pour le moment
-            </button>
-          </div>
+      {/* ── Texte ── */}
+      <div className="kv-fn4-txt">
+        <div>
+          <LogoKapolia variante="sombre" taille={36} avecTexte={false} />
         </div>
-      ) : (
-        /* Après le choix */
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, width: '100%', maxWidth: 340 }}>
+
+        <h1 style={{ fontFamily:FONT_SANS, letterSpacing:'-0.012em', fontSize:'clamp(28px,3.4vw,38px)', fontWeight:700, lineHeight:1.1, color:C.dark, margin:0 }}>
+          Votre profil est prêt,&#160;{prenom}&#160;!
+        </h1>
+        <p style={{ fontSize:15.5, color:C.grey, lineHeight:1.55, margin:0, maxWidth:420 }}>
+          Vous avez trouvé votre cap. Dernière question avant de découvrir votre profil.
+        </p>
+
+        {/* ── Radiogroup ── */}
+        <div role="radiogroup" aria-labelledby="kv-fn4-q" style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          <p id="kv-fn4-q" style={{ fontWeight:700, fontSize:16, color:C.dark, margin:0 }}>
+            Les recruteurs peuvent-ils vous trouver sans que vous postuliez&#160;?
+          </p>
+
           <button
-            onClick={onGoToProfile}
-            style={{
-              width: '100%',
-              backgroundColor: C.orange,
-              color: C.bg,
-              border: 'none',
-              borderRadius: 100,
-              padding: '14px 36px',
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
+            role="radio"
+            aria-checked={visCss === 'oui'}
+            onClick={() => handleChoice(true)}
+            className={`kv-fn4-opt${visCss === 'oui' ? ' on' : ''}`}
           >
-            Accéder à mon profil
+            <span className="kv-fn4-ic" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </span>
+            <span style={{ display:'flex', flexDirection:'column', gap:2, flex:1 }}>
+              <b style={{ fontSize:15.5 }}>Oui, rendre mon profil visible</b>
+              <span style={{ fontSize:14, color:C.grey, lineHeight:1.45 }}>Les recruteurs inscrits peuvent le découvrir et vous proposer un échange.</span>
+            </span>
+            <span className="kv-fn4-radio" aria-hidden="true"/>
+          </button>
+
+          <button
+            role="radio"
+            aria-checked={visCss === 'non'}
+            onClick={() => handleChoice(false)}
+            className={`kv-fn4-opt${visCss === 'non' ? ' on' : ''}`}
+          >
+            <span className="kv-fn4-ic" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="11" width="16" height="10" rx="2"/>
+                <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+              </svg>
+            </span>
+            <span style={{ display:'flex', flexDirection:'column', gap:2, flex:1 }}>
+              <b style={{ fontSize:15.5 }}>Pas pour le moment</b>
+              <span style={{ fontSize:14, color:C.grey, lineHeight:1.45 }}>Seuls les recruteurs des offres où vous postulez voient votre profil.</span>
+            </span>
+            <span className="kv-fn4-radio" aria-hidden="true"/>
           </button>
         </div>
-      )}
+
+        <p style={{ fontSize:13.5, color:C.grey, margin:0 }}>
+          Vous pourrez changer d&apos;avis à tout moment dans vos paramètres.
+        </p>
+
+        {!emailConfirme && visCss === 'oui' && (
+          <p style={{ fontSize:14, background:'#FBF3E6', borderRadius:8, padding:'10px 12px', lineHeight:1.45, color:C.dark, margin:0 }}>
+            Votre profil deviendra visible dès que vous aurez confirmé votre adresse e-mail. Le lien vous a été envoyé à l&apos;inscription.
+          </p>
+        )}
+
+        {saveError && (
+          <div role="alert" style={{ backgroundColor:'rgba(220,38,38,0.06)', border:'1px solid rgba(220,38,38,0.2)', borderRadius:8, padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
+            <span style={{ fontSize:13, color:C.dark, lineHeight:1.5 }}>L&apos;enregistrement n&apos;a pas abouti. Vérifiez votre connexion.</span>
+            <button
+              onClick={() => pendingChoiceRef.current !== null && handleChoice(pendingChoiceRef.current)}
+              style={{ background:'none', border:'none', fontSize:13, fontWeight:600, color:C.terracotta, cursor:'pointer', padding:'4px 0', flexShrink:0, fontFamily:'inherit', textDecoration:'underline', textUnderlineOffset:'2px' }}
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
+
+        <div>
+          <button
+            onClick={onGoToProfile}
+            disabled={chosen === null}
+            style={{ backgroundColor:C.orange, color:C.white, border:'none', borderRadius:100, padding:'14px 32px', fontSize:15, fontWeight:600, cursor:chosen !== null ? 'pointer' : 'default', fontFamily:'inherit', opacity:chosen !== null ? 1 : 0.4, transition:'opacity .2s' }}
+          >
+            Voir mon profil
+          </button>
+        </div>
+      </div>
+
+      {/* ── Animation ── */}
+      <div className="kv-fn4-scene" aria-hidden="true">
+        <svg viewBox="0 0 600 600">
+          <defs>
+            <radialGradient id="kv-fn4-g-pulse">
+              <stop offset="0" stopColor={C.vert} stopOpacity="0"/>
+              <stop offset=".55" stopColor={C.vert} stopOpacity=".05"/>
+              <stop offset=".85" stopColor={C.vert} stopOpacity=".09"/>
+              <stop offset="1" stopColor={C.vert} stopOpacity="0"/>
+            </radialGradient>
+            <radialGradient id="kv-fn4-g-pulse-o">
+              <stop offset="0" stopColor={C.orange} stopOpacity="0"/>
+              <stop offset=".55" stopColor={C.orange} stopOpacity=".07"/>
+              <stop offset=".85" stopColor={C.orange} stopOpacity=".16"/>
+              <stop offset="1" stopColor={C.orange} stopOpacity="0"/>
+            </radialGradient>
+            <radialGradient id="kv-fn4-g-coeur">
+              <stop offset="0" stopColor={C.white} stopOpacity="1"/>
+              <stop offset=".6" stopColor={C.white} stopOpacity=".85"/>
+              <stop offset="1" stopColor={C.white} stopOpacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <circle className="kv-fn4-pulse a" cx="300" cy="300" r="290"/>
+          <circle className="kv-fn4-pulse b" cx="300" cy="300" r="290"/>
+          <circle className="kv-fn4-pulse c" cx="300" cy="300" r="290"/>
+          <circle fill="url(#kv-fn4-g-coeur)" cx="300" cy="300" r="120" opacity=".9"/>
+
+          {PTS.map(([cx, cy], i) => {
+            const dx = Math.round((300 - cx) * 0.28)
+            const dy = Math.round((300 - cy) * 0.28)
+            return (
+              <circle
+                key={i}
+                className="kv-fn4-pt"
+                cx={cx} cy={cy} r={i % 3 ? 4 : 5}
+                style={{ '--dx': `${dx}px`, '--dy': `${dy}px`, animationDelay: `${(i * 0.37).toFixed(2)}s` } as React.CSSProperties}
+              />
+            )
+          })}
+
+          <g className="kv-fn4-aig" transform="translate(300 300) scale(3.6) translate(-21 -21)">
+            <g className="kv-fn4-osc">
+              <path d="M14 29 L21 12 L28 29" fill="none" stroke={C.vert} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 29 L21 25 L28 29" fill="none" stroke={C.orange} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"/>
+            </g>
+          </g>
+          <circle className="kv-fn4-cible" cx="300" cy="140" r="7"/>
+        </svg>
+
+        <div className="kv-fn4-sq">
+          <div className="sq-pile" aria-hidden="true"/>
+          <div className="sq-id">
+            <span className="sq-av"/>
+            <span className="sq-l">
+              <i style={{ width:'62%' }}/>
+              <i style={{ width:'40%' }}/>
+            </span>
+          </div>
+          <div className="sq-pills"><i/><i/><i/></div>
+          <div className="sq-l">
+            <i style={{ width:'88%' }}/>
+            <i style={{ width:'70%' }}/>
+          </div>
+        </div>
+      </div>
     </main>
   )
 }
@@ -2428,7 +2500,7 @@ function OnboardingPageInner() {
   )
 
   if (showWelcome) return <WelcomeScreen onStart={() => setShowWelcome(false)} />
-  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push(readPostSignupNext() ?? '/profil')} userId={userId} emailConfirme={emailConfirme} />
+  if (showFinal)   return <FinalScreen   onGoToProfile={() => router.push(readPostSignupNext() ?? '/profil')} userId={userId} emailConfirme={emailConfirme} prenom={data.prenom} />
 
   const isOpt      = OPTIONAL_STEPS.has(step)
   const transition = TRANSITIONS[step]
