@@ -422,51 +422,66 @@ function QualitesCarousel({
   // ── Intro ──────────────────────────────────────────────────────────────────
   if (phase === 'intro') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <>
         <style suppressHydrationWarning>{`
           .kv-iq-n {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
-            background: ${C.orange}; color: #fff; font-size: 12px; font-weight: 700;
+            display: grid; place-items: center;
+            width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+            background: #FBEDE3; color: ${C.orangeTexte}; font-size: 13.5px; font-weight: 700;
+            margin-top: -1px;
+          }
+          .kv-iq-points li { animation: kv-cascade-nait .4s cubic-bezier(.2,.7,.2,1) both; }
+          .kv-iq-points li:nth-child(2) { animation-delay: .08s; }
+          .kv-iq-points li:nth-child(3) { animation-delay: .16s; }
+          .kv-iq-bas { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 4px; }
+          @media (max-width: 640px) {
+            .kv-intro-q { padding: 20px 18px !important; }
+            .kv-iq-bas .kv-btn-iq { width: 100%; }
           }
         `}</style>
-        <p style={{ fontSize: 14.5, color: C.dark, lineHeight: 1.7, margin: 0 }}>
-          Un recruteur veut savoir ce que vous savez faire, mais aussi comment vous travaillez. Plutôt que de vous demander de vous décrire, Kapolia vous propose neuf situations de travail. Vos réactions font ressortir vos qualités.
-        </p>
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span className="kv-iq-n">1</span>
-            <span style={{ fontSize: 15, color: C.dark, lineHeight: 1.6 }}>
-              <b>Pour chaque situation, choisissez deux réactions</b>, celles qui vous ressemblent le plus.
-            </span>
-          </li>
-          <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span className="kv-iq-n">2</span>
-            <span style={{ fontSize: 15, color: C.dark, lineHeight: 1.6 }}>
-              <b>Il n'y a pas de bonne réponse.</b> Répondez ce que vous feriez vraiment, pas ce qui semble attendu.
-            </span>
-          </li>
-          <li style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <span className="kv-iq-n">3</span>
-            <span style={{ fontSize: 15, color: C.dark, lineHeight: 1.6 }}>
-              <b>Vos qualités s'affichent sur votre profil.</b> Elles montrent aux recruteurs comment vous travaillez et vous distinguent des profils au parcours proche.
-            </span>
-          </li>
-        </ul>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4 }}>
-          <button
-            onClick={() => setPhase('quiz')}
-            style={{
-              padding: '12px 28px', borderRadius: 100, border: 'none',
-              backgroundColor: C.orange, color: C.white,
-              fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-            }}
-          >
-            Commencer le questionnaire
-          </button>
-          <span style={{ fontSize: 13, color: C.grey }}>Environ 4 minutes</span>
+        <div className="kv-intro-q" style={{
+          backgroundColor: C.white, borderRadius: 12, boxShadow: CARD_SHADOW,
+          padding: '26px 28px', display: 'flex', flexDirection: 'column', gap: 20,
+        }}>
+          <p style={{ fontSize: 16.5, color: C.dark, lineHeight: 1.6, margin: 0 }}>
+            Un recruteur veut savoir ce que vous savez faire, mais aussi comment vous travaillez. Plutôt que de vous demander de vous décrire, Kapolia vous propose neuf situations de travail. Vos réactions font ressortir vos qualités.
+          </p>
+          <ul className="kv-iq-points" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <li style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <span className="kv-iq-n">1</span>
+              <span style={{ fontSize: 15.5, color: C.grey, lineHeight: 1.5 }}>
+                <b style={{ color: C.dark, fontWeight: 600 }}>Pour chaque situation, choisissez deux réactions</b>, celles qui vous ressemblent le plus.
+              </span>
+            </li>
+            <li style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <span className="kv-iq-n">2</span>
+              <span style={{ fontSize: 15.5, color: C.grey, lineHeight: 1.5 }}>
+                <b style={{ color: C.dark, fontWeight: 600 }}>Il n&apos;y a pas de bonne réponse.</b> Répondez ce que vous feriez vraiment, pas ce qui semble attendu.
+              </span>
+            </li>
+            <li style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <span className="kv-iq-n">3</span>
+              <span style={{ fontSize: 15.5, color: C.grey, lineHeight: 1.5 }}>
+                <b style={{ color: C.dark, fontWeight: 600 }}>Vos qualités s&apos;affichent sur votre profil.</b> Elles montrent aux recruteurs comment vous travaillez et vous distinguent des profils au parcours proche. Et comme elles viennent de vos réactions, elles pèsent plus qu&apos;une simple déclaration.
+              </span>
+            </li>
+          </ul>
+          <div className="kv-iq-bas">
+            <button
+              className="kv-btn-iq"
+              onClick={() => setPhase('quiz')}
+              style={{
+                padding: '12px 28px', borderRadius: 100, border: 'none',
+                backgroundColor: C.orange, color: C.white,
+                fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              Commencer le questionnaire
+            </button>
+            <span style={{ fontSize: 14, color: C.grey }}>Environ 4 minutes</span>
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
@@ -538,12 +553,15 @@ function QualitesCarousel({
           <ChampSuggestions
             avecMotion
             modeOnboarding
+            dropdownInFlow
             valeurs={qualitesDecl}
             onChange={handleQualitesDeclChange}
             suggestions={SUGGESTIONS_QUALITES}
             max={5}
             placeholder="Écrivez une qualité, par exemple Fiabilité"
             libre
+            libreSeulementSiAucunMatch
+            libreTexte={s => `Pas dans la liste ? Ajouter « ${s} »`}
             sortStartsWith
             griseesExternes={{ valeurs: testQualiteLabels, label: 'déjà dans vos résultats' }}
           />
@@ -2056,7 +2074,7 @@ function OnboardingPageInner() {
       case 3:
         return (
           <>
-            <QuestionLabel text="Vos qualités" sub={MICRO_TEXTS[3]} />
+            <QuestionLabel text="Vos qualités" />
             <QualitesCarousel
               userId={userId}
               onComplete={done => setStep3Complete(done)}
