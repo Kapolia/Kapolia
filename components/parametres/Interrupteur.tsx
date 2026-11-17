@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
-import { Bandeau, type BandeauHandle } from '@/components/Bandeau'
+import { Bandeau } from '@/components/Bandeau'
 
 const KNOB_TRAVEL = 18
 const TRANSITION = '220ms cubic-bezier(.3,.7,.4,1)'
@@ -26,8 +26,8 @@ const Interrupteur = forwardRef<InterrupteurHandle, InterrupteurProps>(function 
   const [optimistic, setOptimistic] = useState(checked)
   const [saving, setSaving] = useState(false)
   const [savedVisible, setSavedVisible] = useState(false)
+  const [erreur, setErreur] = useState(0)
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const bandeauRef = useRef<BandeauHandle>(null)
 
   useEffect(() => {
     setOptimistic(checked)
@@ -55,7 +55,7 @@ const Interrupteur = forwardRef<InterrupteurHandle, InterrupteurProps>(function 
     } catch (err) {
       console.error('[Interrupteur] échec sauvegarde', err)
       setOptimistic(!next)
-      bandeauRef.current?.animateOut(() => {})
+      setErreur(n => n + 1)
     } finally {
       setSaving(false)
     }
@@ -67,10 +67,15 @@ const Interrupteur = forwardRef<InterrupteurHandle, InterrupteurProps>(function 
 
   return (
     <>
-      <Bandeau
-        ref={bandeauRef}
-        message="Le réglage n'a pas pu être enregistré. Veuillez réessayer."
-      />
+      {erreur > 0 && (
+        <Bandeau
+          key={erreur}
+          fixe
+          duree={4000}
+          message="Le réglage n'a pas pu être enregistré. Veuillez réessayer."
+          onDismiss={() => setErreur(0)}
+        />
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
           fontSize: 12.5,
