@@ -637,7 +637,7 @@ export default function ParametresCandidat() {
     })
   }
 
-  function fermerSuppressionModal() {
+  function fermerSuppressionModal(apresFermeture?: () => void) {
     const fen   = suppressionFenetreRef.current
     const voile = suppressionVoileRef.current
     function cleanup() {
@@ -645,17 +645,18 @@ export default function ParametresCandidat() {
       setConfirmationSuppression('')
       setSuppressionErreur('')
       requestAnimationFrame(() => suppressionOuvreurRef.current?.focus())
+      apresFermeture?.()
     }
     if (!fen || !voile || reduitMouvement()) { cleanup(); return }
     voile.getAnimations().forEach(a => a.cancel())
     fen.getAnimations().forEach(a => a.cancel())
-    voile.animate([{ opacity: '1' }, { opacity: '0' }], { duration: 180, easing: 'ease-in' })
+    voile.animate([{ opacity: '1' }, { opacity: '0' }], { duration: 180, easing: 'ease-in', fill: 'forwards' })
     const anim = fen.animate(
       [
         { opacity: '1', transform: 'translateY(0) scale(1)' },
         { opacity: '0', transform: 'translateY(8px) scale(1)' },
       ],
-      { duration: 180, easing: 'ease-in' },
+      { duration: 180, easing: 'ease-in', fill: 'forwards' },
     )
     anim.onfinish = cleanup
   }
@@ -1482,7 +1483,7 @@ export default function ParametresCandidat() {
       {suppressionModalOuverte && (
         <div
           ref={suppressionVoileRef}
-          onClick={fermerSuppressionModal}
+          onClick={() => fermerSuppressionModal()}
           style={{
             position: 'fixed',
             inset: 0,
@@ -1555,9 +1556,10 @@ export default function ParametresCandidat() {
                 <button
                   type="button"
                   onClick={() => {
-                    fermerSuppressionModal()
-                    changerVisibilite(false).catch(() => {
-                      showBandeau("Le réglage n'a pas pu être enregistré. Veuillez réessayer.")
+                    fermerSuppressionModal(() => {
+                      changerVisibilite(false).catch(() => {
+                        showBandeau("Le réglage n'a pas pu être enregistré. Veuillez réessayer.")
+                      })
                     })
                   }}
                   style={{
@@ -1641,7 +1643,7 @@ export default function ParametresCandidat() {
             }}>
               <button
                 type="button"
-                onClick={fermerSuppressionModal}
+                onClick={() => fermerSuppressionModal()}
                 disabled={suppressionEnCours}
                 style={{
                   ...BTN_SECONDAIRE,
