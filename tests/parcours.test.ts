@@ -7,6 +7,8 @@ import {
   preparerExperiencePourEnregistrement,
   experienceVide,
   formationVide,
+  formationDebutManquant,
+  formationDatesIncoherentes,
   trierExperiences,
   trierFormations,
   finAvantDebut,
@@ -382,6 +384,56 @@ describe('debutDansFutur', () => {
 
   it('vrai si debut_annee > année courante', () => {
     expect(debutDansFutur({ debut_annee: 2027 }, maintenant)).toBe(true)
+  })
+})
+
+// ─── formationDatesIncoherentes ───────────────────────────────────────────────
+
+describe('formationDatesIncoherentes', () => {
+  const maintenant = new Date(2026, 10, 17) // novembre 2026
+
+  it('null si pas de annee_debut', () => {
+    expect(formationDatesIncoherentes({ annee_debut: '', annee: '2020' }, maintenant)).toBeNull()
+  })
+
+  it('debut_apres_obtention si debut > annee', () => {
+    expect(formationDatesIncoherentes({ annee_debut: '2022', annee: '2020' }, maintenant)).toBe('debut_apres_obtention')
+  })
+
+  it('null si debut < annee (cohérent)', () => {
+    expect(formationDatesIncoherentes({ annee_debut: '2018', annee: '2020' }, maintenant)).toBeNull()
+  })
+
+  it('debut_futur si annee_debut > année courante', () => {
+    expect(formationDatesIncoherentes({ annee_debut: '2027', annee: '' }, maintenant)).toBe('debut_futur')
+  })
+
+  it('null si formation en cours sans annee (pas de check obtention)', () => {
+    expect(formationDatesIncoherentes({ annee_debut: '2024', annee: '', en_cours: true }, maintenant)).toBeNull()
+  })
+
+  it('null si formation en cours avec debut qui serait apres annee si elle existait', () => {
+    expect(formationDatesIncoherentes({ annee_debut: '2025', annee: '2022', en_cours: true }, maintenant)).toBeNull()
+  })
+})
+
+// ─── formationDebutManquant ───────────────────────────────────────────────────
+
+describe('formationDebutManquant', () => {
+  it('vrai si intitulé rempli sans annee_debut', () => {
+    expect(formationDebutManquant({ intitule: 'BTS', ecole: '', annee_debut: '' })).toBe(true)
+  })
+
+  it('vrai si école remplie sans annee_debut', () => {
+    expect(formationDebutManquant({ intitule: '', ecole: 'Université', annee_debut: '' })).toBe(true)
+  })
+
+  it('faux si intitulé et école vides', () => {
+    expect(formationDebutManquant({ intitule: '', ecole: '', annee_debut: '' })).toBe(false)
+  })
+
+  it('faux si annee_debut renseignée', () => {
+    expect(formationDebutManquant({ intitule: 'BTS', ecole: '', annee_debut: '2018' })).toBe(false)
   })
 })
 

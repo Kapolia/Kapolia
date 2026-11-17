@@ -429,7 +429,28 @@ export function experienceVide(exp: {
 }
 
 export function formationVide(f: {
-  intitule: string; ecole: string; annee: string
+  intitule: string; ecole: string; annee: string; annee_debut?: string | null
 }): boolean {
-  return f.intitule.trim() === '' && f.ecole.trim() === '' && !f.annee
+  return f.intitule.trim() === '' && f.ecole.trim() === '' && !f.annee && !f.annee_debut
+}
+
+export function formationDebutManquant(f: {
+  intitule: string; ecole: string; annee_debut?: string | null
+}): boolean {
+  return (f.intitule.trim() !== '' || f.ecole.trim() !== '') && !f.annee_debut
+}
+
+export function formationDatesIncoherentes(
+  f: { annee_debut?: string | null; annee?: string; en_cours?: boolean },
+  maintenant: Date = new Date(),
+): 'debut_apres_obtention' | 'debut_futur' | null {
+  if (!f.annee_debut) return null
+  const debut = Number(f.annee_debut)
+  if (!debut) return null
+  if (debut > maintenant.getFullYear()) return 'debut_futur'
+  if (!f.en_cours && f.annee) {
+    const obtention = Number(f.annee)
+    if (obtention && debut > obtention) return 'debut_apres_obtention'
+  }
+  return null
 }

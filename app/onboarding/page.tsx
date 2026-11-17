@@ -19,7 +19,7 @@ import {
   buildStepPayload,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
-import { lireMoisAnnee, preparerExperiencePourEnregistrement, experienceVide, formationVide, trierExperiences, trierFormations, finAvantDebut, debutDansFutur } from '@/lib/parcours'
+import { lireMoisAnnee, preparerExperiencePourEnregistrement, experienceVide, formationVide, formationDebutManquant, formationDatesIncoherentes, trierExperiences, trierFormations, finAvantDebut, debutDansFutur } from '@/lib/parcours'
 import {
   SITUATIONS,
   CURRENT_VERSION,
@@ -1938,7 +1938,11 @@ function OnboardingPageInner() {
       )
       case 6:  return true
       case 7:  return !data.experiences.some(e => finAvantDebut(e) || debutDansFutur(e))
-      case 8:  return true
+      case 8:  return data.diplomes.every(d => {
+        if (formationVide(d)) return true
+        if (formationDebutManquant(d)) return false
+        return !formationDatesIncoherentes(d)
+      })
       case 9:  return true
       default: return false
     }
@@ -2416,7 +2420,7 @@ function OnboardingPageInner() {
       case 8: {
         const addDiplome = () => set('diplomes', [
           ...data.diplomes,
-          { intitule: '', ecole: '', annee: '', en_cours: false },
+          { intitule: '', ecole: '', annee: '', annee_debut: '', en_cours: false },
         ])
         const removeDiplome = (i: number) =>
           set('diplomes', data.diplomes.filter((_, idx) => idx !== i))
@@ -2425,7 +2429,9 @@ function OnboardingPageInner() {
         return (
           <>
             <QuestionLabel text="Vos formations" sub={MICRO_TEXTS[8]} optional />
-            {data.diplomes.map((d, i) => (
+            {data.diplomes.map((d, i) => {
+              const dateErr = formationDatesIncoherentes(d)
+              return (
               <div key={i} className="kv-fiche" style={{
                 backgroundColor: C.white, borderRadius: 14,
                 boxShadow: '0 1px 2px rgba(27,48,38,.06), 0 6px 16px rgba(27,48,38,.07)',
@@ -2448,21 +2454,43 @@ function OnboardingPageInner() {
                   <StyledInput value={d.ecole} onChange={v => updateDiplome(i, { ecole: v })}
                     placeholder="Ex : Université Lyon 2" />
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={LABEL_S}>{"Année d’obtention"}</label>
-                  <select value={d.annee} onChange={e => updateDiplome(i, { annee: e.target.value })}
-                    style={{ ...SEL_S, width: '100%' }} disabled={!!d.en_cours}>
-                    <option value="">Choisir…</option>
-                    {ANNEES_EXP.map(a => <option key={a} value={String(a)}>{a}</option>)}
-                  </select>
+                <div className="kv-dip-row" style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={LABEL_S}>Année de début</label>
+                    <select value={d.annee_debut ?? ''} onChange={e => updateDiplome(i, { annee_debut: e.target.value })}
+                      style={dateErr ? { ...SEL_S, width: '100%', border: `1.5px solid ${C.erreur}` } : { ...SEL_S, width: '100%' }}>
+                      <option value="">—</option>
+                      {ANNEES_EXP.map(a => <option key={a} value={String(a)}>{a}</option>)}
+                    </select>
+                  </div>
+                  {!d.en_cours && (
+                    <div style={{ flex: 1 }}>
+                      <label style={LABEL_S}>{"Année d'obtention"}</label>
+                      <select value={d.annee} onChange={e => updateDiplome(i, { annee: e.target.value })}
+                        style={{ ...SEL_S, width: '100%' }}>
+                        <option value="">—</option>
+                        {ANNEES_EXP.map(a => <option key={a} value={String(a)}>{a}</option>)}
+                      </select>
+                    </div>
+                  )}
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: C.dark, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: C.dark, cursor: 'pointer', marginBottom: 8, fontFamily: 'inherit' }}>
                   <input type="checkbox" checked={!!d.en_cours}
                     onChange={e => updateDiplome(i, { en_cours: e.target.checked, annee: e.target.checked ? '' : d.annee })} />
                   Formation en cours
                 </label>
+                {formationDebutManquant(d) && (
+                  <p style={{ fontSize: 13, color: C.erreur, margin: '0 0 0', lineHeight: 1.5 }}>Indiquez l&apos;année de début.</p>
+                )}
+                {dateErr === 'debut_apres_obtention' && (
+                  <p style={{ fontSize: 13, color: C.erreur, margin: '0 0 0', lineHeight: 1.5 }}>L&apos;année de début est après l&apos;année d&apos;obtention.</p>
+                )}
+                {dateErr === 'debut_futur' && (
+                  <p style={{ fontSize: 13, color: C.erreur, margin: '0 0 0', lineHeight: 1.5 }}>L&apos;année de début est dans le futur.</p>
+                )}
               </div>
-            ))}
+              )
+            })}
             <button onClick={addDiplome} className="kv-ajouter" style={{
               width: '100%', padding: '13px', borderRadius: 12,
               color: C.orangeTexte, fontSize: 15, fontWeight: 600,
@@ -2609,8 +2637,9 @@ function OnboardingPageInner() {
         @keyframes kv-voix { 0%,100%{transform:scaleY(.3)} 50%{transform:scaleY(1)} }
         .kv-nom-row { display:flex; gap:12px }
         .kv-exp-row { display:flex; gap:10px }
+        .kv-dip-row { display:flex; gap:10px }
         .kv-langue-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-        @media (max-width:640px) { .kv-nom-row { flex-direction:column } .kv-exp-row { flex-direction:column } }
+        @media (max-width:640px) { .kv-nom-row { flex-direction:column } .kv-exp-row { flex-direction:column } .kv-dip-row { flex-direction:column } }
         /* Blocs sans contour — ombre légère, survol soulevé, sélectionné pêche */
         .kv-bloc {
           border: 0 !important;

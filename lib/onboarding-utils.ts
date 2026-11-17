@@ -51,10 +51,11 @@ export type Experience = {
 }
 
 export type Diplome = {
-  intitule:  string
-  ecole:     string
-  annee:     string
-  en_cours?: boolean
+  intitule:    string
+  ecole:       string
+  annee:       string
+  annee_debut?: string
+  en_cours?:   boolean
 }
 
 export type OnboardingFormData = {
