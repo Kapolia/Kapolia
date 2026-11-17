@@ -846,7 +846,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
   return (
     <main
       className={`kv-fn4${visCss ? ` vis-${visCss}` : ''}`}
-      style={{ display:'flex', flexDirection:'row', position:'fixed', inset:0, backgroundColor:C.bg, overflowY:'auto' }}
+      style={{ display:'flex', alignItems:'center', position:'fixed', inset:0, backgroundColor:C.bg, overflowX:'hidden', overflowY:'auto' }}
     >
       <style suppressHydrationWarning>{`
         /* ── Halos ── */
@@ -865,7 +865,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         .vis-non .kv-fn4-pt { fill:${C.vert}38; transform:translate(calc(var(--dx) * -0.6),calc(var(--dy) * -0.6)); }
         /* ── Card arrival ── */
         @keyframes kv-fn4-carte-nait { from{opacity:0} to{opacity:1} }
-        .kv-fn4-card-wrap { position:relative; isolation:isolate; width:280px; animation:kv-fn4-carte-nait 250ms ease-out both; }
+        .kv-fn4-card-wrap { position:relative; isolation:isolate; width:280px; scale:1.57; animation:kv-fn4-carte-nait 250ms ease-out both; }
         .sq-b1,.sq-b2 { position:absolute; inset:0; border-radius:16px; z-index:0; box-shadow:0 2px 8px rgba(27,48,38,.08); transition:transform .8s cubic-bezier(.3,.7,.2,1),opacity .6s; }
         .sq-b1 { background:#FBFCFB; transform:rotate(-7deg) translate(-26px,10px); }
         .sq-b2 { transform:rotate(6deg) translate(28px,14px); background:#F7F9F8; }
@@ -895,17 +895,17 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         .kv-fn4-radio { width:20px; height:20px; border-radius:50%; box-shadow:inset 0 0 0 2px #C9CFCB; flex:none; transition:box-shadow .2s; margin-left:auto; }
         .kv-fn4-opt.on .kv-fn4-radio { box-shadow:inset 0 0 0 6px ${C.orange}; }
         /* ── Layout ── */
-        .kv-fn4-txt { flex:0 0 auto; display:flex; flex-direction:column; gap:18px; padding:60px 48px 48px 56px; max-width:600px; min-width:460px; position:relative; z-index:1; }
-        .kv-fn4-scene { flex:1; position:relative; display:grid; place-items:center; min-height:100vh; overflow:hidden; }
+        .kv-fn4-txt { position:relative; z-index:1; padding:72px 64px 40px; display:flex; flex-direction:column; gap:22px; max-width:600px; }
+        .kv-fn4-scene { position:absolute; right:0; top:0; bottom:0; width:48%; display:grid; place-items:center; overflow:hidden; pointer-events:none; }
         .kv-fn4-scene>svg { position:absolute; width:118%; max-width:none; left:50%; top:50%; transform:translate(-50%,-50%); }
         /* ── Mobile ── */
         @media (max-width:640px) {
-          .kv-fn4 { flex-direction:column !important; }
-          .kv-fn4-txt { padding:52px 20px 24px !important; gap:12px !important; min-width:0 !important; max-width:100% !important; }
-          .kv-fn4-scene { position:relative !important; order:2; min-height:0 !important; height:330px; overflow:hidden; margin-top:-70px; z-index:0; pointer-events:none; mask-image:linear-gradient(to bottom,transparent 0,#000 30%); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%); }
+          .kv-fn4 { flex-direction:column !important; align-items:stretch !important; justify-content:flex-start !important; }
+          .kv-fn4-txt { padding:72px 20px 0 !important; gap:16px !important; max-width:100% !important; position:relative; z-index:1; }
+          .kv-fn4-scene { position:relative !important; inset:auto !important; width:100% !important; order:2; height:330px; overflow:hidden; margin-top:-70px; z-index:0; pointer-events:none; mask-image:linear-gradient(to bottom,transparent 0,#000 30%); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%); }
           .kv-fn4-scene>svg { width:440px !important; }
-          .kv-fn4-card-wrap { scale:.74; margin-top:40px; }
-          .kv-fn4-txt h1 { font-size:28px !important; }
+          .kv-fn4-card-wrap { scale:.75 !important; margin-top:40px; }
+          .kv-fn4-txt h1 { font-size:30px !important; }
         }
         @media (min-width:1600px) { .kv-fn4 { zoom:1.12; } }
         /* ── Reduced motion ── */
@@ -915,14 +915,16 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         }
       `}</style>
 
+      {/* Logo top-left */}
+      <div style={{ position:'absolute', top:22, left:28, zIndex:2, display:'inline-flex', alignItems:'center', gap:10 }}>
+        <LogoKapolia variante="sombre" taille={24} avecTexte={false} />
+        <span style={{ fontFamily:FONT_LOGO, fontWeight:600, fontSize:20, color:C.vert, lineHeight:1 }}>Kapolia</span>
+      </div>
+
       {/* ── Texte ── */}
       <div className="kv-fn4-txt">
-        <div>
-          <LogoKapolia variante="sombre" taille={36} avecTexte={false} />
-        </div>
-
-        <h1 style={{ fontFamily:FONT_SANS, letterSpacing:'-0.012em', fontSize:'clamp(28px,3.4vw,38px)', fontWeight:700, lineHeight:1.1, color:C.dark, margin:0 }}>
-          Votre profil est prêt,&#160;{prenom}&#160;!
+        <h1 style={{ fontFamily:FONT_SANS, letterSpacing:'-0.015em', fontSize:54, fontWeight:700, lineHeight:1.02, color:C.dark, margin:0 }}>
+          Votre profil est prêt,<br/>{prenom}&#160;!
         </h1>
         <p style={{ fontSize:20, color:C.grey, lineHeight:1.55, margin:0, maxWidth:540 }}>
           Vous avez trouvé votre cap. Dernière question avant de découvrir votre profil.
@@ -930,7 +932,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
 
         {/* ── Radiogroup ── */}
         <div role="radiogroup" aria-labelledby="kv-fn4-q" style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <p id="kv-fn4-q" style={{ fontWeight:700, fontSize:16, color:C.dark, margin:0 }}>
+          <p id="kv-fn4-q" style={{ fontWeight:700, fontSize:18, color:C.dark, margin:0 }}>
             Les recruteurs peuvent-ils vous trouver sans que vous postuliez&#160;?
           </p>
 
