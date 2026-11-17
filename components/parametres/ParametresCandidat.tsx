@@ -1554,9 +1554,11 @@ export default function ParametresCandidat() {
                 {'Vous voulez seulement faire une pause dans votre recherche ? '}
                 <button
                   type="button"
-                  onClick={async () => {
-                    try { await changerVisibilite(false) } catch { /* reverted internally */ }
+                  onClick={() => {
                     fermerSuppressionModal()
+                    changerVisibilite(false).catch(() => {
+                      showBandeau("Le réglage n'a pas pu être enregistré. Veuillez réessayer.")
+                    })
                   }}
                   style={{
                     color: C.orangeTexte,
