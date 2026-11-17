@@ -865,7 +865,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         .vis-non .kv-fn4-pt { fill:${C.vert}38; transform:translate(calc(var(--dx) * -0.6),calc(var(--dy) * -0.6)); }
         /* ── Card arrival ── */
         @keyframes kv-fn4-carte-nait { from{opacity:0} to{opacity:1} }
-        .kv-fn4-card-wrap { position:relative; isolation:isolate; width:280px; scale:1.57; animation:kv-fn4-carte-nait 250ms ease-out both; }
+        .kv-fn4-card-wrap { position:relative; isolation:isolate; width:280px; scale:1.29; animation:kv-fn4-carte-nait 250ms ease-out both; }
         .sq-b1,.sq-b2 { position:absolute; inset:0; border-radius:16px; z-index:0; box-shadow:0 2px 8px rgba(27,48,38,.08); transition:transform .8s cubic-bezier(.3,.7,.2,1),opacity .6s; }
         .sq-b1 { background:#FBFCFB; transform:rotate(-7deg) translate(-26px,10px); }
         .sq-b2 { transform:rotate(6deg) translate(28px,14px); background:#F7F9F8; }
@@ -904,7 +904,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
           .kv-fn4-txt { padding:72px 20px 0 !important; gap:16px !important; max-width:100% !important; position:relative; z-index:1; }
           .kv-fn4-scene { position:relative !important; inset:auto !important; width:100% !important; order:2; height:330px; overflow:hidden; margin-top:-70px; z-index:0; pointer-events:none; mask-image:linear-gradient(to bottom,transparent 0,#000 30%); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%); }
           .kv-fn4-scene>svg { width:440px !important; }
-          .kv-fn4-card-wrap { scale:.75 !important; margin-top:40px; }
+          .kv-fn4-card-wrap { scale:.96 !important; margin-top:40px; }
           .kv-fn4-txt h1 { font-size:30px !important; }
         }
         @media (min-width:1600px) { .kv-fn4 { zoom:1.12; } }
