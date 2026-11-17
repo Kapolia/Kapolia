@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   after(async () => {
     const [{ data: authUser, error: authErr }, { data: profil }] = await Promise.all([
       admin.auth.admin.getUserById(inv.candidat_id),
-      admin.from('profils').select('email_notifications, prenom').eq('user_id', inv.candidat_id).single(),
+      admin.from('profils').select('email_notifications, notif_proche, prenom').eq('user_id', inv.candidat_id).single(),
     ])
 
     if (authErr || !authUser?.user?.email) {
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
       return
     }
     if (!profil?.email_notifications) return
+    if (profil?.notif_proche === false) return
 
     const prenomCand = (profil as { prenom?: string } | null)?.prenom ?? ''
     const salutation = prenomCand ? `Bonjour ${prenomCand},` : 'Bonjour,'
@@ -82,8 +83,8 @@ export async function POST(req: NextRequest) {
     const result = await sendEmail({
       to:      { email: authUser.user.email },
       subject: `${prenomProche} a décrit vos qualités`,
-      html:    `<p>${salutation}</p><p>${prenomProche} vient de décrire vos qualités. Ses mots vous attendent sur votre profil Kapolia.</p><p>Connectez-vous pour les découvrir et choisir lesquels afficher aux recruteurs.</p><p><a href="${SITE}/dashboard">Voir mon profil →</a></p><p style="margin-top:32px;font-size:12px;color:#888;">Pour ne plus recevoir ces e-mails : <a href="${SITE}/parametres" style="color:#888;">${SITE}/parametres</a></p>`,
-      text:    `${salutation}\n\n${prenomProche} vient de décrire vos qualités. Ses mots vous attendent sur votre profil Kapolia.\n\nConnectez-vous pour les découvrir et choisir lesquels afficher aux recruteurs.\n\n${SITE}/dashboard\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+      html:    `<p>${salutation}</p><p>${prenomProche} vient de décrire vos qualités. Ses mots vous attendent sur votre profil Kapolia.</p><p>Connectez-vous pour les découvrir et choisir lesquels afficher aux recruteurs.</p><p><a href="${SITE}/dashboard">Voir mon profil →</a></p><p style="margin-top:32px;font-size:12px;color:#888;">Pour ne plus recevoir ces e-mails : <a href="${SITE}/parametres#notifications" style="color:#888;">${SITE}/parametres#notifications</a></p>`,
+      text:    `${salutation}\n\n${prenomProche} vient de décrire vos qualités. Ses mots vous attendent sur votre profil Kapolia.\n\nConnectez-vous pour les découvrir et choisir lesquels afficher aux recruteurs.\n\n${SITE}/dashboard\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
     })
 
     if (!result.ok) console.error('[notif reponse-proche] sendEmail', result.error, { candidatId: inv.candidat_id })

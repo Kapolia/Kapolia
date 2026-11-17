@@ -1,0 +1,612 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { FONT_SANS } from '@/lib/typography'
+import Avatar from '@/components/Avatar'
+import { C as _C, CARD_SHADOW, CARD_RADIUS } from '@/lib/colors'
+
+const C = { ..._C, lightGrey: '#D0D0D0' as const, redBg: '#FDECEA' as const }
+
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type Tab = 'compte' | 'confidentialite' | 'notifications'
+
+type Privacy = {
+  messages_recruteurs:   boolean
+  visible_candidatheque: boolean
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function Spinner() {
+  return (
+    <main style={{ minHeight: '100vh', backgroundColor: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'kapolia-spin 0.8s linear infinite' }} />
+    </main>
+  )
+}
+
+function Toast({ msg, visible }: { msg: string; visible: boolean }) {
+  const isError = msg.toLowerCase().includes('erreur')
+  return (
+    <div style={{
+      position: 'fixed', bottom: 28, left: '50%',
+      transform: `translateX(-50%) translateY(${visible ? '0' : '14px'})`,
+      opacity: visible ? 1 : 0, transition: 'opacity 0.22s ease, transform 0.22s ease',
+      pointerEvents: 'none', zIndex: 100,
+      backgroundColor: isError ? C.erreur : C.vert, color: C.white,
+      padding: '11px 22px', borderRadius: 28, fontSize: 14, fontWeight: 600,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.16)',
+      display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' as const,
+    }}>
+      {!isError && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+      {msg}
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 style={{ fontFamily: FONT_SANS, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, margin: '0 0 6px', fontWeight: 700 }}>{children}</h2>
+}
+
+function SectionSub({ children }: { children: React.ReactNode }) {
+  return <p style={{ fontSize: 13, color: C.grey, margin: '0 0 28px', lineHeight: 1.5 }}>{children}</p>
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 12, fontWeight: 700, color: C.dark, letterSpacing: '0.04em', textTransform: 'uppercase' as const, marginBottom: 8 }}>
+      {children}
+    </div>
+  )
+}
+
+function TextInput({ value, onChange, placeholder, readOnly, type = 'text' }: {
+  value: string; onChange?: (v: string) => void; placeholder?: string; readOnly?: boolean; type?: string
+}) {
+  return (
+    <input
+      type={type} value={value} readOnly={readOnly}
+      onChange={e => onChange?.(e.target.value)} placeholder={placeholder}
+      autoComplete={type === 'password' ? 'current-password' : undefined}
+      style={{
+        width: '100%', padding: '11px 14px', fontSize: 14, borderRadius: 10,
+        border: `1.5px solid ${readOnly ? '#EBEBEB' : C.sable}`,
+        backgroundColor: readOnly ? '#F9F9F9' : C.white,
+        color: readOnly ? C.grey : C.dark,
+        outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit',
+        cursor: readOnly ? 'default' : 'text', transition: 'border-color 0.15s',
+      }}
+    />
+  )
+}
+
+function SaveBtn({ loading, onClick, label = 'Sauvegarder les modifications' }: { loading: boolean; onClick: () => void; label?: string }) {
+  return (
+    <button type="button" onClick={onClick} disabled={loading} style={{
+      backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 12,
+      padding: '12px 24px', fontSize: 14, fontWeight: 600,
+      cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1,
+      transition: 'opacity 0.15s', display: 'flex', alignItems: 'center', gap: 8,
+    }}>
+      {loading && <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
+      {loading ? 'Sauvegarde…' : label}
+    </button>
+  )
+}
+
+function Toggle({ checked, onChange, label, desc }: { checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string }) {
+  return (
+    <label style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, cursor: 'pointer',
+      padding: '14px 18px', borderRadius: 12,
+      backgroundColor: checked ? `${C.vert}08` : C.white,
+      border: `1px solid ${checked ? C.vert + '30' : C.sable}`, transition: 'all 0.15s',
+    }}>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.dark }}>{label}</div>
+        {desc && <div style={{ fontSize: 12, color: C.grey, marginTop: 2 }}>{desc}</div>}
+      </div>
+      <div onClick={() => onChange(!checked)} style={{
+        width: 42, height: 24, borderRadius: 12,
+        backgroundColor: checked ? C.vert : C.lightGrey,
+        position: 'relative', flexShrink: 0, transition: 'background-color 0.2s', cursor: 'pointer',
+      }}>
+        <div style={{
+          position: 'absolute', top: 3, left: checked ? 21 : 3,
+          width: 18, height: 18, borderRadius: '50%', backgroundColor: C.white,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.2)', transition: 'left 0.2s',
+        }} />
+      </div>
+    </label>
+  )
+}
+
+function Divider() {
+  return <div style={{ height: 1, backgroundColor: C.sable, margin: '8px 0' }} />
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function ParametresRecruteur() {
+  const router = useRouter()
+
+  const [loading, setLoading]   = useState(true)
+  const [tab, setTab]           = useState<Tab>('compte')
+  const [email, setEmail]       = useState('')
+  const [prenom, setPrenom]     = useState('')
+  const [nom, setNom]           = useState('')
+  const [avatarUrl, setAvatarUrl]   = useState('')
+  const [avatarType, setAvatarType] = useState('')
+  const [toastMsg, setToastMsg] = useState('')
+  const [toastVisible, setToastVisible] = useState(false)
+  const [telephone, setTelephone]       = useState('')
+  const [savingPwd, setSavingPwd]       = useState(false)
+  const [savingContact, setSavingContact] = useState(false)
+  const [contactError, setContactError] = useState('')
+  const [savingPrivacy, setSavingPrivacy]       = useState(false)
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [rappelsFavoris, setRappelsFavoris]         = useState(true)
+  const [savingNotifs, setSavingNotifs]         = useState(false)
+  const [deleting, setDeleting]         = useState(false)
+  const [deletePhrase, setDeletePhrase] = useState('')
+  const [deleteError, setDeleteError]   = useState('')
+
+  const DELETE_PHRASE = 'supprimer mon compte'
+
+  const [emailConfirme, setEmailConfirme]   = useState(true)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const [resendEnvoi, setResendEnvoi]       = useState(false)
+
+  const [pwdOld, setPwdOld]         = useState('')
+  const [pwdNew, setPwdNew]         = useState('')
+  const [pwdConfirm, setPwdConfirm] = useState('')
+  const [pwdError, setPwdError]     = useState('')
+
+  const [privacy, setPrivacy] = useState<Privacy>({
+    messages_recruteurs: false, visible_candidatheque: false,
+  })
+  const [origVisibleCandidatheque, setOrigVisibleCandidatheque] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { router.replace('/connexion'); return }
+      setEmail(user.email ?? '')
+      setEmailConfirme(!!user.email_confirmed_at)
+      const { data } = await supabase.from('profils').select('prenom,nom,avatar_url,avatar_type,messages_recruteurs,visible_candidatheque,telephone,email_notifications,rappels_favoris').eq('user_id', user.id).single()
+      if (data) {
+        setPrenom(data.prenom ?? '')
+        setNom(data.nom ?? '')
+        setAvatarUrl(data.avatar_url ?? '')
+        setAvatarType(data.avatar_type ?? '')
+        setTelephone(data.telephone ?? '')
+        const vc = data.visible_candidatheque ?? false
+        setOrigVisibleCandidatheque(vc)
+        setPrivacy({
+          messages_recruteurs: data.messages_recruteurs ?? false,
+          visible_candidatheque: vc,
+        })
+        setEmailNotifications(data.email_notifications ?? true)
+        setRappelsFavoris(data.rappels_favoris ?? true)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [router])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const id = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(id)
+  }, [resendCooldown])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.email_confirmed_at) setEmailConfirme(true)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  async function renvoyerConfirmation() {
+    if (resendCooldown > 0 || resendEnvoi || !email) return
+    setResendEnvoi(true)
+    await supabase.auth.resend({ type: 'signup', email })
+    setResendEnvoi(false)
+    setResendCooldown(60)
+  }
+
+  function showToast(msg: string) {
+    setToastMsg(msg); setToastVisible(true)
+    setTimeout(() => setToastVisible(false), 3000)
+  }
+
+  async function savePassword() {
+    setPwdError('')
+    if (pwdNew !== pwdConfirm) { setPwdError('Les mots de passe ne correspondent pas.'); return }
+    if (pwdNew.length < 8) { setPwdError('8 caractères minimum.'); return }
+    setSavingPwd(true)
+    const { error } = await supabase.auth.updateUser({ password: pwdNew })
+    setSavingPwd(false)
+    if (error) { setPwdError(error.message) } else {
+      setPwdOld(''); setPwdNew(''); setPwdConfirm('')
+      showToast('Mot de passe mis à jour !')
+    }
+  }
+
+  async function saveContact() {
+    setContactError('')
+    setSavingContact(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { error } = await supabase
+        .from('profils')
+        .update({ telephone: telephone.trim() || null })
+        .eq('user_id', user.id)
+      if (error) {
+        console.error('[saveContact] échec enregistrement téléphone', {
+          message: error.message,
+          code:    error.code,
+          details: error.details,
+          hint:    error.hint,
+        })
+        setSavingContact(false)
+        setContactError('Votre numéro n\'a pas pu être enregistré. Veuillez réessayer.')
+        return
+      }
+    }
+    setSavingContact(false)
+    showToast('Numéro de téléphone mis à jour !')
+  }
+
+  async function deleteAccount() {
+    setDeleteError('')
+    setDeleting(true)
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) {
+      setDeleteError('Session expirée. Reconnectez-vous et réessayez.')
+      setDeleting(false)
+      return
+    }
+
+    const res = await fetch('/api/account/delete', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      console.error('[parametres] suppression compte', body)
+      setDeleteError(
+        body.error ?? 'Une erreur est survenue. Veuillez réessayer.'
+      )
+      setDeleting(false)
+      return
+    }
+
+    await supabase.auth.signOut()
+    router.replace('/')
+  }
+
+  async function savePrivacy() {
+    setSavingPrivacy(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const payload: Record<string, unknown> = { ...privacy }
+      if (privacy.visible_candidatheque !== origVisibleCandidatheque) {
+        payload.visible_candidatheque_maj_le = new Date().toISOString()
+        setOrigVisibleCandidatheque(privacy.visible_candidatheque)
+      }
+      const { error, count } = await supabase.from('profils').update(payload, { count: 'exact' }).eq('user_id', user.id)
+      if (error || count === 0) {
+        console.error('[savePrivacy] update failed', error, { count })
+        setSavingPrivacy(false)
+        showToast('Erreur : impossible de sauvegarder.')
+        return
+      }
+    }
+    setSavingPrivacy(false)
+    showToast('Préférences sauvegardées !')
+  }
+
+  if (loading) return <Spinner />
+
+  async function saveNotifications() {
+    setSavingNotifs(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { error } = await supabase
+        .from('profils')
+        .update({ email_notifications: emailNotifications, rappels_favoris: rappelsFavoris })
+        .eq('user_id', user.id)
+      if (error) {
+        console.error('[saveNotifications] update failed', error)
+        setSavingNotifs(false)
+        showToast('Erreur : impossible de sauvegarder.')
+        return
+      }
+    }
+    setSavingNotifs(false)
+    showToast('Préférences sauvegardées !')
+  }
+
+  const TABS: { id: Tab; label: string; icon: string }[] = [
+    { id: 'compte',          label: 'Compte',          icon: '⬡' },
+    { id: 'confidentialite', label: 'Confidentialité', icon: '◷' },
+    { id: 'notifications',   label: 'Notifications',   icon: '◎' },
+  ]
+
+  return (
+    <main style={{ minHeight: '100vh', backgroundColor: C.bg }}>
+      <style suppressHydrationWarning>{`@keyframes kapolia-spin { to { transform: rotate(360deg); } }`}</style>
+      <Toast msg={toastMsg} visible={toastVisible} />
+
+      {/* ── NAVBAR ──────────────────────────────────────────────────────────── */}
+      <nav style={{
+        backgroundColor: C.white, borderBottom: `1px solid ${C.sable}`,
+        padding: '0 40px', height: 60,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'sticky', top: 0, zIndex: 20,
+      }}>
+        <div onClick={() => router.push('/')} style={{ fontFamily: FONT_SANS, fontWeight: 700, letterSpacing: '-0.005em', fontSize: 20, color: C.dark, cursor: 'pointer' }}>
+          Kapolia
+        </div>
+        <button onClick={() => router.push('/profil')} style={{
+          backgroundColor: C.terracotta, color: C.white, border: 'none', borderRadius: 10,
+          padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}>
+          Mon profil
+        </button>
+      </nav>
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '48px 24px 80px', display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+
+        {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
+        <aside style={{ width: 220, flexShrink: 0, position: 'sticky', top: 80 }}>
+          <div style={{
+            backgroundColor: C.white,
+            borderRadius: CARD_RADIUS, padding: 24, textAlign: 'center' as const, marginBottom: 14,
+            boxShadow: CARD_SHADOW,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              <Avatar
+                profil={{ prenom, nom, avatar_url: avatarUrl || undefined, avatar_type: avatarType || undefined }}
+                size="lg"
+              />
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 15, color: C.dark, marginBottom: 4 }}>
+              {prenom ? `${prenom} ${nom}` : 'Mon compte'}
+            </div>
+            <div style={{ fontSize: 12, color: C.grey, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+              {email}
+            </div>
+          </div>
+
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: 8, boxShadow: CARD_SHADOW }}>
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                width: '100%', textAlign: 'left' as const, padding: '10px 14px', borderRadius: 12,
+                marginBottom: 2, border: 'none',
+                backgroundColor: tab === t.id ? C.bg : 'transparent',
+                color: tab === t.id ? C.terracotta : C.grey,
+                fontSize: 13, fontWeight: tab === t.id ? 700 : 400, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.15s',
+              }}>
+                <span style={{ fontSize: 14, opacity: tab === t.id ? 1 : 0.6 }}>{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* ── CONTENT ─────────────────────────────────────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ backgroundColor: C.white, borderRadius: CARD_RADIUS, padding: 'clamp(24px, 4%, 40px)', boxShadow: CARD_SHADOW }}>
+
+            {/* ─── COMPTE ─────────────────────────────────────────────────── */}
+            {tab === 'compte' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                <div>
+                  <SectionTitle>Compte</SectionTitle>
+                  <SectionSub>Gérez vos identifiants de connexion.</SectionSub>
+                </div>
+
+                <div>
+                  <FieldLabel>Adresse e-mail</FieldLabel>
+                  <TextInput value={email} readOnly />
+                  <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>
+                    Pour changer votre email, contactez le support Kapolia.
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>Numéro de téléphone</FieldLabel>
+                  <TextInput
+                    value={telephone}
+                    onChange={setTelephone}
+                    placeholder="Facultatif"
+                  />
+                  <div style={{ fontSize: 12, color: C.grey, marginTop: 6 }}>
+                    Facultatif. Visible uniquement sur votre Portrait Kapolia, jamais dans la candidathèque.
+                  </div>
+                  {contactError && (
+                    <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.erreur}30`, color: C.erreur, fontSize: 13, marginTop: 10 }}>
+                      {contactError}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 12 }}>
+                    <SaveBtn loading={savingContact} onClick={saveContact} label="Enregistrer le numéro" />
+                  </div>
+                </div>
+
+                <Divider />
+
+                <div>
+                  <div style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 16, color: C.dark, marginBottom: 16 }}>
+                    Changer le mot de passe
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <FieldLabel>Ancien mot de passe</FieldLabel>
+                      <TextInput type="password" value={pwdOld} onChange={setPwdOld} placeholder="••••••••" />
+                    </div>
+                    <div>
+                      <FieldLabel>Nouveau mot de passe</FieldLabel>
+                      <TextInput type="password" value={pwdNew} onChange={setPwdNew} placeholder="••••••••" />
+                    </div>
+                    <div>
+                      <FieldLabel>Confirmer le nouveau mot de passe</FieldLabel>
+                      <TextInput type="password" value={pwdConfirm} onChange={setPwdConfirm} placeholder="••••••••" />
+                    </div>
+                    {pwdError && (
+                      <div style={{ padding: '10px 14px', borderRadius: 10, backgroundColor: C.redBg, border: `1px solid ${C.erreur}30`, color: C.erreur, fontSize: 13 }}>
+                        {pwdError}
+                      </div>
+                    )}
+                    <SaveBtn loading={savingPwd} onClick={savePassword} label="Mettre à jour le mot de passe" />
+                  </div>
+                </div>
+
+                <Divider />
+
+                <div style={{ padding: '20px 22px', borderRadius: 14, backgroundColor: C.redBg, border: `1px solid ${C.erreur}25` }}>
+                  <div style={{ fontFamily: FONT_SANS, fontWeight: 600, letterSpacing: '-0.005em', fontSize: 15, color: C.erreur, marginBottom: 6 }}>Zone de danger</div>
+                  <p style={{ fontSize: 13, color: C.grey, margin: '0 0 16px', lineHeight: 1.5 }}>
+                    La suppression est permanente et irréversible. Vos messages, fichiers, candidatures et profil seront effacés.
+                    Pour confirmer, tapez&nbsp;<strong style={{ color: C.dark }}>{DELETE_PHRASE}</strong> ci-dessous.
+                  </p>
+                  <input
+                    type="text"
+                    value={deletePhrase}
+                    onChange={e => { setDeletePhrase(e.target.value); setDeleteError('') }}
+                    placeholder={DELETE_PHRASE}
+                    disabled={deleting}
+                    style={{
+                      width: '100%', padding: '10px 14px', fontSize: 13, borderRadius: 10,
+                      border: `1.5px solid ${deletePhrase === DELETE_PHRASE ? C.erreur : C.sable}`,
+                      backgroundColor: C.white, color: C.dark,
+                      outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'inherit',
+                      marginBottom: 12, transition: 'border-color 0.15s',
+                      opacity: deleting ? 0.6 : 1,
+                    }}
+                  />
+                  {deleteError && (
+                    <div style={{
+                      padding: '10px 14px', borderRadius: 10,
+                      backgroundColor: C.redBg, border: `1px solid ${C.erreur}30`,
+                      color: C.erreur, fontSize: 13, marginBottom: 12,
+                    }}>
+                      {deleteError}
+                    </div>
+                  )}
+                  <button
+                    onClick={deleteAccount}
+                    disabled={deleting || deletePhrase !== DELETE_PHRASE}
+                    style={{
+                      backgroundColor: C.erreur, color: C.white, border: 'none', borderRadius: 10,
+                      padding: '10px 20px', fontSize: 13, fontWeight: 600,
+                      cursor: (deleting || deletePhrase !== DELETE_PHRASE) ? 'default' : 'pointer',
+                      opacity: (deleting || deletePhrase !== DELETE_PHRASE) ? 0.45 : 1,
+                      transition: 'opacity 0.15s',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}
+                  >
+                    {deleting && <span style={{ display: 'inline-block', width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff', animation: 'kapolia-spin 0.7s linear infinite' }} />}
+                    {deleting ? 'Suppression…' : 'Supprimer mon compte'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ─── CONFIDENTIALITÉ ────────────────────────────────────────── */}
+            {tab === 'confidentialite' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <SectionTitle>Confidentialité</SectionTitle>
+                  <SectionSub>Contrôlez qui peut voir votre profil et vous contacter.</SectionSub>
+                </div>
+                <Toggle
+                  checked={privacy.messages_recruteurs}
+                  onChange={v => setPrivacy(p => ({ ...p, messages_recruteurs: v }))}
+                  label="Recevoir des messages de recruteurs"
+                  desc="Les recruteurs peuvent vous envoyer des messages directs."
+                />
+                <div style={{ opacity: emailConfirme ? 1 : 0.45, pointerEvents: emailConfirme ? 'auto' : 'none' }}>
+                  <Toggle
+                    checked={privacy.visible_candidatheque}
+                    onChange={v => setPrivacy(p => ({ ...p, visible_candidatheque: v }))}
+                    label="Souhaitez-vous être visible par les recruteurs ?"
+                    desc="Les recruteurs inscrits sur Kapolia pourront consulter votre profil et vous contacter, même si vous n'avez postulé à aucune de leurs offres."
+                  />
+                </div>
+                {!emailConfirme && (
+                  <p style={{ fontSize: 12, color: C.grey, margin: '-4px 0 0', lineHeight: 1.55 }}>
+                    Option disponible après confirmation de votre adresse e-mail.{' '}
+                    <button
+                      onClick={renvoyerConfirmation}
+                      disabled={resendCooldown > 0 || resendEnvoi}
+                      style={{
+                        background: 'none', border: 'none', padding: 0,
+                        color: resendCooldown > 0 ? C.lightGrey : C.terracotta,
+                        fontSize: 12, fontWeight: 600,
+                        cursor: resendCooldown > 0 || resendEnvoi ? 'default' : 'pointer',
+                        fontFamily: 'inherit', textDecoration: 'underline',
+                      }}
+                    >
+                      {resendEnvoi            ? 'envoi…'
+                       : resendCooldown > 0   ? `lien envoyé (${resendCooldown} s)`
+                       : 'Renvoyer le lien'}
+                    </button>
+                  </p>
+                )}
+                <div style={{ marginTop: 8 }}>
+                  <SaveBtn loading={savingPrivacy} onClick={savePrivacy} />
+                </div>
+              </div>
+            )}
+
+            {/* ─── NOTIFICATIONS ──────────────────────────────────────── */}
+            {tab === 'notifications' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ marginBottom: 8 }}>
+                  <SectionTitle>Notifications</SectionTitle>
+                  <SectionSub>Choisissez les événements pour lesquels vous souhaitez recevoir un e-mail.</SectionSub>
+                </div>
+                <Toggle
+                  checked={emailNotifications}
+                  onChange={setEmailNotifications}
+                  label="Recevoir des e-mails de notification"
+                  desc="RDV proposés, réponses de vos proches, mises à jour de candidatures."
+                />
+                <div style={{ opacity: emailNotifications ? 1 : 0.5, pointerEvents: emailNotifications ? 'auto' : 'none' }}>
+                  <Toggle
+                    checked={rappelsFavoris}
+                    onChange={setRappelsFavoris}
+                    label="Rappels des offres en favori"
+                    desc="Un rappel le lendemain et 3 jours après la mise en favori d'une offre."
+                  />
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <SaveBtn loading={savingNotifs} onClick={saveNotifications} />
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+    </main>
+  )
+}

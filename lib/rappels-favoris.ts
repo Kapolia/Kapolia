@@ -507,7 +507,7 @@ ${corpsCartes}${ctaSecondaire}
 Vous recevez cet e-mail parce que vous avez mis des offres en favori sur Kapolia.<br>
 <a href="${lienDesinscription}" style="color:#8A928C;text-decoration:underline;">Ne plus recevoir les rappels de favoris</a>
 &nbsp;&middot;&nbsp;
-<a href="https://kapolia.com/parametres" style="color:#8A928C;text-decoration:underline;">Gérer mes e-mails</a>
+<a href="https://kapolia.com/parametres#notifications" style="color:#8A928C;text-decoration:underline;">Gérer mes e-mails</a>
 </p>
 </td></tr>
 </table>
@@ -534,7 +534,7 @@ Vous recevez cet e-mail parce que vous avez mis des offres en favori sur Kapolia
     '---',
     'Vous recevez cet e-mail parce que vous avez mis des offres en favori sur Kapolia.',
     `Ne plus recevoir les rappels de favoris : ${lienDesinscription}`,
-    `Gérer mes e-mails : https://kapolia.com/parametres`,
+    `Gérer mes e-mails : https://kapolia.com/parametres#notifications`,
   )
 
   return { subject, html, text: txtBlocs.join('\n') }

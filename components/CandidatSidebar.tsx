@@ -634,11 +634,11 @@ export default function CandidatSidebar({
                   onMouseEnter={() => setMenuHov(true)}
                   onMouseLeave={() => setMenuHov(false)}
                   style={{
-                    background: 'none',
-                    border: menuOpen ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent',
+                    background: pathname === '/parametres' ? 'rgba(194, 97, 31,0.18)' : 'none',
+                    border: pathname === '/parametres' ? 'none' : (menuOpen ? '2px solid rgba(255,255,255,0.4)' : '2px solid transparent'),
                     borderRadius: '50%', cursor: 'pointer', padding: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'border-color 0.15s',
+                    transition: 'background-color 0.15s, border-color 0.15s',
                   }}
                 >
                   <Avatar profil={avatarProfil} size="sm" />
@@ -663,7 +663,7 @@ export default function CandidatSidebar({
                   display: 'flex', alignItems: 'center', gap: 10,
                   width: '100%', background: 'none', border: 'none',
                   padding: '8px 10px', cursor: 'pointer', borderRadius: 12,
-                  backgroundColor: menuHov ? 'rgba(255,255,255,0.07)' : 'transparent',
+                  backgroundColor: pathname === '/parametres' ? 'rgba(194, 97, 31,0.18)' : menuHov ? 'rgba(255,255,255,0.07)' : 'transparent',
                   transition: 'background-color 0.12s',
                   fontFamily: 'inherit',
                 }}

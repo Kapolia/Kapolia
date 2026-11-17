@@ -15,21 +15,35 @@ function adminClient() {
   )
 }
 
-async function fetchEmailSiActif(userId: string, admin: ReturnType<typeof adminClient>): Promise<string | null> {
+type ProfilNotif = {
+  email_notifications: boolean | null
+  notif_rdv:           boolean | null
+  notif_candidature:   boolean | null
+}
+
+async function fetchEmailSiActif(
+  userId: string,
+  admin: ReturnType<typeof adminClient>,
+  extraCol?: 'notif_rdv' | 'notif_candidature',
+): Promise<string | null> {
   const [{ data: authUser, error: authErr }, { data: profil }] = await Promise.all([
     admin.auth.admin.getUserById(userId),
-    admin.from('profils').select('email_notifications').eq('user_id', userId).single(),
+    admin.from('profils')
+      .select('email_notifications, notif_rdv, notif_candidature')
+      .eq('user_id', userId)
+      .single<ProfilNotif>(),
   ])
   if (authErr || !authUser?.user?.email) {
     console.error('[email-notifs] getUserById', authErr?.message, { userId })
     return null
   }
   if (!profil?.email_notifications) return null
+  if (extraCol && profil[extraCol] === false) return null
   return authUser.user.email
 }
 
 function pied() {
-  return `<p style="margin-top:32px;font-size:12px;color:#888;">Pour ne plus recevoir ces e-mails : <a href="${SITE}/parametres" style="color:#888;">${SITE}/parametres</a></p>`
+  return `<p style="margin-top:32px;font-size:12px;color:#888;">Pour ne plus recevoir ces e-mails : <a href="${SITE}/parametres#notifications" style="color:#888;">${SITE}/parametres#notifications</a></p>`
 }
 
 // ── Email 2 : RDV proposé → candidat ─────────────────────────────────────────
@@ -44,7 +58,7 @@ export async function notifRdvPropose(rdvId: string) {
       .single()
     if (!rdv?.candidat_id) { console.error('[email-notifs] rdv-propose: rdv introuvable', { rdvId }); return }
 
-    const email = await fetchEmailSiActif(rdv.candidat_id, admin)
+    const email = await fetchEmailSiActif(rdv.candidat_id, admin, 'notif_rdv')
     if (!email) return
 
     const [{ data: conv }, { data: profil }] = await Promise.all([
@@ -64,7 +78,7 @@ export async function notifRdvPropose(rdvId: string) {
       to:      { email },
       subject: `${entreprise} vous propose un rendez-vous`,
       html:    `<p>Bonjour,</p><p>${entreprise} souhaite vous rencontrer${contexte}.</p><p>Des créneaux vous attendent dans la messagerie Kapolia. Choisissez celui qui vous convient.</p><p><a href="${SITE}/dashboard/rendez-vous">Voir la proposition →</a></p>${pied()}`,
-      text:    `${entreprise} souhaite vous rencontrer${contexte}.\n\nDes créneaux vous attendent dans la messagerie Kapolia.\n\n${SITE}/dashboard/rendez-vous\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+      text:    `${entreprise} souhaite vous rencontrer${contexte}.\n\nDes créneaux vous attendent dans la messagerie Kapolia.\n\n${SITE}/dashboard/rendez-vous\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
     })
     if (!result.ok) console.error('[email-notifs] rdv-propose', result.error, { rdvId })
   })
@@ -82,7 +96,7 @@ export async function notifStatutCandidature(candId: string, statut: 'acceptée'
       .single()
     if (!cand?.candidat_id) { console.error('[email-notifs] statut: candidature introuvable', { candId }); return }
 
-    const email = await fetchEmailSiActif(cand.candidat_id, admin)
+    const email = await fetchEmailSiActif(cand.candidat_id, admin, 'notif_candidature')
     if (!email) return
 
     const { data: offre } = await admin
@@ -109,8 +123,8 @@ export async function notifStatutCandidature(candId: string, statut: 'acceptée'
         ? `<p>Bonjour,</p><p>Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.</p><p><a href="${SITE}/candidatures?offre=${cand.offre_id}">Voir mes candidatures →</a></p>${pied()}`
         : `<p>Bonjour,</p><p>${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.</p><p><a href="${SITE}/candidatures?offre=${cand.offre_id}">Voir mes candidatures →</a></p>${pied()}`,
       text: acceptee
-        ? `Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.\n\n${SITE}/candidatures?offre=${cand.offre_id}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`
-        : `${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.\n\n${SITE}/candidatures?offre=${cand.offre_id}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+        ? `Votre candidature pour le poste ${offreTitre} chez ${entreprise} a été retenue.\n\n${SITE}/candidatures?offre=${cand.offre_id}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`
+        : `${entreprise} n'a pas retenu votre candidature pour le poste ${offreTitre}.\n\n${SITE}/candidatures?offre=${cand.offre_id}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
     })
     if (!result.ok) console.error('[email-notifs] statut-candidature', result.error, { candId, statut })
   })
@@ -143,7 +157,7 @@ export async function notifCreneauConfirme(rdvId: string, creneauId: string) {
       to:      { email },
       subject: `${prenom} a confirmé un créneau`,
       html:    `<p>Bonjour,</p><p>${prenom} a sélectionné le ${dateFr} à ${heureFr} pour votre ${typeLabel} de ${rdv.duree_minutes} minutes.</p><p><a href="${SITE}/recruteur/calendrier">Voir le calendrier →</a></p>${pied()}`,
-      text:    `${prenom} a sélectionné le ${dateFr} à ${heureFr} pour votre ${typeLabel} de ${rdv.duree_minutes} minutes.\n\n${SITE}/recruteur/calendrier\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+      text:    `${prenom} a sélectionné le ${dateFr} à ${heureFr} pour votre ${typeLabel} de ${rdv.duree_minutes} minutes.\n\n${SITE}/recruteur/calendrier\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
     })
     if (!result.ok) console.error('[email-notifs] creneau-confirme', result.error, { rdvId, creneauId })
   })
@@ -161,7 +175,7 @@ export async function notifRdvAnnule(rdvId: string, statutAvant: 'proposee' | 'a
       .single()
     if (!rdv?.candidat_id) { console.error('[email-notifs] rdv-annule: rdv introuvable', { rdvId }); return }
 
-    const email = await fetchEmailSiActif(rdv.candidat_id, admin)
+    const email = await fetchEmailSiActif(rdv.candidat_id, admin, 'notif_rdv')
     if (!email) return
 
     const [{ data: conv }, { data: profil }] = await Promise.all([
@@ -199,7 +213,7 @@ export async function notifRdvAnnule(rdvId: string, statutAvant: 'proposee' | 'a
       to:      { email },
       subject: `Rendez-vous annulé — ${entreprise}`,
       html:    `<p>Bonjour,</p><p>${corps}</p><p><a href="${convLink}">Voir la conversation →</a></p>${pied()}`,
-      text:    `${corps}\n\n${convLink}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+      text:    `${corps}\n\n${convLink}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
     })
     if (!result.ok) console.error('[email-notifs] rdv-annule', result.error, { rdvId })
   })
@@ -243,7 +257,7 @@ export async function notifRdvRefuse(rdvId: string, avecMessage: boolean) {
       to:      { email },
       subject: `${prenomRaw} n'a retenu aucun créneau`,
       html:    `<p>Bonjour,</p><p>${prenomH} n'a retenu aucun des créneaux proposés${titreClauseH}.${msgClause}</p><p><a href="${convLink}">Voir la conversation</a></p>${pied()}`,
-      text:    `${prenomRaw} n'a retenu aucun des créneaux proposés${titreClauseTxt}.${msgClause}\n\n${convLink}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+      text:    `${prenomRaw} n'a retenu aucun des créneaux proposés${titreClauseTxt}.${msgClause}\n\n${convLink}\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
     })
     if (!result.ok) console.error('[email-notifs] rdv-refuse', result.error, { rdvId })
   })

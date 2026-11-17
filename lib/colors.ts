@@ -29,8 +29,14 @@ export const C = {
   // États (inchangés)
   succes:        '#3E8E5E',
   succesFonce:   '#2F7A50',
+  succesBgPale:  'rgba(62,142,94,.12)',   // fond badge succès
   attente:       '#C88A2A',
+  attenteTexte:  '#9A6A1E',              // texte badge attente (plus sombre pour contraste)
+  attenteBgPale: 'rgba(200,138,42,.14)', // fond badge attente
   erreur:        '#C0392B',
+
+  // Composants UI
+  interrupteurInactif: '#C9CFCB',        // fond du toggle OFF
 
   // Édition carte par carte
   accent:        '#C2611F',              // bordure active / focus

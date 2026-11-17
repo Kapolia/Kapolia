@@ -40,7 +40,7 @@ function formatHeure(utc: string): string {
 }
 
 function pied() {
-  return `<p style="margin-top:32px;font-size:12px;color:#888;">Pour ne plus recevoir ces e-mails : <a href="${SITE}/parametres" style="color:#888;">${SITE}/parametres</a></p>`
+  return `<p style="margin-top:32px;font-size:12px;color:#888;">Pour ne plus recevoir ces e-mails : <a href="${SITE}/parametres#notifications" style="color:#888;">${SITE}/parametres#notifications</a></p>`
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ async function traiterRappelsRdv(admin: ReturnType<typeof adminClient>) {
     ] = await Promise.all([
       admin.auth.admin.getUserById(rdv.candidat_id),
       admin.auth.admin.getUserById(rdv.recruteur_id),
-      admin.from('profils').select('prenom, email_notifications').eq('user_id', rdv.candidat_id).single(),
+      admin.from('profils').select('prenom, email_notifications, notif_rappel_rdv').eq('user_id', rdv.candidat_id).single(),
       admin.from('profils').select('prenom, entreprise_nom, email_notifications').eq('user_id', rdv.recruteur_id).single(),
     ])
 
@@ -125,10 +125,11 @@ async function traiterRappelsRdv(admin: ReturnType<typeof adminClient>) {
     const emailRec   = authRec?.user?.email
     const prenomCand = (profilCand as { prenom?: string } | null)?.prenom ?? ''
     const entreprise = (profilRec  as { entreprise_nom?: string } | null)?.entreprise_nom ?? 'un recruteur'
-    const notifCand  = (profilCand as { email_notifications?: boolean } | null)?.email_notifications ?? true
-    const notifRec   = (profilRec  as { email_notifications?: boolean } | null)?.email_notifications ?? true
+    const notifCand      = (profilCand as { email_notifications?: boolean } | null)?.email_notifications ?? true
+    const notifRappelRdv = (profilCand as { notif_rappel_rdv?: boolean } | null)?.notif_rappel_rdv ?? true
+    const notifRec       = (profilRec  as { email_notifications?: boolean } | null)?.email_notifications ?? true
 
-    if (emailCand && notifCand) {
+    if (emailCand && notifCand && notifRappelRdv) {
       const salutation = prenomCand ? `Bonjour ${prenomCand},` : 'Bonjour,'
       const htmlCoord  = rdv.contact_info && rdv.type !== 'telephonique'
         ? `<p><strong>Coordonnées :</strong> ${rdv.contact_info}</p>`
@@ -139,7 +140,7 @@ async function traiterRappelsRdv(admin: ReturnType<typeof adminClient>) {
         to:      { email: emailCand },
         subject: `Rappel — Rendez-vous ${dateLongue} avec ${entreprise}`,
         html:    `<p>${salutation}</p><p>Vous avez un ${typeLabel} de ${rdv.duree_minutes} minutes prévu ${datePleine} avec ${entreprise}.</p>${htmlCoord}<p><a href="${SITE}/dashboard/rendez-vous">Voir le rendez-vous →</a></p>${pied()}`,
-        text:    `${salutation}\n\nVous avez un ${typeLabel} de ${rdv.duree_minutes} minutes prévu ${datePleine} avec ${entreprise}.${textCoord}\n\n${SITE}/dashboard/rendez-vous\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+        text:    `${salutation}\n\nVous avez un ${typeLabel} de ${rdv.duree_minutes} minutes prévu ${datePleine} avec ${entreprise}.${textCoord}\n\n${SITE}/dashboard/rendez-vous\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
       })
       if (res.ok) { envoyes++ } else {
         console.error('[cron rdv] candidat', res.error, { rdvId: rdv.id })
@@ -153,7 +154,7 @@ async function traiterRappelsRdv(admin: ReturnType<typeof adminClient>) {
         to:      { email: emailRec },
         subject: `Rappel — Rendez-vous ${dateLongue} avec ${prenomCand || 'votre candidat'}`,
         html:    `<p>Bonjour,</p><p>Vous avez un ${typeLabel} de ${rdv.duree_minutes} minutes prévu ${datePleine} avec ${nomCand}.</p><p><a href="${SITE}/recruteur/calendrier">Voir le calendrier →</a></p>${pied()}`,
-        text:    `Bonjour,\n\nVous avez un ${typeLabel} de ${rdv.duree_minutes} minutes prévu ${datePleine} avec ${nomCand}.\n\n${SITE}/recruteur/calendrier\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+        text:    `Bonjour,\n\nVous avez un ${typeLabel} de ${rdv.duree_minutes} minutes prévu ${datePleine} avec ${nomCand}.\n\n${SITE}/recruteur/calendrier\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
       })
       if (res.ok) { envoyes++ } else {
         console.error('[cron rdv] recruteur', res.error, { rdvId: rdv.id })
@@ -218,7 +219,7 @@ async function traiterRelancesOffres(admin: ReturnType<typeof adminClient>) {
         to:      { email: emailRec },
         subject: `Votre offre « ${offre.titre} » a expiré, republiez-la en un clic`,
         html:    `<p>Bonjour,</p><p>Votre offre <strong>${offre.titre}</strong> a expiré le ${dateExp}. Elle n'est plus visible des candidats.</p><p>Vous pouvez la republier en un clic depuis votre espace recruteur.</p><p><a href="${SITE}/recruteur/offres">Voir mes offres →</a></p>${pied()}`,
-        text:    `Bonjour,\n\nVotre offre « ${offre.titre} » a expiré le ${dateExp}. Elle n'est plus visible des candidats.\n\nVous pouvez la republier en un clic depuis votre espace recruteur.\n\n${SITE}/recruteur/offres\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres`,
+        text:    `Bonjour,\n\nVotre offre « ${offre.titre} » a expiré le ${dateExp}. Elle n'est plus visible des candidats.\n\nVous pouvez la republier en un clic depuis votre espace recruteur.\n\n${SITE}/recruteur/offres\n\nPour ne plus recevoir ces e-mails : ${SITE}/parametres#notifications`,
       })
       if (res.ok) { envoyes++ } else {
         console.error('[cron offres] envoi', res.error, { offreId: offre.id })

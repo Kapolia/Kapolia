@@ -3,6 +3,8 @@ export interface ResultatEvaluation {
   conseil: string
 }
 
+export const NIVEAU_MIN_MOT_DE_PASSE = 2 as const
+
 const COURANTS = new Set([
   'motdepasse', 'azerty', 'azertyuiop', 'qwerty',
   '123456', '12345678', '123456789',

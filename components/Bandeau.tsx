@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useLayoutEffect } from 'react'
+import React, { useRef, useEffect, useLayoutEffect } from 'react'
 import Link from 'next/link'
 import { C } from '@/lib/colors'
 
@@ -11,6 +11,8 @@ type BandeauProps = {
   action?: { libelle: string; onClick?: () => void; href?: string }
   fixe?: boolean
   bas?: number
+  duree?: number
+  onDismiss?: () => void
 }
 
 export type BandeauHandle = {
@@ -18,11 +20,15 @@ export type BandeauHandle = {
 }
 
 export const Bandeau = React.forwardRef<BandeauHandle, BandeauProps>(
-  function Bandeau({ message, action, fixe, bas }, ref) {
-    const divRef = useRef<HTMLDivElement>(null)
+  function Bandeau({ message, action, fixe, bas, duree, onDismiss }, ref) {
+    const divRef      = useRef<HTMLDivElement>(null)
+    const dismissedRef  = useRef(false)
+    const onDismissRef  = useRef(onDismiss)
+    onDismissRef.current = onDismiss
 
     React.useImperativeHandle(ref, () => ({
       animateOut(onDone: () => void) {
+        dismissedRef.current = true
         const el = divRef.current
         if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
           onDone()
@@ -39,6 +45,29 @@ export const Bandeau = React.forwardRef<BandeauHandle, BandeauProps>(
         anim.onfinish = onDone
       },
     }))
+
+    useEffect(() => {
+      if (duree == null) return
+      const timer = setTimeout(() => {
+        if (dismissedRef.current) return
+        dismissedRef.current = true
+        const el = divRef.current
+        if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          onDismissRef.current?.()
+          return
+        }
+        el.getAnimations().forEach(a => a.cancel())
+        const anim = el.animate(
+          [
+            { opacity: '1', transform: 'translateX(-50%) translateY(0)' },
+            { opacity: '0', transform: 'translateX(-50%) translateY(16px)' },
+          ],
+          { duration: 180, easing: 'ease-in' }
+        )
+        anim.onfinish = () => onDismissRef.current?.()
+      }, duree)
+      return () => clearTimeout(timer)
+    }, [duree])
 
     useLayoutEffect(() => {
       const el = divRef.current

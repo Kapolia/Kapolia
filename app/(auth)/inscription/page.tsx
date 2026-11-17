@@ -8,7 +8,7 @@ import { safeNext, storeNext, OAUTH_TYPE_KEY, OAUTH_NEXT_KEY } from '@/lib/auth-
 import { C } from '@/lib/colors'
 import { FONT_SANS } from '@/lib/typography'
 import { isValidEmail } from '@/lib/validation'
-import { evaluerMotDePasse } from '@/lib/robustesse-mot-de-passe'
+import { evaluerMotDePasse, NIVEAU_MIN_MOT_DE_PASSE } from '@/lib/robustesse-mot-de-passe'
 import AuthField from '@/components/auth/AuthField'
 import { AuthButtonPrimary, AuthButtonGoogle } from '@/components/auth/AuthButton'
 import ErreurDepliable from '@/components/auth/ErreurDepliable'
@@ -41,7 +41,7 @@ export default function InscriptionPage() {
   const isValid =
     accountType !== null &&
     isValidEmail(email) &&
-    niveau >= 2 &&
+    niveau >= NIVEAU_MIN_MOT_DE_PASSE &&
     confirm === password
 
   async function handleSubmit(e: React.FormEvent) {
