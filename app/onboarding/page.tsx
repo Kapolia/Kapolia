@@ -863,16 +863,13 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         .kv-fn4-pt { fill:${C.vert}70; transform-box:fill-box; transform-origin:center; animation:kv-fn4-luit 4.5s ease-in-out infinite; transition:transform 1.4s cubic-bezier(.3,.7,.2,1),fill .6s; }
         .vis-oui .kv-fn4-pt { fill:${C.orange}; transform:translate(var(--dx),var(--dy)) scale(1.25); }
         .vis-non .kv-fn4-pt { fill:${C.vert}38; transform:translate(calc(var(--dx) * -0.6),calc(var(--dy) * -0.6)); }
-        /* ── Needle ── */
-        @keyframes kv-fn4-osc { 0%{transform:rotate(-55deg)} 45%{transform:rotate(16deg)} 70%{transform:rotate(-6deg)} 88%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
-        @keyframes kv-fn4-aig-part { to{opacity:0} }
-        @keyframes kv-fn4-cible2 { 0%{transform:translateY(0)} 100%{transform:translateY(116px);opacity:0} }
-        .kv-fn4-osc { transform-box:fill-box; transform-origin:50% 70%; animation:kv-fn4-osc 1150ms cubic-bezier(.35,0,.25,1) 100ms both; }
-        .kv-fn4-aig { animation:kv-fn4-aig-part .5s 1.9s ease-in forwards; }
-        .kv-fn4-cible { fill:${C.orange}; transform-box:fill-box; transform-origin:center; animation:kv-fn4-cible2 .9s 1.2s cubic-bezier(.6,0,.3,1) forwards; }
         /* ── Card arrival ── */
-        @keyframes kv-fn4-carte-nait { from{opacity:0;transform:scale(.8) translateY(10px)} to{opacity:1;transform:none} }
-        .kv-fn4-sq { position:relative; z-index:1; width:280px; background:${C.white}; border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:0 2px 4px rgba(27,48,38,.05),0 16px 40px rgba(27,48,38,.12); animation:kv-fn4-carte-nait .7s 2.05s cubic-bezier(.2,.8,.2,1.15) both; transition:box-shadow .6s; overflow:visible; }
+        @keyframes kv-fn4-carte-nait { from{opacity:0} to{opacity:1} }
+        .kv-fn4-card-wrap { position:relative; isolation:isolate; width:280px; animation:kv-fn4-carte-nait 250ms ease-out both; }
+        .sq-b1,.sq-b2 { position:absolute; inset:0; border-radius:16px; z-index:0; box-shadow:0 2px 8px rgba(27,48,38,.08); transition:transform .8s cubic-bezier(.3,.7,.2,1),opacity .6s; }
+        .sq-b1 { background:#FBFCFB; transform:rotate(-7deg) translate(-26px,10px); }
+        .sq-b2 { transform:rotate(6deg) translate(28px,14px); background:#F7F9F8; }
+        .kv-fn4-sq { position:relative; z-index:1; width:280px; background:${C.white}; border-radius:16px; padding:20px; display:flex; flex-direction:column; gap:16px; box-shadow:0 2px 4px rgba(27,48,38,.05),0 16px 40px rgba(27,48,38,.12); transition:box-shadow .6s; }
         .kv-fn4-sq .sq-id { display:flex; align-items:center; gap:14px; }
         .kv-fn4-sq .sq-av { width:48px; height:58px; border-radius:10px; background:${C.orange}; flex:none; transition:background-color .6s; }
         .kv-fn4-sq .sq-l { display:flex; flex-direction:column; gap:9px; flex:1; }
@@ -882,17 +879,13 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
         .kv-fn4-sq .sq-pills i { display:block; height:24px; width:64px; border-radius:999px; background:#FBEDE3; transition:background-color .6s; }
         .kv-fn4-sq .sq-pills i:nth-child(2) { width:52px; }
         .kv-fn4-sq .sq-pills i:nth-child(3) { width:58px; }
-        .kv-fn4-sq .sq-pile { position:absolute; inset:0; border-radius:16px; }
-        .kv-fn4-sq>*:not(.sq-pile) { position:relative; }
-        .kv-fn4-sq .sq-pile::before,.kv-fn4-sq .sq-pile::after { content:""; position:absolute; inset:0; z-index:-1; border-radius:16px; background:#FBFCFB; box-shadow:0 2px 8px rgba(27,48,38,.08); transform:rotate(-7deg) translate(-26px,10px); transition:transform .8s cubic-bezier(.3,.7,.2,1),opacity .6s; }
-        .kv-fn4-sq .sq-pile::after { transform:rotate(6deg) translate(28px,14px); background:#F7F9F8; }
         .vis-oui .kv-fn4-sq { box-shadow:0 0 0 1.5px rgba(194,97,31,.35),0 16px 40px rgba(194,97,31,.20); }
-        .vis-oui .kv-fn4-sq .sq-pile::before { transform:rotate(-12deg) translate(-70px,26px); opacity:.6; }
-        .vis-oui .kv-fn4-sq .sq-pile::after { transform:rotate(11deg) translate(74px,30px); opacity:.6; }
+        .vis-oui .sq-b1 { transform:rotate(-12deg) translate(-70px,26px); opacity:.6; }
+        .vis-oui .sq-b2 { transform:rotate(11deg) translate(74px,30px); opacity:.6; }
         .vis-non .kv-fn4-sq { box-shadow:0 1px 3px rgba(27,48,38,.08); }
         .vis-non .kv-fn4-sq .sq-av { background:#BFC8C2; }
         .vis-non .kv-fn4-sq .sq-pills i { background:#EEF0EE; }
-        .vis-non .kv-fn4-sq .sq-pile::before,.vis-non .kv-fn4-sq .sq-pile::after { transform:none; }
+        .vis-non .sq-b1,.vis-non .sq-b2 { transform:none; }
         /* ── Choice options ── */
         .kv-fn4-opt { display:flex; align-items:center; gap:14px; width:100%; text-align:left; border:0; background:${C.white}; border-radius:12px; padding:14px 16px; cursor:pointer; font:inherit; color:${C.dark}; box-shadow:0 1px 2px rgba(27,48,38,.06),0 6px 16px rgba(27,48,38,.07); transition:box-shadow .2s,transform .15s; }
         .kv-fn4-opt:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 2px 4px rgba(27,48,38,.06),0 10px 22px rgba(27,48,38,.10); }
@@ -911,15 +904,14 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
           .kv-fn4-txt { padding:52px 20px 24px !important; gap:12px !important; min-width:0 !important; max-width:100% !important; }
           .kv-fn4-scene { position:relative !important; order:2; min-height:0 !important; height:330px; overflow:hidden; margin-top:-70px; z-index:0; pointer-events:none; mask-image:linear-gradient(to bottom,transparent 0,#000 30%); -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 30%); }
           .kv-fn4-scene>svg { width:440px !important; }
-          .kv-fn4-sq { scale:.74; margin-top:40px; }
+          .kv-fn4-card-wrap { scale:.74; margin-top:40px; }
           .kv-fn4-txt h1 { font-size:28px !important; }
         }
         @media (min-width:1600px) { .kv-fn4 { zoom:1.12; } }
         /* ── Reduced motion ── */
         @media (prefers-reduced-motion:reduce) {
           .kv-fn4-pulse { animation:none !important; opacity:1 !important; }
-          .kv-fn4-osc,.kv-fn4-cible,.kv-fn4-aig { animation:none !important; transform:none !important; opacity:1 !important; }
-          .kv-fn4-sq { animation:none !important; opacity:1 !important; transform:none !important; }
+          .kv-fn4-card-wrap { animation:none !important; opacity:1 !important; }
         }
       `}</style>
 
@@ -1057,28 +1049,24 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
             )
           })}
 
-          <g className="kv-fn4-aig" transform="translate(300 300) scale(3.6) translate(-21 -21)">
-            <g className="kv-fn4-osc">
-              <path d="M14 29 L21 12 L28 29" fill="none" stroke={C.vert} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M14 29 L21 25 L28 29" fill="none" stroke={C.orange} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"/>
-            </g>
-          </g>
-          <circle className="kv-fn4-cible" cx="300" cy="140" r="7"/>
         </svg>
 
-        <div className="kv-fn4-sq">
-          <div className="sq-pile" aria-hidden="true"/>
-          <div className="sq-id">
-            <span className="sq-av"/>
-            <span className="sq-l">
-              <i style={{ width:'62%' }}/>
-              <i style={{ width:'40%' }}/>
-            </span>
-          </div>
-          <div className="sq-pills"><i/><i/><i/></div>
-          <div className="sq-l">
-            <i style={{ width:'88%' }}/>
-            <i style={{ width:'70%' }}/>
+        <div className="kv-fn4-card-wrap">
+          <div className="sq-b1" aria-hidden="true"/>
+          <div className="sq-b2" aria-hidden="true"/>
+          <div className="kv-fn4-sq">
+            <div className="sq-id">
+              <span className="sq-av"/>
+              <span className="sq-l">
+                <i style={{ width:'62%' }}/>
+                <i style={{ width:'40%' }}/>
+              </span>
+            </div>
+            <div className="sq-pills"><i/><i/><i/></div>
+            <div className="sq-l">
+              <i style={{ width:'88%' }}/>
+              <i style={{ width:'70%' }}/>
+            </div>
           </div>
         </div>
       </div>
