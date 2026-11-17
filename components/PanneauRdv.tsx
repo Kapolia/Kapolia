@@ -228,9 +228,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
           .select('offre_id')
           .eq('id', r.conversation_id)
           .single(),
-        r.type === 'telephonique' && r.statut === 'acceptee'
-          ? supabase.rpc('telephone_candidat', { p_conversation_id: r.conversation_id })
-          : Promise.resolve({ data: null, error: null }),
+        supabase.rpc('telephone_candidat', { p_conversation_id: r.conversation_id }),
       ])
 
       // PGRST116 = aucune ligne trouvée (candidat supprimé) — pas une erreur fatale
@@ -242,7 +240,7 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
       }
 
       if (!annule) setProfil(profilRes.data as ProfilDetail ?? null)
-      if (!annule && r.type === 'telephonique' && r.statut === 'acceptee') {
+      if (!annule) {
         if (telRes.error) {
           console.error('[panneau tel]', telRes.error.message, (telRes.error as { code?: string }).code)
         }
@@ -421,12 +419,10 @@ export default function PanneauRdv({ rdvId, onClose, onAnnulee }: PanneauProps) 
                 </Section>
               )}
 
-              {/* Numéro du candidat — appel téléphonique confirmé */}
-              {confirme && rdv.type === 'telephonique' && (
+              {/* Numéro du candidat */}
+              {!!telephoneCandidat && (
                 <Section titre="Numéro du candidat">
-                  <span style={{ fontSize: 13, color: telephoneCandidat !== undefined ? C.dark : C.grey }}>
-                    {telephoneCandidat === undefined ? 'Chargement…' : (telephoneCandidat ?? 'Non renseigné')}
-                  </span>
+                  <span style={{ fontSize: 13, color: C.dark }}>{telephoneCandidat}</span>
                 </Section>
               )}
 

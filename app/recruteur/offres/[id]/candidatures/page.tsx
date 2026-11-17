@@ -309,6 +309,18 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
   const router = useRouter()
   const p      = cand.profil
   const score  = computeScore(cand, offre)
+  const [telCandidat, setTelCandidat] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    supabase.rpc('telephone_candidature', { p_candidature_id: cand.id })
+      .then(({ data, error }) => {
+        if (!active) return
+        if (error) { console.error('[CandidatePanel] telephone_candidature', error); return }
+        setTelCandidat(typeof data === 'string' && data ? data : null)
+      })
+    return () => { active = false }
+  }, [cand.id])
 
   return (
     <div style={{ width: 300, flexShrink: 0, backgroundColor: C.white, borderLeft: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
@@ -344,13 +356,19 @@ function CandidatePanel({ cand, offre, onClose, onStatusChange, onMessage }: {
           </div>
         )}
 
-        {[p?.experience, p?.ville].some(Boolean) && (
+        {[p?.experience, p?.ville, telCandidat].some(Boolean) && (
           <div>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.grey, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Informations</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {p?.experience && <div style={{ fontSize: 12, color: C.dark }}>⌛ {p.experience}</div>}
               {p?.ville      && <div style={{ fontSize: 12, color: C.dark }}>◎ {p.ville}</div>}
               {(p?.type_poste ?? []).length > 0 && <div style={{ fontSize: 12, color: C.dark }}>◈ Cherche {(p!.type_poste!).map(k => TYPES_POSTE.find(t => t.key === k)?.label ?? k).join(' · ')}</div>}
+              {telCandidat && (
+                <div style={{ fontSize: 12, color: C.dark }}>
+                  {'Téléphone : '}
+                  <a href={`tel:${telCandidat}`} style={{ color: C.dark, textDecoration: 'none', fontWeight: 500 }}>{telCandidat}</a>
+                </div>
+              )}
             </div>
           </div>
         )}

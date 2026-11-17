@@ -95,8 +95,9 @@ export default function ParametresCandidat() {
   // ── Data ────────────────────────────────────────────────────────────────────
   const [email,         setEmail]         = useState('')
   const [emailConfirme, setEmailConfirme] = useState(true) // default true: no flash before data loads
-  const [telephone,     setTelephone]     = useState('')
-  const [chargement,    setChargement]    = useState(true)
+  const [telephone,              setTelephone]              = useState('')
+  const [telephoneCandidatures,  setTelephoneCandidatures]  = useState(false)
+  const [chargement,             setChargement]             = useState(true)
   const emailConfirmeRef = useRef(true)
   const emailRef         = useRef('')
 
@@ -234,8 +235,9 @@ export default function ParametresCandidat() {
       emailConfirmeRef.current = confirmed
       setIsGoogle(!user.identities?.some(ident => ident.provider === 'email'))
       setEmailPendingNew(adresseEnAttente(user))
-      const { data } = await supabase.from('profils').select('telephone,visible_candidatheque,email_notifications,rappels_favoris,notif_rdv,notif_rappel_rdv,notif_candidature,notif_proche').eq('user_id', user.id).single()
+      const { data } = await supabase.from('profils').select('telephone,telephone_candidatures,visible_candidatheque,email_notifications,rappels_favoris,notif_rdv,notif_rappel_rdv,notif_candidature,notif_proche').eq('user_id', user.id).single()
       setTelephone(data?.telephone ?? '')
+      setTelephoneCandidatures(data?.telephone_candidatures ?? false)
       setVisibleCandidatheque(data?.visible_candidatheque ?? false)
       setEmailNotifications(data?.email_notifications ?? true)
       setRappelsFavoris(data?.rappels_favoris ?? true)
@@ -1015,6 +1017,30 @@ export default function ParametresCandidat() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Partage du numéro aux candidatures ── */}
+      <div style={{ height: 1, backgroundColor: C.sable, margin: '0 22px' }} />
+      <div style={{ padding: '18px 22px', opacity: telephone ? 1 : 0.45 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: C.dark, fontFamily: FONT_SANS }}>
+              Joindre mon numéro à mes candidatures
+            </div>
+            <div style={{ fontSize: 13.5, color: C.grey, lineHeight: 1.5, marginTop: 2 }}>
+              {telephone
+                ? "Les entreprises où vous postulez le voient avec votre profil et peuvent vous appeler. Sinon, elles vous écrivent par la messagerie."
+                : "Les entreprises où vous postulez le voient avec votre profil et peuvent vous appeler. Sinon, elles vous écrivent par la messagerie. Ajoutez d'abord un numéro."}
+            </div>
+          </div>
+          <div style={{ flexShrink: 0 }}>
+            <Interrupteur
+              checked={telephoneCandidatures}
+              onChange={val => saveNotif('telephone_candidatures', val, setTelephoneCandidatures)}
+              disabled={!telephone}
+            />
+          </div>
+        </div>
       </div>
 
     </CarteReglages>
