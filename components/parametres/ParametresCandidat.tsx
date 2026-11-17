@@ -56,8 +56,8 @@ function formaterTelephone(raw: string): string {
   return (digits.match(/.{1,2}/g) ?? []).join(' ')
 }
 
-// Durée de validité maximale d'un lien e-mail dans Supabase (24 h).
-const DUREE_LIEN_CHANGEMENT_MS = 24 * 60 * 60 * 1000
+// Durée de validité d'un lien e-mail sur ce projet Supabase (Email OTP expiration, 3600 s). Changer les deux ensemble.
+const DUREE_LIEN_CHANGEMENT_MS = 60 * 60 * 1000
 
 function adresseEnAttente(user: { new_email?: string; email_change_sent_at?: string }): string {
   if (!user.new_email || !user.email_change_sent_at) return ''
@@ -819,7 +819,9 @@ export default function ParametresCandidat() {
             {/* Encadré changement en attente */}
             {!chargement && emailPendingNew && !emailFormOpen && (
               <div style={{ marginTop: 12, backgroundColor: C.salaire, borderRadius: 10, padding: '12px 14px', fontSize: 14, color: C.dark, lineHeight: 1.5 }}>
-                {"Un lien a été envoyé à chacune de vos deux adresses. Cliquez sur les deux pour valider le changement. Votre adresse actuelle reste active d'ici là."}
+                {"Un lien a été envoyé à "}
+                <span style={{ fontWeight: 600, color: C.dark }}>{emailPendingNew}</span>
+                {". Cliquez dessus pour valider le changement. Votre adresse actuelle reste active d'ici là."}
                 <div style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                   {emailChangeResendCooldown > 0 || emailChangeResend ? (
                     <span style={{ fontSize: 13.5, color: C.grey }}>
