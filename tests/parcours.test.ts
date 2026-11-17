@@ -7,6 +7,10 @@ import {
   preparerExperiencePourEnregistrement,
   experienceVide,
   formationVide,
+  trierExperiences,
+  trierFormations,
+  finAvantDebut,
+  debutDansFutur,
   type PosteParcours,
   type FormationParcours,
 } from '@/lib/parcours'
@@ -250,6 +254,134 @@ describe('preparerExperiencePourEnregistrement', () => {
   it('clé inconnue conservée dans le résultat', () => {
     const r = preparerExperiencePourEnregistrement({ ...BASE, en_poste: false, debut_annee: 2021, debut_mois: 1, fin_annee: null, fin_mois: null, foo: 'bar' } as never)
     expect((r as Record<string, unknown>).foo).toBe('bar')
+  })
+})
+
+// ─── trierExperiences ────────────────────────────────────────────────────────
+
+type ExpTri = { id: string; en_poste: boolean; debut_annee: number | null; debut_mois: number | null }
+function exp(id: string, en_poste: boolean, annee: number | null, mois: number | null = null): ExpTri {
+  return { id, en_poste, debut_annee: annee, debut_mois: mois }
+}
+
+describe('trierExperiences', () => {
+  it('en poste passe avant les terminées', () => {
+    const r = trierExperiences([exp('a', false, 2022), exp('b', true, 2020)])
+    expect(r[0].id).toBe('b')
+  })
+
+  it('tri par debut_annee décroissant', () => {
+    const r = trierExperiences([exp('old', false, 2010), exp('new', false, 2020)])
+    expect(r[0].id).toBe('new')
+  })
+
+  it('à année égale : tri par debut_mois décroissant', () => {
+    const r = trierExperiences([exp('jan', false, 2020, 1), exp('dec', false, 2020, 12)])
+    expect(r[0].id).toBe('dec')
+  })
+
+  it('sans date de début : placé après celles qui en ont une', () => {
+    const r = trierExperiences([exp('sans', false, null), exp('avec', false, 2018)])
+    expect(r[0].id).toBe('avec')
+    expect(r[1].id).toBe('sans')
+  })
+
+  it('plusieurs sans date : ordre relatif conservé', () => {
+    const r = trierExperiences([exp('x', false, null), exp('y', false, null)])
+    expect(r[0].id).toBe('x')
+    expect(r[1].id).toBe('y')
+  })
+})
+
+// ─── trierFormations ──────────────────────────────────────────────────────────
+
+type FormTri = { id: string; en_cours?: boolean; annee?: string; annee_debut?: string | null }
+function form(id: string, en_cours: boolean, annee: string, annee_debut: string | null = null): FormTri {
+  return { id, en_cours, annee, annee_debut }
+}
+
+describe('trierFormations', () => {
+  it('en cours passe avant les terminées', () => {
+    const r = trierFormations([form('a', false, '2020'), form('b', true, '2018')])
+    expect(r[0].id).toBe('b')
+  })
+
+  it('tri par annee décroissant', () => {
+    const r = trierFormations([form('old', false, '2010'), form('new', false, '2022')])
+    expect(r[0].id).toBe('new')
+  })
+
+  it('à annee égale : tri par annee_debut décroissant', () => {
+    const r = trierFormations([form('a', false, '2020', '2017'), form('b', false, '2020', '2019')])
+    expect(r[0].id).toBe('b')
+  })
+
+  it('sans année : placé à la fin', () => {
+    const r = trierFormations([form('sans', false, ''), form('avec', false, '2015')])
+    expect(r[0].id).toBe('avec')
+    expect(r[1].id).toBe('sans')
+  })
+})
+
+// ─── finAvantDebut ────────────────────────────────────────────────────────────
+
+describe('finAvantDebut', () => {
+  it('faux si en_poste', () => {
+    expect(finAvantDebut({ en_poste: true, debut_annee: 2020, fin_annee: 2015 })).toBe(false)
+  })
+
+  it('faux si pas de debut_annee', () => {
+    expect(finAvantDebut({ en_poste: false, debut_annee: null, fin_annee: 2015 })).toBe(false)
+  })
+
+  it('faux si pas de fin_annee', () => {
+    expect(finAvantDebut({ en_poste: false, debut_annee: 2020, fin_annee: null })).toBe(false)
+  })
+
+  it('vrai si fin_annee < debut_annee', () => {
+    expect(finAvantDebut({ en_poste: false, debut_annee: 2014, fin_annee: 2011 })).toBe(true)
+  })
+
+  it('vrai si même année et fin_mois < debut_mois', () => {
+    expect(finAvantDebut({ en_poste: false, debut_annee: 2020, debut_mois: 6, fin_annee: 2020, fin_mois: 3 })).toBe(true)
+  })
+
+  it('faux si même année et fin_mois >= debut_mois', () => {
+    expect(finAvantDebut({ en_poste: false, debut_annee: 2020, debut_mois: 3, fin_annee: 2020, fin_mois: 6 })).toBe(false)
+  })
+
+  it('faux si même année sans mois (mois inconnu)', () => {
+    expect(finAvantDebut({ en_poste: false, debut_annee: 2020, fin_annee: 2020 })).toBe(false)
+  })
+})
+
+// ─── debutDansFutur ───────────────────────────────────────────────────────────
+
+describe('debutDansFutur', () => {
+  const maintenant = new Date(2026, 10, 17) // novembre 2026, mois = 11
+
+  it('faux si pas de debut_annee', () => {
+    expect(debutDansFutur({ debut_annee: null }, maintenant)).toBe(false)
+  })
+
+  it('faux si debut_annee dans le passé', () => {
+    expect(debutDansFutur({ debut_annee: 2020 }, maintenant)).toBe(false)
+  })
+
+  it('faux si debut_annee = année courante sans mois', () => {
+    expect(debutDansFutur({ debut_annee: 2026 }, maintenant)).toBe(false)
+  })
+
+  it('faux si debut_annee = année courante avec mois = mois courant', () => {
+    expect(debutDansFutur({ debut_annee: 2026, debut_mois: 11 }, maintenant)).toBe(false)
+  })
+
+  it("vrai si debut_mois > mois courant dans l'année courante", () => {
+    expect(debutDansFutur({ debut_annee: 2026, debut_mois: 12 }, maintenant)).toBe(true)
+  })
+
+  it('vrai si debut_annee > année courante', () => {
+    expect(debutDansFutur({ debut_annee: 2027 }, maintenant)).toBe(true)
   })
 })
 

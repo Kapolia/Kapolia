@@ -19,7 +19,7 @@ import {
   buildStepPayload,
 } from '@/lib/onboarding-utils'
 import type { Experience, Diplome, OnboardingFormData as FormData } from '@/lib/onboarding-utils'
-import { lireMoisAnnee, preparerExperiencePourEnregistrement, experienceVide, formationVide } from '@/lib/parcours'
+import { lireMoisAnnee, preparerExperiencePourEnregistrement, experienceVide, formationVide, trierExperiences, trierFormations, finAvantDebut, debutDansFutur } from '@/lib/parcours'
 import {
   SITUATIONS,
   CURRENT_VERSION,
@@ -1937,7 +1937,7 @@ function OnboardingPageInner() {
         (data.disponibilite !== 'a_partir_de' || data.dispo_date.length > 0)
       )
       case 6:  return true
-      case 7:  return true
+      case 7:  return !data.experiences.some(e => finAvantDebut(e) || debutDansFutur(e))
       case 8:  return true
       case 9:  return true
       default: return false
@@ -1998,8 +1998,8 @@ function OnboardingPageInner() {
         priorites: data.priorite,
         disponibilite: data.disponibilite,
         dispo_date: data.disponibilite === 'a_partir_de' ? data.dispo_date || null : null,
-        experiences: data.experiences.filter(e => !experienceVide(e)).map(preparerExperiencePourEnregistrement),
-        diplomes: data.diplomes.filter(f => !formationVide(f)),
+        experiences: trierExperiences(data.experiences.filter(e => !experienceVide(e))).map(preparerExperiencePourEnregistrement),
+        diplomes: trierFormations(data.diplomes.filter(f => !formationVide(f))),
         competences_acquises: data.competences_acquises,
         langues: data.langues,
         onboarding_completed: true,
@@ -2375,11 +2375,11 @@ function OnboardingPageInner() {
                     <div style={{ flex: 1 }}>
                       <label style={LABEL_S}>Fin</label>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <select value={exp.fin_mois ?? ''} onChange={e => updateExp(i, { fin_mois: e.target.value ? Number(e.target.value) : null })} style={SEL_S}>
+                        <select value={exp.fin_mois ?? ''} onChange={e => updateExp(i, { fin_mois: e.target.value ? Number(e.target.value) : null })} style={finAvantDebut(exp) ? { ...SEL_S, border: `1.5px solid ${C.erreur}` } : SEL_S}>
                           <option value="">Mois</option>
                           {MOIS_EXP.map((m, mi) => <option key={mi} value={mi + 1}>{m}</option>)}
                         </select>
-                        <select value={exp.fin_annee ?? ''} onChange={e => updateExp(i, { fin_annee: e.target.value ? Number(e.target.value) : null })} style={SEL_S}>
+                        <select value={exp.fin_annee ?? ''} onChange={e => updateExp(i, { fin_annee: e.target.value ? Number(e.target.value) : null })} style={finAvantDebut(exp) ? { ...SEL_S, border: `1.5px solid ${C.erreur}` } : SEL_S}>
                           <option value="">Année</option>
                           {ANNEES_EXP.map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
@@ -2394,6 +2394,12 @@ function OnboardingPageInner() {
                 </label>
                 <label style={LABEL_S}>Missions principales</label>
                 <VoiceMissionsArea value={exp.missions} onChange={v => updateExp(i, { missions: v })} />
+                {finAvantDebut(exp) && (
+                  <p style={{ fontSize: 13, color: C.erreur, margin: '8px 0 0', lineHeight: 1.5 }}>La date de fin est avant la date de début.</p>
+                )}
+                {!finAvantDebut(exp) && debutDansFutur(exp) && (
+                  <p style={{ fontSize: 13, color: C.erreur, margin: '8px 0 0', lineHeight: 1.5 }}>La date de début est dans le futur.</p>
+                )}
               </div>
             ))}
             <button onClick={addExp} className="kv-ajouter" style={{

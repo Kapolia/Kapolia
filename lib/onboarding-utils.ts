@@ -1,7 +1,7 @@
 // Utilitaires purs de l'onboarding — extraits ici pour être testables indépendamment.
 
 import { DOMAINES as _DOMAINES, EXPERIENCES as _EXP_KEYS, TYPES_POSTE as _TYPES_POSTE } from '@/lib/referentiels'
-import { preparerExperiencePourEnregistrement, experienceVide, formationVide } from '@/lib/parcours'
+import { preparerExperiencePourEnregistrement, experienceVide, formationVide, trierExperiences, trierFormations } from '@/lib/parcours'
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -163,11 +163,11 @@ export function buildStepPayload(
     case 6:
       return d.priorite.length ? { ...base, priorites: d.priorite } : null
     case 7: {
-      const exps = d.experiences.filter(e => !experienceVide(e)).map(preparerExperiencePourEnregistrement)
+      const exps = trierExperiences(d.experiences.filter(e => !experienceVide(e))).map(preparerExperiencePourEnregistrement)
       return exps.length ? { ...base, experiences: exps } : null
     }
     case 8: {
-      const diplos = d.diplomes.filter(f => !formationVide(f))
+      const diplos = trierFormations(d.diplomes.filter(f => !formationVide(f)))
       return diplos.length ? { ...base, diplomes: diplos } : null
     }
     case 9: {

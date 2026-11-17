@@ -353,7 +353,67 @@ export function calculerFrise(
   return { visible, resserre, seuil, nbAnciens, segments, formations: formationSegs, graduations: grads }
 }
 
-// ── 5. Entrées vides ──────────────────────────────────────────────────────────
+// ── 5. Tri ───────────────────────────────────────────────────────────────────
+
+// En poste d'abord, puis debut_annee desc, puis debut_mois desc.
+// Sans date de début → après celles qui en ont une (sort stable préserve l'ordre relatif).
+export function trierExperiences<T extends {
+  en_poste: boolean
+  debut_annee?: number | null
+  debut_mois?: number | null
+}>(exps: T[]): T[] {
+  return [...exps].sort((a, b) => {
+    if (a.en_poste && !b.en_poste) return -1
+    if (!a.en_poste && b.en_poste) return 1
+    const diff = (b.debut_annee ?? 0) - (a.debut_annee ?? 0)
+    if (diff !== 0) return diff
+    return (b.debut_mois ?? 0) - (a.debut_mois ?? 0)
+  })
+}
+
+// En cours d'abord, puis annee desc, puis annee_debut desc.
+// Sans année → à la fin (ordre relatif conservé).
+export function trierFormations<T extends {
+  en_cours?: boolean
+  annee?: string
+  annee_debut?: string | null
+}>(diplomes: T[]): T[] {
+  return [...diplomes].sort((a, b) => {
+    if (a.en_cours && !b.en_cours) return -1
+    if (!a.en_cours && b.en_cours) return 1
+    const aAnnee = Number(a.annee) || 0
+    const bAnnee = Number(b.annee) || 0
+    if (bAnnee !== aAnnee) return bAnnee - aAnnee
+    return (Number(b.annee_debut) || 0) - (Number(a.annee_debut) || 0)
+  })
+}
+
+// ── 6. Validation des dates ───────────────────────────────────────────────────
+
+export function finAvantDebut(exp: {
+  en_poste: boolean
+  debut_annee?: number | null
+  fin_annee?: number | null
+  debut_mois?: number | null
+  fin_mois?: number | null
+}): boolean {
+  if (exp.en_poste || !exp.debut_annee || !exp.fin_annee) return false
+  if (exp.fin_annee < exp.debut_annee) return true
+  return exp.fin_annee === exp.debut_annee && !!exp.debut_mois && !!exp.fin_mois && exp.fin_mois < exp.debut_mois
+}
+
+export function debutDansFutur(
+  exp: { debut_annee?: number | null; debut_mois?: number | null },
+  maintenant: Date = new Date(),
+): boolean {
+  if (!exp.debut_annee) return false
+  const annee = maintenant.getFullYear()
+  const mois  = maintenant.getMonth() + 1
+  if (exp.debut_annee > annee) return true
+  return exp.debut_annee === annee && !!exp.debut_mois && exp.debut_mois > mois
+}
+
+// ── 7. Entrées vides ──────────────────────────────────────────────────────────
 
 export function experienceVide(exp: {
   poste: string; entreprise: string; missions: string;

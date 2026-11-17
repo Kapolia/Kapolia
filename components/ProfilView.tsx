@@ -18,7 +18,7 @@ import CarteProjet from '@/components/profil/CarteProjet'
 import CartePriorites from '@/components/profil/CartePriorites'
 import CartePassions from '@/components/profil/CartePassions'
 import CarteLiens from '@/components/profil/CarteLiens'
-import { anneesExperience, lireMoisAnnee, preparerExperiencePourEnregistrement, type PosteParcours } from '@/lib/parcours'
+import { anneesExperience, lireMoisAnnee, preparerExperiencePourEnregistrement, trierExperiences, trierFormations, finAvantDebut, debutDansFutur, type PosteParcours } from '@/lib/parcours'
 import { chargerEntreprisesKapolia, type EntrepriseKapolia } from '@/lib/entreprises-kapolia'
 import CarteParcoursView from '@/components/profil/Parcours'
 import { QUALITE_LABELS, troisPremieres } from '@/lib/test-qualites'
@@ -1171,20 +1171,13 @@ export default function ProfilView({
     if (carte === 'presentation') payload = { prenom: editPrenom, nom: editNom, metier: editMetier || null, domaine: editDomaine || null, experience: editExperience || null, signature: editSignature }
     else if (carte === 'recherche') payload = { disponibilite: editDispo || null, dispo_date: editDispo === 'a_partir_de' ? (editDispoDate || null) : null, type_poste: editTypePoste, mode_travail: editModeTravail, ville: editVille, langues: editLangues, permis: editPermis }
     else if (carte === 'parcours') {
-      const finErr = editExperiences.some(exp => {
-        if (exp.en_poste || !exp.debut_annee || !exp.fin_annee) return false
-        if (exp.fin_annee < exp.debut_annee) return true
-        return exp.fin_annee === exp.debut_annee && !!exp.debut_mois && !!exp.fin_mois && exp.fin_mois < exp.debut_mois
-      })
+      const finErr = editExperiences.some(exp => finAvantDebut(exp) || debutDansFutur(exp))
       if (finErr) { setCarteErreur('Corrigez les dates avant d\'enregistrer.'); setSavingCarte(false); return }
-      const expsToSave = [...editExperiences].map(preparerExperiencePourEnregistrement).sort((a, b) => {
-        const diff = (b.debut_annee ?? 0) - (a.debut_annee ?? 0)
-        return diff !== 0 ? diff : (b.debut_mois ?? 0) - (a.debut_mois ?? 0)
-      })
-      const diploToSave = editDiplomes.map(({ debut_annee, ...rest }) => ({
+      const expsToSave = trierExperiences(editExperiences).map(preparerExperiencePourEnregistrement)
+      const diploToSave = trierFormations(editDiplomes.map(({ debut_annee, ...rest }) => ({
         ...rest,
         annee_debut: rest.annee_debut ?? (debut_annee ? String(debut_annee) : null),
-      }))
+      })))
       payload = { experiences: expsToSave, diplomes: diploToSave }
     }
     else if (carte === 'qualites') payload = { qualites: editQualites }
