@@ -128,7 +128,7 @@ const ETIQ_S:  React.CSSProperties = { fontSize: 15, fontWeight: 600, color: C.d
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
   return (
-    <div className="kv-acc3-wrap" style={{ backgroundColor: C.bg, minHeight: '100vh', position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+    <div className="kv-acc3-wrap" style={{ backgroundColor: C.bg, position: 'fixed', inset: 0, overflowX: 'hidden', overflowY: 'auto', display: 'flex', alignItems: 'center' }}>
       <style suppressHydrationWarning>{`
         @keyframes kv-onde  { 0%{transform:scale(.2);opacity:0} 10%{opacity:1} 100%{transform:scale(1);opacity:0} }
         @keyframes kv-osc   { 0%{transform:rotate(-55deg)} 45%{transform:rotate(16deg)} 70%{transform:rotate(-6deg)} 88%{transform:rotate(2deg)} 100%{transform:rotate(0)} }
@@ -160,7 +160,6 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           .kv-onde,.kv-pt-cl,.kv-halo,.kv-osc,.kv-etage > *,.kv-atouts li { animation:none !important }
         }
         @media (min-width: 1600px) { .kv-acc3-wrap { zoom:1.12; } }
-        @media (min-width: 1920px) { .kv-acc3-wrap { zoom:1.20; } }
         @media (max-width: 640px) {
           .kv-acc3-wrap { flex-direction:column !important; align-items:stretch !important; justify-content:flex-start !important; overflow-x:hidden }
           .kv-visuel-onde { position:relative !important; top:auto !important; right:auto !important; bottom:auto !important; left:auto !important; width:100% !important; height:320px; flex:none; order:2; margin-top:-90px; overflow:hidden; -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 34%); mask-image:linear-gradient(to bottom,transparent 0,#000 34%) }
@@ -847,7 +846,7 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
   return (
     <main
       className={`kv-fn4${visCss ? ` vis-${visCss}` : ''}`}
-      style={{ display:'flex', flexDirection:'row', minHeight:'100vh', backgroundColor:C.bg, position:'relative', overflow:'hidden' }}
+      style={{ display:'flex', flexDirection:'row', position:'fixed', inset:0, backgroundColor:C.bg, overflowY:'auto' }}
     >
       <style suppressHydrationWarning>{`
         /* ── Halos ── */
@@ -916,7 +915,6 @@ function FinalScreen({ onGoToProfile, userId, emailConfirme, prenom }: { onGoToP
           .kv-fn4-txt h1 { font-size:28px !important; }
         }
         @media (min-width:1600px) { .kv-fn4 { zoom:1.12; } }
-        @media (min-width:1920px) { .kv-fn4 { zoom:1.20; } }
         /* ── Reduced motion ── */
         @media (prefers-reduced-motion:reduce) {
           .kv-fn4-pulse { animation:none !important; opacity:1 !important; }
@@ -2592,14 +2590,14 @@ function OnboardingPageInner() {
   }
 
   if (loadingResume) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: C.bg }}>
       <style suppressHydrationWarning>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       <div style={{ width: 36, height: 36, borderRadius: '50%', border: `3px solid ${C.sable}`, borderTopColor: C.terracotta, animation: 'spin 0.8s linear infinite' }} />
     </div>
   )
 
   if (isRefaire) return (
-    <main style={{ backgroundColor: C.bg, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <main style={{ backgroundColor: C.bg, position: 'fixed', inset: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <header style={{ padding: '20px clamp(20px,5%,48px)', borderBottom: `1px solid ${C.sable}`, display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
         <span style={{ fontFamily: FONT_SANS, fontSize: 20, fontWeight: 700, color: C.dark }}>Refaire le questionnaire</span>
         <a href="/profil" style={{ fontSize: 13, fontWeight: 600, color: C.orangeTexte, textDecoration: 'none' }}>Revenir à mon profil</a>
@@ -2693,9 +2691,8 @@ function OnboardingPageInner() {
         }
         #titre-etape:focus { outline: none; }
         /* ── Layout fixe ── */
-        .kv-onb-main { height:100vh; height:100dvh; overflow:hidden; }
-        @media (min-width:1600px) { .kv-onb-main { zoom:1.12; height:calc(100vh/1.12); height:calc(100dvh/1.12); } }
-        @media (min-width:1920px) { .kv-onb-main { zoom:1.20; height:calc(100vh/1.20); height:calc(100dvh/1.20); } }
+        .kv-onb-main { position:fixed; inset:0; overflow:hidden; }
+        @media (min-width:1600px) { .kv-onb-main { zoom:1.12; } }
         /* ── Motion ── */
         @keyframes kv-slide-fwd  { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:none} }
         @keyframes kv-slide-back { from{opacity:0;transform:translateX(-28px)} to{opacity:1;transform:none} }
